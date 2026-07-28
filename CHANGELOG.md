@@ -2,6 +2,24 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.13 (2026-07-29) — Cache busting meta + 版本戳記
+
+**Denias 03:00 反映:**
+v1.4.12 部署後還是看到「系統載入異常」訊息。
+
+**根因:**
+- v1.4.12 實際有部署 (alert 訊息已改為「系統初始化錯誤」)
+- 但 Denias 看到的還是「系統載入異常」→ browser HTTP cache
+- GitHub Pages 有時候 cache 很久, 強制重整不一定夠
+
+**修復:**
+- 加 no-cache, no-store, must-revalidate meta
+- title 加 [v1.4.13] 戳記, Denias 可以看是否加載新版
+- 若還是看到「系統載入異常」, 表示 localStorage 真的壞了
+  需要 Denias dump 出來手動修
+
+檔案: 5089 → 5096 行 (+7)
+
 ### v1.4.12 (2026-07-29) — 系統載入異常錯誤訊息改進
 
 **Denias 02:55 反映:**
