@@ -752,7 +752,7 @@
                 <div style="font-weight: bold; color: var(--primary); font-size: 1.1em;">🔍 看板篩選：</div>
                 <select id="filter-category" onchange="onFilterCategoryChange()"></select>
                 <span style="color: var(--secondary); font-weight: bold;">➡️</span>
-                <select id="filter-mission" onchange="renderDashboard()"></select>
+                <select id="filter-mission" onchange="renderDashboard(); renderTreeView(); renderMonthlyAnalysis();"></select>
             </div>
             <button class="btn-home" style="background: var(--btn-aqua-sky); color: #2c3e50; font-weight: bold; margin-left: auto;" onclick="returnToHome()">🏠 回首頁</button>
         </div>
@@ -4179,7 +4179,7 @@
         }
         
         function updateFilters() { var fCatSel = el('filter-category'); var fMisSel = el('filter-mission'); if(!fCatSel || !fMisSel) return; var prevCat = fCatSel.value; var prevMis = fMisSel.value; var cats = Object.keys(appMissions); var catOpts = '<option value="ALL">🌟 全部顯示</option>'; cats.forEach(c => catOpts += `<option value="${c}">${c}</option>`); fCatSel.innerHTML = catOpts; if (cats.includes(prevCat)) fCatSel.value = prevCat; else fCatSel.value = 'ALL'; onFilterCategoryChange(prevMis); }
-        function onFilterCategoryChange(preserveMis) { var cat = el('filter-category').value; var fMisSel = el('filter-mission'); if(!fMisSel) return; var misOpts = '<option value="ALL">🌟 全部任務</option>'; if (cat !== 'ALL' && appMissions[cat]) Object.keys(appMissions[cat]).forEach(m => misOpts += `<option value="${m}">${m}</option>`); fMisSel.innerHTML = misOpts; if (preserveMis && typeof preserveMis === 'string') { var options = Array.from(fMisSel.options).map(o => o.value); if (options.includes(preserveMis)) fMisSel.value = preserveMis; } renderDashboard(); }
+        function onFilterCategoryChange(preserveMis) { var cat = el('filter-category').value; var fMisSel = el('filter-mission'); if(!fMisSel) return; var misOpts = '<option value="ALL">🌟 全部任務</option>'; if (cat !== 'ALL' && appMissions[cat]) Object.keys(appMissions[cat]).forEach(m => misOpts += `<option value="${m}">${m}</option>`); fMisSel.innerHTML = misOpts; if (preserveMis && typeof preserveMis === 'string') { var options = Array.from(fMisSel.options).map(o => o.value); if (options.includes(preserveMis)) fMisSel.value = preserveMis; } renderDashboard(); renderTreeView(); renderMonthlyAnalysis(); }
         
         window._dashDataStore = {};
 
@@ -4354,12 +4354,23 @@
                 return;
             }
 
-            // v1.4.6: 套用看板篩選 (跟 dashboard 同樣的 cat/mis filter)
+            // v1.4.8: 套用看板篩選 — 不論 cat 是否 ALL, 只要 mis 不是 ALL 就用 mis 的 unitIds
             var filterCat = el('filter-category') ? el('filter-category').value : 'ALL';
             var filterMis = el('filter-mission') ? el('filter-mission').value : 'ALL';
             var allowedUnitIds = null;  // null = 全部, Set = 過濾
-            if (filterMis !== 'ALL' && filterCat !== 'ALL' && appMissions[filterCat] && appMissions[filterCat][filterMis]) {
-                allowedUnitIds = new Set(appMissions[filterCat][filterMis]);
+            if (filterMis !== 'ALL') {
+                // 找 mis 實際所在的 cat (用搜尋方式, 因為 mis 在 onFilterCategoryChange 會被清掉)
+                var foundCat = null;
+                if (filterCat !== 'ALL' && appMissions[filterCat] && appMissions[filterCat][filterMis]) {
+                    foundCat = filterCat;
+                } else {
+                    Object.keys(appMissions).forEach(function(c) {
+                        if (appMissions[c] && appMissions[c][filterMis]) foundCat = c;
+                    });
+                }
+                if (foundCat && appMissions[foundCat][filterMis]) {
+                    allowedUnitIds = new Set(appMissions[foundCat][filterMis]);
+                }
             } else if (filterCat !== 'ALL' && appMissions[filterCat]) {
                 // 只選 category, 收集底下所有 mis 的 unitIds
                 allowedUnitIds = new Set();

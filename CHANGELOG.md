@@ -2,6 +2,32 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.8 (2026-07-29) — 樹狀圖 bug: 不同任務顯示不同內容
+
+**Denias 02:26 反映:**
+不管選「暑期複習進度」或「一模」, 樹狀圖顯示都一樣。
+
+**根因 (v1.4.6/v1.4.7 bug 1 + 1):**
+
+**Bug 1: filter 邏輯錯**
+- v1.4.6 的 filter 要求 `filterCat !== 'ALL' && filterMis !== 'ALL'`
+- 但 cat dropdown 預設是 ALL, mis 切換時 cat 不一定動
+- 只要 cat=ALL, allowedUnitIds=null, 全部 units 都顯示
+- -> 不同任務看到一模一樣 (全部)
+
+**Bug 2: 切 filter 後 tree/monthly 不重繪**
+- onFilterCategoryChange 只叫 renderDashboard()
+- filter-mission onchange 也只叫 renderDashboard()
+- 樹狀圖/月分析不會重畫, 看到的是旧狀態
+
+**修復:**
+- 重寫 filter 邏輯: 只要 mis 不是 ALL 就用 mis 查 unitIds
+  (搜尋 appMissions 找 mis 實際所屬 cat, 不依賴 filterCat)
+- onFilterCategoryChange 加 renderTreeView() + renderMonthlyAnalysis()
+- filter-mission onchange 加 renderTreeView() + renderMonthlyAnalysis()
+
+檔案: 4995 → 5010 行 (+15)
+
 ### v1.4.7 (2026-07-29) — X 軸軸線對齊 Y=0
 
 **Denias 02:11 反映:**
