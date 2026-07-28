@@ -2,6 +2,31 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.14 (2026-07-29) — 緊急 fix: Can't find variable: byMonth
+
+**Denias 03:07 反映:**
+整個程式壞掉, 無法進入 (系統初始化錯誤 → Can't find variable: byMonth)
+
+**根因 (v1.4.10 移除 bug):**
+- v1.4.10 我加 dedup 邏輯時, 重複宣告區塊, 不小心覆蓋
+- 原本 `var byMonth = {};` 被刪掉
+- appLogs.forEach 內用到 byMonth 但沒宣告 → 程式崩潰
+
+**修復:**
+- 加回 `var byMonth = {};` 在 seenLogs 旁邊
+- 驗證 v1.4.10/v1.4.11/v1.4.12 deploy 後從未正常運作 (因 byMonth 始終找不到)
+
+**諷刺的是:** Denias 之前看 340, 是因為 byMonth 變數引用失敗之前
+產生其他 error, 可能是其他 path 走到的, 或 byMonth 偶然是 undefined 物件
+以某種方式處理
+- 這次 v1.4.13 後 cache control + 強制重整後才看到「Can't find variable: byMonth」
+
+**為什麼之前 Denias 能看 340:**
+- 可能是某個 code path 偶然能跑 (如 filter 導致直接 return)
+- 或 cached 舊版還沒清掉
+
+檔案: 5096 → 5097 行 (+1)
+
 ### v1.4.13 (2026-07-29) — Cache busting meta + 版本戳記
 
 **Denias 03:00 反映:**
