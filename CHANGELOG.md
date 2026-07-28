@@ -2,6 +2,27 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.3 (2026-07-29) — 月份分析 bar 比例錯位 fix
+
+**Denias 01:44 反映:**
+月份分析 W4=30 頁的 bar 視覺上像對齊到 Y=85 那條線, 看起來好像 85+ 頁。
+
+**根因 (v1.4.2 bug):**
+- 原本用 `grid-template-rows: auto 1fr auto auto` 的 `1fr` 是彈性, 會把 bar 撐大到剩餘空間, 不是真正的比例
+- W4 bar 變成被 grid 撐大, 看起來跟 Y=85 對齊
+
+**修復:**
+1. wrap 改用 `grid-template-rows: auto 180px auto auto` (固定 180px)
+2. 加 `.monthly-week-bar-area` wrapper 固定 180px 高, bar 從底部往上長
+3. bar 高度公式: `(pages / maxWeekPages) * 180` (不用 * 110)
+4. Y 軸固定 180px 高, top: 28px 對齊 bar-area 頂部
+
+**驗證:**
+- W1=340 → bar 180px (到 Y=340)
+- W4=30 → bar 16px (在 Y=0~85 之間, 清楚不到 85)
+
+檔案: 4880 → 4899 行 (+19)
+
 ### v1.4.2 (2026-07-29) — 3 個修正
 
 **Denias 01:34 反應:**

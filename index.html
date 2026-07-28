@@ -364,8 +364,9 @@
 }
 .monthly-yaxis {
     position: absolute;
-    left: 0; top: 8px; bottom: 30px;
+    left: 0; top: 28px;
     width: 45px;
+    height: 180px;
     display: flex; flex-direction: column-reverse; justify-content: space-between;
     color: var(--secondary); font-size: 0.75em;
     border-right: 1px solid var(--border);
@@ -375,21 +376,27 @@
     transform: translateY(50%);
 }
 .monthly-weeks {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    display: flex;
     gap: 14px;
-    padding: 8px 0 8px 4px;
-    min-height: 200px;
+    padding: 0 0 8px 4px;
     border-bottom: 2px solid var(--border);
-    align-items: end;
+    align-items: flex-end;
+    justify-content: flex-start;
 }
 .monthly-week-bar-wrap {
+    flex: 1;
     display: grid;
-    grid-template-rows: auto 1fr auto auto;
+    grid-template-rows: auto 180px auto auto;
     align-items: end;
     justify-items: center;
     gap: 4px;
-    min-height: 200px;
+}
+.monthly-week-bar-area {
+    width: 100%;
+    max-width: 60px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
 }
 .monthly-week-pages {
     font-size: 0.85em; color: var(--secondary); font-weight: bold;
@@ -4518,7 +4525,7 @@
 
                 weekKeys.forEach(function(wk) {
                     var pages = m.weeks[wk];
-                    var h = Math.max(2, (pages / maxWeekPages) * 110);
+                    var h = Math.max(2, (pages / maxWeekPages) * 180);
                     var wkStart = new Date(firstMonday);
                     wkStart.setDate(firstMonday.getDate() + (parseInt(wk) - 1) * 7);
                     var wkEnd = new Date(wkStart);
@@ -4528,7 +4535,7 @@
 
                     html += '<div class="monthly-week-bar-wrap">' +
                         '<div class="monthly-week-pages">' + pages + '</div>' +
-                        '<div class="monthly-week-bar" style="height:' + h + 'px;" title="W' + wk + ' (' + startStr + '~' + endStr + '): ' + pages + ' 頁"></div>' +
+                        '<div class="monthly-week-bar-area"><div class="monthly-week-bar" style="height:' + h + 'px;" title="W' + wk + ' (' + startStr + '~' + endStr + '): ' + pages + ' 頁"></div></div>' +
                         '<div class="monthly-week-label">W' + wk + '</div>' +
                         '<div class="monthly-week-range">' + startStr + '~' + endStr + '</div>' +
                     '</div>';
