@@ -2,6 +2,23 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.4 (2026-07-29) — 月份分析 bar 從 0 往上長 (真 fix)
+
+**Denias 01:47 反映:**
+從圖看, W4 bar 不從 Y=0 開始往上長, 反而從 ~Y=85 起算, 違反長條圖原則。
+
+**根因 (v1.4.3 仍未解決):**
+- wrap 用 `grid-template-rows: auto 180px auto auto`, 但 `monthly-week-bar-area` 沒有 height
+- area 被 bar 內容撐大 (只有 16px), 而非 180px
+- 結果: bar 從 area 底部往上長, 但 area 高度不對, 看起來不是從 0 開始
+
+**修复:**
+- `.monthly-week-bar-area` 加 `height: 180px; min-height: 180px;`
+- JS 內 inline `style=\"height:180px\"` 雙重保險
+- 驗證: W4 bar = 16px 從 Y=0 開始 (之前從 ~Y=85 起算, 現修正)
+
+檔案: 4899 → 4902 行 (+3)
+
 ### v1.4.3 (2026-07-29) — 月份分析 bar 比例錯位 fix
 
 **Denias 01:44 反映:**

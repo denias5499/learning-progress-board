@@ -394,6 +394,8 @@
 .monthly-week-bar-area {
     width: 100%;
     max-width: 60px;
+    min-height: 180px;
+    height: 180px;
     display: flex;
     align-items: flex-end;
     justify-content: center;
@@ -4535,7 +4537,7 @@
 
                     html += '<div class="monthly-week-bar-wrap">' +
                         '<div class="monthly-week-pages">' + pages + '</div>' +
-                        '<div class="monthly-week-bar-area"><div class="monthly-week-bar" style="height:' + h + 'px;" title="W' + wk + ' (' + startStr + '~' + endStr + '): ' + pages + ' 頁"></div></div>' +
+                        '<div class="monthly-week-bar-area" style="height:180px"><div class="monthly-week-bar" style="height:' + h + 'px;" title="W' + wk + ' (' + startStr + '~' + endStr + '): ' + pages + ' 頁"></div></div>' +
                         '<div class="monthly-week-label">W' + wk + '</div>' +
                         '<div class="monthly-week-range">' + startStr + '~' + endStr + '</div>' +
                     '</div>';
