@@ -3661,18 +3661,17 @@
         window._dashDataStore = {};
 
         function findUnitScheduledDate(unitId) {
-            // 從所有 plan 的 grid 找 unitId 對應的 task,取最後一個未來日期
+            // 從所有 plan 的 grid 找 unitId 對應的未完成 task,取最後一個排程日 (過去或未來都算)
             if (!appPlans || appPlans.length === 0) return null;
-            var todayStr = getLocalDateString(new Date());
             var latestDate = null;
             appPlans.forEach(plan => {
                 if (!plan.grid) return;
                 Object.keys(plan.grid).forEach(dateStr => {
-                    if (dateStr < todayStr) return; // 跳過過去
                     var tasks = plan.grid[dateStr];
                     if (!Array.isArray(tasks)) return;
                     tasks.forEach(t => {
-                        if (t && t.unitId === unitId) {
+                        // 過濾掉已勾選完成的 task
+                        if (t && t.unitId === unitId && !t.isDone) {
                             if (!latestDate || dateStr > latestDate) latestDate = dateStr;
                         }
                     });
@@ -3905,7 +3904,14 @@
                             var parts = d.expected.split('-');
                             var mm = parseInt(parts[1], 10);
                             var dd = parseInt(parts[2], 10);
-                            statusHtml = '<span style="color:var(--accent); font-weight:bold;">預定 ' + mm + '/' + dd + ' 完成</span>';
+                            var todayStr = getLocalDateString(new Date());
+                            if (d.expected < todayStr) {
+                                statusHtml = '<span style="color:var(--warning); font-weight:bold;">原排 ' + mm + '/' + dd + '（逾期）</span>';
+                            } else if (d.expected === todayStr) {
+                                statusHtml = '<span style="color:var(--accent); font-weight:bold;">今天 ' + mm + '/' + dd + ' 完成</span>';
+                            } else {
+                                statusHtml = '<span style="color:var(--accent); font-weight:bold;">預定 ' + mm + '/' + dd + ' 完成</span>';
+                            }
                         } else {
                             statusHtml = '<span style="color:#7f8c8d;">待安排</span>';
                         }
