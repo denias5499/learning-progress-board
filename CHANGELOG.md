@@ -2,6 +2,26 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.1 (2026-07-29) — 5 個修正 + CSS 補上
+
+**Denias 01:13 反應的 5 個問題:**
+1. 「16.4 黏在一起」 → 平均值放大 (2em, 黃底 pill, 900 weight)
+2. Bar 顏色 → 改為 `#D6C3BF` (儀表板 + 月份分析都改)
+3. 總計 109 頁底色 → `#99F2E2` (深綠字)
+4. **樹狀圖不見了** → **v1.4.0 漏掉了 `.stats-tab` / `.stats-view` / `.tree-*` / `.monthly-*` 所有 CSS, 本次補上**
+5. 月份分析長條圖強化 → 加 Y 軸刻度 (5 等分頁數) + X 軸 caption + 套用 #D6C3BF
+
+**根因 (v1.4.0 bug):**
+v1.4.0 的 patch script 從 step 4+5 開始出現 anchor 錯誤 (8 spaces vs 4 spaces 混淆), 所有 CSS 都未生效。HTML + JS 都有, 所以「點下去什麼都沒出現」。
+
+**修复:**
+- 補上 `.stats-tab` / `.stats-view` / `.stats-card-header` CSS
+- 補上完整 `.tree-container` / `.tree-subject` / `.tree-dot` / `.tree-unit` CSS (nested ul)
+- 補上完整 `.monthly-block` / `.monthly-weeks` / `.monthly-week-bar` CSS + Y 軸
+- 修飾平均值樣式 (放大 2em + 黃底 pill)
+
+檔案: 4634 → 4773 行 (+139)
+
 ### v1.4.0 (2026-07-28) — 學習統計分析 + Dashboard 強化 📊
 
 **Denias 17:10 一次提了 5 個需求:**
