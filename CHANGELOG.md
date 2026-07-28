@@ -2,6 +2,24 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.6 (2026-07-29) — 4 個修正
+
+**Denias 02:04 反應:**
+
+1. ✅ **X 軸軸線** — monthly-weeks border 2px → 3px 深色 (`var(--primary)`)
+2. ✅ **Y 軸加「頁數」標籤** + caption 簡化
+   - 新增 .monthly-yaxis-wrap + .monthly-yaxis-title (上方標題 「頁數」)
+   - caption: 「週次 · 日期範圍 (頁數 / Y 軸)」 → 「週次 · 日期範圍」
+3. ✅ **樹狀圖同步看板篩選** (大改)
+   - 讀 filter-category + filter-mission 選擇
+   - 算出 allowedUnitIds Set
+   - 過濾 custom units + vols units
+   - 過濾掉完全空的 vols
+   - 樹狀圖只顯示選中 mission/cat 內的 unit 進度
+4. ✅ **刪除「學習統計分析」右側回首頁按鍵** (看板篩選已有, 重複)
+
+檔案: 4909 → 4989 行 (+80)
+
 ### v1.4.5 (2026-07-29) — bar 從 0 往上長 (CSS 重寫)
 
 **Denias 01:51 反映:**

@@ -362,14 +362,26 @@
     position: relative;
     padding-left: 50px;
 }
-.monthly-yaxis {
+.monthly-yaxis-wrap {
     position: absolute;
-    left: 0; top: 28px;
+    left: 0; top: 0; bottom: 0;
     width: 45px;
-    height: 180px;
+    display: flex; flex-direction: column;
+}
+.monthly-yaxis-title {
+    font-size: 0.75em;
+    color: var(--primary);
+    font-weight: bold;
+    text-align: center;
+    margin-bottom: 6px;
+    padding-right: 6px;
+}
+.monthly-yaxis {
+    flex: 1;
     display: flex; flex-direction: column-reverse; justify-content: space-between;
     color: var(--secondary); font-size: 0.75em;
     border-right: 1px solid var(--border);
+    padding-right: 6px;
 }
 .monthly-yaxis-label {
     text-align: right; padding-right: 6px;
@@ -379,8 +391,8 @@
     display: flex;
     gap: 14px;
     padding: 0 0 8px 4px;
-    border-bottom: 2px solid var(--border);
-    align-items: flex-start;  /* 不要 end, 讓每個 wrap 自己控制 */
+    border-bottom: 3px solid var(--primary);  /* X 軸軸線 (v1.4.6 加粗) */
+    align-items: flex-start;
 }
 .monthly-week-bar-wrap {
     flex: 1;
@@ -934,7 +946,6 @@
                 <div class="modal-header">
                     <div class="stats-card-header" style="width: 100%;">
                         <h2>📊 學習統計分析</h2>
-                        <button class="stats-close" onclick="returnToHome()">🏠 回首頁</button>
                     </div>
                 </div>
                 <div class="stats-tabs">
@@ -4335,6 +4346,22 @@
                 return;
             }
 
+            // v1.4.6: 套用看板篩選 (跟 dashboard 同樣的 cat/mis filter)
+            var filterCat = el('filter-category') ? el('filter-category').value : 'ALL';
+            var filterMis = el('filter-mission') ? el('filter-mission').value : 'ALL';
+            var allowedUnitIds = null;  // null = 全部, Set = 過濾
+            if (filterMis !== 'ALL' && filterCat !== 'ALL' && appMissions[filterCat] && appMissions[filterCat][filterMis]) {
+                allowedUnitIds = new Set(appMissions[filterCat][filterMis]);
+            } else if (filterCat !== 'ALL' && appMissions[filterCat]) {
+                // 只選 category, 收集底下所有 mis 的 unitIds
+                allowedUnitIds = new Set();
+                Object.keys(appMissions[filterCat]).forEach(function(m) {
+                    (appMissions[filterCat][m] || []).forEach(function(uid) {
+                        allowedUnitIds.add(uid);
+                    });
+                });
+            }
+
             // 計算每個 unit 的完成度
             var logData = {};
             if (Array.isArray(appLogs)) {
@@ -4386,6 +4413,7 @@
                 // 先算總數
                 function countUnits(arr) {
                     arr.forEach(u => {
+                        if (allowedUnitIds && !allowedUnitIds.has(u.id)) return;
                         totalCount++;
                         var t = totalOf(u);
                         if (getStatus(u.id, t) === 'done') doneCount++;
@@ -4403,9 +4431,12 @@
                 html += '<h2>' + escapeHtml(sub) + '<span class="tree-progress">' + doneCount + ' / ' + totalCount + '</span></h2>';
 
                 if (s.type === 'custom' && Array.isArray(s.units)) {
+                    // v1.4.6: 套用 filter - 只列在 mission 內的 units
+                    var filteredUnits = s.units.filter(function(u) { return !allowedUnitIds || allowedUnitIds.has(u.id); });
+                    if (filteredUnits.length === 0) return;
                     html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
                     html += '<ul class="tree-units">';
-                    s.units.forEach(u => {
+                    filteredUnits.forEach(u => {
                         var t = totalOf(u);
                         var st = getStatus(u.id, t);
                         var dotClass = 'dot-' + st;
@@ -4422,6 +4453,9 @@
                     volOrder.forEach(volName => {
                         var arr = s.vols[volName];
                         if (!Array.isArray(arr) || arr.length === 0) return;
+                        // v1.4.6: 套用 filter
+                        arr = arr.filter(function(u) { return !allowedUnitIds || allowedUnitIds.has(u.id); });
+                        if (arr.length === 0) return;
                         html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + escapeHtml(volName) + '</li>';
                         html += '<ul class="tree-units">';
                         arr.forEach(u => {
@@ -4520,11 +4554,14 @@
                 var weekKeys = Object.keys(m.weeks).sort(function(a, b) { return parseInt(a) - parseInt(b); });
                 html += '<div class="monthly-chart-area">';
                 // Y 軸刻度 (頁數) - 5 等分
+                html += '<div class="monthly-yaxis-wrap">';
+                html += '<div class="monthly-yaxis-title">頁數</div>';
                 html += '<div class="monthly-yaxis">';
                 for (var yi = 0; yi <= 4; yi++) {
                     var yv = Math.round(maxWeekPages * yi / 4);
                     html += '<div class="monthly-yaxis-label">' + yv + '</div>';
                 }
+                html += '</div>';
                 html += '</div>';
                 html += '<div class="monthly-weeks">';
 
@@ -4555,7 +4592,7 @@
                 });
 
                 html += '</div>';  // .monthly-weeks
-                html += '<div class="monthly-axis-caption">週次 · 日期範圍 (頁數 / Y 軸)</div>';
+                html += '<div class="monthly-axis-caption">週次 · 日期範圍</div>';
                 html += '</div>';  // .monthly-chart-area
                 html += '</div>';  // .monthly-block
             });
