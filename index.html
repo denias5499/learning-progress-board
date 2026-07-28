@@ -1570,15 +1570,26 @@
         }
 
         function initUsers() {
-            try {
-                loadBoardHeader();
+            loadBoardHeader();
 
-                var currentDataStr = localStorage.getItem(STORAGE_KEY_FAMILY);
-                if (currentDataStr) {
+            var currentDataStr = localStorage.getItem(STORAGE_KEY_FAMILY);
+            if (currentDataStr) {
+                try {
                     multiData = JSON.parse(currentDataStr);
-                } else {
+                } catch (parseErr) {
+                    // v1.4.12: JSON parse 失敗 — 不要 mask 整個 app, 給詳細訊息
+                    console.error("JSON 解析失敗:", parseErr);
+                    console.error("原始資料 (前 500 字):", currentDataStr.substring(0, 500));
+                    var backupKey = STORAGE_KEY_FAMILY + '_backup_' + Date.now();
+                    localStorage.setItem(backupKey, currentDataStr);
+                    alert("⚠️ 資料檔案毀損！\n\n已自動備份到:\n" + backupKey + "\n\n將以空白資料重新開始。舊資料可手動從 localStorage 復原。\n\n錯誤訊息: " + parseErr.message);
                     multiData = { "user_A": { name: "學生 A", master: {}, missions: {}, logs: [], plans: [], avatar: "" } };
                 }
+            } else {
+                multiData = { "user_A": { name: "學生 A", master: {}, missions: {}, logs: [], plans: [], avatar: "" } };
+            }
+
+            try {
 
                 Object.keys(multiData).forEach(uid => {
                     if (!multiData[uid].plans) multiData[uid].plans = [];
@@ -1628,7 +1639,8 @@
                 applyPlannerButtonsColors();
             } catch (e) {
                 console.error("初始化錯誤:", e);
-                alert("系統載入異常，請確保您的資料檔案沒有毀損，或聯繫開發者。");
+                console.error("錯誤堆疊:", e.stack);
+                alert("系統初始化錯誤\n\n錯誤訊息: " + e.message + "\n\n請打開 F12 (開發者工具) → Console 看詳細錯誤, 或聯繫開發者。\n\n資料已備份於 localStorage 開頭是 'learningProgressBoardFamily_backup_' 的 key。");
             }
         }
 
