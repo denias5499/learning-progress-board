@@ -1,5 +1,21 @@
 # 版本演進 (CHANGELOG)
 
+## v1.3 (2026-07-28) — 知識星空圖 🌌
+- 🌟 **新 tab「星空圖」**: Dashboard 上方加兩個 tab (儀表板 / 星空圖), 點切換
+- 🌌 **Constellation Star Map**: 根據 plan (專案) 繪製所有 mission 的星空
+  - 每個 mission = 一個 cluster (圓形區域)
+  - Cluster 內每個 unit = 一顆星
+  - 同 subject 的 unit 用細線連成星座
+- ✨ **完成度視覺化**:
+  - 100% 完成 = 金色亮星 + glow 光暈 + ✓ 標記
+  - 1-99% 進行中 = 藍色漸層星
+  - 0% 未開始 = 灰色描邊 (反白)
+- 📅 **Plan Selector**: 星空圖頂部 dropdown 切換不同 plan
+- 🖱️ **Hover Tooltip**: 顯示「科目 / 單元名 / 頁數 X/Y / 完成率」
+- 🎨 **背景星空**: 80 顆隨機背景裝飾星
+- 📊 **Cluster summary**: 每個 mission 下方顯示「N / M 單元完成」
+- 🛠️ **底層**: 純 SVG, 無外部 library, 保持單檔 SPA 架構
+
 ## v1.2 (2026-07-28) — 預定完成日提示
 - 📅 Dashboard 未完成單元 modal 狀態欄智能化：
   - 如果月曆有排程到這個單元,顯示「預定 M/D 完成」(藍色,粗體)
