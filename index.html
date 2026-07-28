@@ -104,6 +104,54 @@
 .dash-week-label { font-size: 0.75em; color: var(--secondary); font-weight: bold; }
 .dash-week-pages { font-size: 0.7em; color: var(--secondary); }
 
+/* v1.4.0: 強化 7 日 bar 顯示 */
+.dash-week-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+}
+.dash-week-header h3 { margin: 0; color: var(--primary); font-size: 1.1em; }
+.dash-week-unit { font-size: 0.85em; color: var(--secondary); font-weight: normal; }
+.dash-week-total {
+    display: flex; align-items: baseline; gap: 6px;
+    background: linear-gradient(135deg, var(--accent), var(--success));
+    color: #fff; padding: 4px 14px; border-radius: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+.dash-week-total-label { font-size: 0.75em; opacity: 0.9; }
+.dash-week-total-value { font-size: 1.3em; font-weight: bold; line-height: 1; }
+.dash-week-total-unit { font-size: 0.75em; opacity: 0.9; }
+.dash-week-avg-row {
+    font-size: 0.85em; color: var(--secondary);
+    margin-bottom: 10px; padding-left: 4px;
+}
+.dash-week-avg-row b { color: var(--primary); font-size: 1.1em; }
+.dash-week-bar-wrap {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 4px; height: 100%; justify-content: flex-end;
+    position: relative;
+}
+.dash-week-bar-area {
+    width: 100%; height: 90px;
+    position: relative;
+    display: flex; flex-direction: column; justify-content: flex-end;
+}
+.dash-week-bar {
+    width: 100%; background: linear-gradient(180deg, var(--accent), var(--success));
+    border-radius: 4px 4px 0 0; min-height: 2px; transition: all 0.3s; cursor: pointer;
+}
+.dash-week-avg-line {
+    position: absolute; left: 0; right: 0;
+    height: 0; border-top: 2px dashed #ef4444;
+    z-index: 5; pointer-events: auto;
+}
+.dash-week-avg-line::before {
+    content: 'avg'; position: absolute; right: -3px; top: -10px;
+    font-size: 0.55em; color: #ef4444; font-weight: bold;
+}
+.dash-week-date {
+    font-size: 0.65em; color: var(--secondary); margin-top: -2px;
+}
+
 /* ===== v1.1: Theme Toggle Button ===== */
 .theme-toggle {
     background: transparent; border: 2px solid var(--border); color: var(--primary);
@@ -420,6 +468,7 @@
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
                     <button id="nav-btn-history" class="nav-btn nav-btn-3" onclick="openHistory()">📝 歷史紀錄</button>
                     <button id="nav-btn-daily" class="nav-btn nav-btn-4" onclick="openDailyInput()">✅ 每日輸入</button>
+                    <button id="nav-btn-stats" class="nav-btn nav-btn-5" onclick="openStats()" style="background-color: #c4e0f9 !important;">📊 學習統計分析</button>
                 </div>
             </div>
         </div>
@@ -436,13 +485,7 @@
         </div>
 
         <!-- 主顯示區 -->
-        <div class="dash-tabs">
-            <button class="dash-tab active" data-view="dashboard" onclick="switchDashView('dashboard')">📊 儀表板</button>
-            <button class="dash-tab" data-view="starmap" onclick="switchDashView('starmap')">🌳 樹狀圖</button>
-        </div>
-
         <div id="dashboard-root" class="dash-view active"></div>
-        <div id="starmap-root" class="dash-view"></div>
 
         <!-- 教材庫與備份設定 -->
         <div id="page-settings" class="page-view">
@@ -632,6 +675,28 @@
             </div>
         </div>
         
+        <!-- v1.4.0: 學習統計分析 -->
+        <div id="page-stats" class="page-view">
+            <div class="page-card">
+                <div class="modal-header">
+                    <div class="stats-card-header" style="width: 100%;">
+                        <h2>📊 學習統計分析</h2>
+                        <button class="stats-close" onclick="returnToHome()">🏠 回首頁</button>
+                    </div>
+                </div>
+                <div class="stats-tabs">
+                    <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">🌳 樹狀圖</button>
+                    <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">📅 月份分析</button>
+                </div>
+                <div id="stats-tree" class="stats-view active">
+                    <div id="starmap-root"></div>
+                </div>
+                <div id="stats-monthly" class="stats-view">
+                    <div id="monthly-root"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- 歷史紀錄 -->
         <div id="page-history" class="page-view">
             <div class="page-card">
@@ -1036,6 +1101,7 @@
                 if (pageId === 'page-planner' && el('nav-btn-planner')) el('nav-btn-planner').classList.add('active-nav');
                 if (pageId === 'page-history' && el('nav-btn-history')) el('nav-btn-history').classList.add('active-nav');
                 if (pageId === 'page-daily' && el('nav-btn-daily')) el('nav-btn-daily').classList.add('active-nav');
+                if (pageId === 'page-stats' && el('nav-btn-stats')) el('nav-btn-stats').classList.add('active-nav');
             }
         }
 
@@ -3228,6 +3294,25 @@
         }
 
         function openHistory() { renderHistoryTable(); showPage('page-history'); }
+
+        // === v1.4.0: 學習統計分析 ===
+        function openStats() {
+            showPage('page-stats');
+            // 預設顯示樹狀圖
+            renderTreeView();
+        }
+
+        function switchStatsView(view) {
+            document.querySelectorAll('.stats-view').forEach(function(v) { v.classList.remove('active'); });
+            document.querySelectorAll('.stats-tab').forEach(function(b) { b.classList.remove('active'); });
+            var targetId = view === 'tree' ? 'stats-tree' : 'stats-monthly';
+            el(targetId).classList.add('active');
+            document.querySelectorAll('.stats-tab').forEach(function(b) {
+                if (b.getAttribute('data-view') === view) b.classList.add('active');
+            });
+            if (view === 'tree') renderTreeView();
+            else if (view === 'monthly') renderMonthlyAnalysis();
+        }
         
         function renderHistoryTable() { 
             var todayStr = getLocalDateString(new Date());
@@ -3892,22 +3977,33 @@
                 if (l.date >= monthStartStr) monthPages += l.pages;
             });
             
-            // 7-day bars
+            // 7-day bars (v1.4.0: 加日期 + 平均線 + 總計)
             var days = [];
             for (var i = 6; i >= 0; i--) {
                 var d = new Date(now); d.setDate(now.getDate() - i);
                 var ds = getLocalDateString(d);
                 var dayLabel = ['日','一','二','三','四','五','六'][d.getDay()];
-                days.push({ date: ds, label: dayLabel, pages: dailyPages[ds] || 0 });
+                // 月/日 (短格式)
+                var m = d.getMonth() + 1;
+                var dd = d.getDate();
+                days.push({ date: ds, label: dayLabel, md: m + '/' + dd, pages: dailyPages[ds] || 0 });
             }
             var maxPages = Math.max.apply(null, days.map(d => d.pages).concat([1]));
+            // 平均 (基於 7 日總和)
+            var avgPages = Math.round(weekPages / 7);
             
             var weekBarsHtml = days.map(d => {
                 var h = Math.max(2, (d.pages / maxPages) * 90);
+                // 平均線位置 (% 高度)
+                var avgPct = maxPages > 0 ? (avgPages / maxPages * 100) : 0;
                 return '<div class="dash-week-bar-wrap">' +
                     '<div class="dash-week-pages">' + d.pages + '</div>' +
-                    '<div class="dash-week-bar" style="height:' + h + 'px;" title="' + d.date + ': ' + d.pages + ' 頁"></div>' +
+                    '<div class="dash-week-bar-area">' +
+                        '<div class="dash-week-bar" style="height:' + h + 'px;" title="' + d.date + ': ' + d.pages + ' 頁"></div>' +
+                        (avgPages > 0 ? '<div class="dash-week-avg-line" style="bottom:' + avgPct + '%;" title="7 日平均 ' + avgPages + ' 頁"></div>' : '') +
+                    '</div>' +
                     '<div class="dash-week-label">' + d.label + '</div>' +
+                    '<div class="dash-week-date">' + d.md + '</div>' +
                 '</div>';
             }).join('');
             
@@ -3937,7 +4033,15 @@
                 '</div>' +
             '</div>' +
             '<div class="dash-weekly-chart">' +
-                '<h3>📊 近 7 日學習量</h3>' +
+                '<div class="dash-week-header">' +
+                    '<h3>📊 近 7 日學習量 <span class="dash-week-unit">（頁）</span></h3>' +
+                    '<div class="dash-week-total">' +
+                        '<span class="dash-week-total-label">總計</span>' +
+                        '<span class="dash-week-total-value">' + weekPages + '</span>' +
+                        '<span class="dash-week-total-unit">頁</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="dash-week-avg-row">7 日平均 <b>' + avgPages + ' 頁/天</b></div>' +
                 '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
             '</div>';
         }
@@ -4091,8 +4195,106 @@
             html += '<div class="tree-legend-item"><span class="tree-legend-dot done"></span><span>已完成 (100%)</span></div>';
             html += '<div class="tree-legend-item"><span class="tree-legend-dot progress"></span><span>進行中 (1-99%)</span></div>';
             html += '<div class="tree-legend-item"><span class="tree-legend-dot todo"></span><span>未開始 (0%)</span></div>';
+            html += '<div class="tree-legend-item"><span style="font-size:1em;">⏰</span><span>有排程</span></div>';
             html += '</div>';
 
+            root.innerHTML = html;
+        }
+
+        // === v1.4.0: 月份分析 (月→週 bar chart) ===
+        function renderMonthlyAnalysis() {
+            var root = el('monthly-root');
+            if (!root) return;
+            root.innerHTML = '';
+
+            if (!Array.isArray(appLogs) || appLogs.length === 0) {
+                root.innerHTML = '<div class="monthly-empty">📅 尚無學習紀錄, 無法分析</div>';
+                return;
+            }
+
+            // 收集 log: 按月份 → 週次 (該月內) → 頁數
+            function getMonthWeek(dateStr) {
+                var d = new Date(dateStr + 'T00:00:00');
+                var year = d.getFullYear();
+                var month = d.getMonth() + 1;
+                var firstOfMonth = new Date(year, month - 1, 1);
+                // 找本月第一個週一
+                var firstMonday = new Date(firstOfMonth);
+                var dayOfWeek = firstOfMonth.getDay(); // 0=日, 1=一, ..., 6=六
+                var offset = dayOfWeek === 0 ? 1 : (8 - dayOfWeek); // 距離下個週一幾天
+                if (dayOfWeek === 1) offset = 0;
+                firstMonday.setDate(firstOfMonth.getDate() + offset);
+                if (d < firstMonday) return { year: year, month: month, week: 1 };
+                var daysDiff = Math.floor((d - firstMonday) / (24 * 60 * 60 * 1000));
+                var week = Math.floor(daysDiff / 7) + 1;
+                return { year: year, month: month, week: week };
+            }
+
+            var byMonth = {};
+            appLogs.forEach(l => {
+                if (!l.date || !l.pages || l.pages <= 0) return;
+                if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
+                var mw = getMonthWeek(l.date);
+                var key = mw.year + '-' + String(mw.month).padStart(2, '0');
+                if (!byMonth[key]) byMonth[key] = { year: mw.year, month: mw.month, weeks: {} };
+                if (!byMonth[key].weeks[mw.week]) byMonth[key].weeks[mw.week] = 0;
+                byMonth[key].weeks[mw.week] += l.pages;
+            });
+
+            var monthKeys = Object.keys(byMonth).sort();
+            if (monthKeys.length === 0) {
+                root.innerHTML = '<div class="monthly-empty">📅 尚無學習紀錄, 無法分析</div>';
+                return;
+            }
+
+            var html = '<div class="monthly-container">';
+
+            monthKeys.forEach(mkey => {
+                var m = byMonth[mkey];
+                var monthLabel = m.year + ' 年 ' + m.month + ' 月';
+                var totalPages = Object.values(m.weeks).reduce(function(a, b) { return a + b; }, 0);
+                var maxWeekPages = Math.max.apply(null, Object.values(m.weeks).concat([1]));
+
+                html += '<div class="monthly-block">';
+                html += '<div class="monthly-block-header">';
+                html += '<h3>' + monthLabel + '</h3>';
+                html += '<div class="monthly-total">總計 <b>' + totalPages + '</b> 頁</div>';
+                html += '</div>';
+
+                var weekKeys = Object.keys(m.weeks).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+                html += '<div class="monthly-weeks">';
+
+                // 預先算本月第一個週一 (用來算每週日期範圍)
+                var firstOfMonth = new Date(m.year, m.month - 1, 1);
+                var dayOfWeek = firstOfMonth.getDay();
+                var firstMonday = new Date(firstOfMonth);
+                var offset = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+                if (dayOfWeek === 1) offset = 0;
+                firstMonday.setDate(firstOfMonth.getDate() + offset);
+
+                weekKeys.forEach(function(wk) {
+                    var pages = m.weeks[wk];
+                    var h = Math.max(2, (pages / maxWeekPages) * 110);
+                    var wkStart = new Date(firstMonday);
+                    wkStart.setDate(firstMonday.getDate() + (parseInt(wk) - 1) * 7);
+                    var wkEnd = new Date(wkStart);
+                    wkEnd.setDate(wkStart.getDate() + 6);
+                    var startStr = (wkStart.getMonth() + 1) + '/' + wkStart.getDate();
+                    var endStr = (wkEnd.getMonth() + 1) + '/' + wkEnd.getDate();
+
+                    html += '<div class="monthly-week-bar-wrap">' +
+                        '<div class="monthly-week-pages">' + pages + '</div>' +
+                        '<div class="monthly-week-bar" style="height:' + h + 'px;" title="W' + wk + ' (' + startStr + '~' + endStr + '): ' + pages + ' 頁"></div>' +
+                        '<div class="monthly-week-label">W' + wk + '</div>' +
+                        '<div class="monthly-week-range">' + startStr + '~' + endStr + '</div>' +
+                    '</div>';
+                });
+
+                html += '</div>';
+                html += '</div>';
+            });
+
+            html += '</div>';
             root.innerHTML = html;
         }
 
