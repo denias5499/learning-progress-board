@@ -121,19 +121,20 @@
 .dash-week-total-value { font-size: 1.3em; font-weight: bold; line-height: 1; }
 .dash-week-total-unit { font-size: 0.75em; opacity: 0.9; }
 .dash-week-avg-row {
-    font-size: 0.85em; color: var(--secondary);
-    margin-bottom: 10px; padding-left: 4px;
+    font-size: 1.05em; color: var(--secondary);
+    margin-bottom: 20px; padding-left: 4px;
+    margin-top: 6px;
+    display: block;
 }
-.dash-week-avg-row { display: flex; align-items: baseline; gap: 10px; }
-.dash-week-avg-row b {
+.dash-week-avg-row .avg-num {
     color: var(--accent);
-    font-size: 2em;
-    font-weight: 900;
-    line-height: 1;
-    padding: 4px 12px;
+    font-size: 1.3em;
+    font-weight: 700;
+    padding: 2px 10px;
     background: #fef3c7;
-    border-radius: 10px;
+    border-radius: 8px;
     letter-spacing: 0.5px;
+    margin: 0 4px;
 }
 .dash-week-bar-wrap {
     flex: 1; display: flex; flex-direction: column;
@@ -374,14 +375,21 @@
     transform: translateY(50%);
 }
 .monthly-weeks {
-    display: flex; gap: 14px; align-items: flex-end;
-    padding: 8px 0 8px 4px; min-height: 180px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+    gap: 14px;
+    padding: 8px 0 8px 4px;
+    min-height: 200px;
     border-bottom: 2px solid var(--border);
+    align-items: end;
 }
 .monthly-week-bar-wrap {
-    flex: 1; display: flex; flex-direction: column;
-    align-items: center; gap: 4px; justify-content: flex-end;
-    min-height: 100%;
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    align-items: end;
+    justify-items: center;
+    gap: 4px;
+    min-height: 200px;
 }
 .monthly-week-pages {
     font-size: 0.85em; color: var(--secondary); font-weight: bold;
@@ -3523,6 +3531,9 @@
         // === v1.4.0: 學習統計分析 ===
         function openStats() {
             showPage('page-stats');
+            // v1.4.1 fix: 確保 starmap-root 顯示 (returnToHome 會把它 display:none)
+            var sm = el('starmap-root');
+            if (sm) sm.style.display = '';
             // 預設顯示樹狀圖
             renderTreeView();
         }
@@ -4266,7 +4277,7 @@
                         '<span class="dash-week-total-unit">頁</span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="dash-week-avg-row">7 日平均 <b>' + avgPages + ' 頁/天</b></div>' +
+                '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
                 '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
             '</div>';
         }

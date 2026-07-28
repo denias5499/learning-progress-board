@@ -2,6 +2,29 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.2 (2026-07-29) — 3 個修正
+
+**Denias 01:34 反應:**
+
+1. ✅ **平均值跟當天頁數統計疊在一起**
+   - 平均值字體: 2em → 1.3em (跟近 7 日學習量 h3 差不多)
+   - 換 <b> 為 <span class="avg-num"> 黃底 pill
+   - margin-bottom: 10px → 20px (多空一行)
+   - 變成上下分離的區塊
+
+2. ✅ **樹狀圖還是看不到 (v1.4.1 未根本解決)**
+   - **根因**: `returnToHome()` 內 `el('starmap-root').style.display = 'none'` 把 page-stats 內的 starmap-root 隱藏了
+   - openStats 呼叫 renderTreeView, 但 element 仍是 display:none → render 後什麼都看不到
+   - **修复**: openStats 內加 `sm.style.display = ''` 取消隱藏
+
+3. ✅ **月份分析 bar 視覺修正**
+   - 原本用 flex `justify-content: flex-end` → bar 從底部往上長但底部空很大
+   - 改用 grid-template-rows: `auto 1fr auto auto` (pages / bar / label / range)
+   - bar 從 0 往上長, label 跟 range 統一在下方 (X 軸下方)
+   - X 軸 border-bottom 保留, 看起來是正常 Y 軸
+
+檔案: 4773 → 4880 行 (+107, CSS 大改)
+
 ### v1.4.1 (2026-07-29) — 5 個修正 + CSS 補上
 
 **Denias 01:13 反應的 5 個問題:**
