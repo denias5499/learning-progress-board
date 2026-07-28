@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.14]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.15]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4589,9 +4589,14 @@
                 if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
                 // v1.4.9: 套用 filter - 只算選中任務的 unit
                 if (allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId)) return;
-                // 多欄位 dedup key (subject+unitName+start+end+date)
-                var dedupKey = (l.subject || '') + '|' + (l.unitName || '') + '|' + (l.start || 0) + '|' + (l.end || 0) + '|' + l.date;
-                if (seenLogs[dedupKey] !== undefined) return;  // 已記錄過, 跳過
+                // 多欄位 dedup key (subject+date+pages) — 激進去重
+                // v1.4.15: 同一天同樣科目同樣頁數只算一次 (不該同天讀兩次同樣頁數)
+                var dedupKey = (l.subject || '') + '|' + l.date + '|' + l.pages;
+                if (seenLogs[dedupKey] !== undefined) return;
+                // 跨科目 (date+pages) 也記錄, 處理 subject/unitName 微差
+                var datePagesKey = l.date + '|' + l.pages;
+                if (seenLogs['DP_' + datePagesKey] !== undefined) return;
+                seenLogs['DP_' + datePagesKey] = true;
                 seenLogs[dedupKey] = l.pages;
                 var mw = getMonthWeek(l.date);
                 var key = mw.year + '-' + String(mw.month).padStart(2, '0');

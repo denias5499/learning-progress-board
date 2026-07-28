@@ -2,6 +2,23 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.15 (2026-07-29) — Dedup 改為 (subject+date+pages)
+
+**Denias 03:21 反映:**
+W1 顯示 241 頁, 但實際加總是 168, 差 73 頁。
+
+**根因 (v1.4.11 修正不全):**
+- dedup 用 (subject+unitName+start+end+date)
+- 但 plan 自動重複 task 加上手動標記完成可能產生 unitName/start/end 微差的 log
+- 結果仍有重複計算
+
+**修復:**
+- dedup key 改為 (subject+date+pages)
+- user 不可能在同一天同樣科目讀兩次同樣頁數
+- 加 (date+pages) 跨科目防護, 處理 subject/unitName 微差
+
+檔案: 5097 → 5106 行 (+9)
+
 ### v1.4.14 (2026-07-29) — 緊急 fix: Can't find variable: byMonth
 
 **Denias 03:07 反映:**
