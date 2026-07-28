@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.16]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.17]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4636,9 +4636,23 @@
                 html += '<div class="monthly-block-header">';
                 html += '<h3>' + monthLabel + '</h3>';
                 html += '<div class="monthly-total">總計 <b>' + totalPages + '</b> 頁</div>';
-                html += '<button class="monthly-debug-btn" onclick="toggleMonthlyDebug(\'' + mkey + '\')" style="margin-left:10px; padding:4px 10px; font-size:0.85em;">📋 看本月 Logs (Debug)</button>';
                 html += '</div>';
-                html += '<div id="monthly-debug-' + mkey + '" class="monthly-debug-panel" style="display:none; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:300px; overflow-y:auto;"></div>';
+                // v1.4.17: debug panel 預設展開, 不需 toggle
+                html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:300px; overflow-y:auto; font-size:0.8em;">';
+                var weekLogKeys = Object.keys(m.weekLogs || {}).sort(function(a, b) { return parseInt(a) - parseInt(b); });
+                weekLogKeys.forEach(function(wk) {
+                    html += '<b>W' + wk + ':</b> ';
+                    var totalW = 0;
+                    m.weekLogs[wk].forEach(function(l) {
+                        totalW += l.pages;
+                    });
+                    html += '<span style="color:#e74c3c; font-weight:bold;">' + totalW + ' 頁</span> (' + m.weekLogs[wk].length + ' 筆)<br>';
+                    m.weekLogs[wk].forEach(function(l, i) {
+                        html += '<span style="font-family:monospace; font-size:0.95em; display:block; padding-left:15px;">&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | ' + (l.subject || '?') + ' | ' + (l.unitName || '?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁 | id=' + (l.id||'?') + '</span>';
+                    });
+                    html += '<br>';
+                });
+                html += '</div>';
 
                 var weekKeys = Object.keys(m.weeks).sort(function(a, b) { return parseInt(a) - parseInt(b); });
                 html += '<div class="monthly-chart-area">';
@@ -4689,30 +4703,6 @@
             html += '</div>';
             root.innerHTML = html;
         }
-
-        // v1.4.16: debug 用, 展開/隱藏每月 logs
-        window.toggleMonthlyDebug = function(mkey) {
-            var panel = el('monthly-debug-' + mkey);
-            if (!panel) return;
-            if (panel.style.display === 'none' || !panel.style.display) {
-                var data = window._byMonthData ? window._byMonthData[mkey] : null;
-                if (!data) { panel.innerHTML = '⚠️ 無資料'; panel.style.display = 'block'; return; }
-                var html = '<b>' + data.year + ' 年 ' + data.month + ' 月 Logs by Week:</b><br><br>';
-                Object.keys(data.weekLogs || {}).sort(function(a, b) { return parseInt(a) - parseInt(b); }).forEach(function(wk) {
-                    html += '<b>W' + wk + ':</b><br>';
-                    var totalW = 0;
-                    data.weekLogs[wk].forEach(function(l, i) {
-                        totalW += l.pages;
-                        html += '<span style="font-family:monospace; font-size:0.85em;">&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | ' + (l.subject || '?') + ' | ' + (l.unitName || '?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁 | id=' + (l.id||'?') + '</span><br>';
-                    });
-                    html += '<span style="color:#e74c3c; font-weight:bold;">&nbsp;&nbsp;小計: ' + totalW + ' 頁</span><br><br>';
-                });
-                panel.innerHTML = html;
-                panel.style.display = 'block';
-            } else {
-                panel.style.display = 'none';
-            }
-        };
 
         function renderDashboard() { 
             var root = el('dashboard-root'); root.innerHTML = ''; 
