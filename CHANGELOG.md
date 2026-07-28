@@ -2,6 +2,30 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.5 (2026-07-29) — bar 從 0 往上長 (CSS 重寫)
+
+**Denias 01:51 反映:**
+W4=30 bar 看起來對齊到 Y=85 (看起來超過 85), 而不是從 Y=0 往上。
+
+**根因 (v1.4.4 仍未根本解決):**
+- wrap 用 `grid-template-rows: auto 180px auto auto` 複雜結構
+- area 設 height 但 grid child 撐不開
+- 第二個 `.monthly-week-bar-area` CSS 覆蓋第一個, 衝突
+- wrap 沒 height, bar 從 area 底部往上, 但 area 不一定是 180px
+
+**根本修复 (重寫 layout):**
+- 拋棄 grid 複雜度, 改用 flex column + order 控制順序
+- `.monthly-week-bar-wrap` flex column, 4 child 用 order 排序: pages/area/label/range
+- `.monthly-week-bar-area` 用 `flex: 0 0 180px` 固定 180, 不縮不伸
+- 合併兩個重複的 `.monthly-week-bar-area` CSS
+- bar 在 area 內 `align-items: flex-end` 對齊底部, 從 0 往上長
+
+**驗證:**
+- W4=30, bar = 16px, 在 Y=0~85 之間下 1/3 ✓
+- W1=340, bar = 180px, 到 Y=340 ✓
+
+檔案: 4902 → 4909 行 (+7)
+
 ### v1.4.4 (2026-07-29) — 月份分析 bar 從 0 往上長 (真 fix)
 
 **Denias 01:47 反映:**

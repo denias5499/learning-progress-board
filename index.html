@@ -380,28 +380,39 @@
     gap: 14px;
     padding: 0 0 8px 4px;
     border-bottom: 2px solid var(--border);
-    align-items: flex-end;
-    justify-content: flex-start;
+    align-items: flex-start;  /* 不要 end, 讓每個 wrap 自己控制 */
 }
 .monthly-week-bar-wrap {
     flex: 1;
-    display: grid;
-    grid-template-rows: auto 180px auto auto;
-    align-items: end;
-    justify-items: center;
-    gap: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
 }
 .monthly-week-bar-area {
+    flex: 0 0 180px;  /* 固定 180px, 不伸縮 */
     width: 100%;
     max-width: 60px;
-    min-height: 180px;
-    height: 180px;
+    margin-top: 8px;
+    margin-bottom: 6px;
     display: flex;
     align-items: flex-end;
     justify-content: center;
+    order: 2;
+}
+.monthly-week-pages {
+    order: 1;
+}
+
+.monthly-week-label {
+    order: 3;
+}
+.monthly-week-range {
+    order: 4;
 }
 .monthly-week-pages {
     font-size: 0.85em; color: var(--secondary); font-weight: bold;
+    order: 1;
 }
 .monthly-week-bar {
     width: 100%; max-width: 60px;
