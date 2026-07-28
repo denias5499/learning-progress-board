@@ -3680,6 +3680,23 @@
             return latestDate;
         }
 
+        function getUnitOpenTaskCount(unitId) {
+            // 統計這個 unit 在月曆上有幾個未勾選的 task
+            var count = 0;
+            if (!appPlans || appPlans.length === 0) return 0;
+            appPlans.forEach(plan => {
+                if (!plan.grid) return;
+                Object.keys(plan.grid).forEach(dateStr => {
+                    var tasks = plan.grid[dateStr];
+                    if (!Array.isArray(tasks)) return;
+                    tasks.forEach(t => {
+                        if (t && t.unitId === unitId && !t.isDone) count++;
+                    });
+                });
+            });
+            return count;
+        }
+
         function renderDashSummary() {
             // v1.1: 統計 + 7-day bar chart
             var studentCount = Object.keys(multiData || {}).length;
@@ -3831,7 +3848,10 @@
                                     id: u.id,
                                     name: u.name,
                                     pagesLeft: pTotal - pDone,
-                                    expected: findUnitScheduledDate(u.id)
+                                    totalPages: pTotal,
+                                    range: 'P.' + u.start + '~' + u.end,
+                                    expected: findUnitScheduledDate(u.id),
+                                    openTaskCount: getUnitOpenTaskCount(u.id)
                                 });
                             }
                         }
@@ -3894,7 +3914,13 @@
                 }
             } else {
                 var data = dataInfo.todo;
-                el('dd-title').innerHTML = `⏳ ${subject} - 未完成單元`;
+                var totalPagesSum = data.reduce((s, d) => s + (d.totalPages || 0), 0);
+                var totalLeftSum = data.reduce((s, d) => s + d.pagesLeft, 0);
+                var totalDoneSum = totalPagesSum - totalLeftSum;
+                var summaryLine = (totalPagesSum > 0)
+                    ? ' <span style="font-size:0.75em;color:var(--secondary);font-weight:normal;">(教材庫 ' + totalPagesSum + ' 頁 / 已完成 ' + totalDoneSum + ' / 剩餘 ' + totalLeftSum + ')</span>'
+                    : '';
+                el('dd-title').innerHTML = '⏳ ' + subject + ' - 未完成單元' + summaryLine;
                 if(data.length === 0) html = '<div style="color:#7f8c8d;">🎉 太棒了！所有單元均已完成。</div>';
                 else {
                     html += '<table style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="border-bottom:2px solid #ccc; padding:10px;">單元名稱</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">剩餘頁數</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">狀態</th></tr>';
@@ -3915,7 +3941,9 @@
                         } else {
                             statusHtml = '<span style="color:#7f8c8d;">待安排</span>';
                         }
-                        html += '<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--danger); font-weight:bold;">' + d.pagesLeft + ' 頁</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; font-size:0.9em;">' + statusHtml + '</td></tr>';
+                        var rangeTag = d.range ? ' <span style="font-size:0.7em;color:#7f8c8d;font-weight:normal;">(' + d.range + ')</span>' : '';
+                        var openTag = (d.openTaskCount && d.openTaskCount > 0) ? ' <span style="font-size:0.7em;color:var(--danger);font-weight:normal;" title="在月曆排程中還有 ' + d.openTaskCount + ' 個未勾選的 task">⚠ ' + d.openTaskCount + ' 未勾</span>' : '';
+                        html += '<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + rangeTag + openTag + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--danger); font-weight:bold;">' + d.pagesLeft + ' 頁</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; font-size:0.9em;">' + statusHtml + '</td></tr>';
                     });
                     html += '</table>';
                 }
