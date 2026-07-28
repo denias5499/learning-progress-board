@@ -283,11 +283,37 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             color: var(--primary);
             min-height: 400px;
-            overflow-x: auto;
+        }
+        .tree-subject-block {
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 16px 20px 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid var(--accent);
+        }
+        .tree-subject-block:last-child {
+            margin-bottom: 0;
+        }
+        .tree-subject-block h2 {
+            margin: 0 0 12px 0;
+            font-size: 1.15em;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .tree-subject-block h2 .tree-progress {
+            font-size: 0.7em;
+            color: var(--secondary);
+            font-weight: normal;
+            background: var(--card-bg);
+            padding: 3px 10px;
+            border-radius: 12px;
         }
         .tree-svg-wrap {
             display: block;
-            min-width: 100%;
+            width: 100%;
+            overflow-x: auto;
         }
         .tree-svg-wrap svg {
             display: block;
@@ -4077,143 +4103,119 @@
             }
 
             // === Layout (自下而上倒樹) ===
-            // X 軸: 每個 subject 一棵樹, 橫向並排
-            // Y 軸: 底部 = 科目 root, 中層 = 冊, 頂部 = 單元
-            var nodeW = 80, nodeH = 36;       // 單元 / 冊 尺寸
-            var rootW = 110, rootH = 50;       // 科目 root 尺寸
-            var volGapX = 40;                  // 冊之間水平 gap
-            var unitGapX = 14;                 // 單元之間水平 gap
-            var rowGap = 90;                   // 上下層垂直 gap
-            var subjectGap = 80;               // 科目之間水平 gap
-            var padding = 30;
+            // 垂直堆疊: 每個 subject 一個獨立 SVG block
+            // 每棵樹自適應自己的寬度
+            // 加大節點尺寸讓文字清楚 (80→100, 36→44)
+            var bigNodeW = 100, bigNodeH = 44, bigRootW = 130, bigRootH = 56;
+            var bigVolGapX = 50, bigUnitGapX = 18, bigRowGap = 110;
+            var bigPadding = 30;
 
-            // 先算每個 subject 的寬度
-            subjects.forEach(s => {
-                // 找最大單元數 (for x-extent)
+            var allSvg = '';
+
+            subjects.forEach((s, si) => {
+                // 算此 subject 的 width = 最大 (冊寬, root寬)
                 var maxUnits = 0;
                 s.vols.forEach(v => { if (v.units.length > maxUnits) maxUnits = v.units.length; });
-                // 此 subject 的 X extent = 最大 (冊寬 + 冊間 gap), 因為冊寬 = units 寬 + gaps
-                var volWidth = maxUnits * (nodeW + unitGapX) + volGapX;
-                s.width = Math.max(volWidth, rootW);
-                s.maxUnits = maxUnits;
-            });
+                var volWidth = maxUnits * (bigNodeW + bigUnitGapX) + bigVolGapX;
+                var subjectWidth = Math.max(volWidth, bigRootW) + bigPadding * 2;
 
-            var totalWidth = subjects.reduce((acc, s) => acc + s.width + subjectGap, 0) - subjectGap + padding * 2;
-            var totalHeight = padding * 2 + rootH + rowGap + (subjects[0].vols.length * (nodeH + 30)) + rowGap + nodeH;
+                // 算此 subject 的 height (基於冊數 + 固定層)
+                var subjectHeight = bigPadding * 2 + bigRootH + bigRowGap + (s.vols.length * (bigNodeH + 35)) + bigRowGap + bigNodeH;
 
-            // X 位置: 每個 subject 的中心
-            var subjectCenters = [];
-            var curX = padding;
-            subjects.forEach(s => {
-                curX += s.width / 2;
-                subjectCenters.push(curX);
-                curX += s.width / 2 + subjectGap;
-            });
+                // Y 座標
+                var yRoot = subjectHeight - bigPadding - bigRootH;
+                var yRootCenter = yRoot + bigRootH / 2;
+                var yVol = yRoot - bigRowGap;
+                var yVolCenter = yVol + bigNodeH / 2;
+                var yUnit = yVol - bigRowGap;
+                var yUnitCenter = yUnit + bigNodeH / 2;
 
-            var svg = '<div class="tree-svg-wrap"><svg viewBox="0 0 ' + totalWidth + ' ' + totalHeight + '" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMin meet" style="max-width:' + (totalWidth + 20) + 'px">';
-            svg += '<defs></defs>';
+                // X 中心: 科目 root 在中間
+                var xRoot = subjectWidth / 2;
 
-            // === 計算各層 Y 座標 ===
-            // Y 座標: bottom = max (root 層)
-            var yRoot = totalHeight - padding - rootH;     // 科目 root top
-            var yRootCenter = yRoot + rootH / 2;
-            var yVol = yRoot - rowGap;                       // 冊 top
-            var yVolCenter = yVol + nodeH / 2;
-            var yUnit = yVol - rowGap;                       // 單元 top
-            var yUnitCenter = yUnit + nodeH / 2;
+                // 此 subject 的 SVG block (HTML wrapper + h2 + svg)
+                allSvg += '<div class="tree-subject-block">';
+                allSvg += '<h2>' + escapeHtml(s.name) + '<span class="tree-progress">' + s.doneCount + ' / ' + s.totalCount + '</span></h2>';
+                allSvg += '<div class="tree-svg-wrap">';
+                allSvg += '<svg viewBox="0 0 ' + subjectWidth + ' ' + subjectHeight + '" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" style="width:100%; height:auto; max-height:' + (subjectHeight + 20) + 'px">';
 
-            // 先畫連線 (在節點下層, 所以先畫線再畫方塊)
-            subjects.forEach((s, si) => {
-                var xRoot = subjectCenters[si];
-                var xRootCenter = xRoot;
-
-                // 冊的 X 中心: 在 root 之上, 平均分佈
+                // 冊的 X 中心分佈
                 var volCount = s.vols.length;
-                var volSpan = Math.min(s.width - volGapX, volCount * (nodeW + volGapX));
+                var volSpan = Math.min(subjectWidth - bigVolGapX - bigPadding * 2, volCount * (bigNodeW + bigVolGapX));
                 var volStartX = xRoot - volSpan / 2;
                 var volStep = volCount > 1 ? volSpan / (volCount - 1) : 0;
 
+                // 1) 畫連線
                 s.vols.forEach((v, vi) => {
                     var xVolCenter = volCount === 1 ? xRoot : volStartX + vi * volStep;
 
-                    // 線: root → vol (曲線)
-                    svg += '<path class="tree-link" d="M ' + xRootCenter + ' ' + yRootCenter + ' C ' + xRootCenter + ' ' + (yRootCenter - rowGap / 2) + ', ' + xVolCenter + ' ' + (yVolCenter + rowGap / 2) + ', ' + xVolCenter + ' ' + yVolCenter + '"/>';
+                    // 線: root → vol
+                    allSvg += '<path class="tree-link" d="M ' + xRoot + ' ' + yRootCenter + ' C ' + xRoot + ' ' + (yRootCenter - bigRowGap / 2) + ', ' + xVolCenter + ' ' + (yVolCenter + bigRowGap / 2) + ', ' + xVolCenter + ' ' + yVolCenter + '"/>';
 
-                    // 冊的單元 X 中心
+                    // 冊 → 單元
                     var units = v.units;
-                    var unitSpan = (units.length - 1) * (nodeW + unitGapX);
+                    var unitSpan = (units.length - 1) * (bigNodeW + bigUnitGapX);
                     var unitStartX = xVolCenter - unitSpan / 2;
                     units.forEach((u, ui) => {
-                        var xUnitCenter = unitStartX + ui * (nodeW + unitGapX);
-
-                        // 線: vol → unit
-                        svg += '<path class="tree-link" d="M ' + xVolCenter + ' ' + yVolCenter + ' C ' + xVolCenter + ' ' + (yVolCenter - rowGap / 2) + ', ' + xUnitCenter + ' ' + (yUnitCenter + rowGap / 2) + ', ' + xUnitCenter + ' ' + yUnitCenter + '"/>';
+                        var xUnitCenter = unitStartX + ui * (bigNodeW + bigUnitGapX);
+                        allSvg += '<path class="tree-link" d="M ' + xVolCenter + ' ' + yVolCenter + ' C ' + xVolCenter + ' ' + (yVolCenter - bigRowGap / 2) + ', ' + xUnitCenter + ' ' + (yUnitCenter + bigRowGap / 2) + ', ' + xUnitCenter + ' ' + yUnitCenter + '"/>';
                     });
                 });
-            });
 
-            // 再畫節點方塊 (在線之上)
-            subjects.forEach((s, si) => {
-                var xRoot = subjectCenters[si];
+                // 2) 畫節點
+                // root
+                var rx = xRoot - bigRootW / 2;
+                allSvg += '<g class="tree-node-root" data-sub="' + escapeHtml(s.name) + '">';
+                allSvg += '<rect class="node-rect node-root-rect" x="' + rx + '" y="' + yRoot + '" width="' + bigRootW + '" height="' + bigRootH + '" rx="8"/>';
+                allSvg += '<text class="node-label node-root-label" x="' + xRoot + '" y="' + (yRootCenter + 5) + '" text-anchor="middle">' + escapeHtml(s.name) + '</text>';
+                allSvg += '<text class="node-label node-root-sub" x="' + xRoot + '" y="' + (yRootCenter + 22) + '" text-anchor="middle">' + s.doneCount + ' / ' + s.totalCount + '</text>';
+                allSvg += '</g>';
 
-                // 科目 root 節點
-                var rx = xRoot - rootW / 2;
-                svg += '<g class="tree-node-root" data-sub="' + escapeHtml(s.name) + '">';
-                svg += '<rect class="node-rect node-root-rect" x="' + rx + '" y="' + yRoot + '" width="' + rootW + '" height="' + rootH + '" rx="8"/>';
-                svg += '<text class="node-label node-root-label" x="' + xRoot + '" y="' + (yRootCenter + 4) + '" text-anchor="middle">' + escapeHtml(s.name) + '</text>';
-                svg += '<text class="node-label node-root-sub" x="' + xRoot + '" y="' + (yRootCenter + 18) + '" text-anchor="middle">' + s.doneCount + ' / ' + s.totalCount + '</text>';
-                svg += '</g>';
-
-                // 冊節點
-                var volCount = s.vols.length;
-                var volSpan = Math.min(s.width - volGapX, volCount * (nodeW + volGapX));
-                var volStartX = xRoot - volSpan / 2;
-                var volStep = volCount > 1 ? volSpan / (volCount - 1) : 0;
-
+                // 冊 + 單元
                 s.vols.forEach((v, vi) => {
                     var xVolCenter = volCount === 1 ? xRoot : volStartX + vi * volStep;
-                    var vx = xVolCenter - nodeW / 2;
+                    var vx = xVolCenter - bigNodeW / 2;
                     var volDone = v.units.filter(u => getStatus(u.id, totalOf(u)) === 'done').length;
 
-                    svg += '<g class="tree-node-vol" data-sub="' + escapeHtml(s.name) + '" data-vol="' + escapeHtml(v.name) + '">';
-                    svg += '<rect class="node-rect node-vol-rect" x="' + vx + '" y="' + yVol + '" width="' + nodeW + '" height="' + nodeH + '" rx="6"/>';
-                    svg += '<text class="node-label" x="' + xVolCenter + '" y="' + (yVolCenter + 4) + '" text-anchor="middle" font-size="11" fill="#064e3b" font-weight="bold">' + escapeHtml(v.name.length > 6 ? v.name.substring(0, 6) : v.name) + '</text>';
-                    svg += '<text class="node-label-small" x="' + xVolCenter + '" y="' + (yVolCenter + 18) + '" text-anchor="middle">' + volDone + '/' + v.units.length + '</text>';
-                    svg += '</g>';
+                    allSvg += '<g class="tree-node-vol" data-sub="' + escapeHtml(s.name) + '" data-vol="' + escapeHtml(v.name) + '">';
+                    allSvg += '<rect class="node-rect node-vol-rect" x="' + vx + '" y="' + yVol + '" width="' + bigNodeW + '" height="' + bigNodeH + '" rx="6"/>';
+                    allSvg += '<text class="node-label" x="' + xVolCenter + '" y="' + (yVolCenter + 5) + '" text-anchor="middle" font-size="13" fill="#064e3b" font-weight="bold">' + escapeHtml(v.name.length > 6 ? v.name.substring(0, 6) : v.name) + '</text>';
+                    allSvg += '<text class="node-label-small" x="' + xVolCenter + '" y="' + (yVolCenter + 22) + '" text-anchor="middle" font-size="11">' + volDone + '/' + v.units.length + '</text>';
+                    allSvg += '</g>';
 
-                    // 單元節點
                     var units = v.units;
-                    var unitSpan = (units.length - 1) * (nodeW + unitGapX);
+                    var unitSpan = (units.length - 1) * (bigNodeW + bigUnitGapX);
                     var unitStartX = xVolCenter - unitSpan / 2;
                     units.forEach((u, ui) => {
-                        var xUnitCenter = unitStartX + ui * (nodeW + unitGapX);
-                        var ux = xUnitCenter - nodeW / 2;
+                        var xUnitCenter = unitStartX + ui * (bigNodeW + bigUnitGapX);
+                        var ux = xUnitCenter - bigNodeW / 2;
                         var t = totalOf(u);
                         var st = getStatus(u.id, t);
                         var rectCls = st === 'done' ? 'node-done-rect' : (st === 'progress' ? 'node-progress-rect' : 'node-todo-rect');
                         var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
                         var shortName = u.name.length > 4 ? u.name.substring(0, 4) : u.name;
 
-                        svg += '<g class="tree-node-unit" data-sub="' + escapeHtml(s.name) + '" data-vol="' + escapeHtml(v.name) + '" data-unit="' + escapeHtml(u.id) + '" data-unit-name="' + escapeHtml(u.name) + '" data-status="' + st + '" data-range="' + escapeHtml(range) + '" data-scheduled="' + (scheduledUnits[u.id] ? '1' : '0') + '">';
-                        svg += '<rect class="node-rect ' + rectCls + '" x="' + ux + '" y="' + yUnit + '" width="' + nodeW + '" height="' + nodeH + '" rx="5"/>';
-                        svg += '<text class="node-label" x="' + xUnitCenter + '" y="' + (yUnitCenter + 4) + '" text-anchor="middle" font-size="11" fill="#1f2937" font-weight="bold">' + escapeHtml(shortName) + '</text>';
-                        svg += '<text class="node-label-small" x="' + xUnitCenter + '" y="' + (yUnitCenter + 18) + '" text-anchor="middle">' + escapeHtml(range) + '</text>';
+                        allSvg += '<g class="tree-node-unit" data-sub="' + escapeHtml(s.name) + '" data-vol="' + escapeHtml(v.name) + '" data-unit="' + escapeHtml(u.id) + '" data-unit-name="' + escapeHtml(u.name) + '" data-status="' + st + '" data-range="' + escapeHtml(range) + '" data-scheduled="' + (scheduledUnits[u.id] ? '1' : '0') + '">';
+                        allSvg += '<rect class="node-rect ' + rectCls + '" x="' + ux + '" y="' + yUnit + '" width="' + bigNodeW + '" height="' + bigNodeH + '" rx="5"/>';
+                        allSvg += '<text class="node-label" x="' + xUnitCenter + '" y="' + (yUnitCenter + 5) + '" text-anchor="middle" font-size="13" fill="#1f2937" font-weight="bold">' + escapeHtml(shortName) + '</text>';
+                        allSvg += '<text class="node-label-small" x="' + xUnitCenter + '" y="' + (yUnitCenter + 22) + '" text-anchor="middle" font-size="11">' + escapeHtml(range) + '</text>';
                         if (st === 'done') {
-                            svg += '<text class="node-label node-done-check" x="' + (ux + nodeW - 8) + '" y="' + (yUnit + 12) + '" text-anchor="middle">✓</text>';
+                            allSvg += '<text class="node-label node-done-check" x="' + (ux + bigNodeW - 10) + '" y="' + (yUnit + 14) + '" text-anchor="middle">✓</text>';
                         }
-                        // ⏰ 排程鐘 — 顯示在右上角 (但避開 ✓)
                         if (scheduledUnits[u.id]) {
-                            var clockX = st === 'done' ? (ux + 14) : (ux + nodeW - 12);
-                            var clockY = yUnit + 4;
-                            svg += '<circle class="node-clock-bg" cx="' + clockX + '" cy="' + (clockY + 6) + '" r="6.5"/>';
-                            svg += '<text class="node-clock" x="' + clockX + '" y="' + (clockY + 10) + '" text-anchor="middle">⏰</text>';
+                            var clockX = st === 'done' ? (ux + 16) : (ux + bigNodeW - 14);
+                            var clockY = yUnit + 5;
+                            allSvg += '<circle class="node-clock-bg" cx="' + clockX + '" cy="' + (clockY + 7) + '" r="7.5"/>';
+                            allSvg += '<text class="node-clock" x="' + clockX + '" y="' + (clockY + 11) + '" text-anchor="middle" font-size="12">⏰</text>';
                         }
-                        svg += '</g>';
+                        allSvg += '</g>';
                     });
                 });
+
+                allSvg += '</svg></div></div>';
             });
 
-            svg += '</svg></div>';
+            var svg = allSvg;
 
             // Legend
             svg += '<div class="tree-legend">';
