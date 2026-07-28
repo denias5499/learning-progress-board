@@ -3883,6 +3883,8 @@
             var weekPages = 0, monthPages = 0, dailyPages = {};
             appLogs.forEach(l => {
                 if (!l.pages || l.pages <= 0) return;
+                // v1.3.6 bug fix: 排除系統重排 + 計畫管理 log (這些是順延/排程, 不是真正的學習)
+                if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
                 if (l.date >= weekStartStr) {
                     weekPages += l.pages;
                     dailyPages[l.date] = (dailyPages[l.date] || 0) + l.pages;
