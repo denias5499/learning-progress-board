@@ -1,5 +1,12 @@
 # 版本演進 (CHANGELOG)
 
+## v1.2 (2026-07-28) — 預定完成日提示
+- 📅 Dashboard 未完成單元 modal 狀態欄智能化：
+  - 如果月曆有排程到這個單元,顯示「預定 M/D 完成」(藍色,粗體)
+  - 如果沒排程,顯示「待安排」(灰色)
+- 🔍 新增 `findUnitScheduledDate(unitId)` 函數,從所有 plan 的 grid 找最後一個未來排程日
+- 📊 processUnit 收集 `id` + `expected` 到 todoUnits
+
 ## v1.1 (2026-07-28) — 暗色模式 + 進度儀表板
 - 🌙 **深色模式** — 一鍵切換，自動跟隨系統偏好，偏好記住到 localStorage
   - 完整顏色覆寫：背景、卡片、按鈕、表格、輸入框、modal

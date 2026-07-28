@@ -3660,6 +3660,27 @@
         
         window._dashDataStore = {};
 
+        function findUnitScheduledDate(unitId) {
+            // 從所有 plan 的 grid 找 unitId 對應的 task,取最後一個未來日期
+            if (!appPlans || appPlans.length === 0) return null;
+            var todayStr = getLocalDateString(new Date());
+            var latestDate = null;
+            appPlans.forEach(plan => {
+                if (!plan.grid) return;
+                Object.keys(plan.grid).forEach(dateStr => {
+                    if (dateStr < todayStr) return; // 跳過過去
+                    var tasks = plan.grid[dateStr];
+                    if (!Array.isArray(tasks)) return;
+                    tasks.forEach(t => {
+                        if (t && t.unitId === unitId) {
+                            if (!latestDate || dateStr > latestDate) latestDate = dateStr;
+                        }
+                    });
+                });
+            });
+            return latestDate;
+        }
+
         function renderDashSummary() {
             // v1.1: 統計 + 7-day bar chart
             var studentCount = Object.keys(multiData || {}).length;
@@ -3808,9 +3829,10 @@
                                 });
                             } else {
                                 todoUnits.push({
+                                    id: u.id,
                                     name: u.name,
                                     pagesLeft: pTotal - pDone,
-                                    expected: '請查閱月曆排程'
+                                    expected: findUnitScheduledDate(u.id)
                                 });
                             }
                         }
@@ -3878,7 +3900,16 @@
                 else {
                     html += '<table style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="border-bottom:2px solid #ccc; padding:10px;">單元名稱</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">剩餘頁數</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">狀態</th></tr>';
                     data.forEach(d => {
-                        html += `<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">${d.name}</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--danger); font-weight:bold;">${d.pagesLeft} 頁</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:#7f8c8d; font-size:0.9em;">待安排</td></tr>`;
+                        var statusHtml;
+                        if (d.expected) {
+                            var parts = d.expected.split('-');
+                            var mm = parseInt(parts[1], 10);
+                            var dd = parseInt(parts[2], 10);
+                            statusHtml = '<span style="color:var(--accent); font-weight:bold;">預定 ' + mm + '/' + dd + ' 完成</span>';
+                        } else {
+                            statusHtml = '<span style="color:#7f8c8d;">待安排</span>';
+                        }
+                        html += '<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--danger); font-weight:bold;">' + d.pagesLeft + ' 頁</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; font-size:0.9em;">' + statusHtml + '</td></tr>';
                     });
                     html += '</table>';
                 }
