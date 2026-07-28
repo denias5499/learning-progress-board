@@ -4539,10 +4539,37 @@
                 return { year: year, month: month, week: week };
             }
 
+            // v1.4.9: 套用看板篩選 (跟 renderTreeView 一樣)
+            var filterCatM = el('filter-category') ? el('filter-category').value : 'ALL';
+            var filterMisM = el('filter-mission') ? el('filter-mission').value : 'ALL';
+            var allowedUnitIdsM = null;
+            if (filterMisM !== 'ALL') {
+                var foundCatM = null;
+                if (filterCatM !== 'ALL' && appMissions[filterCatM] && appMissions[filterCatM][filterMisM]) {
+                    foundCatM = filterCatM;
+                } else {
+                    Object.keys(appMissions).forEach(function(c) {
+                        if (appMissions[c] && appMissions[c][filterMisM]) foundCatM = c;
+                    });
+                }
+                if (foundCatM && appMissions[foundCatM][filterMisM]) {
+                    allowedUnitIdsM = new Set(appMissions[foundCatM][filterMisM]);
+                }
+            } else if (filterCatM !== 'ALL' && appMissions[filterCatM]) {
+                allowedUnitIdsM = new Set();
+                Object.keys(appMissions[filterCatM]).forEach(function(m) {
+                    (appMissions[filterCatM][m] || []).forEach(function(uid) {
+                        allowedUnitIdsM.add(uid);
+                    });
+                });
+            }
+
             var byMonth = {};
             appLogs.forEach(l => {
                 if (!l.date || !l.pages || l.pages <= 0) return;
                 if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
+                // v1.4.9: 套用 filter - 只算選中任務的 unit
+                if (allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId)) return;
                 var mw = getMonthWeek(l.date);
                 var key = mw.year + '-' + String(mw.month).padStart(2, '0');
                 if (!byMonth[key]) byMonth[key] = { year: mw.year, month: mw.month, weeks: {} };

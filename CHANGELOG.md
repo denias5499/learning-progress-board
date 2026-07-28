@@ -2,6 +2,25 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.9 (2026-07-29) — 月份分析套用看板篩選
+
+**Denias 02:34 反映:**
+W1 有 340 頁, 統計數字似乎不正確。
+
+**根因 (v1.4.8 修正不全):**
+- renderTreeView 已套用看板篩選 (v1.4.8)
+- 但 renderMonthlyAnalysis 完全沒套用
+- 不管選什麼任務, 月份分析都顯示全部 log 總和
+- 實際選任務看到的頁數不會跟「全部顯示」一樣
+
+**修復:**
+- renderMonthlyAnalysis 套用跟 renderTreeView 一樣的 filter 邏輯
+- 讀 filter-category + filter-mission
+- 算 allowedUnitIds Set
+- log.unitId 不在內則 return
+
+檔案: 5010 → 5044 行 (+34)
+
 ### v1.4.8 (2026-07-29) — 樹狀圖 bug: 不同任務顯示不同內容
 
 **Denias 02:26 反映:**
