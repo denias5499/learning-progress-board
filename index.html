@@ -364,7 +364,7 @@
 }
 .monthly-yaxis-wrap {
     position: absolute;
-    left: 0; top: 0; bottom: 0;
+    left: 0; top: 0;
     width: 45px;
     display: flex; flex-direction: column;
 }
@@ -377,7 +377,7 @@
     padding-right: 6px;
 }
 .monthly-yaxis {
-    flex: 1;
+    height: 180px;  /* 跟 area 同高, 確保 Y 軸刻度跟 bar 比例 1:1 */
     display: flex; flex-direction: column-reverse; justify-content: space-between;
     color: var(--secondary); font-size: 0.75em;
     border-right: 1px solid var(--border);
@@ -391,8 +391,16 @@
     display: flex;
     gap: 14px;
     padding: 0 0 8px 4px;
-    border-bottom: 3px solid var(--primary);  /* X 軸軸線 (v1.4.6 加粗) */
     align-items: flex-start;
+    position: relative;
+}
+/* v1.4.7: X 軸線 (對齊 Y=0) */
+.monthly-weeks::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    top: 208px;  /* 對齊 area 底部 = Y=0 (pages 20 + 8 margin + area 180) */
+    border-top: 3px solid var(--primary);
 }
 .monthly-week-bar-wrap {
     flex: 1;

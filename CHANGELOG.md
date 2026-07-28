@@ -2,6 +2,24 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.7 (2026-07-29) — X 軸軸線對齊 Y=0
+
+**Denias 02:11 反映:**
+X 軸軸線無法對齊刻度 0, 軸線在「日期範圍」上方 (但 Y 軸 0 標籤在下方) 。
+
+**根因 (v1.4.6 bug):**
+- monthly-weeks border-bottom 在 weeks 底部, 位置在 caption 之上
+- 但 Y 軸 0 標籤在 chart-area 底部 (caption 下方)
+- 結果 X 軸線跟 Y=0 標籤不在同一條水平線上
+
+**修復:**
+- 改用 .monthly-weeks::after 畫 X 軸線, position absolute top: 208px
+- 208px = pages(20) + margin-top(8) + area(180) = Y=0 位置
+- Y 軸 (yaxis-wrap) top: 0, yaxis height: 180px, 從 title 後 (~y=28) 到 y=208 = Y=0 ✓
+- Y=340 在 y=28 (對齊 area top), Y=0 在 y=208 (對齊 X 軸線) ✓
+
+檔案: 4989 → 4995 行 (+6)
+
 ### v1.4.6 (2026-07-29) — 4 個修正
 
 **Denias 02:04 反應:**
