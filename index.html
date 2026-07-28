@@ -4564,12 +4564,22 @@
                 });
             }
 
-            var byMonth = {};
+            // v1.4.10: 去重 - 同 (unitId, date) 只算一次最大 pages
+            // 原因: 同一 task 在多個 plan 重複, 或 calendar toggle 重複 push log
+            var seenLogs = {};
             appLogs.forEach(l => {
                 if (!l.date || !l.pages || l.pages <= 0) return;
                 if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
                 // v1.4.9: 套用 filter - 只算選中任務的 unit
                 if (allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId)) return;
+                var dedupKey = (l.unitId || 'noUnit') + '_' + l.date;
+                if (seenLogs[dedupKey] === undefined) {
+                    seenLogs[dedupKey] = l.pages;
+                } else {
+                    // 已記錄過, 取最大值 (避免重複加總)
+                    if (l.pages > seenLogs[dedupKey]) seenLogs[dedupKey] = l.pages;
+                    return;  // 跳過
+                }
                 var mw = getMonthWeek(l.date);
                 var key = mw.year + '-' + String(mw.month).padStart(2, '0');
                 if (!byMonth[key]) byMonth[key] = { year: mw.year, month: mw.month, weeks: {} };
