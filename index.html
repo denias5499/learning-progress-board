@@ -275,7 +275,7 @@
         .dash-view { display: none; }
         .dash-view.active { display: block; }
 
-        /* ===== v1.3.2: Inverted SVG Tree (取代 v1.3.1 nest ul) ===== */
+        /* ===== v1.3.1: Tree View (取代星空圖) ===== */
         #starmap-root {
             background: var(--card-bg);
             border-radius: 12px;
@@ -284,169 +284,123 @@
             color: var(--primary);
             min-height: 400px;
         }
-        .tree-subject-block {
+        .tree-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 24px;
+        }
+        .tree-subject {
             background: var(--bg);
-            border-radius: 10px;
-            padding: 16px 20px 20px;
-            margin-bottom: 20px;
-            border-left: 4px solid var(--accent);
+            border-radius: 12px;
+            padding: 22px 26px;
+            border-left: 5px solid var(--accent);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.05);
         }
-        .tree-subject-block:last-child {
-            margin-bottom: 0;
-        }
-        .tree-subject-block h2 {
-            margin: 0 0 12px 0;
-            font-size: 1.15em;
+        .tree-subject h2 {
+            margin: 0 0 18px 0;
+            font-size: 1.35em;
             color: var(--primary);
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
-        .tree-subject-block h2 .tree-progress {
-            font-size: 0.7em;
+        .tree-subject h2 .tree-progress {
+            font-size: 0.65em;
             color: var(--secondary);
             font-weight: normal;
             background: var(--card-bg);
-            padding: 3px 10px;
-            border-radius: 12px;
+            padding: 4px 14px;
+            border-radius: 14px;
         }
-        .tree-svg-wrap {
-            display: block;
-            width: 100%;
-            overflow-x: auto;
+        .tree-vol, .tree-units {
+            list-style: none;
+            padding-left: 0;
+            margin: 0;
         }
-        .tree-svg-wrap svg {
-            display: block;
-            margin: 0 auto;
+        .tree-vol {
+            margin-bottom: 14px;
         }
-        /* 樹節點 */
-        .node-rect {
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .node-rect:hover {
-            opacity: 0.8;
-        }
-        .node-label {
-            font-family: system-ui, -apple-system, sans-serif;
-            pointer-events: none;
-            user-select: none;
-        }
-        .node-label-small {
-            font-size: 10px;
-            fill: #6b7280;
-            pointer-events: none;
-        }
-        /* 連線 */
-        .tree-link {
-            fill: none;
-            stroke: #94a3b8;
-            stroke-width: 1.5;
-        }
-        /* 高亮群組 */
-        .tree-cluster {
-            fill: rgba(34, 197, 94, 0.05);
-            stroke: #22c55e;
-            stroke-width: 1;
-            stroke-dasharray: 4 3;
-            rx: 14;
-        }
-        /* 狀態: 完成 (亮) */
-        .node-done-rect {
-            fill: #fde68a;
-            stroke: #f59e0b;
-            stroke-width: 2;
-        }
-        .node-done-check {
-            fill: #16a34a;
-            font-size: 11px;
+        .tree-vol-label {
             font-weight: bold;
-        }
-        /* 狀態: 進行中 */
-        .node-progress-rect {
-            fill: #fef3c7;
-            stroke: #3b82f6;
-            stroke-width: 2;
-        }
-        /* 狀態: 未完成 (空心) */
-        .node-todo-rect {
-            fill: #ffffff;
-            stroke: #d1d5db;
-            stroke-width: 1.5;
-        }
-        /* 排程鐘標記 */
-        .node-clock {
-            font-size: 11px;
-            pointer-events: none;
-        }
-        .node-clock-bg {
-            fill: rgba(255,255,255,0.85);
-            stroke: #f59e0b;
-            stroke-width: 0.8;
-        }
-        /* 冊節點 */
-        .node-vol-rect {
-            fill: #86efac;
-            stroke: #16a34a;
-            stroke-width: 1.5;
-        }
-        /* 根節點 (科目) */
-        .node-root-rect {
-            fill: #92400e;
-            stroke: #78350f;
-            stroke-width: 2;
-        }
-        .node-root-label {
-            fill: #ffffff;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        .node-root-sub {
-            fill: rgba(255,255,255,0.85);
-            font-size: 10px;
-        }
-        /* Tooltip */
-        .tree-tooltip {
-            position: absolute;
-            background: #1f2937;
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85em;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.15s;
-            z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            white-space: nowrap;
-        }
-        .tree-tooltip.show { opacity: 1; }
-        /* Legend */
-        .tree-legend {
-            display: flex; gap: 25px; margin-top: 20px;
-            padding: 12px 18px; background: var(--bg);
-            border-radius: 8px; font-size: 0.85em;
-            flex-wrap: wrap; justify-content: center;
-        }
-        .tree-legend-item {
-            display: flex; align-items: center; gap: 8px;
             color: var(--secondary);
+            margin-top: 10px;
+            margin-bottom: 6px;
+            font-size: 1.1em;
+            padding-left: 10px;
+            border-left: 4px solid var(--border);
         }
-        .tree-legend-swatch {
-            display: inline-block; width: 14px; height: 14px;
-            border-radius: 3px; flex-shrink: 0;
+        .tree-units {
+            padding-left: 24px;
         }
-        .tree-legend-swatch.done { background: #fde68a; border: 2px solid #f59e0b; }
-        .tree-legend-swatch.progress { background: #fef3c7; border: 2px solid #3b82f6; }
-        .tree-legend-swatch.todo { background: #ffffff; border: 1.5px solid #d1d5db; }
-        .tree-legend-swatch.root { background: #92400e; }
-        .tree-legend-swatch.vol { background: #86efac; border: 1.5px solid #16a34a; }
+        .tree-unit {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 10px 0;
+            border-bottom: 1px dashed var(--border);
+        }
+        .tree-unit:last-child { border-bottom: none; }
+        .tree-dot {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        .tree-dot:hover { transform: scale(1.4); }
+        .tree-dot.dot-done {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+        .tree-dot.dot-progress {
+            background: #60a5fa;
+        }
+        .tree-dot.dot-todo {
+            background: transparent;
+            border: 2.5px solid #94a3b8;
+        }
+        .tree-unit-name {
+            flex: 1;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 1.05em;
+        }
+        .tree-unit-range {
+            font-size: 0.9em;
+            color: var(--secondary);
+            font-family: 'Courier New', monospace;
+            background: var(--card-bg);
+            padding: 4px 9px;
+            border-radius: 5px;
+        }
+        /* 排程鐘標記 (新增) */
+        .tree-unit-clock {
+            font-size: 1em;
+            margin-left: 4px;
+        }
         .tree-empty {
             text-align: center;
             padding: 50px 20px;
             color: var(--secondary);
             font-size: 1.1em;
         }
+        .tree-legend {
+            display: flex; gap: 25px; margin-top: 20px;
+            padding: 12px 18px; background: var(--bg);
+            border-radius: 8px; font-size: 0.85em;
+            flex-wrap: wrap;
+        }
+        .tree-legend-item {
+            display: flex; align-items: center; gap: 8px;
+            color: var(--secondary);
+        }
+        .tree-legend-dot {
+            display: inline-block; width: 12px; height: 12px;
+            border-radius: 50%; flex-shrink: 0;
+        }
+        .tree-legend-dot.done { background: #10b981; box-shadow: 0 0 6px #10b981; }
+        .tree-legend-dot.progress { background: #60a5fa; }
+        .tree-legend-dot.todo { background: transparent; border: 2px solid #94a3b8; }
         </style>
 </head>
 <body>
@@ -484,7 +438,7 @@
         <!-- 主顯示區 -->
         <div class="dash-tabs">
             <button class="dash-tab active" data-view="dashboard" onclick="switchDashView('dashboard')">📊 儀表板</button>
-            <button class="dash-tab" data-view="starmap" onclick="switchDashView('starmap')">🌳 進度樹</button>
+            <button class="dash-tab" data-view="starmap" onclick="switchDashView('starmap')">🌳 樹狀圖</button>
         </div>
 
         <div id="dashboard-root" class="dash-view active"></div>
@@ -4015,7 +3969,7 @@
             root.innerHTML = '';
 
             if (!appMaster || Object.keys(appMaster).length === 0) {
-                root.innerHTML = '<div class="tree-empty">🌳 尚未建立教材庫<br><br><span style="font-size:0.85em;">先去「教材庫與備份」建立科目與單元, 進度樹就會長出來 ✨</span></div>';
+                root.innerHTML = '<div class="tree-empty">🌳 尚未建立教材庫<br><br><span style="font-size:0.85em;">先去「教材庫與備份」建立科目與單元,樹狀圖就會長出來 ✨</span></div>';
                 return;
             }
 
@@ -4037,7 +3991,7 @@
                 return 'todo';
             }
 
-            // 算每個 unit 是否有「未完成的排程 task」(要加 ⏰)
+            // 排程鐘: 從 latestPlan.grid 找未完成的排程
             var scheduledUnits = {};
             if (Array.isArray(appPlans) && appPlans.length > 0) {
                 var latestPlan = appPlans[appPlans.length - 1];
@@ -4047,229 +4001,97 @@
                         if (!Array.isArray(tasks)) return;
                         tasks.forEach(t => {
                             if (!t || !t.unitId) return;
-                            // 只標記未完成的排程 (已完成的不用 ⏰)
                             if (t.isDone) return;
                             if (!scheduledUnits[t.unitId]) scheduledUnits[t.unitId] = true;
                         });
                     });
                 }
             }
-            function totalOf(u) { return Math.max(((u.end || 0) - (u.start || 0) + 1), 1); }
 
-            // 收集所有 subjects 資料
-            var subjects = [];
+            function totalOf(u) {
+                var t = ((u.end || 0) - (u.start || 0) + 1);
+                return (t > 0) ? t : 1;
+            }
+
+            var html = '<div class="tree-container">';
+
             Object.keys(appMaster).forEach(sub => {
                 var s = appMaster[sub];
                 if (!s) return;
 
-                // 收集所有 vols (按 volOrder 或 object keys)
-                var vols = [];
-                var volOrder = s.volOrder || (s.vols ? Object.keys(s.vols) : []);
+                var doneCount = 0, totalCount = 0;
 
+                // 先算總數
+                function countUnits(arr) {
+                    arr.forEach(u => {
+                        totalCount++;
+                        var t = totalOf(u);
+                        if (getStatus(u.id, t) === 'done') doneCount++;
+                    });
+                }
                 if (s.type === 'custom' && Array.isArray(s.units)) {
-                    // 自訂科目: 把所有 units 當作一個「自訂冊」
-                    vols.push({ name: '自訂範圍', units: s.units });
+                    countUnits(s.units);
                 } else if (s.vols) {
-                    volOrder.forEach(volName => {
-                        var arr = s.vols[volName];
-                        if (Array.isArray(arr) && arr.length > 0) {
-                            vols.push({ name: volName, units: arr });
-                        }
+                    Object.keys(s.vols).forEach(v => {
+                        if (Array.isArray(s.vols[v])) countUnits(s.vols[v]);
                     });
                 }
 
-                if (vols.length === 0) return;
+                html += '<div class="tree-subject">';
+                html += '<h2>' + escapeHtml(sub) + '<span class="tree-progress">' + doneCount + ' / ' + totalCount + '</span></h2>';
 
-                // 算 done / total
-                var doneCount = 0, totalCount = 0;
-                vols.forEach(v => {
-                    v.units.forEach(u => {
-                        totalCount++;
-                        if (getStatus(u.id, totalOf(u)) === 'done') doneCount++;
-                    });
-                });
-
-                subjects.push({
-                    name: sub,
-                    vols: vols,
-                    doneCount: doneCount,
-                    totalCount: totalCount
-                });
-            });
-
-            if (subjects.length === 0) {
-                root.innerHTML = '<div class="tree-empty">🌳 教材庫還沒有內容</div>';
-                return;
-            }
-
-            // === Layout (自下而上倒樹) ===
-            // 垂直堆疊: 每個 subject 一個獨立 SVG block
-            // 每棵樹自適應自己的寬度
-            // 加大節點尺寸讓文字清楚 (80→100, 36→44)
-            var bigNodeW = 100, bigNodeH = 44, bigRootW = 130, bigRootH = 56;
-            var bigVolGapX = 50, bigUnitGapX = 18, bigRowGap = 110;
-            var bigPadding = 30;
-
-            var allSvg = '';
-
-            subjects.forEach((s, si) => {
-                // 算此 subject 的 width = 最大 (冊寬, root寬)
-                var maxUnits = 0;
-                s.vols.forEach(v => { if (v.units.length > maxUnits) maxUnits = v.units.length; });
-                var volWidth = maxUnits * (bigNodeW + bigUnitGapX) + bigVolGapX;
-                var subjectWidth = Math.max(volWidth, bigRootW) + bigPadding * 2;
-
-                // 算此 subject 的 height (基於冊數 + 固定層)
-                var subjectHeight = bigPadding * 2 + bigRootH + bigRowGap + (s.vols.length * (bigNodeH + 35)) + bigRowGap + bigNodeH;
-
-                // Y 座標
-                var yRoot = subjectHeight - bigPadding - bigRootH;
-                var yRootCenter = yRoot + bigRootH / 2;
-                var yVol = yRoot - bigRowGap;
-                var yVolCenter = yVol + bigNodeH / 2;
-                var yUnit = yVol - bigRowGap;
-                var yUnitCenter = yUnit + bigNodeH / 2;
-
-                // X 中心: 科目 root 在中間
-                var xRoot = subjectWidth / 2;
-
-                // 此 subject 的 SVG block (HTML wrapper + h2 + svg)
-                allSvg += '<div class="tree-subject-block">';
-                allSvg += '<h2>' + escapeHtml(s.name) + '<span class="tree-progress">' + s.doneCount + ' / ' + s.totalCount + '</span></h2>';
-                allSvg += '<div class="tree-svg-wrap">';
-                allSvg += '<svg viewBox="0 0 ' + subjectWidth + ' ' + subjectHeight + '" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" style="width:100%; height:auto; max-height:' + (subjectHeight + 20) + 'px">';
-
-                // 冊的 X 中心分佈
-                var volCount = s.vols.length;
-                var volSpan = Math.min(subjectWidth - bigVolGapX - bigPadding * 2, volCount * (bigNodeW + bigVolGapX));
-                var volStartX = xRoot - volSpan / 2;
-                var volStep = volCount > 1 ? volSpan / (volCount - 1) : 0;
-
-                // 1) 畫連線
-                s.vols.forEach((v, vi) => {
-                    var xVolCenter = volCount === 1 ? xRoot : volStartX + vi * volStep;
-
-                    // 線: root → vol
-                    allSvg += '<path class="tree-link" d="M ' + xRoot + ' ' + yRootCenter + ' C ' + xRoot + ' ' + (yRootCenter - bigRowGap / 2) + ', ' + xVolCenter + ' ' + (yVolCenter + bigRowGap / 2) + ', ' + xVolCenter + ' ' + yVolCenter + '"/>';
-
-                    // 冊 → 單元
-                    var units = v.units;
-                    var unitSpan = (units.length - 1) * (bigNodeW + bigUnitGapX);
-                    var unitStartX = xVolCenter - unitSpan / 2;
-                    units.forEach((u, ui) => {
-                        var xUnitCenter = unitStartX + ui * (bigNodeW + bigUnitGapX);
-                        allSvg += '<path class="tree-link" d="M ' + xVolCenter + ' ' + yVolCenter + ' C ' + xVolCenter + ' ' + (yVolCenter - bigRowGap / 2) + ', ' + xUnitCenter + ' ' + (yUnitCenter + bigRowGap / 2) + ', ' + xUnitCenter + ' ' + yUnitCenter + '"/>';
-                    });
-                });
-
-                // 2) 畫節點
-                // root
-                var rx = xRoot - bigRootW / 2;
-                allSvg += '<g class="tree-node-root" data-sub="' + escapeHtml(s.name) + '">';
-                allSvg += '<rect class="node-rect node-root-rect" x="' + rx + '" y="' + yRoot + '" width="' + bigRootW + '" height="' + bigRootH + '" rx="8"/>';
-                allSvg += '<text class="node-label node-root-label" x="' + xRoot + '" y="' + (yRootCenter + 5) + '" text-anchor="middle">' + escapeHtml(s.name) + '</text>';
-                allSvg += '<text class="node-label node-root-sub" x="' + xRoot + '" y="' + (yRootCenter + 22) + '" text-anchor="middle">' + s.doneCount + ' / ' + s.totalCount + '</text>';
-                allSvg += '</g>';
-
-                // 冊 + 單元
-                s.vols.forEach((v, vi) => {
-                    var xVolCenter = volCount === 1 ? xRoot : volStartX + vi * volStep;
-                    var vx = xVolCenter - bigNodeW / 2;
-                    var volDone = v.units.filter(u => getStatus(u.id, totalOf(u)) === 'done').length;
-
-                    allSvg += '<g class="tree-node-vol" data-sub="' + escapeHtml(s.name) + '" data-vol="' + escapeHtml(v.name) + '">';
-                    allSvg += '<rect class="node-rect node-vol-rect" x="' + vx + '" y="' + yVol + '" width="' + bigNodeW + '" height="' + bigNodeH + '" rx="6"/>';
-                    allSvg += '<text class="node-label" x="' + xVolCenter + '" y="' + (yVolCenter + 5) + '" text-anchor="middle" font-size="13" fill="#064e3b" font-weight="bold">' + escapeHtml(v.name.length > 6 ? v.name.substring(0, 6) : v.name) + '</text>';
-                    allSvg += '<text class="node-label-small" x="' + xVolCenter + '" y="' + (yVolCenter + 22) + '" text-anchor="middle" font-size="11">' + volDone + '/' + v.units.length + '</text>';
-                    allSvg += '</g>';
-
-                    var units = v.units;
-                    var unitSpan = (units.length - 1) * (bigNodeW + bigUnitGapX);
-                    var unitStartX = xVolCenter - unitSpan / 2;
-                    units.forEach((u, ui) => {
-                        var xUnitCenter = unitStartX + ui * (bigNodeW + bigUnitGapX);
-                        var ux = xUnitCenter - bigNodeW / 2;
+                if (s.type === 'custom' && Array.isArray(s.units)) {
+                    html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
+                    html += '<ul class="tree-units">';
+                    s.units.forEach(u => {
                         var t = totalOf(u);
                         var st = getStatus(u.id, t);
-                        var rectCls = st === 'done' ? 'node-done-rect' : (st === 'progress' ? 'node-progress-rect' : 'node-todo-rect');
+                        var dotClass = 'dot-' + st;
                         var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
-                        var shortName = u.name.length > 4 ? u.name.substring(0, 4) : u.name;
-
-                        allSvg += '<g class="tree-node-unit" data-sub="' + escapeHtml(s.name) + '" data-vol="' + escapeHtml(v.name) + '" data-unit="' + escapeHtml(u.id) + '" data-unit-name="' + escapeHtml(u.name) + '" data-status="' + st + '" data-range="' + escapeHtml(range) + '" data-scheduled="' + (scheduledUnits[u.id] ? '1' : '0') + '">';
-                        allSvg += '<rect class="node-rect ' + rectCls + '" x="' + ux + '" y="' + yUnit + '" width="' + bigNodeW + '" height="' + bigNodeH + '" rx="5"/>';
-                        allSvg += '<text class="node-label" x="' + xUnitCenter + '" y="' + (yUnitCenter + 5) + '" text-anchor="middle" font-size="13" fill="#1f2937" font-weight="bold">' + escapeHtml(shortName) + '</text>';
-                        allSvg += '<text class="node-label-small" x="' + xUnitCenter + '" y="' + (yUnitCenter + 22) + '" text-anchor="middle" font-size="11">' + escapeHtml(range) + '</text>';
-                        if (st === 'done') {
-                            allSvg += '<text class="node-label node-done-check" x="' + (ux + bigNodeW - 10) + '" y="' + (yUnit + 14) + '" text-anchor="middle">✓</text>';
-                        }
-                        if (scheduledUnits[u.id]) {
-                            var clockX = st === 'done' ? (ux + 16) : (ux + bigNodeW - 14);
-                            var clockY = yUnit + 5;
-                            allSvg += '<circle class="node-clock-bg" cx="' + clockX + '" cy="' + (clockY + 7) + '" r="7.5"/>';
-                            allSvg += '<text class="node-clock" x="' + clockX + '" y="' + (clockY + 11) + '" text-anchor="middle" font-size="12">⏰</text>';
-                        }
-                        allSvg += '</g>';
+                        html += '<li class="tree-unit">';
+                        html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
+                        html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
+                        if (range) html += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
+                        html += '</li>';
                     });
-                });
+                    html += '</ul></ul>';
+                } else if (s.vols) {
+                    var volOrder = s.volOrder || Object.keys(s.vols);
+                    volOrder.forEach(volName => {
+                        var arr = s.vols[volName];
+                        if (!Array.isArray(arr) || arr.length === 0) return;
+                        html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + escapeHtml(volName) + '</li>';
+                        html += '<ul class="tree-units">';
+                        arr.forEach(u => {
+                            var t = totalOf(u);
+                            var st = getStatus(u.id, t);
+                            var dotClass = 'dot-' + st;
+                            var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
+                            html += '<li class="tree-unit">';
+                            html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
+                            html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
+                            if (range) html += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
+                            if (scheduledUnits[u.id]) html += '<span class="tree-unit-clock" title="已排入計畫">⏰</span>';
+                            if (scheduledUnits[u.id]) html += '<span class="tree-unit-clock" title="已排入計畫">⏰</span>';
+                            html += '</li>';
+                        });
+                        html += '</ul></ul>';
+                    });
+                }
 
-                allSvg += '</svg></div></div>';
+                html += '</div>';
             });
 
-            var svg = allSvg;
+            html += '</div>';
 
             // Legend
-            svg += '<div class="tree-legend">';
-            svg += '<div class="tree-legend-item"><span class="tree-legend-swatch root"></span><span>科目 (根)</span></div>';
-            svg += '<div class="tree-legend-item"><span class="tree-legend-swatch vol"></span><span>冊</span></div>';
-            svg += '<div class="tree-legend-item"><span class="tree-legend-swatch done"></span><span>完成 ✓</span></div>';
-            svg += '<div class="tree-legend-item"><span class="tree-legend-swatch progress"></span><span>進行中</span></div>';
-            svg += '<div class="tree-legend-item"><span class="tree-legend-swatch todo"></span><span>未開始</span></div>';
-            svg += '<div class="tree-legend-item"><span style="font-size:1.1em;">⏰</span><span>有排程</span></div>';
-            svg += '</div>';
+            html += '<div class="tree-legend">';
+            html += '<div class="tree-legend-item"><span class="tree-legend-dot done"></span><span>已完成 (100%)</span></div>';
+            html += '<div class="tree-legend-item"><span class="tree-legend-dot progress"></span><span>進行中 (1-99%)</span></div>';
+            html += '<div class="tree-legend-item"><span class="tree-legend-dot todo"></span><span>未開始 (0%)</span></div>';
+            html += '</div>';
 
-            // Tooltip element
-            svg += '<div class="tree-tooltip" id="tree-tooltip"></div>';
-
-            root.innerHTML = svg;
-
-            // 綁定 hover tooltip
-            attachTreeTooltip();
-        }
-
-        function attachTreeTooltip() {
-            var tooltip = el('tree-tooltip');
-            if (!tooltip) return;
-            var nodes = document.querySelectorAll('.tree-node-unit, .tree-node-vol, .tree-node-root');
-            nodes.forEach(node => {
-                node.addEventListener('mouseenter', (e) => {
-                    var sub = node.getAttribute('data-sub') || '';
-                    var vol = node.getAttribute('data-vol');
-                    var unit = node.getAttribute('data-unit-name');
-                    var status = node.getAttribute('data-status');
-                    var range = node.getAttribute('data-range');
-                    var html = '<b>' + escapeHtml(sub) + '</b>';
-                    if (vol) html += ' › ' + escapeHtml(vol);
-                    if (unit) html += ' › ' + escapeHtml(unit);
-                    if (range) html += '<br>頁碼: ' + escapeHtml(range);
-                    if (status) {
-                        var stLabel = status === 'done' ? '✓ 完成' : (status === 'progress' ? '進行中' : '未開始');
-                        html += '<br>狀態: ' + stLabel;
-                    }
-                    var sched = node.getAttribute('data-scheduled');
-                    if (sched === '1') {
-                        html += '<br>⏰ 已排入計畫';
-                    }
-                    tooltip.innerHTML = html;
-                    tooltip.classList.add('show');
-                });
-                node.addEventListener('mousemove', (e) => {
-                    tooltip.style.left = (e.pageX + 12) + 'px';
-                    tooltip.style.top = (e.pageY + 12) + 'px';
-                });
-                node.addEventListener('mouseleave', () => {
-                    tooltip.classList.remove('show');
-                });
-            });
+            root.innerHTML = html;
         }
 
         function renderDashboard() { 
