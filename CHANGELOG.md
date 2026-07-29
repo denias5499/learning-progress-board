@@ -2,6 +2,24 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.21 (2026-07-29) — Debug panel 不套用 filter
+
+**Denias 14:44 反映:**
+v1.4.20 debug 還是被 filter 過濾掉, W1 缺 3 筆 (地理位置、公民、英文 U1 P.19~23)
+W2 也缺一些
+
+**根因:**
+debug panel 讀 `byMonth.weekLogs` — 這是 renderMonthlyAnalysis 過濾後的資料
+filter 掉的 log 不會出現在 debug
+
+**修復:**
+- debug panel 改用 unfiltered appLogs
+- 按 mission 分組顯示
+- 顯示 unitId
+- 每筆標 ✓/✗ 讓 Denias 看到是否被 filter 排除
+
+檔案: 5214 → 5258 行 (+44)
+
 ### v1.4.20 (2026-07-29) — Debug panel 顯示 mission
 
 **Denias 12:11 反映:**

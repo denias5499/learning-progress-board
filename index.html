@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.20]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.21]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4661,18 +4661,51 @@
                 html += '<h3>' + monthLabel + '</h3>';
                 html += '<div class="monthly-total">總計 <b>' + totalPages + '</b> 頁</div>';
                 html += '</div>';
-                // v1.4.17: debug panel 預設展開, 不需 toggle
-                html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:300px; overflow-y:auto; font-size:0.8em;">';
-                var weekLogKeys = Object.keys(m.weekLogs || {}).sort(function(a, b) { return parseInt(a) - parseInt(b); });
-                weekLogKeys.forEach(function(wk) {
-                    html += '<b>W' + wk + ':</b> ';
-                    var totalW = 0;
-                    m.weekLogs[wk].forEach(function(l) {
-                        totalW += l.pages;
+                // v1.4.21: debug panel 改用 unfiltered appLogs, 按 mission 分組, 顯示完整資料
+                var currentFilterLabel = '看板篩選: ' + filterCatM + ' / ' + filterMisM + ' (顯示 ' + totalPages + ' 頁)';
+                html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:400px; overflow-y:auto; font-size:0.8em;">';
+                html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>' + currentFilterLabel + '</b></div>';
+
+                // 收集這個月所有 log (unfiltered), 按週+mission 分組
+                var allMonthLogs = [];
+                appLogs.forEach(function(l) {
+                    if (!l.date || !l.pages || l.pages <= 0) return;
+                    if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
+                    var mw = getMonthWeek(l.date);
+                    if (mw.year === m.year && mw.month === m.month) {
+                        allMonthLogs.push(Object.assign({}, l, { _week: mw.week }));
+                    }
+                });
+
+                var weekGrouped = {};
+                allMonthLogs.forEach(function(l) {
+                    var key = 'W' + l._week;
+                    if (!weekGrouped[key]) weekGrouped[key] = [];
+                    weekGrouped[key].push(l);
+                });
+
+                Object.keys(weekGrouped).sort(function(a, b) { return parseInt(a.slice(1)) - parseInt(b.slice(1)); }).forEach(function(wk) {
+                    var logs = weekGrouped[wk];
+                    var totalW = logs.reduce(function(s, l) { return s + l.pages; }, 0);
+                    html += '<b>' + wk + ':</b> <span style="color:#e74c3c; font-weight:bold;">' + totalW + ' 頁</span> (' + logs.length + ' 筆)<br>';
+
+                    // 按 mission 分組
+                    var missionGrouped = {};
+                    logs.forEach(function(l) {
+                        var mk = (l.category || '?') + ' / ' + (l.mission || '?');
+                        if (!missionGrouped[mk]) missionGrouped[mk] = [];
+                        missionGrouped[mk].push(l);
                     });
-                    html += '<span style="color:#e74c3c; font-weight:bold;">' + totalW + ' 頁</span> (' + m.weekLogs[wk].length + ' 筆)<br>';
-                    m.weekLogs[wk].forEach(function(l, i) {
-                        html += '<span style="font-family:monospace; font-size:0.95em; display:block; padding-left:15px;">&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | [' + (l.category || '?') + ' / ' + (l.mission || '?') + '] | ' + (l.subject || '?') + ' | ' + (l.unitName || '?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁</span>';
+                    Object.keys(missionGrouped).sort().forEach(function(mk) {
+                        var mlogs = missionGrouped[mk];
+                        var mtotal = mlogs.reduce(function(s, l) { return s + l.pages; }, 0);
+                        html += '&nbsp;&nbsp;<span style="color:#2980b9;">[' + mk + ']</span> <span style="color:#666;">' + mtotal + ' 頁</span> (' + mlogs.length + ' 筆)<br>';
+                        mlogs.forEach(function(l, i) {
+                            var unitTag = l.unitId ? '<span style="color:#999;">uid=' + l.unitId + '</span>' : '<span style="color:#c00;">no-uid</span>';
+                            var filterOk = (!allowedUnitIdsM || !l.unitId || allowedUnitIdsM.has(l.unitId));
+                            var filterTag = filterOk ? '<span style="color:green;">✓</span>' : '<span style="color:red;">✗filter</span>';
+                            html += '&nbsp;&nbsp;&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | ' + filterTag + ' | ' + (l.subject || '?') + ' | ' + (l.unitName || '?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁 | ' + unitTag + ' | id=' + (l.id||'?') + '<br>';
+                        });
                     });
                     html += '<br>';
                 });
