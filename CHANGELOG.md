@@ -2,6 +2,20 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.18 (2026-07-29) — Debug panel 加 date 欄位
+
+**Denias 11:53 反映:**
+歷史紀錄頁面中那 6 筆 log 都存在, 但月份分析 W1 debug 沒看到。
+
+**發現原因:**
+- v1.4.16 我收集 weekLogs 時忘了存 date 欄位
+- debug panel 顯示 'undefined' (l.date)
+
+**修復:**
+- 補 date 到 weekLogs 收集
+
+檔案: 5164 → 5166 行 (+2)
+
 ### v1.4.17 (2026-07-29) — Debug panel 預設展開 (不用 toggle)
 
 **Denias 03:40 反映:**
