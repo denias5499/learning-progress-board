@@ -2,6 +2,30 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.23 (2026-07-29) — Debug dump 模式
+
+**Denias 15:17 提供截圖:**
+6 筆缺失任務中 5 筆 category 是「會考複習」
+1 筆 (7/3 英文 U1 P.19~23) category 是「系統重排」
+
+**關鍵問題:**
+5 筆「會考複習」任務為什麼 v1.4.21 debug 看不到?
+category filter 移除後應該看到, 但 Denias 15:05 截圖還是看不到
+
+**推測根因:**
+這些 log 不在 appLogs 裡, 或者月曆 task 顯示為完成但沒 push log
+可能是:
+- 月曆 task 被勾 done 後 log 被刪除 (例如 plan 被刪)
+- 任務從 plan grid 但 log 不同步
+- task.unitId 找不到 master unit 對應
+
+**v1.4.23 dump 模式:**
+- 顯示每月所有 logs (含 system 重排)
+- 每筆標 ✓/✗ 加上排除原因
+- 顯示 uid/cat/mis/id 完整資料
+
+檔案: 5261 → 5280 行 (+19)
+
 ### v1.4.22 (2026-07-29) — Debug panel 不過濾 category
 
 **Denias 15:05 提供完整 debug panel:**

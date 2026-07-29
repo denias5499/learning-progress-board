@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.22]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.23]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4661,50 +4661,33 @@
                 html += '<h3>' + monthLabel + '</h3>';
                 html += '<div class="monthly-total">總計 <b>' + totalPages + '</b> 頁</div>';
                 html += '</div>';
-                // v1.4.21: debug panel 改用 unfiltered appLogs, 按 mission 分組, 顯示完整資料
-                var currentFilterLabel = '看板篩選: ' + filterCatM + ' / ' + filterMisM + ' (顯示 ' + totalPages + ' 頁)';
-                html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:400px; overflow-y:auto; font-size:0.8em;">';
-                html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>' + currentFilterLabel + '</b></div>';
+                // v1.4.23: 完整 dump 模式 - 顯示所有月內 logs + 每筆排除原因
+                var filterLabel = 'Filter: cat=' + filterCatM + ' / mis=' + filterMisM + ' / allowedUnitIds=' + (allowedUnitIdsM ? allowedUnitIdsM.size + ' 個' : 'ALL');
+                html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:500px; overflow-y:auto; font-size:0.75em;">';
+                html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>Debug Dump</b><br>' + filterLabel + '<br>本月所有 logs (含 system): <b>' + allMonthLogs.length + '</b> 筆<br>當前 byMonth (filter+dedup): <b>' + totalPages + '</b> 頁</div>';
 
-                // v1.4.22: debug panel 不過濾任何 category, 顯示全部 appLogs (含 🔄 系統重排 / 🗓️ 計畫管理)
-                var allMonthLogs = [];
-                appLogs.forEach(function(l) {
-                    if (!l.date || !l.pages || l.pages <= 0) return;
-                    var mw = getMonthWeek(l.date);
-                    if (mw.year === m.year && mw.month === m.month) {
-                        allMonthLogs.push(Object.assign({}, l, { _week: mw.week }));
-                    }
-                });
-
-                var weekGrouped = {};
+                var dumpWeekGrouped = {};
                 allMonthLogs.forEach(function(l) {
                     var key = 'W' + l._week;
-                    if (!weekGrouped[key]) weekGrouped[key] = [];
-                    weekGrouped[key].push(l);
+                    if (!dumpWeekGrouped[key]) dumpWeekGrouped[key] = [];
+                    dumpWeekGrouped[key].push(l);
                 });
 
-                Object.keys(weekGrouped).sort(function(a, b) { return parseInt(a.slice(1)) - parseInt(b.slice(1)); }).forEach(function(wk) {
-                    var logs = weekGrouped[wk];
+                Object.keys(dumpWeekGrouped).sort(function(a, b) { return parseInt(a.slice(1)) - parseInt(b.slice(1)); }).forEach(function(wk) {
+                    var logs = dumpWeekGrouped[wk];
                     var totalW = logs.reduce(function(s, l) { return s + l.pages; }, 0);
-                    html += '<b>' + wk + ':</b> <span style="color:#e74c3c; font-weight:bold;">' + totalW + ' 頁</span> (' + logs.length + ' 筆)<br>';
-
-                    // 按 mission 分組
-                    var missionGrouped = {};
-                    logs.forEach(function(l) {
-                        var mk = (l.category || '?') + ' / ' + (l.mission || '?');
-                        if (!missionGrouped[mk]) missionGrouped[mk] = [];
-                        missionGrouped[mk].push(l);
-                    });
-                    Object.keys(missionGrouped).sort().forEach(function(mk) {
-                        var mlogs = missionGrouped[mk];
-                        var mtotal = mlogs.reduce(function(s, l) { return s + l.pages; }, 0);
-                        html += '&nbsp;&nbsp;<span style="color:#2980b9;">[' + mk + ']</span> <span style="color:#666;">' + mtotal + ' 頁</span> (' + mlogs.length + ' 筆)<br>';
-                        mlogs.forEach(function(l, i) {
-                            var unitTag = l.unitId ? '<span style="color:#999;">uid=' + l.unitId + '</span>' : '<span style="color:#c00;">no-uid</span>';
-                            var filterOk = (!allowedUnitIdsM || !l.unitId || allowedUnitIdsM.has(l.unitId));
-                            var filterTag = filterOk ? '<span style="color:green;">✓</span>' : '<span style="color:red;">✗filter</span>';
-                            html += '&nbsp;&nbsp;&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | ' + filterTag + ' | ' + (l.subject || '?') + ' | ' + (l.unitName || '?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁 | ' + unitTag + ' | id=' + (l.id||'?') + '<br>';
-                        });
+                    html += '<b>' + wk + ':</b> 全部 <span style="color:#e74c3c;">' + totalW + ' 頁</span> (' + logs.length + ' 筆)<br>';
+                    logs.forEach(function(l, i) {
+                        var reason = '?';
+                        var cat = l.category || '?';
+                        if (cat === '🔄 系統重排' || cat === '🗓️ 計畫管理') {
+                            reason = '✗cat=' + cat;
+                        } else if (allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId)) {
+                            reason = '✗uid不在filter';
+                        } else {
+                            reason = '✓';
+                        }
+                        html += '<span style="font-family:monospace; display:block; padding-left:15px; font-size:1.05em;">&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | ' + reason + ' | [' + cat + ' / ' + (l.mission||'?') + '] | ' + (l.subject||'?') + ' | ' + (l.unitName||'?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁 | uid=' + (l.unitId||'-') + ' | id=' + (l.id||'?') + '</span>';
                     });
                     html += '<br>';
                 });
