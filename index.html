@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.30]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.31]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4755,7 +4755,23 @@
                 Object.keys(dumpWeekGrouped).sort(function(a, b) { return parseInt(a.slice(1)) - parseInt(b.slice(1)); }).forEach(function(wk) {
                     var logs = dumpWeekGrouped[wk];
                     var totalW = logs.reduce(function(s, l) { return s + l.pages; }, 0);
-                    html += '<b>' + wk + ':</b> 全部 <span style="color:#e74c3c;">' + totalW + ' 頁</span> (' + logs.length + ' 筆)<br>';
+                    // v1.4.31: 先 trace 一遍 reason, 計算 ✓ 頁數 = bar 實際計入的
+                    var keptPages = 0;
+                    logs.forEach(function(l) {
+                        var reason = '?';
+                        var cat = l.category || '?';
+                        if (cat === '🔄 系統重排' || cat === '🗓️ 計畫管理') {
+                            reason = '✗cat=' + cat;
+                        } else if (filterCatM !== 'ALL' && cat !== filterCatM) {
+                            reason = '✗cat不符(' + cat + '≠' + filterCatM + ')';
+                        } else if (filterMisM !== 'ALL' && allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId) && l.mission !== filterMisM) {
+                            reason = '✗mis不符(uid不在mission 且 mission字串≠' + filterMisM + ')';
+                        } else {
+                            reason = '✓';
+                            keptPages += l.pages;
+                        }
+                    });
+                    html += '<b>' + wk + ':</b> 全部 <span style="color:#e74c3c;">' + totalW + ' 頁</span> (' + logs.length + ' 筆) → bar計入 <span style="color:green;">' + keptPages + ' 頁</span><br>';
                     logs.forEach(function(l, i) {
                         var reason = '?';
                         var cat = l.category || '?';
