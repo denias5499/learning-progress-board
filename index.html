@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.25]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.26]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4663,34 +4663,38 @@
                 html += '</div>';
                 // v1.4.24: dump 到 console 給 user 用 F12 查
         window.dumpMonthLogs = function(mkey) {
-            var data = window._byMonthData ? window._byMonthData[mkey] : null;
-            if (!data) { console.log('No data'); return; }
-            var logs = [];
-            appLogs.forEach(function(l) {
-                if (!l.date || !l.pages || l.pages <= 0) return;
-                var mw = getMonthWeek(l.date);
-                if (mw.year === data.year && mw.month === data.month) {
-                    logs.push(l);
+            // v1.4.26: 也顯示到頁面 textarea, 不只 console
+            try {
+                var data = window._byMonthData ? window._byMonthData[mkey] : null;
+                if (!data) { 
+                    alert('No data: _byMonthData[' + mkey + '] 不存在');
+                    return; 
                 }
-            });
-            console.log('=== Month ' + data.year + '-' + data.month + ' All Logs ===');
-            console.log('Total: ' + logs.length + ' logs');
-            console.table(logs.map(function(l) {
-                return {
-                    date: l.date,
-                    category: l.category,
-                    mission: l.mission,
-                    subject: l.subject,
-                    unitName: l.unitName,
-                    start: l.start,
-                    end: l.end,
-                    pages: l.pages,
-                    unitId: l.unitId,
-                    id: l.id
-                };
-            }));
-            console.log('=== Dump as JSON ===');
-            console.log(JSON.stringify(logs, null, 2));
+                var logs = [];
+                appLogs.forEach(function(l) {
+                    if (!l.date || !l.pages || l.pages <= 0) return;
+                    var mw = getMonthWeek(l.date);
+                    if (mw.year === data.year && mw.month === data.month) {
+                        logs.push(l);
+                    }
+                });
+                var json = JSON.stringify(logs, null, 2);
+                // 顯示到頁面
+                var ta = document.getElementById('dump-textarea-' + mkey);
+                if (ta) {
+                    ta.style.display = 'block';
+                    ta.value = json;
+                }
+                // 同時 console
+                if (typeof console !== 'undefined' && console.log) {
+                    console.log('=== Month ' + data.year + '-' + data.month + ' All Logs ===');
+                    console.log('Total: ' + logs.length + ' logs');
+                    console.log(json);
+                }
+                alert('已 dump ' + logs.length + ' 筆 log 到下方 textarea (id=dump-textarea-' + mkey + '), 請看下方');
+            } catch (e) {
+                alert('Dump 錯誤: ' + e.message);
+            }
         };
 
         // v1.4.23: 完整 dump 模式 - 顯示所有月內 logs + 每筆排除原因
@@ -4706,7 +4710,8 @@
                 var filterLabel = 'Filter: cat=' + filterCatM + ' / mis=' + filterMisM + ' / allowedUnitIds=' + (allowedUnitIdsM ? allowedUnitIdsM.size + ' 個' : 'ALL');
                 html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:500px; overflow-y:auto; font-size:0.75em;">';
                 html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>Debug Dump</b><br>' + filterLabel + '<br>本月所有 logs (含 system): <b>' + allMonthLogs.length + '</b> 筆<br>當前 byMonth (filter+dedup): <b>' + totalPages + '</b> 頁';
-                html += '<br><button data-mkey="' + mkey + '" onclick="window.dumpMonthLogs(this.dataset.mkey)" style="margin-top:6px; padding:4px 10px; background:#e74c3c; color:white; border:none; border-radius:4px; cursor:pointer;">📋 Dump 到 Console (F12)</button>';
+                html += '<br><button onclick="window.dumpMonthLogs(this.dataset.mkey)" data-mkey="' + mkey + '" style="margin-top:6px; padding:6px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; font-weight:bold;">📋 Dump All Logs (顯示到下方)</button>';
+                html += '<textarea id="dump-textarea-' + mkey + '" style="display:none; width:100%; height:200px; margin-top:8px; font-family:monospace; font-size:0.75em; padding:6px; border:1px solid #ccc; border-radius:4px;" readonly></textarea>';
                 html += '</div>';
 
                 var dumpWeekGrouped = {};

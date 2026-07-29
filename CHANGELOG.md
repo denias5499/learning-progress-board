@@ -2,6 +2,23 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.26 (2026-07-29) — Dump 改成頁面 textarea
+
+**Denias 15:39 反映:**
+點 dump 按鈕沒動作 (22:39 再說一次)
+
+**可能原因:**
+- `this.dataset.mkey` 取值失敗
+- console.log 看不到 (也許 Denias 沒開 F12)
+- onclick 字串拼接 escape 問題
+
+**修復:**
+- dump 結果顯示到頁面 textarea (不只 console)
+- 加 alert() 確認有觸發
+- button onclick 改回 dataset.mkey 但加強錯誤處理
+
+檔案: 5339 → 5360 行 (+21)
+
 ### v1.4.25 (2026-07-29) — 緊急 fix: Can't find variable: allMonthLogs
 
 **Denias 15:34 反映:**
