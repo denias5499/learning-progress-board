@@ -2,6 +2,48 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.1 (2026-07-30) — 教材庫分層: 主教材 / 複習講義 / 複習教材
+
+**Denias 02:50 需求:**
+為每個科目新增複習教材層, 如數學 → 翰將 / KO 參考書
+複習教材跟主教材一樣有 1-1, 1-2... 章節
+範圍只動教材庫 (log / 排程不動)
+
+**架構 (Option A):**
+```
+appMaster[subject] = {
+  type: 'custom' | 'volume',
+  units: [...],              // 主教材
+  vols / volOrder: [...],     // (volume 時)
+  reviewMaterials: [          // 🆕 複習教材陣列
+    { id, name, type, units/vols }
+  ]
+}
+```
+
+**Migrate:**
+- 自動為每個 subject 加 reviewMaterials: [複習講義]
+- 「複習講義」是你現有的複習材, 預設就有
+
+**UI 改動:**
+- 教材庫增「教材層」dropdown: 📘 主教材 / 📗 複習講義 / 📗 翰將 / 📗 KO
+- 「➕ 新增複習教材」按鈕
+- 「✏️ 編輯教材名稱」按鈕
+- 「🗑️ 刪除教材」按鈕
+
+**實作:**
+- 新函式: `populateMasterLayerDropdown` / `onMasterLayerChange` / `addReviewMaterial` / `renameReviewMaterial` / `deleteReviewMaterial` / `getCurrentLayerData`
+- `handleMasterSubjectChange` 加 populateMasterLayerDropdown
+- `extractCurrentEditorData` / `renderMasterEditor` 改為 layer-aware
+- `openSettings` 補 reviewMaterials 預設 + populateMasterLayerDropdown
+- `initUsers` migrate 加 reviewMaterials + 「複習講義」預設
+
+**範圍:**
+- ✅ 教材庫完整支援
+- ❌ log / 排程 / mission 不動 (下版 v1.5.2 弄)
+
+檔案: 5610 → 5810 行 (+200)
+
 ### v1.5.0 (2026-07-30) — 新增分類 wizard (含教材科目)
 
 **Denias 02:31 需求:**

@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.0]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.1]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -806,15 +806,20 @@
                             <button type="button" class="btn-warning" onclick="renameMasterSubject()">✏️ 編輯科目名稱</button>
                             <button type="button" class="btn-danger" onclick="deleteMasterSubject()">🗑️ 刪除科目</button>
                         </div>
-                        
-                        <!-- 需求 2：新增複習教材區塊 -->
-                        <div class="setting-controls" style="margin-top:15px; padding-top:15px; border-top: 1px dashed var(--border);">
-                            <span style="font-weight:bold; color:var(--purple); display:flex; align-items:center; margin-right:10px;">新增複習教材：</span>
-                            <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addMasterSubject()">➕ 新增教材</button>
-                            <button type="button" class="btn-warning" onclick="renameMasterSubject()">✏️ 編輯教材名稱</button>
-                            <button type="button" class="btn-danger" onclick="deleteMasterSubject()">🗑️ 刪除教材</button>
-                        </div>
                     </div>
+
+                    <!-- v1.5.1: 教材層 dropdown (主教材 / 複習講義 / 各複習教材) -->
+                    <div class="form-group" style="margin-top:15px; padding-top:15px; border-top: 1px dashed var(--border);">
+                        <label style="color:var(--purple); font-weight:bold;">選擇要編輯的教材層</label>
+                        <select id="master-layer" onchange="onMasterLayerChange()"></select>
+                        <div class="setting-controls" style="margin-top:10px;">
+                            <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addReviewMaterial()">➕ 新增複習教材</button>
+                            <button type="button" class="btn-warning" onclick="renameReviewMaterial()">✏️ 編輯教材名稱</button>
+                            <button type="button" class="btn-danger" onclick="deleteReviewMaterial()">🗑️ 刪除教材</button>
+                        </div>
+                        <small style="color:#7f8c8d; display:block; margin-top:8px;">* 「主教材」是原科目, 「複習講義」是你現有的複習材, 其他是你新增的 (如斅將、KO 參考書)</small>
+                    </div>
+
                     <hr style="border: 0; border-top: 2px solid var(--border); margin: 20px 0;">
                     <div id="master-editor-root"></div>
                 </div>
@@ -1627,8 +1632,28 @@
 
                 Object.keys(multiData).forEach(uid => {
                     if (!multiData[uid].plans) multiData[uid].plans = [];
-                    if (typeof multiData[uid].avatar === 'undefined') multiData[uid].avatar = ''; 
+                    if (typeof multiData[uid].avatar === 'undefined') multiData[uid].avatar = '';
                     if (!multiData[uid].logs) multiData[uid].logs = [];
+
+                    // v1.5.1: migrate - 每個 subject 加 reviewMaterials 欄位 + 預設「複習講義」
+                    if (multiData[uid].master) {
+                        Object.keys(multiData[uid].master).forEach(subName => {
+                            var subj = multiData[uid].master[subName];
+                            if (subj && typeof subj === 'object') {
+                                if (!subj.reviewMaterials) {
+                                    // 預設加一個「複習講義」 material, 代表 Denias 現有的複習材
+                                    subj.reviewMaterials = [{
+                                        id: 'rm_' + genId(),
+                                        name: '複習講義',
+                                        type: 'custom',
+                                        units: []
+                                    }];
+                                    if (typeof window._v151Migrated === 'undefined') window._v151Migrated = 0;
+                                    window._v151Migrated++;
+                                }
+                            }
+                        });
+                    }
                     
                     multiData[uid].plans.forEach(plan => {
                         if (plan && plan.grid) {
@@ -1671,6 +1696,10 @@
                     console.log('v1.4.28: migration 完成, 已將 ' + window._v1428Migrated + ' 筆 log 的 mission 從「暑期複習進度」改為「暑假複習進度」');
                 }
                 window._v1428Migrated = 0;
+                if (typeof window._v151Migrated !== 'undefined' && window._v151Migrated > 0) {
+                    console.log('v1.5.1: migration 完成, 已為 ' + window._v151Migrated + ' 個 subject 加 reviewMaterials 欄位');
+                }
+                window._v151Migrated = 0;
                 
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
                 currentUserId = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
@@ -3778,14 +3807,19 @@
             }
         }
 
-        function openSettings() { 
+        function openSettings() {
             showPage('page-settings');
-            populateSelect('master-subject', Object.keys(appMaster)); 
-            renderMasterEditor(); 
+            populateSelect('master-subject', Object.keys(appMaster));
+            // v1.5.1: 確保每個 subject 都有 reviewMaterials 欄位 (defensive)
+            Object.keys(appMaster).forEach(function(s) {
+                if (!appMaster[s].reviewMaterials) appMaster[s].reviewMaterials = [];
+            });
+            populateMasterLayerDropdown();
+            renderMasterEditor();
             populateSelect('master-set-cat', Object.keys(appMissions));
             onMasterSetCatChange();
-            populateSelect('set-cat', Object.keys(appMissions)); 
-            onSetCatChange(); 
+            populateSelect('set-cat', Object.keys(appMissions));
+            onSetCatChange();
         }
 
         function switchTab(tabId) { 
@@ -3797,42 +3831,52 @@
             if(tabId === 'mission') renderMissionCheckboxes(); 
         }
         
-        function extractCurrentEditorData() { 
-            var sub = lastMasterSub || el('master-subject').value; 
-            if(!sub || !appMaster[sub]) return; 
-            
-            function extractData(containerId) { 
-                var container = document.getElementById(containerId); 
-                if (!container) return []; 
-                var rows = container.querySelectorAll('.setting-unit-row'); 
-                var data = []; 
-                for(var i=0; i<rows.length; i++) { 
-                    var s = Number(rows[i].querySelector('.cfg-start').value); 
-                    var e = Number(rows[i].querySelector('.cfg-end').value); 
-                    if(s && e && s > e) { var temp = s; s = e; e = temp; } 
-                    data.push({ 
-                        id: rows[i].dataset.uid, 
-                        name: rows[i].querySelector('.cfg-name').value || '未命名', 
-                        start: s||'', 
-                        end: e||'' 
-                    }); 
-                } 
-                return data; 
-            } 
-            
-            if (appMaster[sub].type === 'custom') { 
-                appMaster[sub].units = extractData('cfg-list-custom'); 
-            } else { 
-                var newVolOrder = []; 
-                var groups = document.querySelectorAll('#master-editor-root .vol-group'); 
-                groups.forEach(g => { 
-                    var volName = g.dataset.vol; 
-                    newVolOrder.push(volName); 
-                    if(document.getElementById('cfg-list-'+volName)) { 
-                        appMaster[sub].vols[volName] = extractData('cfg-list-'+volName); 
-                    } 
-                }); 
-                appMaster[sub].volOrder = newVolOrder; 
+        function extractCurrentEditorData() {
+            var sub = lastMasterSub || el('master-subject').value;
+            if(!sub || !appMaster[sub]) return;
+
+            function extractData(containerId) {
+                var container = document.getElementById(containerId);
+                if (!container) return [];
+                var rows = container.querySelectorAll('.setting-unit-row');
+                var data = [];
+                for(var i=0; i<rows.length; i++) {
+                    var s = Number(rows[i].querySelector('.cfg-start').value);
+                    var e = Number(rows[i].querySelector('.cfg-end').value);
+                    if(s && e && s > e) { var temp = s; s = e; e = temp; }
+                    data.push({
+                        id: rows[i].dataset.uid,
+                        name: rows[i].querySelector('.cfg-name').value || '未命名',
+                        start: s||'',
+                        end: e||''
+                    });
+                }
+                return data;
+            }
+
+            // v1.5.1: 根據 layer 決定存哪裡
+            var layerId = el('master-layer') ? el('master-layer').value : '__main__';
+            var target = null;
+            if (layerId === '__main__') {
+                target = appMaster[sub];
+            } else if (appMaster[sub].reviewMaterials) {
+                target = appMaster[sub].reviewMaterials.find(function(r) { return r.id === layerId; });
+            }
+            if (!target) { window.isMasterDirty = false; return; }
+
+            if (target.type === 'custom') {
+                target.units = extractData('cfg-list-custom');
+            } else {
+                var newVolOrder = [];
+                var groups = document.querySelectorAll('#master-editor-root .vol-group');
+                groups.forEach(g => {
+                    var volName = g.dataset.vol;
+                    newVolOrder.push(volName);
+                    if(document.getElementById('cfg-list-'+volName)) {
+                        target.vols[volName] = extractData('cfg-list-'+volName);
+                    }
+                });
+                target.volOrder = newVolOrder;
             }
             window.isMasterDirty = false;
         }
@@ -3847,10 +3891,62 @@
                 }
             }
             window.isMasterDirty = false;
+            // v1.5.1: 重新 populate 教材層 dropdown
+            populateMasterLayerDropdown();
             // v1.5.0: skipLoadUnits 參數 - wizard 內新增分類時不預填既有單元
             window._skipLoadUnits = opts.skipLoadUnits;
             renderMasterEditor();
             window._skipLoadUnits = false;
+        }
+
+        // v1.5.1: 教材層 dropdown populate
+        function populateMasterLayerDropdown() {
+            var sub = el('master-subject').value;
+            var layerSel = el('master-layer');
+            if (!layerSel || !sub) return;
+            layerSel.innerHTML = '';
+            // 主教材
+            layerSel.innerHTML += '<option value="__main__">📘 主教材</option>';
+            // 所有複習教材 (不 mutate appMaster, 避免重複初始化)
+            var subject = appMaster[sub];
+            var reviewMaterials = (subject && subject.reviewMaterials) ? subject.reviewMaterials : [];
+            reviewMaterials.forEach(function(r) {
+                layerSel.innerHTML += '<option value="' + r.id + '">📗 ' + escapeHtml(r.name) + '</option>';
+            });
+            // 如果沒有複習教材, 在 dropdown 加提示選項 (但不要 mutate)
+            if (reviewMaterials.length === 0) {
+                layerSel.innerHTML += '<option value="" disabled>-- 無複習教材, 請按下方「➕ 新增複習教材」--</option>';
+            }
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        function onMasterLayerChange() {
+            // v1.5.1: 先存上一層的編輯, 避免資料遺失
+            if (window.isMasterDirty) {
+                extractCurrentEditorData();
+            }
+            window.isMasterDirty = false;
+            renderMasterEditor();
+        }
+
+        // v1.5.1: 取得目前選的 layer 資料
+        function getCurrentLayerData() {
+            var sub = el('master-subject').value;
+            var layerId = el('master-layer').value;
+            if (!sub) return null;
+            var subject = appMaster[sub];
+            if (layerId === '__main__') {
+                return { subject: sub, layer: subject, isMain: true, layerId: '__main__' };
+            }
+            if (subject.reviewMaterials) {
+                var mat = subject.reviewMaterials.find(function(r) { return r.id === layerId; });
+                if (mat) return { subject: sub, layer: mat, isMain: false, layerId: layerId };
+            }
+            return null;
         }
 
         function scrollMasterVolumes(direction) {
@@ -3926,6 +4022,68 @@
         }
         
         function renameMasterVolume(oldVolName) { var sub = el('master-subject').value; if(!sub) return; openInputModal('✏️ 編輯冊次', oldVolName, function(newVolName) { if(newVolName === oldVolName) return; if(appMaster[sub].vols[newVolName]) return alert('已存在！'); extractCurrentEditorData(); appMaster[sub].vols[newVolName] = appMaster[sub].vols[oldVolName]; delete appMaster[sub].vols[oldVolName]; if (appMaster[sub].volOrder) { var idx = appMaster[sub].volOrder.indexOf(oldVolName); if (idx !== -1) appMaster[sub].volOrder[idx] = newVolName; } appLogs.forEach(l => { if(l.subject === sub && l.volume === oldVolName) l.volume = newVolName; }); window.isMasterDirty=true; renderMasterEditor(); }); }
+
+        // v1.5.1: 複習教材 CRUD
+        function addReviewMaterial() {
+            var sub = el('master-subject').value;
+            if (!sub) return alert('請先選擇科目！');
+            openInputModal('➕ 新增複習教材', '', function(name) {
+                if (!name) return;
+                var subject = appMaster[sub];
+                if (!subject.reviewMaterials) subject.reviewMaterials = [];
+                if (subject.reviewMaterials.some(function(r) { return r.name === name; })) return alert('已存在！');
+                var isVol = confirm('複習教材需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊');
+                var mat = {
+                    id: 'rm_' + genId(),
+                    name: name,
+                    type: isVol ? 'volume' : 'custom',
+                    units: isVol ? null : [],
+                    vols: isVol ? { '第一冊': [] } : null,
+                    volOrder: isVol ? ['第一冊'] : null
+                };
+                subject.reviewMaterials.push(mat);
+                window.isMasterDirty = true;
+                populateMasterLayerDropdown();
+                el('master-layer').value = mat.id;
+                renderMasterEditor();
+            });
+        }
+
+        function renameReviewMaterial() {
+            var sub = el('master-subject').value;
+            var layerId = el('master-layer').value;
+            if (!sub) return alert('請先選擇科目！');
+            if (layerId === '__main__') return alert('主教材不能改名字, 請去上面「編輯科目名稱」');
+            var subject = appMaster[sub];
+            var mat = (subject.reviewMaterials || []).find(function(r) { return r.id === layerId; });
+            if (!mat) return alert('找不到該教材！');
+            openInputModal('✏️ 編輯複習教材名稱', mat.name, function(newName) {
+                if (newName === mat.name) return;
+                if (!newName) return;
+                if (subject.reviewMaterials.some(function(r) { return r.name === newName; })) return alert('已存在！');
+                mat.name = newName;
+                window.isMasterDirty = true;
+                populateMasterLayerDropdown();
+                el('master-layer').value = layerId;
+                renderMasterEditor();
+            });
+        }
+
+        function deleteReviewMaterial() {
+            var sub = el('master-subject').value;
+            var layerId = el('master-layer').value;
+            if (!sub) return alert('請先選擇科目！');
+            if (layerId === '__main__') return alert('主教材不能刪除, 請去上面「刪除科目」');
+            var subject = appMaster[sub];
+            var mat = (subject.reviewMaterials || []).find(function(r) { return r.id === layerId; });
+            if (!mat) return alert('找不到該教材！');
+            if (!confirm('確定刪除複習教材「' + mat.name + '」?\n這個教材的單元資料會被刪掉。')) return;
+            subject.reviewMaterials = subject.reviewMaterials.filter(function(r) { return r.id !== layerId; });
+            window.isMasterDirty = true;
+            populateMasterLayerDropdown();
+            el('master-layer').value = '__main__';
+            renderMasterEditor();
+        }
         
         function deleteMasterVolume(volName) { 
             var sub = el('master-subject').value; 
@@ -3938,36 +4096,48 @@
             } 
         }
         
-        function renderMasterEditor() { 
+        function renderMasterEditor() {
             var sel = el('master-subject');
             var sub = sel ? sel.value : "";
-            lastMasterSub = sub; 
-            window.isMasterDirty = false; 
-            
-            var root = el('master-editor-root'); root.innerHTML = ''; 
-            if(!sub) { root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請先新增科目</div>'; return; } 
-            
-            var s = appMaster[sub]; 
+            lastMasterSub = sub;
+            window.isMasterDirty = false;
+
+            var root = el('master-editor-root'); root.innerHTML = '';
+            if(!sub) { root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請先新增科目</div>'; return; }
+
+            // v1.5.1: 根據 layer 決定 render 哪個資料
+            var layerId = el('master-layer') ? el('master-layer').value : '__main__';
+            var target = null;
+            if (layerId === '__main__') {
+                target = appMaster[sub];
+            } else if (appMaster[sub].reviewMaterials) {
+                target = appMaster[sub].reviewMaterials.find(function(r) { return r.id === layerId; });
+            }
+            if (!target) {
+                root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請先選擇教材層</div>';
+                return;
+            }
+
+            var s = target;
             if (s.type === 'custom') {
                 root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\')">➕ 新增單元</button></div>';
-                // v1.5.0: skipLoadUnits flag (wizard 新分類不預填)
                 if (!window._skipLoadUnits) {
-                    s.units.forEach(u => addSettingRow('cfg-list-custom', u));
+                    (s.units || []).forEach(u => addSettingRow('cfg-list-custom', u));
                 } else {
-                    addSettingRow('cfg-list-custom'); // 加一個空 row 讓使用者填
+                    addSettingRow('cfg-list-custom');
                 }
-            } else { 
-                var volsToRender = s.volOrder || Object.keys(s.vols); 
+            } else {
+                var volsToRender = s.volOrder || Object.keys(s.vols);
                 var html = '<div style="position: relative; padding-bottom: 45px;">';
-                html += '<div id="master-volumes-container" class="horizontal-scroll" style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; width: 100%; scroll-behavior: smooth;">'; 
-                volsToRender.forEach(vol => { 
-                    var safeVol = vol.replace(/'/g, "\\'"); 
+                html += '<div id="master-volumes-container" class="horizontal-scroll" style="display: flex; gap: 15px; overflow-x: auto; padding-bottom: 15px; width: 100%; scroll-behavior: smooth;">';
+                volsToRender.forEach(vol => {
+                    var safeVol = vol.replace(/'/g, "\\'");
                     html += `<div class="vol-group" data-vol="${vol}" style="flex: 0 0 auto; min-width: 330px; margin-bottom: 0;">
                                 <div class="vol-title" style="flex-wrap: wrap; gap: 8px;">
                                     <span>📚 ${vol}</span>
                                     <div style="display:flex; gap:5px; flex-wrap:wrap;">
                                         <button type="button" class="btn-outline" style="padding:4px 8px; font-size:0.85em;" onclick="addMasterVolume('${safeVol}')">➕ 往後新增</button>
-                                        <button type="button" class="btn-warning" style="padding:4px 8px; font-size:0.85em;" onclick="renameMasterVolume('${safeVol}')">✏️ 編輯</button> 
+                                        <button type="button" class="btn-warning" style="padding:4px 8px; font-size:0.85em;" onclick="renameMasterVolume('${safeVol}')">✏️ 編輯</button>
                                         <button type="button" class="btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="deleteMasterVolume('${safeVol}')">🗑️</button>
                                     </div>
                                 </div>
@@ -3975,8 +4145,8 @@
                                 <div style="margin-top:10px;">
                                     <button type="button" class="btn-outline" onclick="addSettingRow('cfg-list-${safeVol}')">➕ 新增單元</button>
                                 </div>
-                            </div>`; 
-                }); 
+                            </div>`;
+                });
                 html += '</div>';
                 html += `<div style="position: absolute; bottom: 5px; right: 10px; display: flex; gap: 8px; z-index: 10;">
                             <button type="button" class="btn-primary" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; box-shadow: 0 3px 6px rgba(0,0,0,0.3); font-size: 1.2em; display:flex; align-items:center; justify-content:center;" onclick="scrollMasterVolumes('first')" title="回到最前一冊">⏮️</button>
@@ -3985,19 +4155,17 @@
                         </div>`;
                 html += '</div>';
                 if(volsToRender.length === 0) {
-                    html += '<div style="text-align:center; margin-top:20px;"><button type="button" class="btn-warning" onclick="addMasterVolume()">➕ 新增第一冊</button></div>'; 
+                    html += '<div style="text-align:center; margin-top:20px;"><button type="button" class="btn-warning" onclick="addMasterVolume()">➕ 新增第一冊</button></div>';
                 }
-                root.innerHTML = html; 
+                root.innerHTML = html;
                 setTimeout(() => {
-                    // v1.5.0: skipLoadUnits flag (wizard 新分類不預填既有單元)
                     if (!window._skipLoadUnits) {
-                        volsToRender.forEach(vol => { s.vols[vol].forEach(u => addSettingRow('cfg-list-'+vol, u)); });
+                        volsToRender.forEach(vol => { (s.vols[vol] || []).forEach(u => addSettingRow('cfg-list-'+vol, u)); });
                     } else {
-                        // skipLoadUnits 模式: 保留 vols 但不預填 units, 加一個空 row
                         volsToRender.forEach(vol => { addSettingRow('cfg-list-'+vol); });
                     }
-                }, 0); 
-            } 
+                }, 0);
+            }
         }
         
         function addSettingRow(containerId, u) { 
