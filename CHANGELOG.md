@@ -2,6 +2,26 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.30 (2026-07-30) — Dedup 修正: 只 dedup subject 相似的重複
+
+**Denias 00:03 反映:**
+- 168 是月曆算法不準確
+- 問為什麼 7/3 DP_5 (理化/歷史/公民/英文U1) 4 個 5 頁 log 被 dedup
+- 問為什麼 7/3 DP_4 (國文/地理) 2 個 4 頁 log 被 dedup
+
+**根因:**
+v1.4.15 加的第二層 dedup 用 (date+pages), 完全不看 subject
+- 同一天同樣頁數 = 視為重複
+- 原本是為處理 plan 自動重複 task 造成 subject/unitName 微差
+- 但該邏輯太激進, 真的讀多個同頁數也被 dedup
+
+**修復:**
+- 第二層 dedup 只在 subject 相似時 (有包含關係) 才 dedup
+- subject 不相似 = 真的讀了多個 5 頁 (如 7/3 那 case)
+- 保留 v1.4.15 解決 plan 自動重複 task 微差問題
+
+檔案: 5415 → 5430 行 (+15)
+
 ### v1.4.29 (2026-07-29) — Mission filter 加 mission string fallback
 
 **Denias 23:55 反映:**
