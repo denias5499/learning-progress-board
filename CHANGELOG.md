@@ -2,6 +2,22 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.29 (2026-07-29) — Mission filter 加 mission string fallback
+
+**Denias 23:55 反映:**
+dump 顯示 W1 = 113 頁 (19 筆), 但 chart 顯示 89 頁
+
+**根因 (新發現):**
+orphan unitId 不在 appMissions 內, 但 log 的 mission 字串是「暑假複習進度」
+v1.4.27 category fallback 沒生效 (因 user 選的是 specific mission, 不是 mis=ALL)
+
+**修復:**
+- mission-level filter 加 fallback: unitId match OR mission string match
+- log.mission === filterMisM 時也視為 match
+- 這樣 orphan unitId 不會被排除
+
+檔案: 5400 → 5415 行 (+15)
+
 ### v1.4.28 (2026-07-29) — Migration: 暑期複習進度 → 暑假複習進度
 
 **Denias 23:49 反映:**

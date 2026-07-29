@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.28]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.29]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4622,13 +4622,15 @@
             appLogs.forEach(l => {
                 if (!l.date || !l.pages || l.pages <= 0) return;
                 if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
-                // v1.4.27: filter 改進
-                // - mission-level (filterMisM != ALL): 嚴格 unitId match
-                // - category-level (filterCatM != ALL, filterMisM == ALL): 
-                //   - 優先 unitId match
-                //   - fallback: 直接比對 l.category (含 orphan unitIds)
-                if (allowedUnitIdsM && filterMisM !== 'ALL' && l.unitId && !allowedUnitIdsM.has(l.unitId)) return;
-                if (filterCatM !== 'ALL' && filterMisM === 'ALL' && l.category !== filterCatM) return;
+                // v1.4.29: filter 改進
+                // - category-level: 嚴格 category match (含 orphan unitIds)
+                // - mission-level: unitId match OR mission string match (含 orphan unitIds)
+                if (filterCatM !== 'ALL' && l.category !== filterCatM) return;
+                if (filterMisM !== 'ALL' && allowedUnitIdsM) {
+                    var inByUid = l.unitId && allowedUnitIdsM.has(l.unitId);
+                    var inByStr = l.mission === filterMisM;
+                    if (!inByUid && !inByStr) return;
+                }
                 // 多欄位 dedup key (subject+date+pages) — 激進去重
                 // v1.4.15: 同一天同樣科目同樣頁數只算一次 (不該同天讀兩次同樣頁數)
                 var dedupKey = (l.subject || '') + '|' + l.date + '|' + l.pages;
@@ -4748,8 +4750,10 @@
                         var cat = l.category || '?';
                         if (cat === '🔄 系統重排' || cat === '🗓️ 計畫管理') {
                             reason = '✗cat=' + cat;
-                        } else if (allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId)) {
-                            reason = '✗uid不在filter';
+                        } else if (filterCatM !== 'ALL' && cat !== filterCatM) {
+                            reason = '✗cat不符(' + cat + '≠' + filterCatM + ')';
+                        } else if (filterMisM !== 'ALL' && allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId) && l.mission !== filterMisM) {
+                            reason = '✗mis不符(uid不在mission 且 mission字串≠' + filterMisM + ')';
                         } else {
                             reason = '✓';
                         }
