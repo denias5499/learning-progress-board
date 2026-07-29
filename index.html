@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.19]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.20]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4636,7 +4636,8 @@
                     end: l.end,
                     pages: l.pages,
                     id: l.id,
-                    category: l.category
+                    category: l.category,
+                    mission: l.mission || '?'
                 });
             });
 
@@ -4671,7 +4672,7 @@
                     });
                     html += '<span style="color:#e74c3c; font-weight:bold;">' + totalW + ' 頁</span> (' + m.weekLogs[wk].length + ' 筆)<br>';
                     m.weekLogs[wk].forEach(function(l, i) {
-                        html += '<span style="font-family:monospace; font-size:0.95em; display:block; padding-left:15px;">&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | ' + (l.subject || '?') + ' | ' + (l.unitName || '?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁 | id=' + (l.id||'?') + '</span>';
+                        html += '<span style="font-family:monospace; font-size:0.95em; display:block; padding-left:15px;">&nbsp;&nbsp;' + (i+1) + '. ' + l.date + ' | [' + (l.category || '?') + ' / ' + (l.mission || '?') + '] | ' + (l.subject || '?') + ' | ' + (l.unitName || '?') + ' | P.' + (l.start||0) + '~' + (l.end||0) + ' | ' + l.pages + '頁</span>';
                     });
                     html += '<br>';
                 });

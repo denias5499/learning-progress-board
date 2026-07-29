@@ -2,6 +2,22 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.20 (2026-07-29) — Debug panel 顯示 mission
+
+**Denias 12:11 反映:**
+W1 還缺 3 筆 log (歷史、地理、公民), 英文那筆之前有看到
+
+**推測:**
+- 這 3 筆 log 的 mission 是「會考複習」
+- Denias 在月份分析選了別的 mission filter (如「暑期複習進度」)
+- filter 把會考複習的 log 過濾掉
+
+**修復:**
+- debug panel 顯示 mission 欄位, 方便辨識每筆 log 屬於哪個任務
+- Denias 可以直接對應缺哪個 mission 的 log
+
+檔案: 5210 → 5214 行 (+4)
+
 ### v1.4.19 (2026-07-29) — 週次改用 Denias 的定義
 
 **Denias 11:57 反映:**
