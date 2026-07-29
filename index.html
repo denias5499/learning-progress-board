@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.21]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.22]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4666,11 +4666,10 @@
                 html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:400px; overflow-y:auto; font-size:0.8em;">';
                 html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>' + currentFilterLabel + '</b></div>';
 
-                // 收集這個月所有 log (unfiltered), 按週+mission 分組
+                // v1.4.22: debug panel 不過濾任何 category, 顯示全部 appLogs (含 🔄 系統重排 / 🗓️ 計畫管理)
                 var allMonthLogs = [];
                 appLogs.forEach(function(l) {
                     if (!l.date || !l.pages || l.pages <= 0) return;
-                    if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
                     var mw = getMonthWeek(l.date);
                     if (mw.year === m.year && mw.month === m.month) {
                         allMonthLogs.push(Object.assign({}, l, { _week: mw.week }));
