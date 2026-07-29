@@ -2,6 +2,26 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.24 (2026-07-29) — Dump 到 Console 按鈕
+
+**Denias 15:27 確認:**
+6 筆 log 是在「歷史紀錄」頁面 (appLogs) 看到的, 但 v1.4.21 debug 看不到
+
+**實際問題:**
+v1.4.21 code 還是有 category filter:
+`if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;`
+v1.4.22 才移除
+
+但 Denias 說 5 筆是「會考複習」 category, 應該顯示, 但沒顯示
+表示還有其他 bug
+
+**v1.4.24 修復:**
+- 加 「📋 Dump 到 Console (F12)」 按鈕
+- 點擊 dump 當月所有 logs 完整資料到 F12 console
+- Denias 可以直接 copy JSON 貼給我
+
+檔案: 5280 → 5330 行 (+50)
+
 ### v1.4.23 (2026-07-29) — Debug dump 模式
 
 **Denias 15:17 提供截圖:**
