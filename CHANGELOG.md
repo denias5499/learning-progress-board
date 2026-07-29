@@ -2,6 +2,24 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.28 (2026-07-29) — Migration: 暑期複習進度 → 暑假複習進度
+
+**Denias 23:49 反映:**
+圖表 W1 顯示 89 (仍不正確)
+回想曾將「暑期複習進度」更名為「暑假複習進度」
+資料庫舊 log 沒改到
+
+**Migration:**
+- initUsers 內加自動 rename
+- 掃描所有 log, 將 mission 字串中「暑期複習進度」改為「暑假複習進度」
+- console.log 報告改了多少筆
+
+**重要:**
+但這可能只解決 mission string, orphan unitId 問題仍在
+filter 仍需要 category fallback (v1.4.27)
+
+檔案: 5380 → 5400 行 (+20)
+
 ### v1.4.27 (2026-07-29) — Filter 邏輯改進: category fallback
 
 **Denias 23:39 反映:**
