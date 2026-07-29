@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.31]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.0]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -782,7 +782,7 @@
                             <label>進度大分類</label>
                             <select id="master-set-cat" onchange="onMasterSetCatChange()"></select>
                             <div class="setting-controls">
-                                <button type="button" class="btn-outline" onclick="addCat()">➕ 新增</button>
+                                <button type="button" class="btn-outline" onclick="addCatWithSubject()">➕ 新增</button>
                                 <button type="button" class="btn-warning" onclick="renCat()">✏️ 編輯</button>
                                 <button type="button" class="btn-danger" onclick="delCat()">🗑️ 刪除</button>
                             </div>
@@ -1033,6 +1033,37 @@
             </div>
             <div style="text-align: right; margin-top: 20px;">
                 <button type="button" class="btn-primary" onclick="confirmInputModal()">✅ 確認送出</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-add-cat" class="modal-bg" style="z-index: 2050;">
+        <div class="modal-content" style="max-width: 540px;">
+            <div class="modal-header">
+                <h2>➕ 新增進度分類 (含教材科目設定)</h2>
+                <button type="button" class="close-btn" onclick="closeModal('modal-add-cat')">&times;</button>
+            </div>
+            <div style="background: white; padding: 0;">
+                <div class="form-group" style="background: white; border: none; padding: 0; margin-bottom: 15px;">
+                    <label style="font-weight:bold; color:var(--primary);">進度大分類名稱</label>
+                    <input type="text" id="add-cat-name" placeholder="例：段考複習">
+                </div>
+                <div class="form-group" style="background: white; border: none; padding: 0; margin-bottom: 15px;">
+                    <label style="font-weight:bold; color:var(--primary);">教材科目 (default 為第一個現有科目)</label>
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <select id="add-cat-subject" style="flex: 1;"></select>
+                        <button type="button" class="btn-outline" onclick="quickAddSubjectFromCatModal()" title="在 modal 內直接新增科目">➕ 新增科目</button>
+                    </div>
+                    <small style="color: #7f8c8d; margin-top: 5px; display: block;">* 可手動切換, 或按右邊按鈕直接新增</small>
+                </div>
+                <div class="form-group" style="background: #fef9e7; padding: 12px; border-radius: 8px; border: 1px solid #f39c12; margin-bottom: 15px;">
+                    <label style="font-weight:bold; color:#d35400;">⚠️ 確定後, 單元範圍將保持空白, 讓你填入新分類的內容</label>
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">* 既有科目的單元資料不會被刪除, 只是不預填</small>
+                </div>
+            </div>
+            <div style="text-align: right;">
+                <button type="button" class="btn-secondary" onclick="closeModal('modal-add-cat')">取消</button>
+                <button type="button" class="btn-primary" onclick="confirmAddCatWithSubject()" style="margin-left: 10px;">✅ 確認新增</button>
             </div>
         </div>
     </div>
@@ -3806,16 +3837,20 @@
             window.isMasterDirty = false;
         }
 
-        function handleMasterSubjectChange() {
+        function handleMasterSubjectChange(opts) {
+            opts = opts || {};
             let sel = el('master-subject');
-            if (window.isMasterDirty) {
+            if (window.isMasterDirty && !opts.skipDirtyCheck) {
                 if (!confirm("⚠️ 您的設定尚未儲存！\n確定要切換科目嗎？\n(按「確定」將放棄變更，按「取消」可留在此畫面儲存)")) {
                     sel.value = lastMasterSub;
                     return;
                 }
             }
             window.isMasterDirty = false;
+            // v1.5.0: skipLoadUnits 參數 - wizard 內新增分類時不預填既有單元
+            window._skipLoadUnits = opts.skipLoadUnits;
             renderMasterEditor();
+            window._skipLoadUnits = false;
         }
 
         function scrollMasterVolumes(direction) {
@@ -3913,9 +3948,14 @@
             if(!sub) { root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請先新增科目</div>'; return; } 
             
             var s = appMaster[sub]; 
-            if (s.type === 'custom') { 
-                root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\')">➕ 新增單元</button></div>'; 
-                s.units.forEach(u => addSettingRow('cfg-list-custom', u)); 
+            if (s.type === 'custom') {
+                root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\')">➕ 新增單元</button></div>';
+                // v1.5.0: skipLoadUnits flag (wizard 新分類不預填)
+                if (!window._skipLoadUnits) {
+                    s.units.forEach(u => addSettingRow('cfg-list-custom', u));
+                } else {
+                    addSettingRow('cfg-list-custom'); // 加一個空 row 讓使用者填
+                }
             } else { 
                 var volsToRender = s.volOrder || Object.keys(s.vols); 
                 var html = '<div style="position: relative; padding-bottom: 45px;">';
@@ -3948,7 +3988,15 @@
                     html += '<div style="text-align:center; margin-top:20px;"><button type="button" class="btn-warning" onclick="addMasterVolume()">➕ 新增第一冊</button></div>'; 
                 }
                 root.innerHTML = html; 
-                setTimeout(() => { volsToRender.forEach(vol => { s.vols[vol].forEach(u => addSettingRow('cfg-list-'+vol, u)); }); }, 0); 
+                setTimeout(() => {
+                    // v1.5.0: skipLoadUnits flag (wizard 新分類不預填既有單元)
+                    if (!window._skipLoadUnits) {
+                        volsToRender.forEach(vol => { s.vols[vol].forEach(u => addSettingRow('cfg-list-'+vol, u)); });
+                    } else {
+                        // skipLoadUnits 模式: 保留 vols 但不預填 units, 加一個空 row
+                        volsToRender.forEach(vol => { addSettingRow('cfg-list-'+vol); });
+                    }
+                }, 0); 
             } 
         }
         
@@ -3986,14 +4034,92 @@
             renderMissionCheckboxes(); 
         }
 
-        function addCat() { 
-            openInputModal('➕ 新增大分類', '', function(name) { 
-                if(appMissions[name]) return alert('已存在！'); 
-                appMissions[name] = {}; 
+        function addCat() {
+            openInputModal('➕ 新增大分類', '', function(name) {
+                if(appMissions[name]) return alert('已存在！');
+                appMissions[name] = {};
                 syncAllCatMisDropdowns(name, null);
-                if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange(); 
+                if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange();
                 updateFilters();
-            }); 
+            });
+        }
+
+        // v1.5.0: 新增進度分類 wizard - 同時選教材科目, 開啟後單元保持空白
+        function addCatWithSubject() {
+            // populate subject dropdown with existing subjects
+            var sel = el('add-cat-subject');
+            var subjects = Object.keys(appMaster || {});
+            if (subjects.length === 0) {
+                // 沒有任何科目, 自動加一個預設
+                appMaster = appMaster || {};
+                appMaster['新科目'] = { type: 'custom', units: [] };
+                subjects = ['新科目'];
+            }
+            sel.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+            el('add-cat-name').value = '';
+            // focus 到名稱輸入框
+            setTimeout(() => el('add-cat-name').focus(), 100);
+            openModal('modal-add-cat');
+        }
+
+        // v1.5.0: 在 wizard 內 quick 新增科目
+        function quickAddSubjectFromCatModal() {
+            openInputModal('➕ 新增教材科目', '', function(subName) {
+                if (appMaster[subName]) return alert('已存在！');
+                if (!subName.trim()) return;
+                var isVol = confirm('科目需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊');
+                appMaster[subName] = isVol ? { type: "volume", vols: { "第一冊": [] }, volOrder: ["第一冊"] } : { type: "custom", units: [] };
+                // 更新 wizard 內的 dropdown
+                var sel = el('add-cat-subject');
+                sel.innerHTML += `<option value="${subName}">${subName}</option>`;
+                sel.value = subName;
+                window.isMasterDirty = true;
+            });
+        }
+
+        // v1.5.0: 確認新增分類 + 切換到新分類 + 教材科目
+        function confirmAddCatWithSubject() {
+            var name = el('add-cat-name').value.trim();
+            var sub = el('add-cat-subject').value;
+            if (!name) return alert('請輸入分類名稱！');
+            if (!sub) return alert('請選擇教材科目！');
+            if (appMissions[name]) return alert('已存在！');
+
+            // 1. 建立分類
+            appMissions[name] = {};
+
+            // 2. 關閉 modal
+            closeModal('modal-add-cat');
+
+            // 3. 切換大分類 dropdown 到新分類
+            var catSel = el('master-set-cat');
+            if (catSel) {
+                catSel.innerHTML = '';
+                Object.keys(appMissions).forEach(c => {
+                    catSel.innerHTML += `<option value="${c}">${c}</option>`;
+                });
+                catSel.value = name;
+                onMasterSetCatChange();
+            }
+
+            // 4. 切換教材科目 dropdown 到選的科目 (用現有的 handler, 但先清空單元)
+            // 先記錄 user 選的科目, 然後切換
+            var subSel = el('master-subject');
+            if (subSel) {
+                subSel.innerHTML = '';
+                Object.keys(appMaster).forEach(s => {
+                    subSel.innerHTML += `<option value="${s}">${s}</option>`;
+                });
+                subSel.value = sub;
+                // 5. 強制讓 renderMasterEditor 不預填既有單元 (skipDirtyCheck: wizard 流程不彈 confirm)
+                handleMasterSubjectChange({ skipLoadUnits: true, skipDirtyCheck: true });
+            }
+
+            // 6. 更新 filters
+            updateFilters();
+
+            // 7. 通知使用者
+            alert('✅ 已新增分類「' + name + '」, 並切換到教材科目「' + sub + '」, 單元範圍保持空白, 請填入新內容。');
         }
         
         function renCat() { 

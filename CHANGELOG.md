@@ -2,6 +2,33 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.0 (2026-07-30) — 新增分類 wizard (含教材科目)
+
+**Denias 02:31 需求:**
+按「新增」不是只問分類名稱, 跳出一個 wizard:
+- 大分類名稱 (例: 段考複習)
+- 教材科目 dropdown (default 為第一個現有科目)
+- Modal 內可以快速新增科目
+- 確定後:
+  - 自動切到新分類
+  - master-subject dropdown 切到選的科目
+  - 單元範圍保持空白, 加一個空 row 讓使用者填入
+
+**實作:**
+- 新增 `addCatWithSubject()` 取代 master pane 的「新增」 onclick
+- 新增 modal `modal-add-cat`
+- 新增 3 個函式:
+  - `addCatWithSubject()` - 開 wizard
+  - `quickAddSubjectFromCatModal()` - modal 內快速新增科目
+  - `confirmAddCatWithSubject()` - 確認, 建立 + 切換 + 空白單元
+- `renderMasterEditor` 加 `skipLoadUnits` flag
+- `handleMasterSubjectChange` 加 `opts` 參數 (skipLoadUnits + skipDirtyCheck)
+- mission pane 的「新增」保持舊 addCat (不需要 wizard)
+
+**重要:**
+v1.5.0 是大版號跳 (1.4 → 1.5), 代表新功能 series
+檔案: 5450 → 5610 行 (+160)
+
 ### v1.4.31 (2026-07-30) — Debug 加 bar 計入頁數
 
 **Denias 00:09 反映:**
