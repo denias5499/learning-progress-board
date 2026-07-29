@@ -2,6 +2,24 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.25 (2026-07-29) — 緊急 fix: Can't find variable: allMonthLogs
+
+**Denias 15:34 反映:**
+程式毀損, 「系統初始化錯誤: Can't find variable: allMonthLogs」
+
+**根因:**
+v1.4.23 patch anchor 太寬, 把 `var allMonthLogs = [];` 連同初始化 appLogs.forEach 一起刪掉
+新程式碼引用 allMonthLogs 但沒宣告 → 崩潰
+
+(跟 v1.4.10→v1.4.14 byMonth bug 一模一樣)
+
+**修復:**
+加回 `var allMonthLogs = [];` + appLogs.forEach 初始化
+
+**教訓:**
+patch script anchor 不要貪心, 不要一次覆蓋過大區塊
+關鍵變數宣告要 grep 確認還在
+
 ### v1.4.24 (2026-07-29) — Dump 到 Console 按鈕
 
 **Denias 15:27 確認:**

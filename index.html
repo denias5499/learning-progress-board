@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.24]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.25]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4694,6 +4694,15 @@
         };
 
         // v1.4.23: 完整 dump 模式 - 顯示所有月內 logs + 每筆排除原因
+                // v1.4.25 緊急 fix: 加回 var allMonthLogs 宣告 (v1.4.23 patch 意外刪掉)
+                var allMonthLogs = [];
+                appLogs.forEach(function(l) {
+                    if (!l.date || !l.pages || l.pages <= 0) return;
+                    var mw = getMonthWeek(l.date);
+                    if (mw.year === m.year && mw.month === m.month) {
+                        allMonthLogs.push(Object.assign({}, l, { _week: mw.week }));
+                    }
+                });
                 var filterLabel = 'Filter: cat=' + filterCatM + ' / mis=' + filterMisM + ' / allowedUnitIds=' + (allowedUnitIdsM ? allowedUnitIdsM.size + ' 個' : 'ALL');
                 html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:500px; overflow-y:auto; font-size:0.75em;">';
                 html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>Debug Dump</b><br>' + filterLabel + '<br>本月所有 logs (含 system): <b>' + allMonthLogs.length + '</b> 筆<br>當前 byMonth (filter+dedup): <b>' + totalPages + '</b> 頁';
