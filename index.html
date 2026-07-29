@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.26]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.27]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4576,10 +4576,11 @@
                 return { year: year, month: month, week: week };
             }
 
-            // v1.4.9: 套用看板篩選 (跟 renderTreeView 一樣)
+            // v1.4.27: filter 邏輯改進 - category 直接比對, mission 才用 unitId
             var filterCatM = el('filter-category') ? el('filter-category').value : 'ALL';
             var filterMisM = el('filter-mission') ? el('filter-mission').value : 'ALL';
             var allowedUnitIdsM = null;
+            // mission-level filter (specific mission)
             if (filterMisM !== 'ALL') {
                 var foundCatM = null;
                 if (filterCatM !== 'ALL' && appMissions[filterCatM] && appMissions[filterCatM][filterMisM]) {
@@ -4593,6 +4594,7 @@
                     allowedUnitIdsM = new Set(appMissions[foundCatM][filterMisM]);
                 }
             } else if (filterCatM !== 'ALL' && appMissions[filterCatM]) {
+                // category-level: 用 unitId 但 fallback 用 category 直接比對 (含 orphan unitIds)
                 allowedUnitIdsM = new Set();
                 Object.keys(appMissions[filterCatM]).forEach(function(m) {
                     (appMissions[filterCatM][m] || []).forEach(function(uid) {
@@ -4609,8 +4611,13 @@
             appLogs.forEach(l => {
                 if (!l.date || !l.pages || l.pages <= 0) return;
                 if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
-                // v1.4.9: 套用 filter - 只算選中任務的 unit
-                if (allowedUnitIdsM && l.unitId && !allowedUnitIdsM.has(l.unitId)) return;
+                // v1.4.27: filter 改進
+                // - mission-level (filterMisM != ALL): 嚴格 unitId match
+                // - category-level (filterCatM != ALL, filterMisM == ALL): 
+                //   - 優先 unitId match
+                //   - fallback: 直接比對 l.category (含 orphan unitIds)
+                if (allowedUnitIdsM && filterMisM !== 'ALL' && l.unitId && !allowedUnitIdsM.has(l.unitId)) return;
+                if (filterCatM !== 'ALL' && filterMisM === 'ALL' && l.category !== filterCatM) return;
                 // 多欄位 dedup key (subject+date+pages) — 激進去重
                 // v1.4.15: 同一天同樣科目同樣頁數只算一次 (不該同天讀兩次同樣頁數)
                 var dedupKey = (l.subject || '') + '|' + l.date + '|' + l.pages;

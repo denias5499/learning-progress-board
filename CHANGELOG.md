@@ -2,6 +2,23 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.4.27 (2026-07-29) — Filter 邏輯改進: category fallback
+
+**Denias 23:39 反映:**
+圖表顯示 W1 = 78 頁, 但 dump 算 108 頁 (會考複習)
+
+**根因:**
+filter 用 unitId 集合, 但有些 log 的 unitId 不在 appMissions 內 (orphan)
+例如 7/3 歷史大航海 id_u3an90l3a, 地理位置 id_72j6nh5zp 等
+加上 mission 名稱「暑期」 vs 「暑假」字串差異, 查找可能失敗
+
+**修復:**
+- mission-level filter 仍用 unitId match
+- category-level filter (filterCat != ALL, filterMis == ALL) 加 category 直接比對 fallback
+- 這樣 orphan unitId 的 log 也會被算入 (它們 category 是「會考複習」)
+
+檔案: 5360 → 5380 行 (+20)
+
 ### v1.4.26 (2026-07-29) — Dump 改成頁面 textarea
 
 **Denias 15:39 反映:**
