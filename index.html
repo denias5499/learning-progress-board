@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.4.18]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.4.19]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4538,19 +4538,41 @@
 
             // 收集 log: 按月份 → 週次 (該月內) → 頁數
             function getMonthWeek(dateStr) {
+                // v1.4.19: 改用 Denias 的週次定義
+                // W1 = 月初到本月第一個週日 (含週日, 不一定 7 天)
+                // W2+ = 第一個週一開始每 7 天
+                // 例: 7 月 (7/1=三): W1=7/1~7/5 (5天), W2=7/6~7/12, W3=7/13~7/19, W4=7/20~7/26, W5=7/27~7/31
                 var d = new Date(dateStr + 'T00:00:00');
                 var year = d.getFullYear();
                 var month = d.getMonth() + 1;
                 var firstOfMonth = new Date(year, month - 1, 1);
+                var dayOfWeek = firstOfMonth.getDay(); // 0=日, 1=一, ..., 6=六
+
+                // 找本月第一個週日 (= 月初 + (7-dayOfWeek) mod 7 天)
+                // dayOfWeek=0 (日): firstSunday = firstOfMonth
+                // dayOfWeek=1 (一): firstSunday = firstOfMonth + 6
+                // dayOfWeek=3 (三): firstSunday = firstOfMonth + 4
+                var firstSunday = new Date(firstOfMonth);
+                var sunOffset = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
+                firstSunday.setDate(firstOfMonth.getDate() + sunOffset);
+
                 // 找本月第一個週一
                 var firstMonday = new Date(firstOfMonth);
-                var dayOfWeek = firstOfMonth.getDay(); // 0=日, 1=一, ..., 6=六
-                var offset = dayOfWeek === 0 ? 1 : (8 - dayOfWeek); // 距離下個週一幾天
-                if (dayOfWeek === 1) offset = 0;
-                firstMonday.setDate(firstOfMonth.getDate() + offset);
-                if (d < firstMonday) return { year: year, month: month, week: 1 };
+                var monOffset = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+                if (dayOfWeek === 1) monOffset = 0;
+                firstMonday.setDate(firstOfMonth.getDate() + monOffset);
+
+                // 判斷日期落在哪一週
+                if (d <= firstSunday) {
+                    return { year: year, month: month, week: 1 };
+                }
+                // 在週一之後, 算 daysDiff
                 var daysDiff = Math.floor((d - firstMonday) / (24 * 60 * 60 * 1000));
-                var week = Math.floor(daysDiff / 7) + 1;
+                if (daysDiff < 0) {
+                    // 不可能發生 (firstMonday > firstSunday)
+                    return { year: year, month: month, week: 1 };
+                }
+                var week = Math.floor(daysDiff / 7) + 2;
                 return { year: year, month: month, week: week };
             }
 
@@ -4669,21 +4691,32 @@
                 html += '</div>';
                 html += '<div class="monthly-weeks">';
 
-                // 預先算本月第一個週一 (用來算每週日期範圍)
+                // v1.4.19: 同步用 Denias 的週次定義 (W1 = 月初~首週日, W2+ = 首週一~每7天)
                 var firstOfMonth = new Date(m.year, m.month - 1, 1);
                 var dayOfWeek = firstOfMonth.getDay();
+                var firstSunday = new Date(firstOfMonth);
+                var sunOffset = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
+                firstSunday.setDate(firstOfMonth.getDate() + sunOffset);
                 var firstMonday = new Date(firstOfMonth);
-                var offset = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
-                if (dayOfWeek === 1) offset = 0;
-                firstMonday.setDate(firstOfMonth.getDate() + offset);
+                var monOffset = dayOfWeek === 0 ? 1 : (8 - dayOfWeek);
+                if (dayOfWeek === 1) monOffset = 0;
+                firstMonday.setDate(firstOfMonth.getDate() + monOffset);
 
                 weekKeys.forEach(function(wk) {
                     var pages = m.weeks[wk];
                     var h = Math.max(2, (pages / maxWeekPages) * 180);
-                    var wkStart = new Date(firstMonday);
-                    wkStart.setDate(firstMonday.getDate() + (parseInt(wk) - 1) * 7);
-                    var wkEnd = new Date(wkStart);
-                    wkEnd.setDate(wkStart.getDate() + 6);
+                    var wkStart, wkEnd;
+                    if (parseInt(wk) === 1) {
+                        // W1 = 月初 ~ 首週日
+                        wkStart = new Date(firstOfMonth);
+                        wkEnd = new Date(firstSunday);
+                    } else {
+                        // W2+ = 首週一 + (wk-2)*7 ~ +6 天
+                        wkStart = new Date(firstMonday);
+                        wkStart.setDate(firstMonday.getDate() + (parseInt(wk) - 2) * 7);
+                        wkEnd = new Date(wkStart);
+                        wkEnd.setDate(wkStart.getDate() + 6);
+                    }
                     var startStr = (wkStart.getMonth() + 1) + '/' + wkStart.getDate();
                     var endStr = (wkEnd.getMonth() + 1) + '/' + wkEnd.getDate();
 
