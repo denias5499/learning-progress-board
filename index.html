@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.6]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.7]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -891,14 +891,14 @@
                             <button type="button" class="btn-danger" onclick="deleteMaterialType()">🗑️ 刪除類型</button>
                         </div>
 
-                        <label style="color:var(--purple); font-weight:bold; margin-top:12px; display:block;">書本 / 刷本 Instance</label>
+                        <label style="color:var(--purple); font-weight:bold; margin-top:12px; display:block;">教材名 Instance</label>
                         <select id="master-instance" onchange="onMasterInstanceChange()"></select>
                         <div class="setting-controls" style="margin-top:8px;">
-                            <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addInstance()">➕ 新增書本</button>
-                            <button type="button" class="btn-warning" onclick="renameInstance()">✏️ 編輯書名</button>
-                            <button type="button" class="btn-danger" onclick="deleteInstance()">🗑️ 刪除書本</button>
+                            <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addInstance()">➕ 新增教材</button>
+                            <button type="button" class="btn-warning" onclick="renameInstance()">✏️ 編輯名稱</button>
+                            <button type="button" class="btn-danger" onclick="deleteInstance()">🗑️ 刪除教材</button>
                         </div>
-                        <small style="color:#7f8c8d; display:block; margin-top:8px;">* Instance 是同類型的不同書本 (斅將/3800/114 年考古題等)</small>
+                        <small style="color:#7f8c8d; display:block; margin-top:8px;">* Instance 是同類型的不同教材 (斅將/3800/114 年考古題等)</small>
                     </div>
 
                     <hr style="border: 0; border-top: 2px solid var(--border); margin: 20px 0;">
@@ -4231,7 +4231,7 @@ loadBoardHeader();
                 instSel.innerHTML += '<option value="' + escapeHtml(ins.id) + '">📖 ' + escapeHtml(ins.name) + '</option>';
             });
             if (instances.length === 0) {
-                instSel.innerHTML += '<option value="" disabled>-- 無書本, 請按下方「➕ 新增書本」--</option>';
+                instSel.innerHTML += '<option value="" disabled>-- 無教材, 請按下方「➕ 新增教材」--</option>';
             }
         }
 
@@ -4316,7 +4316,7 @@ loadBoardHeader();
             if (!typeObj) return alert('找不到該類型！');
             var instCount = (typeObj.instances || []).length;
             var msg = "確定刪除教材類型「" + typeName + "」?\n";
-            if (instCount > 0) msg += "底下有 " + instCount + " 個書本 instance 也會被刪掉。\n";
+            if (instCount > 0) msg += "底下有 " + instCount + " 個教材 instance 也會被刪掉。\n";
             if (!confirm(msg)) return;
             delete subject.materials[typeName];
             window.isMasterDirty = true;
@@ -4330,12 +4330,12 @@ loadBoardHeader();
             var typeName = el('master-type').value;
             if (!sub) return alert('請先選擇科目！');
             if (!typeName) return alert('請先選擇教材類型！');
-            openInputModal('➕ 新增書本 Instance', '', function(name) {
+            openInputModal('➕ 新增教材名 Instance', '', function(name) {
                 if (!name) return;
                 var subject = appMaster[sub];
                 var typeObj = subject.materials[typeName];
                 if (typeObj.instances.some(function(i) { return i.name === name; })) return alert('已存在！');
-                var isVol = confirm('這個書本需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊');
+                var isVol = confirm('這個教材需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊');
                 typeObj.instances.push({
                     id: 'ins_' + genId(),
                     name: name,
@@ -4353,8 +4353,8 @@ loadBoardHeader();
 
         function renameInstance() {
             var data = getCurrentInstanceData();
-            if (!data) return alert('請先選擇書本！');
-            openInputModal('✏️ 編輯書本名稱', data.instance.name, function(newName) {
+            if (!data) return alert('請先選擇教材！');
+            openInputModal('✏️ 編輯教材名稱', data.instance.name, function(newName) {
                 if (newName === data.instance.name) return;
                 if (!newName) return;
                 if (data.typeObj.instances.some(function(i) { return i.name === newName; })) return alert('已存在！');
@@ -4368,8 +4368,8 @@ loadBoardHeader();
 
         function deleteInstance() {
             var data = getCurrentInstanceData();
-            if (!data) return alert('請先選擇書本！');
-            if (!confirm('確定刪除書本「' + data.instance.name + '」?\n這個書本的單元資料會被刪掉。')) return;
+            if (!data) return alert('請先選擇教材！');
+            if (!confirm('確定刪除教材「' + data.instance.name + '」?\n這個教材的單元資料會被刪掉。')) return;
             data.typeObj.instances = data.typeObj.instances.filter(function(i) { return i.id !== data.instance.id; });
             window.isMasterDirty = true;
             populateMasterInstanceDropdown(data.typeName);
@@ -4388,7 +4388,7 @@ loadBoardHeader();
             // v1.5.2: 根據 instance 決定 render 哪個資料
             var data = getCurrentInstanceData();
             if (!data) {
-                root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請選擇教材類型 + 書本 Instance</div>';
+                root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請選擇教材類型 + 教材名 Instance</div>';
                 return;
             }
             var s = data.instance;
