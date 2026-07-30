@@ -2,6 +2,31 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.4 (2026-07-30) — 補完架構: 加地科 subject + mission rename + 重建 appMissions + 進度 bar
+
+**需求確認 (Denias 19:18~19:38):**
+- 教材庫 4 層架構: Subject (9個) → Material Type (5個) → Instance → Units
+- 9 個 subject: 國文/英文/數學/歷史/地理/公民/理化/生物/**地科**
+- Mission 結構: Category → Mission (一模/二模/三模/四模), 不影響教材, 影響 log/排程
+- Mission 名稱純文字 (不喜歡 emoji 預設), 但 emoji picker 已在 modal-input
+
+**v1.5.4 變更:**
+1. ✅ Mission rename:
+   - 📚 一模 → 一模 (去 emoji)
+   - 📦 暑假複習進度 → 二模 (Denias 確認改名)
+2. ✅ 加「地科」subject (空的, 9 個 subject 總計)
+3. ✅ 從 plans 重建 appMissions:
+   - 掃描所有 plan.grid task, 提取 (cat, mis, unitId)
+   - 建構完整 missions 結構: 會考複習 (一模/二模) + 段考複習 (空殼)
+4. ✅ 進度 bar 復活: renderDashboard() 用新的 appMissions
+5. ⏸️ Image upload (留 v1.5.5)
+
+**Emoji 提醒:**
+- 編輯 mission modal (modal-input) 已經有 32 個 emoji picker
+- Denias 之前不知道這個功能, 現在知道了
+
+**檔案:** 6053 行 → 6150 行 (+97)
+
 ### v1.5.3 (2026-07-30) — 緊急修復: 從備份復原 v1.5.2 搞砸的資料
 
 **事件:**

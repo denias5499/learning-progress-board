@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.3]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.4]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1651,7 +1651,78 @@
             }
         }
 
+        // ============================================================
+        // v1.5.4: 加地科 subject + mission rename + 從 plans 重建 appMissions
+        // ============================================================
+        function _v154Migrate(uid) {
+            var user = multiData[uid];
+            if (!user) return;
 
+            // 1. 加「地科」subject (空的)
+            if (user.master && !user.master['地科']) {
+                user.master['地科'] = {
+                    materials: {
+                        '複習講義': { id: 'mt_' + genId(), name: '複習講義', instances: [] },
+                        '複習卷': { id: 'mt_' + genId(), name: '複習卷', instances: [] },
+                        '數字題本': { id: 'mt_' + genId(), name: '數字題本', instances: [] },
+                        '模擬題本': { id: 'mt_' + genId(), name: '模擬題本', instances: [] },
+                        '考古題': { id: 'mt_' + genId(), name: '考古題', instances: [] }
+                    }
+                };
+                console.log('v1.5.4: ✅ 加了「地科」subject (空的, 9 個 subject 總計)');
+            }
+
+            // 2. Rename missions in plans (📚 一模 → 一模, 📦 暑假複習進度 → 二模)
+            var renameCount = 0;
+            (user.plans || []).forEach(function(plan) {
+                Object.keys(plan.grid || {}).forEach(function(dStr) {
+                    (plan.grid[dStr] || []).forEach(function(t) {
+                        if (t.mis === '📚 一模') {
+                            t.mis = '一模';
+                            renameCount++;
+                        } else if (t.mis === '📦 暑假複習進度') {
+                            t.mis = '二模';
+                            renameCount++;
+                        }
+                    });
+                });
+            });
+            if (renameCount > 0) {
+                console.log('v1.5.4: ✅ 改名 ' + renameCount + ' 個 task 的 mission');
+            }
+
+            // 3. 從 plans 重建 user.missions (appMissions)
+            var rebuilt = {};
+            (user.plans || []).forEach(function(plan) {
+                Object.keys(plan.grid || {}).forEach(function(dStr) {
+                    (plan.grid[dStr] || []).forEach(function(t) {
+                        if (!t.cat || !t.mis || !t.unitId) return;
+                        if (!rebuilt[t.cat]) rebuilt[t.cat] = {};
+                        if (!rebuilt[t.cat][t.mis]) rebuilt[t.cat][t.mis] = [];
+                        if (rebuilt[t.cat][t.mis].indexOf(t.unitId) === -1) {
+                            rebuilt[t.cat][t.mis].push(t.unitId);
+                        }
+                    });
+                });
+            });
+
+            // 4. 確保 missions 結構有 會考複習 + 段考複習 categories
+            if (!rebuilt['會考複習']) rebuilt['會考複習'] = {};
+            if (!rebuilt['會考複習']['一模']) rebuilt['會考複習']['一模'] = [];
+            if (!rebuilt['會考複習']['二模']) rebuilt['會考複習']['二模'] = [];
+            if (!rebuilt['段考複習']) rebuilt['段考複習'] = {};
+
+            user.missions = rebuilt;
+            console.log('v1.5.4: ✅ 重建 missions (' + Object.keys(rebuilt).length + ' categories)');
+            Object.keys(rebuilt).forEach(function(cat) {
+                var misNames = Object.keys(rebuilt[cat]);
+                var totalUnitIds = misNames.reduce(function(s, m) { return s + rebuilt[cat][m].length; }, 0);
+                console.log('  - ' + cat + ': ' + misNames.length + ' missions (' + totalUnitIds + ' unitIds total)');
+                misNames.forEach(function(m) {
+                    console.log('    • ' + m + ': ' + rebuilt[cat][m].length + ' units');
+                });
+            });
+        }
 
 loadBoardHeader();
 
@@ -1681,6 +1752,9 @@ loadBoardHeader();
 
                     // v1.5.3: 從備份復原 (在 v1.5.2 migrate 之前, 這樣 v1.5.2 migrate 才會 transform 正確的舊資料)
                     _v153RestoreFromBackup(uid);
+
+                    // v1.5.4: 加地科 subject + mission rename + 從 plans 重建 appMissions
+                    _v154Migrate(uid);
 
                     // v1.5.2: migrate - 重新設計為 3 層架構 (Material Type + Instance + Units)
                     // 從 v1.5.1 升級: 把主教材 units 搬到「複習講義」的第一個 instance「(原主教材)」
