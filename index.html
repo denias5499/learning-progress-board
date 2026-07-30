@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.1]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.2]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -808,16 +808,24 @@
                         </div>
                     </div>
 
-                    <!-- v1.5.1: 教材層 dropdown (主教材 / 複習講義 / 各複習教材) -->
+                    <!-- v1.5.2: 教材類型 dropdown (複習講義 / 複習卷 / 數字題本 / 模擬題本 / 考古題) + Instance dropdown -->
                     <div class="form-group" style="margin-top:15px; padding-top:15px; border-top: 1px dashed var(--border);">
-                        <label style="color:var(--purple); font-weight:bold;">選擇要編輯的教材層</label>
-                        <select id="master-layer" onchange="onMasterLayerChange()"></select>
-                        <div class="setting-controls" style="margin-top:10px;">
-                            <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addReviewMaterial()">➕ 新增複習教材</button>
-                            <button type="button" class="btn-warning" onclick="renameReviewMaterial()">✏️ 編輯教材名稱</button>
-                            <button type="button" class="btn-danger" onclick="deleteReviewMaterial()">🗑️ 刪除教材</button>
+                        <label style="color:var(--purple); font-weight:bold;">教材類型</label>
+                        <select id="master-type" onchange="onMasterTypeChange()"></select>
+                        <div class="setting-controls" style="margin-top:8px;">
+                            <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addMaterialType()">➕ 新增類型</button>
+                            <button type="button" class="btn-warning" onclick="renameMaterialType()">✏️ 編輯類型</button>
+                            <button type="button" class="btn-danger" onclick="deleteMaterialType()">🗑️ 刪除類型</button>
                         </div>
-                        <small style="color:#7f8c8d; display:block; margin-top:8px;">* 「主教材」是原科目, 「複習講義」是你現有的複習材, 其他是你新增的 (如斅將、KO 參考書)</small>
+
+                        <label style="color:var(--purple); font-weight:bold; margin-top:12px; display:block;">書本 / 刷本 Instance</label>
+                        <select id="master-instance" onchange="onMasterInstanceChange()"></select>
+                        <div class="setting-controls" style="margin-top:8px;">
+                            <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addInstance()">➕ 新增書本</button>
+                            <button type="button" class="btn-warning" onclick="renameInstance()">✏️ 編輯書名</button>
+                            <button type="button" class="btn-danger" onclick="deleteInstance()">🗑️ 刪除書本</button>
+                        </div>
+                        <small style="color:#7f8c8d; display:block; margin-top:8px;">* Instance 是同類型的不同書本 (斅將/3800/114 年考古題等)</small>
                     </div>
 
                     <hr style="border: 0; border-top: 2px solid var(--border); margin: 20px 0;">
@@ -1635,21 +1643,72 @@
                     if (typeof multiData[uid].avatar === 'undefined') multiData[uid].avatar = '';
                     if (!multiData[uid].logs) multiData[uid].logs = [];
 
-                    // v1.5.1: migrate - 每個 subject 加 reviewMaterials 欄位 + 預設「複習講義」
+                    // v1.5.2: migrate - 重新設計為 3 層架構 (Material Type + Instance + Units)
+                    // 從 v1.5.1 升級: 把主教材 units 搬到「複習講義」的第一個 instance「(原主教材)」
                     if (multiData[uid].master) {
                         Object.keys(multiData[uid].master).forEach(subName => {
                             var subj = multiData[uid].master[subName];
                             if (subj && typeof subj === 'object') {
-                                if (!subj.reviewMaterials) {
-                                    // 預設加一個「複習講義」 material, 代表 Denias 現有的複習材
-                                    subj.reviewMaterials = [{
-                                        id: 'rm_' + genId(),
-                                        name: '複習講義',
-                                        type: 'custom',
-                                        units: []
-                                    }];
-                                    if (typeof window._v151Migrated === 'undefined') window._v151Migrated = 0;
-                                    window._v151Migrated++;
+                                // 檢查是否已經是 v1.5.2 架構
+                                if (!subj.materials) {
+                                    // 預設 5 個 Material Type
+                                    subj.materials = {
+                                        '複習講義': { id: 'mt_' + genId(), name: '複習講義', instances: [] },
+                                        '複習卷': { id: 'mt_' + genId(), name: '複習卷', instances: [] },
+                                        '數字題本': { id: 'mt_' + genId(), name: '數字題本', instances: [] },
+                                        '模擬題本': { id: 'mt_' + genId(), name: '模擬題本', instances: [] },
+                                        '考古題': { id: 'mt_' + genId(), name: '考古題', instances: [] }
+                                    };
+
+                                    // 1. 把 v1.5.1 主教材的 units 搬到「複習講義」的第一個 instance「(原主教材)」
+                                    var mainUnits = subj.units || [];
+                                    if (subj.type === 'volume') {
+                                        // volume 模式: 合併所有 vols 內的 units
+                                        mainUnits = [];
+                                        Object.keys(subj.vols || {}).forEach(function(volName) {
+                                            (subj.vols[volName] || []).forEach(function(u) {
+                                                mainUnits.push(Object.assign({}, u, { vol: volName }));
+                                            });
+                                        });
+                                    }
+
+                                    if (mainUnits.length > 0) {
+                                        subj.materials['複習講義'].instances.push({
+                                            id: 'ins_' + genId(),
+                                            name: '(原主教材)',
+                                            type: subj.type || 'custom',
+                                            units: mainUnits,
+                                            vols: subj.vols || null,
+                                            volOrder: subj.volOrder || null
+                                        });
+                                    }
+
+                                    // 2. 把 v1.5.1 reviewMaterials 遷移 (例如「翰將參考書」)
+                                    if (subj.reviewMaterials && Array.isArray(subj.reviewMaterials)) {
+                                        subj.reviewMaterials.forEach(function(rm) {
+                                            // 跳過預設的「複習講義」 (因為已經是預設類別)
+                                            if (rm.name === '複習講義') return;
+                                            // 其他作為「複習卷」類別的 instance
+                                            subj.materials['複習卷'].instances.push({
+                                                id: 'ins_' + genId(),
+                                                name: rm.name,
+                                                type: rm.type || 'custom',
+                                                units: rm.units || [],
+                                                vols: rm.vols || null,
+                                                volOrder: rm.volOrder || null
+                                            });
+                                        });
+                                    }
+
+                                    // 3. 刪除舊欄位
+                                    delete subj.units;
+                                    delete subj.type;
+                                    delete subj.vols;
+                                    delete subj.volOrder;
+                                    delete subj.reviewMaterials;
+
+                                    if (typeof window._v152Migrated === 'undefined') window._v152Migrated = 0;
+                                    window._v152Migrated++;
                                 }
                             }
                         });
@@ -1700,6 +1759,10 @@
                     console.log('v1.5.1: migration 完成, 已為 ' + window._v151Migrated + ' 個 subject 加 reviewMaterials 欄位');
                 }
                 window._v151Migrated = 0;
+                if (typeof window._v152Migrated !== 'undefined' && window._v152Migrated > 0) {
+                    console.log('v1.5.2: migration 完成, 已為 ' + window._v152Migrated + ' 個 subject 升級為 3 層架構 (Material Type + Instance), 主教材搬到「複習講義」的「(原主教材)」instance');
+                }
+                window._v152Migrated = 0;
                 
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
                 currentUserId = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
@@ -3810,11 +3873,11 @@
         function openSettings() {
             showPage('page-settings');
             populateSelect('master-subject', Object.keys(appMaster));
-            // v1.5.1: 確保每個 subject 都有 reviewMaterials 欄位 (defensive)
+            // v1.5.2: 確保每個 subject 都有 materials 欄位 (defensive)
             Object.keys(appMaster).forEach(function(s) {
-                if (!appMaster[s].reviewMaterials) appMaster[s].reviewMaterials = [];
+                if (!appMaster[s].materials) appMaster[s].materials = {};
             });
-            populateMasterLayerDropdown();
+            populateMasterTypeDropdown();
             renderMasterEditor();
             populateSelect('master-set-cat', Object.keys(appMissions));
             onMasterSetCatChange();
@@ -3854,15 +3917,10 @@
                 return data;
             }
 
-            // v1.5.1: 根據 layer 決定存哪裡
-            var layerId = el('master-layer') ? el('master-layer').value : '__main__';
-            var target = null;
-            if (layerId === '__main__') {
-                target = appMaster[sub];
-            } else if (appMaster[sub].reviewMaterials) {
-                target = appMaster[sub].reviewMaterials.find(function(r) { return r.id === layerId; });
-            }
-            if (!target) { window.isMasterDirty = false; return; }
+            // v1.5.2: 根據 instance 決定存哪裡 (不再用 layer)
+            var data = getCurrentInstanceData();
+            if (!data) { window.isMasterDirty = false; return; }
+            var target = data.instance;
 
             if (target.type === 'custom') {
                 target.units = extractData('cfg-list-custom');
@@ -3891,8 +3949,8 @@
                 }
             }
             window.isMasterDirty = false;
-            // v1.5.1: 重新 populate 教材層 dropdown
-            populateMasterLayerDropdown();
+            // v1.5.2: 重新 populate Material Type dropdown
+            populateMasterTypeDropdown();
             // v1.5.0: skipLoadUnits 參數 - wizard 內新增分類時不預填既有單元
             window._skipLoadUnits = opts.skipLoadUnits;
             renderMasterEditor();
@@ -3900,32 +3958,62 @@
         }
 
         // v1.5.1: 教材層 dropdown populate
-        function populateMasterLayerDropdown() {
+        // v1.5.2: populate Material Type dropdown (5 個預設)
+        function populateMasterTypeDropdown() {
             var sub = el('master-subject').value;
-            var layerSel = el('master-layer');
-            if (!layerSel || !sub) return;
-            layerSel.innerHTML = '';
-            // 主教材
-            layerSel.innerHTML += '<option value="__main__">📘 主教材</option>';
-            // 所有複習教材 (不 mutate appMaster, 避免重複初始化)
+            var typeSel = el('master-type');
+            if (!typeSel || !sub) return;
+            typeSel.innerHTML = '';
             var subject = appMaster[sub];
-            var reviewMaterials = (subject && subject.reviewMaterials) ? subject.reviewMaterials : [];
-            reviewMaterials.forEach(function(r) {
-                layerSel.innerHTML += '<option value="' + r.id + '">📗 ' + escapeHtml(r.name) + '</option>';
+            var materials = (subject && subject.materials) ? subject.materials : {};
+            Object.keys(materials).forEach(function(typeName) {
+                var typeObj = materials[typeName];
+                typeSel.innerHTML += '<option value="' + escapeHtml(typeName) + '">📁 ' + escapeHtml(typeName) + '</option>';
             });
-            // 如果沒有複習教材, 在 dropdown 加提示選項 (但不要 mutate)
-            if (reviewMaterials.length === 0) {
-                layerSel.innerHTML += '<option value="" disabled>-- 無複習教材, 請按下方「➕ 新增複習教材」--</option>';
+            // 預設選第一個
+            var firstType = Object.keys(materials)[0];
+            if (firstType) {
+                typeSel.value = firstType;
+                populateMasterInstanceDropdown(firstType);
             }
         }
 
-        function escapeHtml(s) {
-            if (!s) return '';
-            return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        // v1.5.2: populate Instance dropdown (依 type)
+        function populateMasterInstanceDropdown(typeName) {
+            if (!typeName) {
+                typeName = el('master-type').value;
+            }
+            var instSel = el('master-instance');
+            if (!instSel) return;
+            instSel.innerHTML = '';
+            var sub = el('master-subject').value;
+            if (!sub || !typeName) return;
+            var subject = appMaster[sub];
+            var typeObj = subject && subject.materials && subject.materials[typeName];
+            if (!typeObj) {
+                instSel.innerHTML += '<option value="" disabled>-- 請先選教材類型 --</option>';
+                return;
+            }
+            var instances = typeObj.instances || [];
+            instances.forEach(function(ins) {
+                instSel.innerHTML += '<option value="' + escapeHtml(ins.id) + '">📖 ' + escapeHtml(ins.name) + '</option>';
+            });
+            if (instances.length === 0) {
+                instSel.innerHTML += '<option value="" disabled>-- 無書本, 請按下方「➕ 新增書本」--</option>';
+            }
         }
 
-        function onMasterLayerChange() {
-            // v1.5.1: 先存上一層的編輯, 避免資料遺失
+        function onMasterTypeChange() {
+            // 先存上一個 type 內的編輯
+            if (window.isMasterDirty) {
+                extractCurrentEditorData();
+            }
+            window.isMasterDirty = false;
+            populateMasterInstanceDropdown();
+            renderMasterEditor();
+        }
+
+        function onMasterInstanceChange() {
             if (window.isMasterDirty) {
                 extractCurrentEditorData();
             }
@@ -3933,169 +4021,129 @@
             renderMasterEditor();
         }
 
-        // v1.5.1: 取得目前選的 layer 資料
-        function getCurrentLayerData() {
+        // v1.5.2: 取得目前選的 instance 資料
+        function getCurrentInstanceData() {
             var sub = el('master-subject').value;
-            var layerId = el('master-layer').value;
-            if (!sub) return null;
+            var typeName = el('master-type').value;
+            var instId = el('master-instance').value;
+            if (!sub || !typeName || !instId) return null;
             var subject = appMaster[sub];
-            if (layerId === '__main__') {
-                return { subject: sub, layer: subject, isMain: true, layerId: '__main__' };
-            }
-            if (subject.reviewMaterials) {
-                var mat = subject.reviewMaterials.find(function(r) { return r.id === layerId; });
-                if (mat) return { subject: sub, layer: mat, isMain: false, layerId: layerId };
-            }
-            return null;
+            if (!subject || !subject.materials) return null;
+            var typeObj = subject.materials[typeName];
+            if (!typeObj) return null;
+            var instance = (typeObj.instances || []).find(function(i) { return i.id === instId; });
+            if (!instance) return null;
+            return { subject: sub, typeName: typeName, instance: instance, typeObj: typeObj };
         }
 
-        function scrollMasterVolumes(direction) {
-            const container = document.getElementById('master-volumes-container');
-            if (!container) return;
-            const groups = Array.from(container.querySelectorAll('.vol-group'));
-            if (groups.length === 0) return;
-
-            if (direction === 'first') {
-                groups[0].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                return;
-            }
-
-            let containerCenter = container.getBoundingClientRect().left + container.clientWidth / 2;
-            let closestIdx = 0;
-            let minDiff = Infinity;
-            
-            groups.forEach((g, idx) => {
-                let rect = g.getBoundingClientRect();
-                let center = rect.left + rect.width / 2;
-                let diff = Math.abs(center - containerCenter);
-                if (diff < minDiff) { 
-                    minDiff = diff; 
-                    closestIdx = idx; 
-                }
-            });
-
-            let targetIdx = closestIdx + direction;
-            if (targetIdx < 0) targetIdx = 0;
-            if (targetIdx >= groups.length) targetIdx = groups.length - 1;
-
-            groups[targetIdx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-        }
-
-        function addMasterSubject() { openInputModal('➕ 新增教材科目', '', function(subName) { if(appMaster[subName]) return alert('已存在！'); var isVol = confirm('科目需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊'); extractCurrentEditorData(); appMaster[subName] = isVol ? { type: "volume", vols: { "第一冊": [] }, volOrder: ["第一冊"] } : { type: "custom", units: [] }; populateSelect('master-subject', Object.keys(appMaster), subName); window.isMasterDirty=true; renderMasterEditor(); }); }
-        
-        function renameMasterSubject() { var sub = el('master-subject').value; if(!sub) return alert('選擇科目！'); openInputModal('✏️ 編輯科目名稱', sub, function(newName) { if(newName === sub) return; if(appMaster[newName]) return alert('已存在！'); extractCurrentEditorData(); appMaster[newName] = appMaster[sub]; delete appMaster[sub]; appLogs.forEach(l => { if(l.subject === sub) l.subject = newName; }); populateSelect('master-subject', Object.keys(appMaster), newName); window.isMasterDirty=true; renderMasterEditor(); }); }
-        
-        function deleteMasterSubject() { 
-            var sub = el('master-subject').value; 
-            if(!sub) return; 
-            if(confirm(`⚠️ 您確定要刪除科目「${sub}」嗎？\n\n警告：執行此動作會導致該科目底下所有的進度規劃、單元設定與歷史關聯全部遺失，確定要繼續嗎？`)) { 
-                delete appMaster[sub]; 
-                populateSelect('master-subject', Object.keys(appMaster)); 
-                window.isMasterDirty=false; 
-                renderMasterEditor(); 
-            } 
-        }
-        
-        function addMasterVolume(afterVolName = null) { 
-            var sub = el('master-subject').value; 
-            if(!sub) return; 
-            openInputModal('➕ 新增冊次名稱', '', function(volName) { 
-                if(appMaster[sub].vols[volName]) return alert('已存在！'); 
-                extractCurrentEditorData(); 
-                appMaster[sub].vols[volName] = []; 
-                if(!appMaster[sub].volOrder) appMaster[sub].volOrder = Object.keys(appMaster[sub].vols); 
-                
-                if (afterVolName && typeof afterVolName === 'string') {
-                    let idx = appMaster[sub].volOrder.indexOf(afterVolName);
-                    if (idx !== -1) {
-                        appMaster[sub].volOrder.splice(idx + 1, 0, volName);
-                    } else {
-                        appMaster[sub].volOrder.push(volName);
-                    }
-                } else {
-                    appMaster[sub].volOrder.push(volName);
-                }
-                
-                window.isMasterDirty=true; 
-                renderMasterEditor(); 
-            }); 
-        }
-        
-        function renameMasterVolume(oldVolName) { var sub = el('master-subject').value; if(!sub) return; openInputModal('✏️ 編輯冊次', oldVolName, function(newVolName) { if(newVolName === oldVolName) return; if(appMaster[sub].vols[newVolName]) return alert('已存在！'); extractCurrentEditorData(); appMaster[sub].vols[newVolName] = appMaster[sub].vols[oldVolName]; delete appMaster[sub].vols[oldVolName]; if (appMaster[sub].volOrder) { var idx = appMaster[sub].volOrder.indexOf(oldVolName); if (idx !== -1) appMaster[sub].volOrder[idx] = newVolName; } appLogs.forEach(l => { if(l.subject === sub && l.volume === oldVolName) l.volume = newVolName; }); window.isMasterDirty=true; renderMasterEditor(); }); }
-
-        // v1.5.1: 複習教材 CRUD
-        function addReviewMaterial() {
+        // v1.5.2: CRUD for Material Type
+        function addMaterialType() {
             var sub = el('master-subject').value;
             if (!sub) return alert('請先選擇科目！');
-            openInputModal('➕ 新增複習教材', '', function(name) {
+            openInputModal('➕ 新增教材類型', '', function(name) {
                 if (!name) return;
                 var subject = appMaster[sub];
-                if (!subject.reviewMaterials) subject.reviewMaterials = [];
-                if (subject.reviewMaterials.some(function(r) { return r.name === name; })) return alert('已存在！');
-                var isVol = confirm('複習教材需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊');
-                var mat = {
-                    id: 'rm_' + genId(),
+                if (!subject.materials) subject.materials = {};
+                if (subject.materials[name]) return alert('已存在！');
+                subject.materials[name] = { id: 'mt_' + genId(), name: name, instances: [] };
+                window.isMasterDirty = true;
+                populateMasterTypeDropdown();
+                el('master-type').value = name;
+                populateMasterInstanceDropdown(name);
+                renderMasterEditor();
+            });
+        }
+
+        function renameMaterialType() {
+            var sub = el('master-subject').value;
+            var typeName = el('master-type').value;
+            if (!sub) return alert('請先選擇科目！');
+            if (!typeName) return alert('請先選擇教材類型！');
+            openInputModal('✏️ 編輯教材類型名稱', typeName, function(newName) {
+                if (newName === typeName) return;
+                if (!newName) return;
+                var subject = appMaster[sub];
+                if (subject.materials[newName]) return alert('已存在！');
+                subject.materials[newName] = subject.materials[typeName];
+                subject.materials[newName].name = newName;
+                delete subject.materials[typeName];
+                window.isMasterDirty = true;
+                populateMasterTypeDropdown();
+                el('master-type').value = newName;
+                renderMasterEditor();
+            });
+        }
+
+        function deleteMaterialType() {
+            var sub = el('master-subject').value;
+            var typeName = el('master-type').value;
+            if (!sub) return alert('請先選擇科目！');
+            if (!typeName) return alert('請先選擇教材類型！');
+            var subject = appMaster[sub];
+            var typeObj = subject.materials[typeName];
+            if (!typeObj) return alert('找不到該類型！');
+            var instCount = (typeObj.instances || []).length;
+            var msg = "確定刪除教材類型「" + typeName + "」?\n";
+            if (instCount > 0) msg += "底下有 " + instCount + " 個書本 instance 也會被刪掉。\n";
+            if (!confirm(msg)) return;
+            delete subject.materials[typeName];
+            window.isMasterDirty = true;
+            populateMasterTypeDropdown();
+            renderMasterEditor();
+        }
+
+        // v1.5.2: CRUD for Instance
+        function addInstance() {
+            var sub = el('master-subject').value;
+            var typeName = el('master-type').value;
+            if (!sub) return alert('請先選擇科目！');
+            if (!typeName) return alert('請先選擇教材類型！');
+            openInputModal('➕ 新增書本 Instance', '', function(name) {
+                if (!name) return;
+                var subject = appMaster[sub];
+                var typeObj = subject.materials[typeName];
+                if (typeObj.instances.some(function(i) { return i.name === name; })) return alert('已存在！');
+                var isVol = confirm('這個書本需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊');
+                typeObj.instances.push({
+                    id: 'ins_' + genId(),
                     name: name,
                     type: isVol ? 'volume' : 'custom',
                     units: isVol ? null : [],
                     vols: isVol ? { '第一冊': [] } : null,
                     volOrder: isVol ? ['第一冊'] : null
-                };
-                subject.reviewMaterials.push(mat);
+                });
                 window.isMasterDirty = true;
-                populateMasterLayerDropdown();
-                el('master-layer').value = mat.id;
+                populateMasterInstanceDropdown(typeName);
+                el('master-instance').value = typeObj.instances[typeObj.instances.length - 1].id;
                 renderMasterEditor();
             });
         }
 
-        function renameReviewMaterial() {
-            var sub = el('master-subject').value;
-            var layerId = el('master-layer').value;
-            if (!sub) return alert('請先選擇科目！');
-            if (layerId === '__main__') return alert('主教材不能改名字, 請去上面「編輯科目名稱」');
-            var subject = appMaster[sub];
-            var mat = (subject.reviewMaterials || []).find(function(r) { return r.id === layerId; });
-            if (!mat) return alert('找不到該教材！');
-            openInputModal('✏️ 編輯複習教材名稱', mat.name, function(newName) {
-                if (newName === mat.name) return;
+        function renameInstance() {
+            var data = getCurrentInstanceData();
+            if (!data) return alert('請先選擇書本！');
+            openInputModal('✏️ 編輯書本名稱', data.instance.name, function(newName) {
+                if (newName === data.instance.name) return;
                 if (!newName) return;
-                if (subject.reviewMaterials.some(function(r) { return r.name === newName; })) return alert('已存在！');
-                mat.name = newName;
+                if (data.typeObj.instances.some(function(i) { return i.name === newName; })) return alert('已存在！');
+                data.instance.name = newName;
                 window.isMasterDirty = true;
-                populateMasterLayerDropdown();
-                el('master-layer').value = layerId;
+                populateMasterInstanceDropdown(data.typeName);
+                el('master-instance').value = data.instance.id;
                 renderMasterEditor();
             });
         }
 
-        function deleteReviewMaterial() {
-            var sub = el('master-subject').value;
-            var layerId = el('master-layer').value;
-            if (!sub) return alert('請先選擇科目！');
-            if (layerId === '__main__') return alert('主教材不能刪除, 請去上面「刪除科目」');
-            var subject = appMaster[sub];
-            var mat = (subject.reviewMaterials || []).find(function(r) { return r.id === layerId; });
-            if (!mat) return alert('找不到該教材！');
-            if (!confirm('確定刪除複習教材「' + mat.name + '」?\n這個教材的單元資料會被刪掉。')) return;
-            subject.reviewMaterials = subject.reviewMaterials.filter(function(r) { return r.id !== layerId; });
+        function deleteInstance() {
+            var data = getCurrentInstanceData();
+            if (!data) return alert('請先選擇書本！');
+            if (!confirm('確定刪除書本「' + data.instance.name + '」?\n這個書本的單元資料會被刪掉。')) return;
+            data.typeObj.instances = data.typeObj.instances.filter(function(i) { return i.id !== data.instance.id; });
             window.isMasterDirty = true;
-            populateMasterLayerDropdown();
-            el('master-layer').value = '__main__';
+            populateMasterInstanceDropdown(data.typeName);
             renderMasterEditor();
         }
-        
-        function deleteMasterVolume(volName) { 
-            var sub = el('master-subject').value; 
-            if(confirm(`⚠️ 您確定要刪除冊次「${volName}」嗎？\n\n警告：執行此動作將會導致該冊底下所有的進度規畫與相關歷史紀錄遺失，請再三確認！`)) { 
-                extractCurrentEditorData(); 
-                delete appMaster[sub].vols[volName]; 
-                if (appMaster[sub].volOrder) appMaster[sub].volOrder = appMaster[sub].volOrder.filter(v => v !== volName); 
-                window.isMasterDirty=true; 
-                renderMasterEditor(); 
-            } 
-        }
-        
+
         function renderMasterEditor() {
             var sel = el('master-subject');
             var sub = sel ? sel.value : "";
@@ -4105,20 +4153,14 @@
             var root = el('master-editor-root'); root.innerHTML = '';
             if(!sub) { root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請先新增科目</div>'; return; }
 
-            // v1.5.1: 根據 layer 決定 render 哪個資料
-            var layerId = el('master-layer') ? el('master-layer').value : '__main__';
-            var target = null;
-            if (layerId === '__main__') {
-                target = appMaster[sub];
-            } else if (appMaster[sub].reviewMaterials) {
-                target = appMaster[sub].reviewMaterials.find(function(r) { return r.id === layerId; });
-            }
-            if (!target) {
-                root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請先選擇教材層</div>';
+            // v1.5.2: 根據 instance 決定 render 哪個資料
+            var data = getCurrentInstanceData();
+            if (!data) {
+                root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請選擇教材類型 + 書本 Instance</div>';
                 return;
             }
+            var s = data.instance;
 
-            var s = target;
             if (s.type === 'custom') {
                 root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\')">➕ 新增單元</button></div>';
                 if (!window._skipLoadUnits) {
@@ -4167,7 +4209,7 @@
                 }, 0);
             }
         }
-        
+
         function addSettingRow(containerId, u) { 
             if (!u) { u = { id: genId(), name: '', start: '', end: '' }; window.isMasterDirty = true; } 
             var container = document.getElementById(containerId); 
@@ -4218,9 +4260,9 @@
             var sel = el('add-cat-subject');
             var subjects = Object.keys(appMaster || {});
             if (subjects.length === 0) {
-                // 沒有任何科目, 自動加一個預設
+                // 沒有任何科目, 自動加一個預設 (v1.5.2 materials 架構)
                 appMaster = appMaster || {};
-                appMaster['新科目'] = { type: 'custom', units: [] };
+                appMaster['新科目'] = { materials: {} };
                 subjects = ['新科目'];
             }
             sel.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
@@ -4235,8 +4277,8 @@
             openInputModal('➕ 新增教材科目', '', function(subName) {
                 if (appMaster[subName]) return alert('已存在！');
                 if (!subName.trim()) return;
-                var isVol = confirm('科目需「分冊」嗎？\n[確定] = 分第一冊...\n[取消] = 不分冊');
-                appMaster[subName] = isVol ? { type: "volume", vols: { "第一冊": [] }, volOrder: ["第一冊"] } : { type: "custom", units: [] };
+                // v1.5.2: 不再問分冊, 直接用 v1.5.2 materials 架構
+                appMaster[subName] = { materials: {} };
                 // 更新 wizard 內的 dropdown
                 var sel = el('add-cat-subject');
                 sel.innerHTML += `<option value="${subName}">${subName}</option>`;

@@ -2,6 +2,44 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.2 (2026-07-30) — 教材庫分層 3 層架構: Material Type + Instance + Units
+
+**Denias 10:32 修正架構理解:**
+原來 v1.5.1 的 2 層 (subject + reviewMaterials) 不夠
+每個 subject 需要 5 個 Material Type (複習講義/複習卷/數字題本/模擬題本/考古題)
+每個 Type 底下有獨立 Instance (斅將/3800/114 等)
+
+**4 層架構:**
+```
+Category (會考複習) → Subject (國文/英文/數學) → Material Type (5 類) → Instance (各書本) → Units (1-1, 1-2...)
+```
+
+**Migrate (v1.5.1 → v1.5.2):**
+- 每個 subject 預設 5 個 Material Type
+- 主教材 units 全部搬到「複習講義」的第一個 instance「(原主教材)」
+- v1.5.1 reviewMaterials 搬到「複習卷」類別
+- 舊欄位 (units/type/vols/volOrder/reviewMaterials) 刪除
+
+**新函式:**
+- populateMasterTypeDropdown / populateMasterInstanceDropdown
+- onMasterTypeChange / onMasterInstanceChange
+- addMaterialType / renameMaterialType / deleteMaterialType
+- addInstance / renameInstance / deleteInstance
+- getCurrentInstanceData (取代 getCurrentLayerData)
+
+**改動:**
+- handleMasterSubjectChange 加 populateMasterTypeDropdown
+- extractCurrentEditorData / renderMasterEditor 改為 instance-aware
+- openSettings 改為 populateMasterTypeDropdown
+- addMasterSubject / quickAddSubjectFromCatModal / addCatWithSubject 改為 {materials: {}} 架構
+- 移除舊的 addReviewMaterial / renameReviewMaterial / deleteReviewMaterial
+
+**範圍:**
+- ✅ 教材庫完整支援 3 層架構
+- ❌ log / 排程 / mission 不動 (下版 v1.5.3)
+
+檔案: 5810 → 6010 行 (+200)
+
 ### v1.5.1 (2026-07-30) — 教材庫分層: 主教材 / 複習講義 / 複習教材
 
 **Denias 02:50 需求:**
