@@ -2,6 +2,28 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.6 (2026-07-30) — 緊急修復: 修復 v1.5.2 migrate 後讀不到 subject units 的 bug
+
+**Denias 22:34 反映:**
+- v1.5.5 點首頁跳出錯誤: `undefined is not an object (evaluating 'Object.keys(s.vols)')`
+- v1.5.5 加的「各科整體進度 bar」看不到 (空資料)
+
+**根因:**
+- v1.5.2 migrate 把 `subj.units` / `subj.vols` / `subj.volOrder` / `subj.type` 全部刪除
+- 但 `buildMissionTree` + `renderDashSummary` + `renderTreeView` + `renderMissionCheckboxes` 都還在用舊欄位讀取
+- 結果: `Object.keys(undefined)` 炸掉 或 讀不到任何 unit
+
+**v1.5.6 修復:**
+1. ✅ 加 helper `_collectSubjectUnits(s)` — 統一處理新舊架構:
+   - legacy v1.4 (s.units / s.vols / s.type)
+   - v1.5.2+ (s.materials[*].instances[*])
+2. ✅ 修 `buildMissionTree` 用 helper
+3. ✅ 修 `renderDashSummary` 各科整體 bar 用 helper
+4. ✅ 修 `renderTreeView` countUnits + 顯示 tree 結構 用 helper
+5. ✅ 修 `renderMissionCheckboxes` mission 設定頁面 用 helper
+
+**檔案:** 6230 → 6280 行 (+50)
+
 ### v1.5.5 (2026-07-30) — 加回首頁「各科整體進度 bar」(Denias 19:50 反映)
 
 **需求確認 (Denias 19:50):**

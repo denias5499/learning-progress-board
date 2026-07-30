@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.5]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.6]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2129,7 +2129,53 @@ loadBoardHeader();
             }
         }
 
-        function buildMissionTree(cat, mis) { var tree = {}; if(!appMissions[cat] || !appMissions[cat][mis]) return tree; var lookup = {}; Object.keys(appMaster).forEach(sub => { var s = appMaster[sub]; if (s.type === 'custom') s.units.forEach(u => lookup[u.id] = { sub: sub, vol: 'custom', unit: u }); else Object.keys(s.vols).forEach(v => s.vols[v].forEach(u => lookup[u.id] = { sub: sub, vol: v, unit: u })); }); appMissions[cat][mis].forEach(uid => { var info = lookup[uid]; if (!info) return; if (!tree[info.sub]) tree[info.sub] = { type: appMaster[info.sub].type, items: {} }; if (!tree[info.sub].items[info.vol]) tree[info.sub].items[info.vol] = []; tree[info.sub].items[info.vol].push(info.unit); }); Object.keys(tree).forEach(sub => { Object.keys(tree[sub].items).forEach(vol => { tree[sub].items[vol].sort((a, b) => { return (Number(a.start)||0) - (Number(b.start)||0); }); }); }); return tree; }
+        function buildMissionTree(cat, mis) { var tree = {}; if(!appMissions[cat] || !appMissions[cat][mis]) return tree; var lookup = {}; Object.keys(appMaster).forEach(sub => { var s = appMaster[sub]; if (!s) return; // v1.5.5 fix: 用 helper 統一讀所有 units (新舊架構都吃)
+            _collectSubjectUnits(s).forEach(function(u) {
+                if (u && u.id) lookup[u.id] = { sub: sub, vol: u.vol || 'custom', unit: u };
+            }); }); appMissions[cat][mis].forEach(uid => { var info = lookup[uid]; if (!info) return; if (!tree[info.sub]) tree[info.sub] = { type: 'materials', items: {} }; if (!tree[info.sub].items[info.vol]) tree[info.sub].items[info.vol] = []; tree[info.sub].items[info.vol].push(info.unit); }); Object.keys(tree).forEach(sub => { Object.keys(tree[sub].items).forEach(vol => { tree[sub].items[vol].sort((a, b) => { return (Number(a.start)||0) - (Number(b.start)||0); }); }); }); return tree; }
+
+        // v1.5.5: 統一 subject unit 收集 helper — 兼容舊 (s.units / s.vols) + 新 (s.materials[*].instances[*])
+        function _collectSubjectUnits(s) {
+            if (!s) return [];
+            // legacy v1.4: type='custom' + units
+            if (s.type === 'custom' && Array.isArray(s.units)) {
+                return s.units.map(function(u) { return Object.assign({}, u, { vol: 'custom' }); });
+            }
+            // legacy v1.4: vols map
+            if (s.vols && typeof s.vols === 'object') {
+                var out = [];
+                (s.volOrder || Object.keys(s.vols)).forEach(function(volName) {
+                    (s.vols[volName] || []).forEach(function(u) {
+                        out.push(Object.assign({}, u, { vol: volName }));
+                    });
+                });
+                return out;
+            }
+            // v1.5.2+: materials[*].instances[*]
+            if (s.materials && typeof s.materials === 'object') {
+                var out2 = [];
+                Object.keys(s.materials).forEach(function(typeName) {
+                    var typeObj = s.materials[typeName];
+                    if (!typeObj || !Array.isArray(typeObj.instances)) return;
+                    typeObj.instances.forEach(function(ins) {
+                        if (!ins) return;
+                        if (ins.type === 'volume' && ins.vols && typeof ins.vols === 'object') {
+                            (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
+                                (ins.vols[volName] || []).forEach(function(u) {
+                                    out2.push(Object.assign({}, u, { vol: volName }));
+                                });
+                            });
+                        } else if (Array.isArray(ins.units)) {
+                            ins.units.forEach(function(u) {
+                                out2.push(Object.assign({}, u, { vol: 'custom' }));
+                            });
+                        }
+                    });
+                });
+                return out2;
+            }
+            return [];
+        }
 
         function openPlanner() { 
             showPage('page-planner'); 
@@ -4636,6 +4682,23 @@ loadBoardHeader();
                         var isChecked = selectedIds.includes(u.id) ? 'checked' : ''; 
                         html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="custom" style="width:auto; margin-right:5px;"> ${u.name} (P.${u.start}~${u.end})</label>`; 
                     }); 
+                } else if (s.materials) {
+                    // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
+                    var matUnits = _collectSubjectUnits(s);
+                    var byVolMat = {};
+                    matUnits.forEach(function(u) {
+                        if (!byVolMat[u.vol || 'custom']) byVolMat[u.vol || 'custom'] = [];
+                        byVolMat[u.vol || 'custom'].push(u);
+                    });
+                    Object.keys(byVolMat).forEach(function(vol) {
+                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${vol}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${vol}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(vol)} (全冊)</b></label>`;
+                        html += `<div style="padding-left:15px;">`;
+                        byVolMat[vol].forEach(function(u) {
+                            var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
+                            html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${vol}" style="width:auto; margin-right:5px;"> ${escapeHtml(u.name)} (P.${u.start}~${u.end})</label>`;
+                        });
+                        html += `</div>`;
+                    });
                 } else { 
                     var volsToRender = s.volOrder || Object.keys(s.vols); 
                     volsToRender.forEach(vol => { 
@@ -4911,6 +4974,9 @@ loadBoardHeader();
                         Object.keys(subj.vols).forEach(v => {
                             if (Array.isArray(subj.vols[v])) subj.vols[v].forEach(accUnit);
                         });
+                    } else if (subj.materials) {
+                        // v1.5.5 fix: 讀新架構 materials[*].instances[*]
+                        _collectSubjectUnits(subj).forEach(accUnit);
                     }
                     if (totalPages <= 0) return;
                     var pct = Math.round((donePages / totalPages) * 100);
@@ -5092,6 +5158,9 @@ loadBoardHeader();
                     Object.keys(s.vols).forEach(v => {
                         if (Array.isArray(s.vols[v])) countUnits(s.vols[v]);
                     });
+                } else if (s.materials) {
+                    // v1.5.5 fix: 讀新架構
+                    countUnits(_collectSubjectUnits(s));
                 }
 
                 html += '<div class="tree-subject">';
@@ -5135,6 +5204,36 @@ loadBoardHeader();
                             html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
                             if (range) html += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
                             if (scheduledUnits[u.id]) html += '<span class="tree-unit-clock" title="已排入計畫">⏰</span>';
+                            if (scheduledUnits[u.id]) html += '<span class="tree-unit-clock" title="已排入計畫">⏰</span>';
+                            html += '</li>';
+                        });
+                        html += '</ul></ul>';
+                    });
+                } else if (s.materials) {
+                    // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
+                    var allUnits = _collectSubjectUnits(s);
+                    // 按 vol 分組顯示
+                    var byVol = {};
+                    allUnits.forEach(function(u) {
+                        if (!allowedUnitIds || allowedUnitIds.has(u.id)) {
+                            if (!byVol[u.vol || 'custom']) byVol[u.vol || 'custom'] = [];
+                            byVol[u.vol || 'custom'].push(u);
+                        }
+                    });
+                    Object.keys(byVol).forEach(function(volName) {
+                        var arr = byVol[volName];
+                        if (arr.length === 0) return;
+                        html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + escapeHtml(volName) + '</li>';
+                        html += '<ul class="tree-units">';
+                        arr.forEach(function(u) {
+                            var t = totalOf(u);
+                            var st = getStatus(u.id, t);
+                            var dotClass = 'dot-' + st;
+                            var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
+                            html += '<li class="tree-unit">';
+                            html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
+                            html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
+                            if (range) html += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
                             if (scheduledUnits[u.id]) html += '<span class="tree-unit-clock" title="已排入計畫">⏰</span>';
                             html += '</li>';
                         });
