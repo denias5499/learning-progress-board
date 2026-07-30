@@ -2,6 +2,29 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.3 (2026-07-30) — 緊急修復: 從備份復原 v1.5.2 搞砸的資料
+
+**事件:**
+- v1.5.2 上線後 教材庫 + 行事曆 被 migrate 邏輯清空
+- Denias 提供 StudyMap_Backup_2026-07-28 備份 (含 8 個 subject + 1 個 plan)
+
+**復原機制:**
+- initUsers 內 hardcode backup master + plans
+- 新函式 `_v153RestoreFromBackup(uid)` 檢查 master/plans 是否為空, 是則從備份復原
+- 只在空資料時才執行, 避免覆蓋後續新增資料
+- 復原後讓現有 v1.5.2 migrate transform 成 3 層架構
+
+**復原範圍:**
+- 8 個 subject (國文/數學/英文/理化/歷史/地理/公民/生物)
+- 147 units 教材
+- 1 個 plan 會考複習 - 📦 暑假複習進度
+- 159 個 task (7/1~8/3)
+
+**教訓:**
+- 結構大改 migrate 必須加防呆 (檢測資料是否被清空才執行)
+- Console.log 必須詳細 (復原幾個 subject / 幾個 plan)
+- 需要有「匯出備份」按鈕 (現在已經有了, 隨時備份)
+
 ### v1.5.2 (2026-07-30) — 教材庫分層 3 層架構: Material Type + Instance + Units
 
 **Denias 10:32 修正架構理解:**
