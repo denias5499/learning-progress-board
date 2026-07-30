@@ -2,6 +2,27 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.5 (2026-07-30) — 加回首頁「各科整體進度 bar」(Denias 19:50 反映)
+
+**需求確認 (Denias 19:50):**
+- Denias 反映「首頁的各科進度 bar 之前版本都有, 上一版被你刪掉了」
+- 檢查: renderDashSummary() 從 v1.1 開始就只有「總統計 + 7-day bar」, 沒加過整體 subject bar
+- 但 Denias 想要的就是這個: 不管 mission filter, 首頁就要看全部 9 個 subject 的整體進度
+
+**v1.5.5 變更:**
+1. ✅ 新增「📊 各科整體進度」summary 在 7-day bar 下面
+2. ✅ 算所有 subject 的整體 done/total 頁數 (用全部 appLogs 算)
+3. ✅ 不依賴 mission filter, 不依賴 appMissions — 直接從 appMaster + appLogs 算
+4. ✅ 加 CSS: `.dash-subject-bars` grid + `.dash-subject-bar` 漸層進度條
+5. ✅ 9 個 subject 都會顯示 (含地科, 雖然是空的)
+
+**實現細節:**
+- 加在 `renderDashSummary()` return 結尾 (subjectBarsHtml variable)
+- 跟 4 個總統計 + 7-day bar 同一個區塊
+- 風格跟 7-day bar 一致 (斜線漸層進度條)
+
+**檔案:** 6150 → 6230 行 (+80)
+
 ### v1.5.4 (2026-07-30) — 補完架構: 加地科 subject + mission rename + 重建 appMissions + 進度 bar
 
 **需求確認 (Denias 19:18~19:38):**

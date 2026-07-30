@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.4]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.5]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -165,6 +165,79 @@
 .dash-week-date {
     font-size: 0.65em; color: var(--secondary); margin-top: -2px;
 }
+
+/* ===== v1.5.5: 各科整體進度條 ===== */
+.dash-subject-bars {
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin-top: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+.dash-subject-bars h3 {
+    margin: 0 0 14px 0;
+    font-size: 1.05em;
+    color: var(--primary);
+}
+.dash-subject-bars-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+.dash-subject-bar-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 14px;
+}
+.dash-subject-bar-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+    font-size: 0.92em;
+}
+.dash-subject-bar-label .dash-subject-name {
+    font-weight: 600;
+    color: var(--primary);
+}
+.dash-subject-bar-label .dash-subject-pct {
+    color: var(--secondary);
+    font-weight: normal;
+    font-size: 0.85em;
+}
+.dash-subject-bar {
+    display: flex;
+    height: 24px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.08);
+}
+.dash-subject-bar-done {
+    background: repeating-linear-gradient(45deg, #a7f3d0, #a7f3d0 8px, #34d399 8px, #34d399 16px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #064e3b;
+    font-weight: bold;
+    font-size: 0.85em;
+    text-shadow: 0 0 3px rgba(255,255,255,0.7);
+    transition: width 0.4s;
+}
+.dash-subject-bar-remain {
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-weight: bold;
+    font-size: 0.85em;
+    transition: width 0.4s;
+}
+[data-theme="dark"] .dash-subject-bar-card { background: var(--card-bg); border-color: var(--border); }
+[data-theme="dark"] .dash-subject-bar-remain { background: #1e293b; }
 
 /* ===== v1.1: Theme Toggle Button ===== */
 .theme-toggle {
@@ -4794,6 +4867,106 @@ loadBoardHeader();
                 '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
                 '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
             '</div>';
+
+            // v1.5.5: 各科整體進度條 (不限定 mission, 算所有 log 跟教材庫總頁數)
+            // 原因: Denias 19:50 反映「首頁進度 bar 之前都有, 上一版被你刪掉」
+            // 之前 renderDashboard() 只在選 mission filter 才顯示 bar, 沒選就看不到
+            // 這裡做獨立 summary, 不依賴 mission
+            var subjectBarsHtml = '';
+            if (appMaster && Object.keys(appMaster).length > 0) {
+                // logData: 各 unitId 已做頁數
+                var logDataAll = {};
+                appLogs.forEach(l => {
+                    if (!l.unitId) return;
+                    if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
+                    if (!logDataAll[l.unitId]) logDataAll[l.unitId] = { pages: 0 };
+                    logDataAll[l.unitId].pages += (l.pages || 0);
+                });
+
+                // 定義 subject 排序 (跟 Denias 主科順序一致)
+                var subOrder = ['國文','英文','數學','歷史','地理','公民','理化','生物','地科'];
+                var subKeys = Object.keys(appMaster).sort((a, b) => {
+                    var ia = subOrder.indexOf(a); if (ia === -1) ia = 999;
+                    var ib = subOrder.indexOf(b); if (ib === -1) ib = 999;
+                    return ia - ib;
+                });
+
+                var subjectBarsCards = '';
+                subKeys.forEach(sub => {
+                    var subj = appMaster[sub];
+                    if (!subj) return;
+                    var totalPages = 0;
+                    var donePages = 0;
+                    function accUnit(u) {
+                        var t = (u.end || 0) - (u.start || 0) + 1;
+                        if (t <= 0) t = 1;
+                        totalPages += t;
+                        var d = logDataAll[u.id] ? logDataAll[u.id].pages : 0;
+                        if (d > t) d = t;
+                        donePages += d;
+                    }
+                    if (subj.type === 'custom' && Array.isArray(subj.units)) {
+                        subj.units.forEach(accUnit);
+                    } else if (subj.vols) {
+                        Object.keys(subj.vols).forEach(v => {
+                            if (Array.isArray(subj.vols[v])) subj.vols[v].forEach(accUnit);
+                        });
+                    }
+                    if (totalPages <= 0) return;
+                    var pct = Math.round((donePages / totalPages) * 100);
+                    var pctRemain = 100 - pct;
+                    subjectBarsCards += '<div class="dash-subject-bar-card">' +
+                        '<div class="dash-subject-bar-label"><span class="dash-subject-name">📌 ' + sub + '</span><span class="dash-subject-pct">' + donePages + '/' + totalPages + ' (' + pct + '%)</span></div>' +
+                        '<div class="dash-subject-bar">' +
+                            '<div class="dash-subject-bar-done" style="width:' + pct + '%;">' + (pct > 4 ? pct + '%' : '') + '</div>' +
+                            '<div class="dash-subject-bar-remain" style="width:' + pctRemain + '%;">' + (pctRemain > 8 ? pctRemain + '%' : '') + '</div>' +
+                        '</div>' +
+                    '</div>';
+                });
+
+                if (subjectBarsCards) {
+                    subjectBarsHtml = '<div class="dash-subject-bars">' +
+                        '<h3>📊 各科整體進度</h3>' +
+                        '<div class="dash-subject-bars-grid">' + subjectBarsCards + '</div>' +
+                    '</div>';
+                }
+            }
+
+            return '<div class="dash-summary">' +
+                '<div class="dash-stat-card accent">' +
+                    '<div class="stat-label">👥 學生人數</div>' +
+                    '<div class="stat-value">' + studentCount + '</div>' +
+                    '<div class="stat-sub">' + studentsLine + '</div>' +
+                '</div>' +
+                '<div class="dash-stat-card purple">' +
+                    '<div class="stat-label">🎯 任務總數</div>' +
+                    '<div class="stat-value">' + missionCount + '</div>' +
+                    '<div class="stat-sub">' + catCount + ' 個分類</div>' +
+                '</div>' +
+                '<div class="dash-stat-card success">' +
+                    '<div class="stat-label">📚 學習活動</div>' +
+                    '<div class="stat-value">' + totalLogs + '</div>' +
+                    '<div class="stat-sub">歷史紀錄筆數</div>' +
+                '</div>' +
+                '<div class="dash-stat-card warning">' +
+                    '<div class="stat-label">📅 本週學習</div>' +
+                    '<div class="stat-value">' + weekPages + '</div>' +
+                    '<div class="stat-sub">本月 ' + monthPages + ' 頁</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="dash-weekly-chart">' +
+                '<div class="dash-week-header">' +
+                    '<h3>📊 近 7 日學習量 <span class="dash-week-unit">（頁）</span></h3>' +
+                    '<div class="dash-week-total">' +
+                        '<span class="dash-week-total-label">總計</span>' +
+                        '<span class="dash-week-total-value">' + weekPages + '</span>' +
+                        '<span class="dash-week-total-unit">頁</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
+                '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
+            '</div>' +
+            subjectBarsHtml;
         }
 
         function escapeHtml(s) {
