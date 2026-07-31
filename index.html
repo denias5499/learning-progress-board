@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.7]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.8]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -238,6 +238,31 @@
 }
 [data-theme="dark"] .dash-subject-bar-card { background: var(--card-bg); border-color: var(--border); }
 [data-theme="dark"] .dash-subject-bar-remain { background: #1e293b; }
+
+/* ===== v1.5.8: 各科整體進度條 - 按 Category 分組 ===== */
+.dash-subject-bars-subtitle {
+    font-size: 0.7em;
+    color: var(--secondary);
+    font-weight: normal;
+    margin-left: 6px;
+}
+.dash-subject-bars-cat {
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--border);
+}
+.dash-subject-bars-cat:first-child {
+    margin-top: 0;
+    padding-top: 0;
+    border-top: none;
+}
+.dash-subject-bars-cat-title {
+    margin: 0 0 10px 0;
+    font-size: 0.95em;
+    color: var(--purple);
+    font-weight: bold;
+}
+[data-theme="dark"] .dash-subject-bars-cat { border-top-color: var(--border); }
 
 /* ===== v1.1: Theme Toggle Button ===== */
 .theme-toggle {
@@ -1050,6 +1075,12 @@
                     <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">📅 月份分析</button>
                 </div>
                 <div id="stats-tree" class="stats-view active">
+                    <!-- v1.5.8: 樹狀圖獨立 Category dropdown (不跟 mission filter 連動) -->
+                    <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
+                        <span style="font-weight: bold; color: var(--secondary);">📂 教材分類：</span>
+                        <select id="tree-cat-filter" onchange="renderTreeView()"></select>
+                        <span style="font-size: 0.85em; color: var(--secondary);">(不跟任務篩選連動)</span>
+                    </div>
                     <div id="starmap-root"></div>
                 </div>
                 <div id="stats-monthly" class="stats-view">
@@ -1450,7 +1481,7 @@
 
         var multiData = null;
         var currentUserId = null;
-        var appMaster = {}; var appMissions = {}; var appLogs = []; var appPlans = [];
+        var appMaster = {}; var appMissions = {}; var appLogs = []; var appPlans = []; var appCurrentCat = '';
         var currentViewDate = new Date(); 
         
         window.isMasterDirty = false;
@@ -1731,9 +1762,9 @@
             var user = multiData[uid];
             if (!user) return;
 
-            // 1. 加「地科」subject (空的)
-            if (user.master && !user.master['地科']) {
-                user.master['地科'] = {
+            // 1. 加「地科」subject (空的) - v1.5.8 改寫到 masters[會考複習]
+            if (user.masters && user.masters['會考複習'] && !user.masters['會考複習']['地科']) {
+                user.masters['會考複習']['地科'] = {
                     materials: {
                         '複習講義': { id: 'mt_' + genId(), name: '複習講義', instances: [] },
                         '複習卷': { id: 'mt_' + genId(), name: '複習卷', instances: [] },
@@ -1797,6 +1828,47 @@
             });
         }
 
+        // v1.5.8: migrate - 進度大分類 (Category) 獨立教材庫
+        // 從舊結構 master → masters[cat]
+        // 現有 8 個 subject (v1.5.3 從備份復原) 全部是會考複習 mission 用的, 搬到 masters[會考複習]
+        // 加 masters[段考複習] = {} 空殻 (等 Denias 自己建)
+        function _v158Migrate(uid) {
+            var user = multiData[uid];
+            if (!user) return;
+
+            // 1. 如果有 master 但沒有 masters → migrate
+            if (user.master && !user.masters) {
+                console.log('v1.5.8: 檢測到舊 master 結構, 開始 migrate 到 masters[cat]');
+                user.masters = {
+                    '會考複習': user.master
+                };
+                delete user.master;
+                console.log('v1.5.8: ✅ 舊 master (含 ' + Object.keys(user.masters['會考複習']).length + ' 個 subject) 搬到 masters[會考複習]');
+            }
+
+            // 2. 確保 masters 存在
+            if (!user.masters) user.masters = {};
+
+            // 3. 從 missions keys 補上可能缺的 cat (例如 Denias 之後手動加 mission)
+            if (user.missions) {
+                Object.keys(user.missions).forEach(function(cat) {
+                    if (!user.masters[cat]) {
+                        user.masters[cat] = {};
+                        console.log('v1.5.8: 補上 masters[' + cat + '] = {} (空的)');
+                    }
+                });
+            }
+
+            // 4. 確保兩個預設 cat 都存在
+            if (!user.masters['會考複習']) user.masters['會考複習'] = {};
+            if (!user.masters['段考複習']) user.masters['段考複習'] = {};
+
+            console.log('v1.5.8: ✅ migrate 完成, masters cats = [' + Object.keys(user.masters).join(', ') + ']');
+            Object.keys(user.masters).forEach(function(cat) {
+                console.log('  - ' + cat + ': ' + Object.keys(user.masters[cat]).length + ' 個 subject');
+            });
+        }
+
 loadBoardHeader();
 
             var currentDataStr = localStorage.getItem(STORAGE_KEY_FAMILY);
@@ -1829,11 +1901,18 @@ loadBoardHeader();
                     // v1.5.4: 加地科 subject + mission rename + 從 plans 重建 appMissions
                     _v154Migrate(uid);
 
+                    // v1.5.8: 進度大分類獨立教材庫 migrate (在 v1.5.2 migrate 之前, 讓 master 結構還是舊的時被搬到 masters[cat])
+                    _v158Migrate(uid);
+
                     // v1.5.2: migrate - 重新設計為 3 層架構 (Material Type + Instance + Units)
                     // 從 v1.5.1 升級: 把主教材 units 搬到「複習講義」的第一個 instance「(原主教材)」
-                    if (multiData[uid].master) {
-                        Object.keys(multiData[uid].master).forEach(subName => {
-                            var subj = multiData[uid].master[subName];
+                    // v1.5.8 改: iterate masters[cat] (不再 iterate 舊 master)
+                    if (multiData[uid].masters) {
+                        Object.keys(multiData[uid].masters).forEach(function(catName) {
+                            var catSubjects = multiData[uid].masters[catName];
+                            if (!catSubjects || typeof catSubjects !== 'object') return;
+                            Object.keys(catSubjects).forEach(function(subName) {
+                                var subj = catSubjects[subName];
                             if (subj && typeof subj === 'object') {
                                 // 檢查是否已經是 v1.5.2 架構
                                 if (!subj.materials) {
@@ -1897,9 +1976,10 @@ loadBoardHeader();
                                     window._v152Migrated++;
                                 }
                             }
+                            });
                         });
                     }
-                    
+
                     multiData[uid].plans.forEach(plan => {
                         if (plan && plan.grid) {
                             Object.keys(plan.grid).forEach(dStr => {
@@ -2057,10 +2137,18 @@ loadBoardHeader();
             currentUserId = el('user-selector').value;
             localStorage.setItem(STORAGE_KEY_CURRENT_USER, currentUserId);
             var user = multiData[currentUserId];
-            appMaster = user.master || {};
+            // v1.5.8: masters 是 per-category 教材庫, 預設載入第一個 cat
             appMissions = user.missions || {};
             appLogs = user.logs || [];
             appPlans = user.plans || [];
+            var cats = Object.keys(user.masters || {});
+            if (cats.length === 0) {
+                appCurrentCat = '';
+                appMaster = {};
+            } else {
+                appCurrentCat = cats[0];
+                appMaster = user.masters[appCurrentCat] || {};
+            }
             
             var av = el('current-user-avatar');
             if (av) {
@@ -2074,7 +2162,9 @@ loadBoardHeader();
 
         function saveToLocal() {
             if(multiData[currentUserId]) {
-                multiData[currentUserId].master = appMaster;
+                // v1.5.8: appMaster 是當前 cat 的教材庫, 寫回 user.masters[appCurrentCat]
+                if (!multiData[currentUserId].masters) multiData[currentUserId].masters = {};
+                if (appCurrentCat) multiData[currentUserId].masters[appCurrentCat] = appMaster;
                 multiData[currentUserId].missions = appMissions;
                 multiData[currentUserId].logs = appLogs;
                 multiData[currentUserId].plans = appPlans;
@@ -2129,10 +2219,22 @@ loadBoardHeader();
             }
         }
 
-        function buildMissionTree(cat, mis) { var tree = {}; if(!appMissions[cat] || !appMissions[cat][mis]) return tree; var lookup = {}; Object.keys(appMaster).forEach(sub => { var s = appMaster[sub]; if (!s) return; // v1.5.5 fix: 用 helper 統一讀所有 units (新舊架構都吃)
-            _collectSubjectUnits(s).forEach(function(u) {
-                if (u && u.id) lookup[u.id] = { sub: sub, vol: u.vol || 'custom', unit: u };
-            }); }); appMissions[cat][mis].forEach(uid => { var info = lookup[uid]; if (!info) return; if (!tree[info.sub]) tree[info.sub] = { type: 'materials', items: {} }; if (!tree[info.sub].items[info.vol]) tree[info.sub].items[info.vol] = []; tree[info.sub].items[info.vol].push(info.unit); }); Object.keys(tree).forEach(sub => { Object.keys(tree[sub].items).forEach(vol => { tree[sub].items[vol].sort((a, b) => { return (Number(a.start)||0) - (Number(b.start)||0); }); }); }); return tree; }
+        function buildMissionTree(cat, mis) {
+            var tree = {};
+            if(!appMissions[cat] || !appMissions[cat][mis]) return tree;
+            // v1.5.8: 從 user.masters[cat] 讀教材庫 (不依賴 appMaster 全域變數, 避免切換 cat 後讀錯)
+            var user = multiData[currentUserId];
+            var catMaster = (user && user.masters && user.masters[cat]) ? user.masters[cat] : appMaster;
+            var lookup = {};
+            Object.keys(catMaster).forEach(function(sub) {
+                var s = catMaster[sub];
+                if (!s) return;
+                _collectSubjectUnits(s).forEach(function(u) {
+                    if (u && u.id) lookup[u.id] = { sub: sub, vol: u.vol || 'custom', unit: u };
+                });
+            });
+            appMissions[cat][mis].forEach(uid => { var info = lookup[uid]; if (!info) return; if (!tree[info.sub]) tree[info.sub] = { type: 'materials', items: {} }; if (!tree[info.sub].items[info.vol]) tree[info.sub].items[info.vol] = []; tree[info.sub].items[info.vol].push(info.unit); }); Object.keys(tree).forEach(sub => { Object.keys(tree[sub].items).forEach(vol => { tree[sub].items[vol].sort((a, b) => { return (Number(a.start)||0) - (Number(b.start)||0); }); }); }); return tree;
+        }
 
         // v1.5.5: 統一 subject unit 收集 helper — 兼容舊 (s.units / s.vols) + 新 (s.materials[*].instances[*])
         function _collectSubjectUnits(s) {
@@ -4104,15 +4206,15 @@ loadBoardHeader();
 
         function openSettings() {
             showPage('page-settings');
-            populateSelect('master-subject', Object.keys(appMaster));
+            populateSelect('master-set-cat', Object.keys(appMissions));
+            // v1.5.8: 先讀當前 cat 的教材
+            onMasterSetCatChange();
             // v1.5.2: 確保每個 subject 都有 materials 欄位 (defensive)
             Object.keys(appMaster).forEach(function(s) {
                 if (!appMaster[s].materials) appMaster[s].materials = {};
             });
             populateMasterTypeDropdown();
             renderMasterEditor();
-            populateSelect('master-set-cat', Object.keys(appMissions));
-            onMasterSetCatChange();
             populateSelect('set-cat', Object.keys(appMissions));
             onSetCatChange();
         }
@@ -4456,30 +4558,59 @@ loadBoardHeader();
             container.appendChild(div); 
         }
 
-        function onMasterSetCatChange() { 
-            var cat = el('master-set-cat').value; 
-            if(!cat || !appMissions[cat]) { 
-                populateSelect('master-set-mis', []); 
-            } else { 
-                populateSelect('master-set-mis', Object.keys(appMissions[cat])); 
-            } 
+        function onMasterSetCatChange() {
+            var cat = el('master-set-cat').value;
+            // v1.5.8: 切換 appMaster 到選中的 cat 的教材庫
+            var user = multiData[currentUserId];
+            if (cat && user && user.masters && user.masters[cat]) {
+                appMaster = user.masters[cat];
+                appCurrentCat = cat;
+            } else {
+                appMaster = {};
+                appCurrentCat = cat || '';
+            }
+            // 更新 mission dropdown
+            if(!cat || !appMissions[cat]) {
+                populateSelect('master-set-mis', []);
+            } else {
+                populateSelect('master-set-mis', Object.keys(appMissions[cat]));
+            }
+            // v1.5.8: 依新 cat 更新 subject dropdown + type/instance dropdowns
+            populateSelect('master-subject', Object.keys(appMaster));
+            populateMasterTypeDropdown();
+            renderMasterEditor();
         }
 
-        function onSetCatChange() { 
-            var cat = el('set-cat').value; 
-            if(!cat || !appMissions[cat]) { 
-                populateSelect('set-mis', []); 
-                renderMissionCheckboxes(); 
-                return; 
-            } 
-            populateSelect('set-mis', Object.keys(appMissions[cat])); 
-            renderMissionCheckboxes(); 
+        function onSetCatChange() {
+            var cat = el('set-cat').value;
+            // v1.5.8: 切換 appMaster 到選中的 cat 的教材庫
+            var user = multiData[currentUserId];
+            if (cat && user && user.masters && user.masters[cat]) {
+                appMaster = user.masters[cat];
+                appCurrentCat = cat;
+            } else {
+                appMaster = {};
+                appCurrentCat = cat || '';
+            }
+            if(!cat || !appMissions[cat]) {
+                populateSelect('set-mis', []);
+                renderMissionCheckboxes();
+                return;
+            }
+            populateSelect('set-mis', Object.keys(appMissions[cat]));
+            renderMissionCheckboxes();
         }
 
         function addCat() {
             openInputModal('➕ 新增大分類', '', function(name) {
                 if(appMissions[name]) return alert('已存在！');
                 appMissions[name] = {};
+                // v1.5.8: 同步在 user.masters 加空殻
+                var user = multiData[currentUserId];
+                if (user) {
+                    if (!user.masters) user.masters = {};
+                    if (!user.masters[name]) user.masters[name] = {};
+                }
                 syncAllCatMisDropdowns(name, null);
                 if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange();
                 updateFilters();
@@ -4564,33 +4695,56 @@ loadBoardHeader();
             alert('✅ 已新增分類「' + name + '」, 並切換到教材科目「' + sub + '」, 單元範圍保持空白, 請填入新內容。');
         }
         
-        function renCat() { 
+        function renCat() {
             var activeCatId = el('pane-master').classList.contains('active') ? 'master-set-cat' : 'set-cat';
-            var cat = el(activeCatId).value; 
-            if(!cat) return; 
-            openInputModal('✏️ 編輯大分類', cat, function(newName) { 
-                if(newName === cat) return; 
-                if(appMissions[newName]) return alert('已存在！'); 
-                appMissions[newName] = appMissions[cat]; 
-                delete appMissions[cat]; 
-                appLogs.forEach(l => { if(l.category === cat) l.category = newName; }); 
+            var cat = el(activeCatId).value;
+            if(!cat) return;
+            openInputModal('✏️ 編輯大分類', cat, function(newName) {
+                if(newName === cat) return;
+                if(appMissions[newName]) return alert('已存在！');
+                appMissions[newName] = appMissions[cat];
+                delete appMissions[cat];
+                // v1.5.8: 同步 rename masters[cat]
+                var user = multiData[currentUserId];
+                if (user && user.masters && user.masters[cat]) {
+                    user.masters[newName] = user.masters[cat];
+                    delete user.masters[cat];
+                    if (appCurrentCat === cat) appCurrentCat = newName;
+                    if (appMaster === user.masters[newName]) {
+                        // appMaster reference 還是指 user.masters[newName], 不用換
+                    }
+                }
+                appLogs.forEach(l => { if(l.category === cat) l.category = newName; });
                 syncAllCatMisDropdowns(newName, null);
-                if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange(); 
+                if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange();
                 updateFilters();
-            }); 
+            });
         }
-        
-        function delCat() { 
+
+        function delCat() {
             var activeCatId = el('pane-master').classList.contains('active') ? 'master-set-cat' : 'set-cat';
-            var cat = el(activeCatId).value; 
-            if(!cat) return; 
-            if(confirm('刪除？')) { 
-                delete appMissions[cat]; 
-                appLogs = appLogs.filter(l => l.category !== cat); 
-                syncAllCatMisDropdowns(null, null);
-                if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange(); 
-                updateFilters();
-            } 
+            var cat = el(activeCatId).value;
+            if(!cat) return;
+            var subjCount = (multiData[currentUserId] && multiData[currentUserId].masters && multiData[currentUserId].masters[cat]) ? Object.keys(multiData[currentUserId].masters[cat]).length : 0;
+            var msg = '刪除分類「' + cat + '」？';
+            if (subjCount > 0) msg += '\n底下有 ' + subjCount + ' 個 subject 教材也會被刪掉。';
+            if(!confirm(msg)) return;
+            delete appMissions[cat];
+            appLogs = appLogs.filter(l => l.category !== cat);
+            // v1.5.8: 同步刪 masters[cat]
+            var user = multiData[currentUserId];
+            if (user && user.masters && user.masters[cat]) {
+                delete user.masters[cat];
+                if (appCurrentCat === cat) {
+                    // 切到第一個剩下的 cat
+                    var remaining = Object.keys(user.masters);
+                    appCurrentCat = remaining[0] || '';
+                    appMaster = user.masters[appCurrentCat] || {};
+                }
+            }
+            syncAllCatMisDropdowns(null, null);
+            if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange();
+            updateFilters();
         }
         
         function addMis() { 
@@ -4931,12 +5085,12 @@ loadBoardHeader();
                 '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
             '</div>';
 
-            // v1.5.5: 各科整體進度條 (不限定 mission, 算所有 log 跟教材庫總頁數)
-            // 原因: Denias 19:50 反映「首頁進度 bar 之前都有, 上一版被你刪掉」
-            // 之前 renderDashboard() 只在選 mission filter 才顯示 bar, 沒選就看不到
-            // 這裡做獨立 summary, 不依賴 mission
+            // v1.5.8: 各科整體進度條 — 按 Category (進度大分類) 分組顯示
+            // 原因: Denias 02:06 確認「首頁整體 bar 按 Category 分組」
+            // 會考複習 + 段考複習 各一個 section
             var subjectBarsHtml = '';
-            if (appMaster && Object.keys(appMaster).length > 0) {
+            var userForBars = multiData[currentUserId];
+            if (userForBars && userForBars.masters && Object.keys(userForBars.masters).length > 0) {
                 // logData: 各 unitId 已做頁數
                 var logDataAll = {};
                 appLogs.forEach(l => {
@@ -4946,54 +5100,68 @@ loadBoardHeader();
                     logDataAll[l.unitId].pages += (l.pages || 0);
                 });
 
-                // 定義 subject 排序 (跟 Denias 主科順序一致)
+                // subject 排序 (跟 Denias 主科順序一致)
                 var subOrder = ['國文','英文','數學','歷史','地理','公民','理化','生物','地科'];
-                var subKeys = Object.keys(appMaster).sort((a, b) => {
-                    var ia = subOrder.indexOf(a); if (ia === -1) ia = 999;
-                    var ib = subOrder.indexOf(b); if (ib === -1) ib = 999;
-                    return ia - ib;
+
+                // iterate 全部 Category, 每個一個 section
+                var catSectionsHtml = '';
+                Object.keys(userForBars.masters).forEach(function(catName) {
+                    var catSubjects = userForBars.masters[catName];
+                    if (!catSubjects || Object.keys(catSubjects).length === 0) return;
+
+                    var subKeys = Object.keys(catSubjects).sort((a, b) => {
+                        var ia = subOrder.indexOf(a); if (ia === -1) ia = 999;
+                        var ib = subOrder.indexOf(b); if (ib === -1) ib = 999;
+                        return ia - ib;
+                    });
+
+                    var catCards = '';
+                    subKeys.forEach(function(sub) {
+                        var subj = catSubjects[sub];
+                        if (!subj) return;
+                        var totalPages = 0;
+                        var donePages = 0;
+                        function accUnit(u) {
+                            var t = (u.end || 0) - (u.start || 0) + 1;
+                            if (t <= 0) t = 1;
+                            totalPages += t;
+                            var d = logDataAll[u.id] ? logDataAll[u.id].pages : 0;
+                            if (d > t) d = t;
+                            donePages += d;
+                        }
+                        if (subj.type === 'custom' && Array.isArray(subj.units)) {
+                            subj.units.forEach(accUnit);
+                        } else if (subj.vols) {
+                            Object.keys(subj.vols).forEach(v => {
+                                if (Array.isArray(subj.vols[v])) subj.vols[v].forEach(accUnit);
+                            });
+                        } else {
+                            _collectSubjectUnits(subj).forEach(accUnit);
+                        }
+                        if (totalPages <= 0) return;
+                        var pct = Math.round((donePages / totalPages) * 100);
+                        var pctRemain = 100 - pct;
+                        catCards += '<div class="dash-subject-bar-card">' +
+                            '<div class="dash-subject-bar-label"><span class="dash-subject-name">📌 ' + sub + '</span><span class="dash-subject-pct">' + donePages + '/' + totalPages + ' (' + pct + '%)</span></div>' +
+                            '<div class="dash-subject-bar">' +
+                                '<div class="dash-subject-bar-done" style="width:' + pct + '%;">' + (pct > 4 ? pct + '%' : '') + '</div>' +
+                                '<div class="dash-subject-bar-remain" style="width:' + pctRemain + '%;">' + (pctRemain > 8 ? pctRemain + '%' : '') + '</div>' +
+                            '</div>' +
+                        '</div>';
+                    });
+
+                    if (catCards) {
+                        catSectionsHtml += '<div class="dash-subject-bars-cat">' +
+                            '<h4 class="dash-subject-bars-cat-title">📁 ' + catName + '</h4>' +
+                            '<div class="dash-subject-bars-grid">' + catCards + '</div>' +
+                        '</div>';
+                    }
                 });
 
-                var subjectBarsCards = '';
-                subKeys.forEach(sub => {
-                    var subj = appMaster[sub];
-                    if (!subj) return;
-                    var totalPages = 0;
-                    var donePages = 0;
-                    function accUnit(u) {
-                        var t = (u.end || 0) - (u.start || 0) + 1;
-                        if (t <= 0) t = 1;
-                        totalPages += t;
-                        var d = logDataAll[u.id] ? logDataAll[u.id].pages : 0;
-                        if (d > t) d = t;
-                        donePages += d;
-                    }
-                    if (subj.type === 'custom' && Array.isArray(subj.units)) {
-                        subj.units.forEach(accUnit);
-                    } else if (subj.vols) {
-                        Object.keys(subj.vols).forEach(v => {
-                            if (Array.isArray(subj.vols[v])) subj.vols[v].forEach(accUnit);
-                        });
-                    } else if (subj.materials) {
-                        // v1.5.5 fix: 讀新架構 materials[*].instances[*]
-                        _collectSubjectUnits(subj).forEach(accUnit);
-                    }
-                    if (totalPages <= 0) return;
-                    var pct = Math.round((donePages / totalPages) * 100);
-                    var pctRemain = 100 - pct;
-                    subjectBarsCards += '<div class="dash-subject-bar-card">' +
-                        '<div class="dash-subject-bar-label"><span class="dash-subject-name">📌 ' + sub + '</span><span class="dash-subject-pct">' + donePages + '/' + totalPages + ' (' + pct + '%)</span></div>' +
-                        '<div class="dash-subject-bar">' +
-                            '<div class="dash-subject-bar-done" style="width:' + pct + '%;">' + (pct > 4 ? pct + '%' : '') + '</div>' +
-                            '<div class="dash-subject-bar-remain" style="width:' + pctRemain + '%;">' + (pctRemain > 8 ? pctRemain + '%' : '') + '</div>' +
-                        '</div>' +
-                    '</div>';
-                });
-
-                if (subjectBarsCards) {
+                if (catSectionsHtml) {
                     subjectBarsHtml = '<div class="dash-subject-bars">' +
-                        '<h3>📊 各科整體進度</h3>' +
-                        '<div class="dash-subject-bars-grid">' + subjectBarsCards + '</div>' +
+                        '<h3>📊 各科整體進度 <span class="dash-subject-bars-subtitle">(按進度大分類分組)</span></h3>' +
+                        catSectionsHtml +
                     '</div>';
                 }
             }
@@ -5063,7 +5231,41 @@ loadBoardHeader();
             if (!root) return;
             root.innerHTML = '';
 
-            if (!appMaster || Object.keys(appMaster).length === 0) {
+            // v1.5.8: 獨立 Category dropdown - 樹狀圖不跟 mission filter 連動
+            var user = multiData[currentUserId];
+            var treeCatSel = el('tree-cat-filter');
+            if (treeCatSel && user && user.masters) {
+                var prevVal = treeCatSel.value;
+                var opts = '<option value="ALL">🌟 全部分類</option>';
+                Object.keys(user.masters).forEach(function(cat) {
+                    var cnt = Object.keys(user.masters[cat] || {}).length;
+                    opts += '<option value="' + cat + '">' + cat + ' (' + cnt + ' 科)</option>';
+                });
+                treeCatSel.innerHTML = opts;
+                if (prevVal && (prevVal === 'ALL' || user.masters[prevVal])) {
+                    treeCatSel.value = prevVal;
+                } else {
+                    treeCatSel.value = 'ALL';
+                }
+            }
+            var treeCat = treeCatSel ? treeCatSel.value : 'ALL';
+            // 收集選定 cat 範圍的 subjects (iterate 用, 不影響 appMaster)
+            var treeSubjects = {};
+            if (user && user.masters) {
+                if (treeCat === 'ALL') {
+                    Object.keys(user.masters).forEach(function(c) {
+                        Object.keys(user.masters[c] || {}).forEach(function(sub) {
+                            // 跨 cat 的 subject 可能同名, 加 cat prefix 避免重複
+                            treeSubjects[sub + '|||' + c] = { name: sub, cat: c, subj: user.masters[c][sub] };
+                        });
+                    });
+                } else if (user.masters[treeCat]) {
+                    Object.keys(user.masters[treeCat]).forEach(function(sub) {
+                        treeSubjects[sub + '|||' + treeCat] = { name: sub, cat: treeCat, subj: user.masters[treeCat][sub] };
+                    });
+                }
+            }
+            if (Object.keys(treeSubjects).length === 0) {
                 root.innerHTML = '<div class="tree-empty">🌳 尚未建立教材庫<br><br><span style="font-size:0.85em;">先去「教材庫與備份」建立科目與單元,樹狀圖就會長出來 ✨</span></div>';
                 return;
             }
@@ -5137,8 +5339,11 @@ loadBoardHeader();
 
             var html = '<div class="tree-container">';
 
-            Object.keys(appMaster).forEach(sub => {
-                var s = appMaster[sub];
+            Object.keys(treeSubjects).forEach(function(key) {
+                var entry = treeSubjects[key];
+                var sub = entry.name;
+                var catLabel = (treeCat === 'ALL') ? ' <small style="color:var(--secondary);font-size:0.7em;">[' + entry.cat + ']</small>' : '';
+                var s = entry.subj;
                 if (!s) return;
 
                 var doneCount = 0, totalCount = 0;
@@ -5164,7 +5369,7 @@ loadBoardHeader();
                 }
 
                 html += '<div class="tree-subject">';
-                html += '<h2>' + escapeHtml(sub) + '<span class="tree-progress">' + doneCount + ' / ' + totalCount + '</span></h2>';
+                html += '<h2>' + escapeHtml(sub) + catLabel + '<span class="tree-progress">' + doneCount + ' / ' + totalCount + '</span></h2>';
 
                 if (s.type === 'custom' && Array.isArray(s.units)) {
                     // v1.4.6: 套用 filter - 只列在 mission 內的 units

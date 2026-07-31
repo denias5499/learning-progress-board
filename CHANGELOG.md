@@ -2,7 +2,36 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
-### v1.5.7 (2026-07-31) — Q2: 改 UI 命名「書本 / 刷本」→「教材名」(Denias 23:01 要求)
+### v1.5.8 (2026-07-31) — 大改: 進度大分類 (Category) 獨立教材庫 (Denias 02:02 要求)
+
+**Denias 02:02 要求:**
+- 會考複習 / 段考複習 教材完全不同 → 各自獨立
+- 同一個 Category 底下的 mission (一模/二模/三模/四模) 共用同一份教材
+- 原本架構是所有 Category 共用 appMaster, 不符合需求
+
+**資料結構大改:**
+- OLD: `user.master = { 國文: {...}, 英文: {...} }`
+- NEW: `user.masters = { '會考複習': { 國文: {...} }, '段考複習': { 國文: {...} } }`
+
+**Migrate (v1.5.8):**
+- 把現有 `user.master` 8 個 subject 搬到 `user.masters['會考複習']`
+- 補上 `user.masters['段考複習'] = {}` (空的, 等 Denias 自己建)
+- 從 missions keys 同步創 masters[cat] = {}
+- 加 `appCurrentCat` 全域變數追蹤當前 cat
+
+**UI 改動:**
+1. 教材庫 `master-set-cat` dropdown 現在會真的影響 subject 範圍 (原本只更新任務)
+2. Mission 設定 `set-cat` dropdown 也同步切換 appMaster
+3. 首頁「各科整體進度 bar」按 Category 分組 (會考複習一組, 段考複習一組)
+4. 樹狀圖加獨立 Category dropdown (不跟 mission filter 連動)
+5. 樹狀圖「全部分類」選項可看全部 cat
+
+**Bug fix:**
+- buildMissionTree 改成從 `user.masters[cat]` 讀教材 (不依賴 appMaster 全域), 避免切 cat 後 mission bar 找不到 unit
+- delCat 加警告「底下有 N 個 subject 教材會被刪掉」
+- renCat 同步 rename `masters[cat]`
+
+**v1.5.7 (2026-07-31) — Q2: 改 UI 命名「書本 / 刷本」→「教材名」(Denias 23:01 要求)
 
 **Denias 01:48 反映:**
 - 「書本 / 刷本」這個詞不精確
