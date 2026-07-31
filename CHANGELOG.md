@@ -1,5 +1,56 @@
 # 版本演進 (CHANGELOG)
 
+## v1.5.16 (2026-07-31) — 修 v1.5.13 污染段考複習 + restoreMathLecture 找現有 instance 改名
+
+### 問題
+Denias 23:08 回報: 切到「段考複習」時, 教材類型 dropdown 顯示「複習講義/複習卷/數字題本/模擬題本/考古題」這些會考 type — 但 v1.5.8 的核心設計是「Category 完全獨立教材庫」, 段考複習跟會考複習用完全不同教材 (段考用課本/習作/隨堂測驗, 跟會考的複習講義/數字題本完全不同)。
+
+### 根因
+**v1.5.13 的 switchUser repair 邏輯寫錯** (line 2176-2194):
+
+```js
+// v1.5.13 錯誤邏輯 (原):
+Object.keys(user.masters).forEach(function(catName) {  // 遍歷所有 cat
+    Object.keys(user.masters[catName]).forEach(function(subName) {  // 包括段考複習
+        // 補上 5 個會考 type
+    });
+});
+```
+
+這邏輯在 switchUser 時, 會把所有 cat 的所有 subject 都補上 5 個會考 type — **段考複習被會考 type 污染**, 違反 v1.5.8 「Category 完全獨立教材庫」的核心設計。
+
+### 修法 (v1.5.16)
+
+**1. 修 switchUser repair 邏輯** (line 2176+):
+```js
+// v1.5.16 新邏輯: 只 repair 會考複習
+if (user.masters['會考複習']) {
+    Object.keys(user.masters['會考複習']).forEach(function(subName) {
+        // 只補會考複習的 subject
+    });
+}
+// 段考複習不碰 (Denias 23:13: 自己手動加段考 type)
+```
+
+**2. 修 restoreMathLecture** (line 6354+):
+v1.5.15 的邏輯檢查 `hasInst = instances.some(i => i.name === '複習講義')` 才跳過。但 Denias 之前手動加的 instance name 是「大滿貫」(不是「複習講義」), v1.5.15 跑時 `hasInst = false`, 會 push 新 instance, 結果數學 / 複習講義 type 變成 2 個 instance (「大滿貫」 + 「複習講義」)。
+
+v1.5.16 新邏輯:
+1. 先找 name 完全匹配「複習講義」的 instance — 有就跳過
+2. 找現有 volume type instance (例如「大滿貫」) — 有就改名成「複習講義」+ 補 volOrder
+3. 完全沒有 volume instance 才從備份 push 新 instance
+
+**3. 加「🧹 清段考複習的會考 type」按鈕**:
+讓 Denias 一鍵清掉 v1.5.13 遺留的 5 個會考 type × 8 個 subject = 40 個污染。Denias 23:13 確認: 段考 type 自己手動加, 不預設。
+
+### 教訓
+
+- **★ v1.5.8 「Category 完全獨立教材庫」是核心設計** — 不同 cat 用不同教材, repair 邏輯不能跨 cat 用同一個 default type list
+- **★ repair 邏輯要限制範圍** — 不要 Object.keys 整個 user.masters, 應該只 repair 特定 cat (會考複習)
+- **★ restoreMathLecture 不要只看 instance name 完全匹配** — 也要找現有 volume type instance 改名, 避免重複
+- **★ 不要假設 user 加的 instance name 會是什麼** — Denias 可能用任何名字 (例如「大滿貫」)
+- **★ 「預設 type」是 cat-specific** — 會考有 5 個預設 type, 段考不該有會考的預設 type
+
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
 ### v1.5.15 (2026-07-31) — 專門按鈕補數學「複習講義」instance (不動其他科目)
