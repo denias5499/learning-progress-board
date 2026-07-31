@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.13]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.14]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -980,6 +980,8 @@
                         <div style="display: flex; gap: 10px;">
                             <button type="button" class="btn-primary" onclick="exportDataToFile()">📥 匯出 JSON 備份</button>
                             <button type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
+                            <!-- v1.5.14: 從舊備份還原數學等缺複習講義的科目 -->
+                            <button type="button" class="btn-success" onclick="restoreFromOldBackup()" style="background:#16a085;">📦 從舊備份還原</button>
                             <input type="file" id="import-file" style="display: none;" accept=".json">
                         </div>
                     </div>
@@ -6346,7 +6348,89 @@ loadBoardHeader();
             }
         }
 
-        document.getElementById('import-file').addEventListener('change', function(e) { 
+        // v1.5.14: 從舊備份 (v1.5.1 之前的 config.master 格式) merge 進來
+        // 那些 subj.materials 存在但缺「複習講義」type (原本 v1.5.2 migrate 應該建但被跳過)
+        function restoreFromOldBackup() {
+            openInputModal('📦 請貼上舊備份的 config.master JSON', '', function(text) {
+                if (!text) return;
+                var backupMaster;
+                try {
+                    backupMaster = JSON.parse(text);
+                } catch (e) {
+                    return alert('JSON parse 失敗: ' + e.message + '\n\n請貼上備份檔裡的 "master" 物件內容 (以 { 開頭 以 } 結尾)');
+                }
+
+                var user = multiData[currentUserId];
+                if (!user || !user.masters) return alert('找不到 user data');
+                if (!user.masters['會考複習']) user.masters['會考複習'] = {};
+
+                var restored = [];
+                var skipped = [];
+
+                Object.keys(backupMaster).forEach(function(subName) {
+                    var backupSub = backupMaster[subName];
+                    var currentSub = user.masters['會考複習'][subName];
+
+                    if (!currentSub) {
+                        skipped.push(subName + ' (現在沒有此科目)');
+                        return;
+                    }
+
+                    if (!currentSub.materials) currentSub.materials = {};
+
+                    // 確保「複習講義」type 存在
+                    if (!currentSub.materials['複習講義']) {
+                        currentSub.materials['複習講義'] = { id: 'mt_' + genId(), name: '複習講義', instances: [] };
+                    }
+
+                    var lectureType = currentSub.materials['複習講義'];
+                    // 檢查是否已經有「(原主教材)」instance
+                    var hasMain = lectureType.instances.some(function(i) { return i.name === '(原主教材)'; });
+                    if (hasMain) {
+                        skipped.push(subName + ' (已經有原主教材)');
+                        return;
+                    }
+
+                    if (backupSub.type === 'custom') {
+                        lectureType.instances.push({
+                            id: 'ins_' + genId(),
+                            name: '(原主教材)',
+                            type: 'custom',
+                            units: backupSub.units || [],
+                            vols: null,
+                            volOrder: null
+                        });
+                        restored.push(subName + ' (custom, ' + (backupSub.units || []).length + ' 個 unit)');
+                    } else if (backupSub.type === 'volume') {
+                        var mainUnits = [];
+                        Object.keys(backupSub.vols || {}).forEach(function(volName) {
+                            (backupSub.vols[volName] || []).forEach(function(u) {
+                                mainUnits.push(Object.assign({}, u, { vol: volName }));
+                            });
+                        });
+                        lectureType.instances.push({
+                            id: 'ins_' + genId(),
+                            name: '(原主教材)',
+                            type: 'volume',
+                            units: null,
+                            vols: backupSub.vols || {},
+                            volOrder: backupSub.volOrder || Object.keys(backupSub.vols || {})
+                        });
+                        restored.push(subName + ' (volume, ' + mainUnits.length + ' 個 unit, ' + Object.keys(backupSub.vols || {}).length + ' 冊)');
+                    } else {
+                        skipped.push(subName + ' (type=' + backupSub.type + ' 不明)');
+                    }
+                });
+
+                saveToLocal();
+
+                var msg = '備份還原完成!\n\n✅ 已恢復:\n' + restored.join('\n') + '\n\n⏭️ 跳過:\n' + (skipped.length ? skipped.join('\n') : '(無)') + '\n\n請強制重整 ⌘+Shift+R 後檢查教材庫 tab 1。';
+                alert(msg);
+                console.log('v1.5.14 restoreFromOldBackup:\n✅ Restored:', restored, '\n⏭️ Skipped:', skipped);
+            });
+        }
+
+document.getElementById('import-file').addEventListener('change', function(e) {
             var file = e.target.files[0]; 
             if (!file) return; 
             var reader = new FileReader(); 

@@ -2,6 +2,37 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.14 (2026-07-31) — 從舊備份還原功能 (補 v1.5.2 migrate 跳過沒建「複習講義」的 sub)
+
+**Denias 21:58 提供 2026-07-28 備份檔:**
+
+Denias 反映 v1.5.13 沒解決, 數學複習講義內容還是不見。我看了備份檔, 是 v1.5.1 之前的舊格式 (没有 `masters` 結構, 只有 `master`)。備份裡也沒有「複習講義」這個 type, 因為「複習講義」是 v1.5.2 migrate 才建立的。
+
+**真正的根因**: 數學原本是 `type: 'volume'` 有 7 個 vol (第一冊~第六冊+模擬試題)。在 v1.5.2 migrate 時:
+- migrate 見到 `subj.materials` 已存在 (從某個 intermediate state), `if (!subj.materials)` 跳過
+- 所以「複習講義」這個 type 沒被建立, 原本的 7 個 vol 也沒被搬到「複習講義」的「(原主教材)」instance
+- v1.5.13 的 switchUser repair 只補空的 type, 不補上「(原主教材)」instance 的 units
+
+**修復 (v1.5.14):**
+
+加「📦 從舊備份還原」按鈕 (在備份區旁邊), 讓 Denias:
+1. 點按鈕
+2. 貼上備份檔的 `config.master` JSON (只要 `{...}` 那段)
+3. 自動 merge 進現有 `user.masters['會考複習']`:
+   - 對每個 sub: 確保 `materials['複習講義']` 存在
+   - 檢查是否已有「(原主教材)」instance (有就跳過, 不重複加)
+   - custom sub (如國文): 加 `units: backupSub.units`
+   - volume sub (如數學/英文): 加 `vols: backupSub.vols, volOrder: backupSub.volOrder, type: 'volume'`
+4. Alert 列出哪些 sub 恢復了 / 跳過
+
+**如何操作:**
+
+1. 打開備份檔, 找 `master` 物件 (從 `{` 開始, 到 `}` 結束, 包含 國文/數學/英文/理化/歷史/地理/公民/生物)
+2. 強制重整 v1.5.14
+3. 進教材庫 → 拉到下面「全機資料備份與還原」區
+4. 點「📦 從舊備份還原」→ 貼上 JSON → 按 OK
+5. 應該看到 alert 列出「已恢復: 數學 (volume, 27 個 unit, 7 冊)」「已恢復: 國文 (custom, 21 個 unit)」
+
 ### v1.5.13 (2026-07-31) — type filter dropdown 移到 onSetCatChange + 自動補缺 5 個預設 type
 
 **Denias 18:24 回報 v1.5.12 測試:**
