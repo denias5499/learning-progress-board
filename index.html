@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.10]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.11]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -954,6 +954,19 @@
                     
                     <div style="margin-top: 10px; background: #fff; padding: 15px; border-radius: 8px; border: 2px dashed var(--accent); position: relative;">
                         <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--primary);">📥 請勾選此任務要涵蓋的單元範圍：</h3>
+                    <!-- v1.5.11: 全域教材類型 filter dropdown (避免太多 instance 捲動不便) -->
+                    <div style="margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                        <span style="font-weight: bold; color: var(--secondary);">📁 教材類型過濾：</span>
+                        <select id="mis-type-filter" onchange="renderMissionCheckboxes()" style="padding: 6px 10px; font-size: 0.95em;">
+                            <option value="ALL">🌟 全部顯示</option>
+                            <option value="複習講義">📘 複習講義</option>
+                            <option value="複習卷">📙 複習卷</option>
+                            <option value="數字題本">🔢 數字題本</option>
+                            <option value="模擬題本">📝 模擬題本</option>
+                            <option value="考古題">📜 考古題</option>
+                        </select>
+                        <span style="font-size: 0.85em; color: var(--secondary);">(只顯示選定的教材類型, 避免太多 instance 需捲動)</span>
+                    </div>
                         <div id="mission-checkbox-root" class="horizontal-scroll" style="overflow-x: auto; padding-bottom: 15px; width: 100%;"></div>
                         <div style="position: absolute; bottom: 8px; right: 10px; display: flex; gap: 8px; z-index: 10;">
                             <button type="button" class="btn-primary" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; box-shadow: 0 3px 6px rgba(0,0,0,0.3); font-size: 1.2em; display:flex; align-items:center; justify-content:center;" onclick="scrollMissionToStart()" title="回到最前頁">⏮️</button>
@@ -1863,6 +1876,16 @@
             if (!user.masters['會考複習']) user.masters['會考複習'] = {};
             if (!user.masters['段考複習']) user.masters['段考複習'] = {};
 
+            // v1.5.11: 為「段考複習」自動建 8 個 default 科目 (Denias 16:02 要求, 不要 confirm dialog)
+            if (Object.keys(user.masters['段考複習']).length === 0 && !user._v1511_default_added) {
+                var defaults = ['國文','數學','英文','歷史','地理','公民','理化','地科'];
+                defaults.forEach(function(subName) {
+                    user.masters['段考複習'][subName] = { materials: {} };
+                });
+                user._v1511_default_added = true;
+                console.log('v1.5.11: 為「段考複習」自動建了 ' + defaults.length + ' 個 default subjects');
+            }
+
             console.log('v1.5.8: ✅ migrate 完成, masters cats = [' + Object.keys(user.masters).join(', ') + ']');
             Object.keys(user.masters).forEach(function(cat) {
                 console.log('  - ' + cat + ': ' + Object.keys(user.masters[cat]).length + ' 個 subject');
@@ -2269,9 +2292,9 @@ loadBoardHeader();
                             });
                         } else if (Array.isArray(ins.units)) {
                             ins.units.forEach(function(u) {
-                                // v1.5.10: 帶上 instance.name + typeName 讓 UI 可以顯示是哪個 instance
+                                // v1.5.11: vol 改成 grouping key (typeName + instanceName), 方便 UI 顯示
                                 out2.push(Object.assign({}, u, {
-                                    vol: ins.type === 'volume' ? (u.vol || 'custom') : '_' + typeName + '|' + ins.name,
+                                    vol: ins.type === 'volume' ? (u.vol || 'custom') : typeName + '|' + ins.name,
                                     _instanceName: ins.name,
                                     _typeName: typeName
                                 }));
@@ -4704,20 +4727,6 @@ loadBoardHeader();
                 appMaster = {};
                 appCurrentCat = cat || '';
             }
-            // v1.5.10: 如果這個 cat 是空的, 問 user 要不要建 default subjects
-            if (cat && appMaster && Object.keys(appMaster).length === 0) {
-                var initFlag = '_v1510_default_init_' + cat;
-                if (!user[initFlag] && confirm('📚 「' + cat + '」這個分類還沒有教材科目。\n\n要自動建立 default 科目 (國文、數學、英文、歷史、地理、公民、理化、地科) 嗎?\n\n[確定] = 建 default 科目\n[取消] = 不建, 自己手動加')) {
-                    var defaults = ['國文','數學','英文','歷史','地理','公民','理化','地科'];
-                    defaults.forEach(function(subName) {
-                        appMaster[subName] = { materials: {} };
-                    });
-                    user[initFlag] = true;
-                    console.log('v1.5.10: 為「' + cat + '」建了 ' + defaults.length + ' 個 default subjects');
-                } else {
-                    user[initFlag] = true;
-                }
-            }
             // 更新 mission dropdown
             if(!cat || !appMissions[cat]) {
                 populateSelect('master-set-mis', []);
@@ -4957,70 +4966,80 @@ loadBoardHeader();
             }
         }
 
-        function renderMissionCheckboxes() { 
-            var cat = el('set-cat').value; 
-            var mis = el('set-mis').value; 
-            var root = el('mission-checkbox-root'); 
-            if(!cat || !mis) { root.innerHTML = '<div style="color:#95a5a6; padding:10px;">請選擇或建立專案。</div>'; return; } 
-            if(Object.keys(appMaster).length === 0) { root.innerHTML = '<div style="color:#e74c3c; padding:10px;">⚠️ 基本教材庫為空，請先新增單元！</div>'; return; } 
-            var selectedIds = appMissions[cat][mis] || []; 
-            
+        function renderMissionCheckboxes() {
+            var cat = el('set-cat').value;
+            var mis = el('set-mis').value;
+            var root = el('mission-checkbox-root');
+            if(!cat || !mis) { root.innerHTML = '<div style="color:#95a5a6; padding:10px;">請選擇或建立專案。</div>'; return; }
+            if(Object.keys(appMaster).length === 0) { root.innerHTML = '<div style="color:#e74c3c; padding:10px;">⚠️ 基本教材庫為空，請先新增單元！</div>'; return; }
+            var selectedIds = appMissions[cat][mis] || [];
+
+            // v1.5.11: 全域教材類型 filter dropdown
+            var globalTypeFilter = el('mis-type-filter') ? el('mis-type-filter').value : 'ALL';
+
             root.style.display = 'flex';
             root.style.gap = '15px';
             root.style.scrollSnapType = 'x mandatory';
-            
-            var html = ''; 
-            var subKeys = Object.keys(appMaster);
-            subKeys = getSortedSubjects(subKeys); 
 
-            subKeys.forEach(sub => { 
-                var s = appMaster[sub]; 
+            var html = '';
+            var subKeys = Object.keys(appMaster);
+            subKeys = getSortedSubjects(subKeys);
+
+            subKeys.forEach(sub => {
+                var s = appMaster[sub];
                 html += `<div style="flex: 0 0 calc(50% - 7.5px); scroll-snap-align: start; border: 1px solid var(--border); border-radius: 8px; background: #fff; overflow: hidden; display: flex; flex-direction: column;">`;
                 html += `<div style="background: var(--primary); color: white; padding: 10px; text-align: center; font-weight: bold; font-size: 1.1em;">📘 ${sub}</div>`;
                 html += `<div class="vertical-scroll" style="max-height: 380px; overflow-y: auto; padding: 12px;">`;
-                
-                if(s.type === 'custom') { 
+
+                if(s.type === 'custom') {
                     html += `<label style="display:block; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="custom" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', 'custom')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>✅ 全選 / 取消全選</b></label>`;
-                    s.units.forEach(u => { 
-                        var isChecked = selectedIds.includes(u.id) ? 'checked' : ''; 
-                        html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="custom" style="width:auto; margin-right:5px;"> ${u.name} (P.${u.start}~${u.end})</label>`; 
-                    }); 
+                    s.units.forEach(u => {
+                        var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
+                        html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="custom" style="width:auto; margin-right:5px;"> ${u.name} (P.${u.start}~${u.end})</label>`;
+                    });
                 } else if (s.materials) {
                     // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
-                    // v1.5.10: 改顯示 instance.name (不是 'custom') + instance.type
+                    // v1.5.11: 用 typeName + instanceName 當 grouping key, label = 「typeName-instanceName」
                     var matUnits = _collectSubjectUnits(s);
-                    var byVol = {}; // key = typeName + instanceName, 用來 group
+                    var byVol = {}; // key = 'typeName|instanceName'
                     matUnits.forEach(function(u) {
-                        var k = (u.vol && u.vol !== 'custom') ? u.vol : '_single';
-                        if (!byVol[k]) byVol[k] = { units: [], instanceLabel: u._instanceName || (u.vol && u.vol !== 'custom' ? u.vol : '(不分冊)') };
+                        var k = u.vol || '_single';
+                        if (!byVol[k]) byVol[k] = { units: [], typeName: u._typeName || '', instanceName: u._instanceName || k };
                         byVol[k].units.push(u);
                     });
+                    var anyShown = false;
                     Object.keys(byVol).forEach(function(key) {
-                        var vol = key === '_single' ? '' : key;
-                        var labelText = byVol[key].instanceLabel;
-                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(key)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(key)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(labelText)}${vol ? ' — ' + escapeHtml(vol) : ''} (全冊)</b></label>`;
+                        var info = byVol[key];
+                        // v1.5.11: 全域 type filter (預設 ALL = 全部顯示)
+                        if (globalTypeFilter !== 'ALL' && info.typeName !== globalTypeFilter) return;
+                        anyShown = true;
+                        var label = info.typeName + '-' + info.instanceName;
+                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(key)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(key)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(label)} (全冊)</b></label>`;
                         html += `<div style="padding-left:15px;">`;
-                        byVol[key].units.forEach(function(u) {
+                        info.units.forEach(function(u) {
                             var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
                             var pRange = (u.start || u.end) ? ' (P.' + (u.start||'?') + '~' + (u.end||'?') + ')' : '';
                             html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${escapeHtml(key)}" style="width:auto; margin-right:5px;"> ${escapeHtml(u.name)}${pRange}</label>`;
                         });
                         html += `</div>`;
                     });
-                } else { 
-                    var volsToRender = s.volOrder || Object.keys(s.vols); 
-                    volsToRender.forEach(vol => { 
+                    if (!anyShown && globalTypeFilter !== 'ALL') {
+                        html += `<div style="color:#95a5a6; padding:10px; text-align:center; font-size:0.9em;">（沒有「${escapeHtml(globalTypeFilter)}」類型的教材）</div>`;
+                    }
+                } else {
+                    var volsToRender = s.volOrder || Object.keys(s.vols);
+                    volsToRender.forEach(vol => {
                         html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${vol}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${vol}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${vol} (全冊)</b></label>`;
                         html += `<div style="padding-left:15px;">`;
-                        s.vols[vol].forEach(u => { 
-                            var isChecked = selectedIds.includes(u.id) ? 'checked' : ''; 
-                            html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${vol}" style="width:auto; margin-right:5px;"> ${u.name} (P.${u.start}~${u.end})</label>`; 
-                        }); 
+                        s.vols[vol].forEach(u => {
+                            var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
+                            html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${vol}" style="width:auto; margin-right:5px;"> ${u.name} (P.${u.start}~${u.end})</label>`;
+                        });
                         html += `</div>`;
-                    }); 
-                } 
-                html += `</div></div>`; 
-            }); 
+                    });
+                }
+                html += `</div></div>`;
+            });
             root.innerHTML = html; 
 
             setTimeout(() => {

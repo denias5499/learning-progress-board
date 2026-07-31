@@ -2,6 +2,22 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.11 (2026-07-31) — 修勾選頁顯示名稱 + 加教材類型過濾 + 段考複習直接建 default 科目
+
+**Denias 16:02 回報 v1.5.10 測試:**
+
+1. **default 科目 confirm dialog 沒生效** - 而且 Denias 不要 confirm dialog, 要「直接加」
+2. ✅ **儲存跳 modal** - 正常
+3. **勾選頁「麻辣甲 — 複習卷麻辣甲」顯示錯** - 我之前的 `vol = '_複習卷|麻辣甲'` 這類 raw key 設計太複雜, 又加在 label 後面變成重複顯示
+4. **勾選頁需要 type filter dropdown** - Denias 要求每個 subject 可以過濾「複習講義/複習卷/數字題本/模擬題本/考古題」其中一個, 避免太長
+
+**修復 (v1.5.11):**
+
+1. **勾選頁 vol label 修** - `_collectSubjectUnits` 的 vol key 改成 `typeName + '|' + instanceName`, `renderMissionCheckboxes` 顯示為「📚 複習卷-麻辣甲 (全冊)」
+2. **勾選頁加全域 type filter dropdown** - 在「📥 請勾選此任務要涵蓋的單元範圍」標題下加 `<select id="mis-type-filter">`, ALL / 複習講義 / 複習卷 / 數字題本 / 模擬題本 / 考古題。換選後只顯示該 type 的 instance。
+3. **段考複習直接建 8 個 default 科目** - `v1.5.11` 在 `_v158Migrate` 內檢測段考複習是空時, 直接寫入 default subjects (國文/數學/英文/歷史/地理/公民/理化/地科)。不用 confirm。`user._v1511_default_added` 標記避免重複加。
+4. **移除 v1.5.10 的 confirm dialog 邏輯** (從 `onMasterSetCatChange`)
+
 ### v1.5.10 (2026-07-31) — 修儲存按鈕 onclick + 新 cat default 教材 + 勾選頁顯示 instance 名
 
 **Denias 12:52 回報的問題 (測試 v1.5.9):**
