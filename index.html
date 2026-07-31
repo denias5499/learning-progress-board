@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.9]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.10]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -974,7 +974,7 @@
                             <input type="file" id="import-file" style="display: none;" accept=".json">
                         </div>
                     </div>
-                    <button type="button" class="btn-success" style="padding: 10px 30px; font-size: 1.2em;" onclick="saveSettingsAndAlert(true)">💾 儲存教材庫變更</button>
+                    <button type="button" class="btn-success" style="padding: 10px 30px; font-size: 1.2em;" onclick="saveSettingsAndAlert()">💾 儲存教材庫變更</button>
                 </div>
             </div>
         </div>
@@ -2269,7 +2269,12 @@ loadBoardHeader();
                             });
                         } else if (Array.isArray(ins.units)) {
                             ins.units.forEach(function(u) {
-                                out2.push(Object.assign({}, u, { vol: 'custom' }));
+                                // v1.5.10: 帶上 instance.name + typeName 讓 UI 可以顯示是哪個 instance
+                                out2.push(Object.assign({}, u, {
+                                    vol: ins.type === 'volume' ? (u.vol || 'custom') : '_' + typeName + '|' + ins.name,
+                                    _instanceName: ins.name,
+                                    _typeName: typeName
+                                }));
                             });
                         }
                     });
@@ -4699,6 +4704,20 @@ loadBoardHeader();
                 appMaster = {};
                 appCurrentCat = cat || '';
             }
+            // v1.5.10: 如果這個 cat 是空的, 問 user 要不要建 default subjects
+            if (cat && appMaster && Object.keys(appMaster).length === 0) {
+                var initFlag = '_v1510_default_init_' + cat;
+                if (!user[initFlag] && confirm('📚 「' + cat + '」這個分類還沒有教材科目。\n\n要自動建立 default 科目 (國文、數學、英文、歷史、地理、公民、理化、地科) 嗎?\n\n[確定] = 建 default 科目\n[取消] = 不建, 自己手動加')) {
+                    var defaults = ['國文','數學','英文','歷史','地理','公民','理化','地科'];
+                    defaults.forEach(function(subName) {
+                        appMaster[subName] = { materials: {} };
+                    });
+                    user[initFlag] = true;
+                    console.log('v1.5.10: 為「' + cat + '」建了 ' + defaults.length + ' 個 default subjects');
+                } else {
+                    user[initFlag] = true;
+                }
+            }
             // 更新 mission dropdown
             if(!cat || !appMissions[cat]) {
                 populateSelect('master-set-mis', []);
@@ -4968,18 +4987,23 @@ loadBoardHeader();
                     }); 
                 } else if (s.materials) {
                     // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
+                    // v1.5.10: 改顯示 instance.name (不是 'custom') + instance.type
                     var matUnits = _collectSubjectUnits(s);
-                    var byVolMat = {};
+                    var byVol = {}; // key = typeName + instanceName, 用來 group
                     matUnits.forEach(function(u) {
-                        if (!byVolMat[u.vol || 'custom']) byVolMat[u.vol || 'custom'] = [];
-                        byVolMat[u.vol || 'custom'].push(u);
+                        var k = (u.vol && u.vol !== 'custom') ? u.vol : '_single';
+                        if (!byVol[k]) byVol[k] = { units: [], instanceLabel: u._instanceName || (u.vol && u.vol !== 'custom' ? u.vol : '(不分冊)') };
+                        byVol[k].units.push(u);
                     });
-                    Object.keys(byVolMat).forEach(function(vol) {
-                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${vol}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${vol}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(vol)} (全冊)</b></label>`;
+                    Object.keys(byVol).forEach(function(key) {
+                        var vol = key === '_single' ? '' : key;
+                        var labelText = byVol[key].instanceLabel;
+                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(key)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(key)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(labelText)}${vol ? ' — ' + escapeHtml(vol) : ''} (全冊)</b></label>`;
                         html += `<div style="padding-left:15px;">`;
-                        byVolMat[vol].forEach(function(u) {
+                        byVol[key].units.forEach(function(u) {
                             var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
-                            html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${vol}" style="width:auto; margin-right:5px;"> ${escapeHtml(u.name)} (P.${u.start}~${u.end})</label>`;
+                            var pRange = (u.start || u.end) ? ' (P.' + (u.start||'?') + '~' + (u.end||'?') + ')' : '';
+                            html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${escapeHtml(key)}" style="width:auto; margin-right:5px;"> ${escapeHtml(u.name)}${pRange}</label>`;
                         });
                         html += `</div>`;
                     });

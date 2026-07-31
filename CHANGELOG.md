@@ -2,6 +2,25 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.10 (2026-07-31) — 修儲存按鈕 onclick + 新 cat default 教材 + 勾選頁顯示 instance 名
+
+**Denias 12:52 回報的問題 (測試 v1.5.9):**
+
+1. **「儲存教材庫變更」按下去直接關閉** - 根本原因: HTML 按鈕的 `onclick="saveSettingsAndAlert(true)"` 傳了 `returnHome=true`, 走直接關閉路徑, 完全沒進 modal 流程。我之前在 v1.5.9 改了 function 邏輯但忘了改 HTML onclick。
+
+2. **新分類教材庫是空的** - Denias 13:06 要求: 在新分類 dropdown 旁邊自動建立 default 科目 (國文、數學、英文、歷史、地理、公民、理化、地科)
+
+3. **「教材名 Instance」沒顯示** - Denias 13:06 在 tab 1 加了「數學」subject + 「自修」教材類型 + 「資優...」教材名 Instance, 按確認送出, 但 Instance dropdown 還是空的。 (這邊我懐疑是 addSettingRow 被調用時沒有真正存 unit 名, 但需要 Denias 再測試確認)
+
+4. **「Custom(全冊) U1(P1~P1)」這個顯示 confusing** - 用 vol='custom' 讓 user 看不到是哪個 Instance, Denias 13:06 問這是哪來的
+
+**修復 (v1.5.10):**
+
+1. **修儲存按鈕 onclick** - HTML 按鈕從 `onclick="saveSettingsAndAlert(true)"` 改成 `onclick="saveSettingsAndAlert()"`, 走 modal 流程
+2. **新 cat 自動問 default subjects** - `onMasterSetCatChange` 檢測 cat 為空, 詢問 user 要不要自動建 8 個 default subjects (國文、數學、英文、歷史、地理、公民、理化、地科)。一旦詢問過就不重複問 (用 `user['_v1510_default_init_' + cat]` 標記)
+3. **`_collectSubjectUnits` 帶 instance name + typeName** - 每個 unit object 多帶 `_instanceName` + `_typeName` 屬性
+4. **`renderMissionCheckboxes` 改顯示** - vol label 從 `custom (全冊)` 改成 `📚 資優... (全冊)` 或 `📚 第一冊 (全冊)`, 並顯示 instance 名稱讓 user 知道是哪個教材
+
 ### v1.5.9 (2026-07-31) — 緊急修復: v1.5.2 之後消失的教材編輯 function + 儲存確認改 2 鍵版
 
 **Denias 12:22 回報的問題:**
