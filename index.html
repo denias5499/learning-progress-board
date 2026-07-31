@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.11]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.12]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -954,16 +954,12 @@
                     
                     <div style="margin-top: 10px; background: #fff; padding: 15px; border-radius: 8px; border: 2px dashed var(--accent); position: relative;">
                         <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--primary);">📥 請勾選此任務要涵蓋的單元範圍：</h3>
-                    <!-- v1.5.11: 全域教材類型 filter dropdown (避免太多 instance 捲動不便) -->
+                    <!-- v1.5.12: 全域教材類型 filter dropdown — 動態生成 (從當前 cat 的教材庫 scan 唯一 typeName) -->
                     <div style="margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <span style="font-weight: bold; color: var(--secondary);">📁 教材類型過濾：</span>
                         <select id="mis-type-filter" onchange="renderMissionCheckboxes()" style="padding: 6px 10px; font-size: 0.95em;">
                             <option value="ALL">🌟 全部顯示</option>
-                            <option value="複習講義">📘 複習講義</option>
-                            <option value="複習卷">📙 複習卷</option>
-                            <option value="數字題本">🔢 數字題本</option>
-                            <option value="模擬題本">📝 模擬題本</option>
-                            <option value="考古題">📜 考古題</option>
+                            <!-- 動態生成, 預設只有 ALL -->
                         </select>
                         <span style="font-size: 0.85em; color: var(--secondary);">(只顯示選定的教材類型, 避免太多 instance 需捲動)</span>
                     </div>
@@ -4974,7 +4970,28 @@ loadBoardHeader();
             if(Object.keys(appMaster).length === 0) { root.innerHTML = '<div style="color:#e74c3c; padding:10px;">⚠️ 基本教材庫為空，請先新增單元！</div>'; return; }
             var selectedIds = appMissions[cat][mis] || [];
 
-            // v1.5.11: 全域教材類型 filter dropdown
+            // v1.5.12: 動態生成 type filter dropdown (從當前 cat 的 appMaster scan 唯一 typeName)
+            var typeFilter = el('mis-type-filter');
+            if (typeFilter) {
+                var currentTypes = {};
+                Object.keys(appMaster).forEach(function(subName) {
+                    var s = appMaster[subName];
+                    if (s && s.materials) {
+                        Object.keys(s.materials).forEach(function(t) { currentTypes[t] = true; });
+                    }
+                });
+                var availableTypes = Object.keys(currentTypes);
+                var previousVal = typeFilter.value;
+                typeFilter.innerHTML = '<option value="ALL">🌟 全部顯示</option>';
+                availableTypes.forEach(function(t) {
+                    typeFilter.innerHTML += '<option value="' + escapeHtml(t) + '">📁 ' + escapeHtml(t) + '</option>';
+                });
+                if (previousVal && (previousVal === 'ALL' || currentTypes[previousVal])) {
+                    typeFilter.value = previousVal;
+                } else {
+                    typeFilter.value = 'ALL';
+                }
+            }
             var globalTypeFilter = el('mis-type-filter') ? el('mis-type-filter').value : 'ALL';
 
             root.style.display = 'flex';

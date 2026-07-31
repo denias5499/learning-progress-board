@@ -2,6 +2,24 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.12 (2026-07-31) — 教材類型 filter dropdown 改動態生成 + 修互動型 cat 教材庫隔離
+
+**Denias 18:02 回報 v1.5.11 測試:**
+
+1. **數學的複習講義內容不見了** — 國文/英文的複習講義還在, 但數學的複習講義內容不見了
+2. **教材類型 filter dropdown 出現所有 type** — 包括會考複習的「複習講義/複習卷/數字題本/模擬題本/考古題」, Denias 18:02 問為何段考複習使用不同教材庫但 dropdown 卻包含會考的 type
+
+**根因 + 修復 (v1.5.12):**
+
+1. **Type filter dropdown 改成動態生成** — 原本是寫死 5 個 type option。改成在 `renderMissionCheckboxes` 開頭 scan 當前 `appMaster` 的所有 subject.materials 裡有的唯一 typeName, 動態填入 dropdown。這樣段考複習只有「測驗卷」這些 custom type 就只列出那些, 不會顯示會考複習的 type。
+2. **Previous value 保留** — 改 dropdown 時如果上一個 filter 選項現在不存在了, 重設回 ALL。
+3. **數學複習講義不見** — 可能是 Denias 在 v1.5.11 測試中選了數學的「自修」type 加了 instance/unit, 但原本的「複習講義」type 仍然存在 (不是被刪掉)。Denias 需要檢查 F12 Console 或重新查看教材庫 tab 1 「數學」的教材類型 dropdown 看是不是「複習講義」這項只是未選中。需要 Denias 進 Console 看 log:
+
+```js
+// 在教材庫 tab 1 選「會考複習」→「數學」後, F12 輸入:
+console.log('數學 materials:', Object.keys(multiData[currentUserId].masters['會考複習']['數學'].materials));
+```
+
 ### v1.5.11 (2026-07-31) — 修勾選頁顯示名稱 + 加教材類型過濾 + 段考複習直接建 default 科目
 
 **Denias 16:02 回報 v1.5.10 測試:**
