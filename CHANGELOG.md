@@ -2,6 +2,30 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.9 (2026-07-31) — 緊急修復: v1.5.2 之後消失的教材編輯 function + 儲存確認改 2 鍵版
+
+**Denias 12:22 回報的問題:**
+1. 點「新增科目」「删除科目」「編輯科目名稱」按鈕 → 完全沒反應
+2. 點「加冊」「刪冊」「編輯冊」按鈕 → 完全沒反應
+3. 「儲存教材庫變更」按下沒跳訊息就完成
+
+**根因分析:**
+- v1.5.2 改架構時 (Subject → Material Type → Instance → Units), 遺漏了 `addMasterSubject / renameMasterSubject / deleteMasterSubject / addMasterVolume / renameMasterVolume / deleteMasterVolume / scrollMasterVolumes` 這 7 個 function 實作
+- HTML 還在 onclick 呼叫這 7 個 function, 所以按了會炸成 `function not defined` 錯誤
+- Denias 12:22 才發現這個問題 — 因為他之前的教材都是從備份復原, 從來沒手動新增過 subject/volume
+
+**修復 (v1.5.9):**
+1. 補回 7 個 function (全部使用 v1.5.8 的 masters 架構)
+   - `addMasterSubject()` - 在 `appMaster` 加 `{ materials: {} }`
+   - `renameMasterSubject()` - rename subject + 同步 log subject
+   - `deleteMasterSubject()` - 加二次確認 + delete
+   - `scrollMasterVolumes(direction)` - 從 v1.4.31 拿回來
+   - `addMasterVolume(afterVolName)` - 寫到 `instance.vols` (而非 v1.4 的 `appMaster[sub].vols`)
+   - `renameMasterVolume(oldVolName)` - rename vol + 同步 log volume
+   - `deleteMasterVolume(volName)` - 加二次確認 + delete vol
+2. `saveSettingsAndAlert` 改成自訂 modal + 兩個按鈕 (繼續編輯 / 結束編輯)
+   - 結束編輯 = 關 modal + returnToHome()
+
 ### v1.5.8 (2026-07-31) — 大改: 進度大分類 (Category) 獨立教材庫 (Denias 02:02 要求)
 
 **Denias 02:02 要求:**

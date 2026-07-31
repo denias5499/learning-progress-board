@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.8]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.9]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4370,6 +4370,136 @@ loadBoardHeader();
             return { subject: sub, typeName: typeName, instance: instance, typeObj: typeObj };
         }
 
+        // v1.5.8 補丁: 教材科目 CRUD (v1.5.2 之後 onclick 還在但 function 沒了)
+        function addMasterSubject() {
+            openInputModal('➕ 新增教材科目', '', function(subName) {
+                if (!subName) return;
+                if (appMaster[subName]) return alert('已存在！');
+                extractCurrentEditorData();
+                appMaster[subName] = { materials: {} };
+                populateSelect('master-subject', Object.keys(appMaster), subName);
+                window.isMasterDirty = true;
+                renderMasterEditor();
+            });
+        }
+
+        function renameMasterSubject() {
+            var sub = el('master-subject').value;
+            if (!sub) return alert('請先選擇科目！');
+            openInputModal('✏️ 編輯科目名稱', sub, function(newName) {
+                if (newName === sub) return;
+                if (!newName) return;
+                if (appMaster[newName]) return alert('已存在！');
+                extractCurrentEditorData();
+                appMaster[newName] = appMaster[sub];
+                delete appMaster[sub];
+                appLogs.forEach(l => { if (l.subject === sub) l.subject = newName; });
+                populateSelect('master-subject', Object.keys(appMaster), newName);
+                window.isMasterDirty = true;
+                renderMasterEditor();
+            });
+        }
+
+        function deleteMasterSubject() {
+            var sub = el('master-subject').value;
+            if (!sub) return;
+            if (!confirm('⚠️ 您確定要刪除科目「' + sub + '」嗎？\n\n警告：執行此動作會導致該科目底下所有的進度規劃、單元設定與歷史關聯全部遺失，確定要繼續嗎？')) return;
+            extractCurrentEditorData();
+            delete appMaster[sub];
+            populateSelect('master-subject', Object.keys(appMaster));
+            window.isMasterDirty = false;
+            renderMasterEditor();
+        }
+
+        function scrollMasterVolumes(direction) {
+            const container = document.getElementById('master-volumes-container');
+            if (!container) return;
+            const groups = Array.from(container.querySelectorAll('.vol-group'));
+            if (groups.length === 0) return;
+
+            if (direction === 'first') {
+                groups[0].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                return;
+            }
+
+            let containerCenter = container.getBoundingClientRect().left + container.clientWidth / 2;
+            let closestIdx = 0;
+            let minDiff = Infinity;
+            
+            groups.forEach((g, idx) => {
+                let rect = g.getBoundingClientRect();
+                let center = rect.left + rect.width / 2;
+                let diff = Math.abs(center - containerCenter);
+                if (diff < minDiff) { 
+                    minDiff = diff; 
+                    closestIdx = idx; 
+                }
+            });
+
+            let targetIdx = closestIdx + direction;
+            if (targetIdx < 0) targetIdx = 0;
+            if (targetIdx >= groups.length) targetIdx = groups.length - 1;
+
+            groups[targetIdx].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+
+        // v1.5.8: Volume CRUD (instance.type === 'volume' 才會 render vol-group)
+        function addMasterVolume(afterVolName = null) {
+            var data = getCurrentInstanceData();
+            if (!data) return alert('請先選擇教材！');
+            var instance = data.instance;
+            if (instance.type !== 'volume') return alert('這個教材不是分冊類型！');
+            openInputModal('➕ 新增冊次名稱', '', function(volName) {
+                if (!volName) return;
+                if (instance.vols[volName]) return alert('已存在！');
+                extractCurrentEditorData();
+                instance.vols[volName] = [];
+                if (!instance.volOrder) instance.volOrder = Object.keys(instance.vols);
+                if (afterVolName && typeof afterVolName === 'string') {
+                    let idx = instance.volOrder.indexOf(afterVolName);
+                    if (idx !== -1) instance.volOrder.splice(idx + 1, 0, volName);
+                    else instance.volOrder.push(volName);
+                } else {
+                    instance.volOrder.push(volName);
+                }
+                window.isMasterDirty = true;
+                renderMasterEditor();
+            });
+        }
+
+        function renameMasterVolume(oldVolName) {
+            var data = getCurrentInstanceData();
+            if (!data) return alert('請先選擇教材！');
+            var instance = data.instance;
+            openInputModal('✏️ 編輯冊次', oldVolName, function(newVolName) {
+                if (newVolName === oldVolName) return;
+                if (!newVolName) return;
+                if (instance.vols[newVolName]) return alert('已存在！');
+                extractCurrentEditorData();
+                instance.vols[newVolName] = instance.vols[oldVolName];
+                delete instance.vols[oldVolName];
+                if (instance.volOrder) {
+                    var idx = instance.volOrder.indexOf(oldVolName);
+                    if (idx !== -1) instance.volOrder[idx] = newVolName;
+                }
+                appLogs.forEach(l => { if (l.subject === data.subject && l.volume === oldVolName) l.volume = newVolName; });
+                window.isMasterDirty = true;
+                renderMasterEditor();
+            });
+        }
+
+        function deleteMasterVolume(volName) {
+            var data = getCurrentInstanceData();
+            if (!data) return alert('請先選擇教材！');
+            var instance = data.instance;
+            if (!confirm('⚠️ 您確定要刪除冊次「' + volName + '」嗎？\n\n警告：執行此動作將會導致該冊底下所有的進度規畫與相關歷史紀錄遺失，請再三確認！')) return;
+            extractCurrentEditorData();
+            delete instance.vols[volName];
+            if (instance.volOrder) instance.volOrder = instance.volOrder.filter(v => v !== volName);
+            window.isMasterDirty = true;
+            renderMasterEditor();
+        }
+
         // v1.5.2: CRUD for Material Type
         function addMaterialType() {
             var sub = el('master-subject').value;
@@ -4928,19 +5058,57 @@ loadBoardHeader();
             }
         }
         
-        async function saveSettingsAndAlert(returnHome = false) { 
-            if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData(); 
-            saveToLocal(); 
-            updateFilters(); 
+        async function saveSettingsAndAlert(returnHome = false) {
+            if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
+            saveToLocal();
+            updateFilters();
             window.isMasterDirty = false;
-            
+
             if(returnHome === true) {
                 returnToHome();
-            } else {
-                if (confirm('儲存已經完成，是否要返回首頁？')) {
-                    returnToHome();
-                }
+                return;
             }
+            // v1.5.8: 跳出確認 modal + 兩個按鈕 (繼續編輯 / 結束編輯)
+            openSaveConfirmModal();
+        }
+
+        function openSaveConfirmModal() {
+            // 動態創建 modal (避免跟其他 modal 混淆)
+            var existing = el('modal-save-confirm');
+            if (existing) existing.remove();
+            var modal = document.createElement('div');
+            modal.id = 'modal-save-confirm';
+            modal.className = 'modal-bg';
+            modal.style.zIndex = '3500';
+            modal.style.display = 'flex';
+            modal.innerHTML = '<div class="modal-content" style="max-width: 440px;">' +
+                '<div class="modal-header">' +
+                    '<h2 style="color:var(--success);">✅ 儲存成功！</h2>' +
+                '</div>' +
+                '<div style="padding: 20px 0; text-align: center; color: var(--secondary);">' +
+                    '<p style="margin: 0 0 8px 0; font-size: 1.05em;">教材庫變更已儲存完成。</p>' +
+                    '<p style="margin: 0; font-size: 0.9em;">請選擇下一步：</p>' +
+                '</div>' +
+                '<div style="display: flex; gap: 12px; justify-content: center; margin-top: 15px;">' +
+                    '<button type="button" class="btn-primary" onclick="onSaveConfirmContinue()" style="padding: 10px 20px;">✏️ 繼續編輯</button>' +
+                    '<button type="button" class="btn-success" onclick="onSaveConfirmFinish()" style="padding: 10px 20px;">🏠 結束編輯</button>' +
+                '</div>' +
+            '</div>';
+            document.body.appendChild(modal);
+        }
+
+        function closeSaveConfirmModal() {
+            var modal = el('modal-save-confirm');
+            if (modal) modal.remove();
+        }
+
+        function onSaveConfirmContinue() {
+            closeSaveConfirmModal();
+        }
+
+        function onSaveConfirmFinish() {
+            closeSaveConfirmModal();
+            returnToHome();
         }
         
         function updateFilters() { var fCatSel = el('filter-category'); var fMisSel = el('filter-mission'); if(!fCatSel || !fMisSel) return; var prevCat = fCatSel.value; var prevMis = fMisSel.value; var cats = Object.keys(appMissions); var catOpts = '<option value="ALL">🌟 全部顯示</option>'; cats.forEach(c => catOpts += `<option value="${c}">${c}</option>`); fCatSel.innerHTML = catOpts; if (cats.includes(prevCat)) fCatSel.value = prevCat; else fCatSel.value = 'ALL'; onFilterCategoryChange(prevMis); }
