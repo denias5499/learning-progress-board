@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.12]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.13]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2168,7 +2168,32 @@ loadBoardHeader();
                 appCurrentCat = cats[0];
                 appMaster = user.masters[appCurrentCat] || {};
             }
-            
+
+            // v1.5.13: 補上 missing type (任何 subject 只要有 materials 但缺少「複習講義」, 該為預設 5 個 type 都補上)
+            var defaultTypes = ['複習講義','複習卷','數字題本','模擬題本','考古題'];
+            var repairedCount = 0;
+            if (user && user.masters) {
+                Object.keys(user.masters).forEach(function(catName) {
+                    var catSubjects = user.masters[catName];
+                    if (!catSubjects) return;
+                    Object.keys(catSubjects).forEach(function(subName) {
+                        var subj = catSubjects[subName];
+                        if (subj && subj.materials) {
+                            defaultTypes.forEach(function(t) {
+                                if (!subj.materials[t]) {
+                                    subj.materials[t] = { id: 'mt_' + genId(), name: t, instances: [] };
+                                    repairedCount++;
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+            if (repairedCount > 0) {
+                console.log('v1.5.13: 自動補上 ' + repairedCount + ' 個 missing 預設教材類型');
+                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+            }
+
             var av = el('current-user-avatar');
             if (av) {
                 av.src = user.avatar || DEFAULT_AVATAR;
@@ -4735,6 +4760,33 @@ loadBoardHeader();
             renderMasterEditor();
         }
 
+        // v1.5.13: 更新 type filter dropdown (動態 scan appMaster 的 typeName)
+        function _updateMisTypeFilterDropdown() {
+            var typeFilter = el('mis-type-filter');
+            if (!typeFilter) return;
+            var currentTypes = {};
+            Object.keys(appMaster || {}).forEach(function(subName) {
+                var s = appMaster[subName];
+                if (s && s.materials) {
+                    Object.keys(s.materials).forEach(function(t) { currentTypes[t] = true; });
+                }
+            });
+            var availableTypes = Object.keys(currentTypes);
+            var previousVal = typeFilter.value;
+            typeFilter.innerHTML = '<option value="ALL">🌟 全部顯示</option>';
+            if (availableTypes.length === 0) {
+                typeFilter.innerHTML += '<option value="" disabled>-- 當前分類還沒有教材類型 --</option>';
+            }
+            availableTypes.forEach(function(t) {
+                typeFilter.innerHTML += '<option value="' + escapeHtml(t) + '">📁 ' + escapeHtml(t) + '</option>';
+            });
+            if (previousVal && (previousVal === 'ALL' || currentTypes[previousVal])) {
+                typeFilter.value = previousVal;
+            } else {
+                typeFilter.value = 'ALL';
+            }
+        }
+
         function onSetCatChange() {
             var cat = el('set-cat').value;
             // v1.5.8: 切換 appMaster 到選中的 cat 的教材庫
@@ -4746,6 +4798,8 @@ loadBoardHeader();
                 appMaster = {};
                 appCurrentCat = cat || '';
             }
+            // v1.5.13: 動態更新 type filter dropdown (不會再列出不存在的 type)
+            _updateMisTypeFilterDropdown();
             if(!cat || !appMissions[cat]) {
                 populateSelect('set-mis', []);
                 renderMissionCheckboxes();
@@ -4966,32 +5020,12 @@ loadBoardHeader();
             var cat = el('set-cat').value;
             var mis = el('set-mis').value;
             var root = el('mission-checkbox-root');
+            // v1.5.13: 即使沒有 mission 也更新 type filter (使用 onSetCatChange 出的 helper)
+            _updateMisTypeFilterDropdown();
             if(!cat || !mis) { root.innerHTML = '<div style="color:#95a5a6; padding:10px;">請選擇或建立專案。</div>'; return; }
             if(Object.keys(appMaster).length === 0) { root.innerHTML = '<div style="color:#e74c3c; padding:10px;">⚠️ 基本教材庫為空，請先新增單元！</div>'; return; }
             var selectedIds = appMissions[cat][mis] || [];
 
-            // v1.5.12: 動態生成 type filter dropdown (從當前 cat 的 appMaster scan 唯一 typeName)
-            var typeFilter = el('mis-type-filter');
-            if (typeFilter) {
-                var currentTypes = {};
-                Object.keys(appMaster).forEach(function(subName) {
-                    var s = appMaster[subName];
-                    if (s && s.materials) {
-                        Object.keys(s.materials).forEach(function(t) { currentTypes[t] = true; });
-                    }
-                });
-                var availableTypes = Object.keys(currentTypes);
-                var previousVal = typeFilter.value;
-                typeFilter.innerHTML = '<option value="ALL">🌟 全部顯示</option>';
-                availableTypes.forEach(function(t) {
-                    typeFilter.innerHTML += '<option value="' + escapeHtml(t) + '">📁 ' + escapeHtml(t) + '</option>';
-                });
-                if (previousVal && (previousVal === 'ALL' || currentTypes[previousVal])) {
-                    typeFilter.value = previousVal;
-                } else {
-                    typeFilter.value = 'ALL';
-                }
-            }
             var globalTypeFilter = el('mis-type-filter') ? el('mis-type-filter').value : 'ALL';
 
             root.style.display = 'flex';

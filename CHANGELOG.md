@@ -2,6 +2,29 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.13 (2026-07-31) — type filter dropdown 移到 onSetCatChange + 自動補缺 5 個預設 type
+
+**Denias 18:24 回報 v1.5.12 測試:**
+
+1. **數學教材類型 dropdown 只有 5 個 type**(複習卷/數字題本/模擬題本/考古題/自修) — **少複習講義, 多自修**。Denias 18:24 問「自修是哪來的? 是段考複習的選項吧?」
+
+   **根因**: 我懷疑 v1.5.2 之前的某個版本, `數學` subject 已經有部分 type 但不是 5 個, 所以 v1.5.2 migrate 的 `if (!subj.materials)` 跳過, 沒補上 5 個預設 type。「自修」是 Denias v1.5.11 測試時手動加的。
+
+2. **Type filter dropdown 還是寫死的** — 即使切到段考複習沒有任何 type, 還是出現「複習講義/複習卷/數字題本/模擬題本/考古題」這 5 個。
+
+   **根因**: v1.5.12 的動態生成邏輯放在 `renderMissionCheckboxes` 開頭, 但這個 function 在沒選任務時第一行就 `return`, 根本沒跑到動態生成。改為在 `onSetCatChange` (切換 cat 時) 就生成。
+
+**修復 (v1.5.13):**
+
+1. **抽出 `_updateMisTypeFilterDropdown()` helper** — 動態 scan appMaster 的所有 typeName, 填入 dropdown。連接到「當前分類還沒有教材類型」disabled 提示。
+2. **`onSetCatChange` 呼叫 helper** — 切換 cat 時就更新 (即使不選 mission)。
+3. **`renderMissionCheckboxes` 也呼叫 helper** — 重複保証 (但不重複跑 inline 邏輯, 只呼叫一次)。
+4. **`switchUser` 加 missing type 自動補上** — 任何 subject 只要有 `materials` 但缺「複習講義/複習卷/數字題本/模擬題本/考古題」, 自動補上缺失的 (空的)。Console log 數量。不會跳提示。
+
+**為什麼數學會缺複習講義:**
+
+我懷疑 v1.5.2 migrate 之前, `數學` subject 已經在 v1.4 階段有部分 type (從 v1.4 升上來的不是空 subj), 但不見得是 5 個。「自修」是 Denias v1.5.11 測試時手動加的。在 v1.5.13 加了 repair 邏輯, 強制補上缺失的 5 個預設 type。
+
 ### v1.5.12 (2026-07-31) — 教材類型 filter dropdown 改動態生成 + 修互動型 cat 教材庫隔離
 
 **Denias 18:02 回報 v1.5.11 測試:**
