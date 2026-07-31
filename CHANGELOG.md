@@ -2,6 +2,37 @@
 
 ## v1.3 (2026-07-28) — 知識星空圖 🌌
 
+### v1.5.15 (2026-07-31) — 專門按鈕補數學「複習講義」instance (不動其他科目)
+
+**Denias 22:19 指定:** 
+- 選項 A: 7 冊 merge 到「複習講義」type
+- Instance 名稱叫「複習講義」(不是 v1.5.2 預設的「(原主教材)」)
+- 其他科目 (英文/理化/歷史/地理/公民/生物) 都不動
+
+**為什麼是專門按鈕:**
+
+不用 v1.5.14 的 `restoreFromOldBackup` (要 user 貼 JSON 進來, complex), 改成寫一個專門的 `restoreMathLecture` function:
+1. 從 `window._v153_BACKUP_MASTER_STR` (硬編碼 v1.5.3 備份) 直接 parse `數學` 物件
+2. 確保 `mathSub.materials['複習講義']` 存在
+3. 檢查是否已有「複習講義」instance — 有就跳過 (不重複加)
+4. 沒有就 push 新 instance:
+   - name: '複習講義'
+   - type: 'volume'
+   - vols: 備份檔的 7 冊內容
+   - volOrder: 備份檔的 volOrder
+5. saveToLocal() 存檔
+6. alert 顯示 vol 數 + unit 數
+
+**根因重述:**
+
+數學的 7 冊從未寫入 localStorage:
+- v1.5.3 的 `_v153RestoreFromBackup` 只在 `masterEmpty` 時跑
+- 數學可能被某個 intermediate state 導致 `user.master` 不空, 所以被跳過
+- 結果 v1.5.2 migrate 對數學跑時, `subj.materials` 已有 partial 結構, `if (!subj.materials)` 跳過
+- 沒補「複習講義」type, 也沒搬 vols 到「(原主教材)」instance
+
+其他 6 個科目 (英文/理化/歷史/地理/公民/生物) 正常: 因為它們都成功被 v1.5.3 復原, 然後 v1.5.2 migrate 也有跑成功, 「複習講義」type + 「(原主教材)」instance 都建了。
+
 ### v1.5.14 (2026-07-31) — 從舊備份還原功能 (補 v1.5.2 migrate 跳過沒建「複習講義」的 sub)
 
 **Denias 21:58 提供 2026-07-28 備份檔:**

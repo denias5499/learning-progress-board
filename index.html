@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.14]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.15]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -982,6 +982,8 @@
                             <button type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
                             <!-- v1.5.14: 從舊備份還原數學等缺複習講義的科目 -->
                             <button type="button" class="btn-success" onclick="restoreFromOldBackup()" style="background:#16a085;">📦 從舊備份還原</button>
+                            <!-- v1.5.15: 專門補數學的複習講義 (Denias 22:19 指定) -->
+                            <button type="button" class="btn-success" onclick="restoreMathLecture()" style="background:#c0392b;">🛠️ 數學補回複習講義</button>
                             <input type="file" id="import-file" style="display: none;" accept=".json">
                         </div>
                     </div>
@@ -6348,7 +6350,62 @@ loadBoardHeader();
             }
         }
 
-        // v1.5.14: 從舊備份 (v1.5.1 之前的 config.master 格式) merge 進來
+        // v1.5.15: 專門補數學的「複習講義」instance (Denias 22:19 指定名稱為「複習講義」)
+        // 從 v1.5.3 硬編碼備份 (window._v153_BACKUP_MASTER_STR) 取出數學的 7 冊內容 merge 進去
+        // 不會動其他科目 (英文/理化/歷史/地理/公民/生物 都不用改)
+        function restoreMathLecture() {
+            var user = multiData[currentUserId];
+            if (!user || !user.masters || !user.masters['會考複習']) {
+                return alert('找不到 user.masters["會考複習"]');
+            }
+            var mathSub = user.masters['會考複習']['數學'];
+            if (!mathSub) return alert('找不到「數學」subject');
+
+            if (!mathSub.materials) mathSub.materials = {};
+
+            // 確保「複習講義」type 存在
+            if (!mathSub.materials['複習講義']) {
+                mathSub.materials['複習講義'] = { id: 'mt_' + genId(), name: '複習講義', instances: [] };
+            }
+
+            var lectureType = mathSub.materials['複習講義'];
+
+            // 檢查是否已經有「複習講義」instance (不重複加)
+            var hasInst = lectureType.instances.some(function(i) { return i.name === '複習講義'; });
+            if (hasInst) return alert('「數學 / 複習講義」instance 已存在, 跳過 (不重複加)');
+
+            // 從 v1.5.3 硬編碼備份 parse 數學的 7 冊
+            if (!window._v153_BACKUP_MASTER_STR) return alert('找不到 v1.5.3 硬編碼備份');
+            var backup;
+            try {
+                var all = JSON.parse(window._v153_BACKUP_MASTER_STR);
+                backup = all['數學'];
+            } catch(e) {
+                return alert('Parse 備份失敗: ' + e.message);
+            }
+            if (!backup || !backup.vols) return alert('備份裡沒有數學的 vols 資料');
+
+            // 建立「複習講義」instance (instance name = 「複習講義」)
+            lectureType.instances.push({
+                id: 'ins_' + genId(),
+                name: '複習講義',
+                type: 'volume',
+                units: null,
+                vols: backup.vols,
+                volOrder: backup.volOrder || Object.keys(backup.vols)
+            });
+
+            saveToLocal();
+
+            var mainUnits = [];
+            Object.keys(backup.vols).forEach(function(volName) {
+                mainUnits = mainUnits.concat(backup.vols[volName]);
+            });
+            alert('✅ 數學「複習講義」instance 已建立!\n\nvol 數: ' + Object.keys(backup.vols).length + '\nunit 總數: ' + mainUnits.length + '\nvol 名稱: ' + Object.keys(backup.vols).join(', '));
+            console.log('v1.5.15: ✅ 數學複習講義已 merge', { volCount: Object.keys(backup.vols).length, unitCount: mainUnits.length, volOrder: backup.volOrder });
+        }
+
+// v1.5.14: 從舊備份 (v1.5.1 之前的 config.master 格式) merge 進來
         // 那些 subj.materials 存在但缺「複習講義」type (原本 v1.5.2 migrate 應該建但被跳過)
         function restoreFromOldBackup() {
             openInputModal('📦 請貼上舊備份的 config.master JSON', '', function(text) {
