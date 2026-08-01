@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.17]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.18]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5129,6 +5129,7 @@ loadBoardHeader();
                 } else if (s.materials) {
                     // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
                     // v1.5.11: 用 typeName + instanceName 當 grouping key, label = 「typeName-instanceName」
+                    // v1.5.18: 區分 volume 跟 custom — volume 顯示 冊名 + instance header, custom 顯示 typeName-instanceName
                     var matUnits = _collectSubjectUnits(s);
                     var byVol = {}; // key = 'typeName|instanceName'
                     matUnits.forEach(function(u) {
@@ -5137,12 +5138,32 @@ loadBoardHeader();
                         byVol[k].units.push(u);
                     });
                     var anyShown = false;
+                    var shownInstanceHeader = {}; // v1.5.18: 記錄 instance header 已顯示
                     Object.keys(byVol).forEach(function(key) {
                         var info = byVol[key];
                         // v1.5.11: 全域 type filter (預設 ALL = 全部顯示)
                         if (globalTypeFilter !== 'ALL' && info.typeName !== globalTypeFilter) return;
                         anyShown = true;
-                        var label = info.typeName + '-' + info.instanceName;
+                        // v1.5.18: 區分 volume (key 不含 '|') 跟 custom (key 含 '|')
+                        var label;
+                        var isVolume = (key !== '_single' && key.indexOf('|') === -1);
+                        if (isVolume) {
+                            // volume: label 用 冊名 (跟 教材庫 tab 1 一致)
+                            label = key;
+                        } else {
+                            // custom: 維持 typeName-instanceName
+                            label = info.typeName + '-' + info.instanceName;
+                        }
+                        // v1.5.18: volume 第一冊 顯示 時 加 instance header (跟 教材庫 一致)
+                        var instanceHeader = '';
+                        if (isVolume) {
+                            var insKey = info.typeName + '|' + info.instanceName;
+                            if (!shownInstanceHeader[insKey]) {
+                                instanceHeader = '<div style="margin-top:10px; margin-bottom:5px; font-weight:bold; color:var(--primary); font-size:1.05em; border-bottom:1px solid var(--border); padding-bottom:5px;">📦 ' + escapeHtml(info.typeName) + ' - ' + escapeHtml(info.instanceName) + '</div>';
+                                shownInstanceHeader[insKey] = true;
+                            }
+                        }
+                        html += instanceHeader;
                         html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(key)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(key)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(label)} (全冊)</b></label>`;
                         html += `<div style="padding-left:15px;">`;
                         info.units.forEach(function(u) {

@@ -1,5 +1,79 @@
 # 版本演進 (CHANGELOG)
 
+## v1.5.18 (2026-08-01) — 修 renderMissionCheckboxes volume 沒有按 冊 分組
+
+### 問題
+
+Denias 16:43 反映: v1.5.17 修好後 教材庫 tab 1 / 數學 / 複習講義 / Instance「大滿貫」有 7 冊 (第一冊 到 模擬試題), 但 tab 2 勾選任務範圍 顯示「複習講義-大滿貫(全冊)」(一個 group, 全部 25 個 unit 合併)。
+
+預期 應該 顯示:
+```
+📦 複習講義 - 大滿貫
+📚 第一冊 (全冊)
+  ☐ 數與數線
+  ☐ 標準分解式
+  ...
+📚 第二冊 (全冊)
+  ☐ 直角坐標
+  ...
+```
+
+### 根因
+
+`renderMissionCheckboxes` line 5071 label 寫死 為 `info.typeName + '-' + info.instanceName`, 對 volume 跟 custom 用 同一個 邏輯。 對 volume 應該 用 冊名 (key) 當 label, 對 custom 維持 `typeName-instanceName`。
+
+### 修法 (v1.5.18)
+
+修 `renderMissionCheckboxes` 的 label 邏輯:
+
+```js
+// v1.5.18 新邏輯:
+var isVolume = (key !== '_single' && key.indexOf('|') === -1);
+if (isVolume) {
+    label = key;  // 冊名: 第一冊 / 第二冊 / ...
+} else {
+    label = info.typeName + '-' + info.instanceName;  // 自定義 (custom)
+}
+```
+
+同時 加 instance header (blue header `📦 複習講義 - 大滿貫`), 只 對 volume 顯示 (對 custom 保持 `📚 複習卷-麻辣甲 (全冊)` 不變).
+
+### 效果
+
+**數學 card 顯示** (volume instance):
+```
+📘 數學
+📦 複習講義 - 大滿貫
+📚 第一冊 (全冊)
+  ☐ 數與數線
+  ☐ 標準分解式與分數運算
+  ☐ 一元一次方程式
+  ☐ 二元一次聯立方程式
+📚 第二冊 (全冊)
+  ☐ 直角坐標與二元一次方程式的圖形
+  ☐ 比例
+  ☐ 一元一次不等式
+  ☐ 線對稱與三視圖
+  ☐ 統計圖表與資料分析
+📚 模擬試題 (全冊)
+  ☐ ...
+```
+
+**國文 card 顯示** (custom instance, 維持 不變):
+```
+📘 國文
+📚 複習講義-勝經 (全冊)
+  ☐ ...
+```
+
+### 教訓
+
+- **★ label 邏輯 要根據 物件 類型 區分** — volume 跟 custom 兩個 結構 不同, 不能 用 同一個 label formula
+- **★ byVol key 在 _collectSubjectUnits 就 已 區分** — key 含 '|' 是 custom, key 不含 '|' 是 volume
+- **★ 加 instance header 讓 context 清楚** — 冊 上面 有 一個 紫色 header 顯示 「複習講義 - 大滿貫」 較 user-friendly
+
+---
+
 ## v1.5.17 (2026-08-01) — 修 _collectSubjectUnits volume branch 漏 _typeName/_instanceName + 教材操作自動 saveToLocal + 改用 custom modal
 
 ### 問題
