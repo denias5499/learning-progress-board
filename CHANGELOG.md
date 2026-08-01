@@ -1,6 +1,82 @@
 # 版本演進 (CHANGELOG)
 
+## v1.5.19 (2026-08-01) — 歷史紀錄改成固定大小 console + 分批 render
+
+### 問題
+
+Denias 17:07 反映: 進入歷史紀錄 顯示 很慢, 整個 log table 一直 expand 沒辦法 scroll 只能在 window 最底。
+
+### 根因
+
+兩個問題:
+
+1. **HTML 結構沒有固定高度** —  `<div style="overflow-x: auto;">` 只有水平 scroll, 沒有設定 `max-height` 跟 `overflow-y: auto`, 所有 log 一次展開。
+2. **renderHistoryTable 一次性 render** —  用 `.map(...).join('')` 一次把整個 sortedLogs 變成 HTML 字串塞進 `innerHTML`, 數百筆會卡 UI thread。
+
+### 修法 (v1.5.19)
+
+#### 1. HTML 結構加固定 console
+```html
+<div class="history-console" id="history-console">
+    <table class="history-tb">
+        <thead>...</thead>
+        <tbody id="history-tbody"></tbody>
+    </table>
+</div>
+```
+
+#### 2. CSS 設固定高度 + sticky thead
+```css
+.history-console {
+    max-height: 70vh;
+    height: 70vh;
+    overflow-y: auto;
+    overflow-x: auto;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+.history-console thead { position: sticky; top: 0; z-index: 10; }
+.history-console thead th { background: var(--primary); color: white; }
+```
+
+scroll 時 thead 黏住, 欄位名一直看得到。 Dark theme 也同步設 background。
+
+#### 3. renderHistoryTable 分批 render
+```js
+var batchSize = 50;
+function renderBatch() {
+    var end = Math.min(idx + batchSize, sortedLogs.length);
+    var frag = document.createDocumentFragment();
+    for (var i = idx; i < end; i++) {
+        frag.appendChild(renderRow(sortedLogs[i]));
+    }
+    tbody.appendChild(frag);
+    idx = end;
+    requestAnimationFrame(renderBatch);  // 下一批
+}
+renderBatch();
+```
+
+每次 只 render 50 row, 用 `requestAnimationFrame` 跨 frame 避免 單一 frame 過忙。 加 「已載入 X / Y 筆」 進度指示。
+
+### 效果
+
+- 進 歷史紀錄 頁面 → 立刻 看到 固定 大小 console (70vh)
+- 滚動 滑鼠 / scroll bar 都能 scroll
+- 大量 logs 顯示 「已載入 X / Y 筆」 進度
+- 不再 整頁 expand 占 整個 window
+
+### 教訓
+
+- **★ 一次性 render 大量 DOM 會卡 UI** — 分批 + requestAnimationFrame
+- **★ 長 table 一定要有 max-height** — 70vh 是 常用 經驗值
+- **★ thead sticky 讓 scroll 體驗 好** — 欄位名 一直 看得到
+- **★ 給 user 進度 指示** — 「已載入 X / Y 筆」 讓 user 知道 電腦 還在 動
+
+---
+
 ## v1.5.18 (2026-08-01) — 修 renderMissionCheckboxes volume 沒有按 冊 分組
+ (2026-08-01) — 修 renderMissionCheckboxes volume 沒有按 冊 分組
 
 ### 問題
 

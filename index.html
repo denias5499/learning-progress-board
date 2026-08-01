@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.18]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.19]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -613,6 +613,20 @@
         table.history-tb { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
         table.history-tb th, table.history-tb td { border: 1px solid var(--border); padding: 12px; text-align: center; }
         table.history-tb th { background: #e2e8f0; color: var(--primary); font-weight: bold; }
+        /* v1.5.19: 歷史紀錄固定大小 console + scroll */
+        .history-console {
+            max-height: 70vh;
+            height: 70vh;
+            overflow-y: auto;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--card-bg);
+        }
+        .history-console table { margin-top: 0; }
+        .history-console thead { position: sticky; top: 0; z-index: 10; }
+        .history-console thead th { background: var(--primary); color: white; }
+        [data-theme="dark"] .history-console thead th { background: var(--secondary); }
 
         .calendar-wrapper { background: #fff; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
         .calendar-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #e2e8f0; text-align: center; font-weight: bold; color: var(--primary); }
@@ -1111,11 +1125,16 @@
                     <h2>📝 歷史紀錄與系統 Log</h2>
                     <button type="button" class="close-btn" onclick="returnToHome()">&times;</button>
                 </div>
-                <div style="overflow-x: auto;">
+                <!-- v1.5.19: 固定大小 console, 可用滑鼠 + scroll bar 滚動 -->
+                <div class="history-console" id="history-console">
                     <table class="history-tb">
-                        <thead><tr><th>日期</th><th>類型/任務</th><th>科目</th><th>單元/說明</th><th>起迄</th><th>頁數</th><th>操作</th></tr></thead>
+                        <thead><tr><th>日期</th><th>類型/任務</th><th>科目</th><th>單元/說明</th><th>起迭</th><th>頁數</th><th>操作</th></tr></thead>
                         <tbody id="history-tbody"></tbody>
                     </table>
+                </div>
+                <!-- v1.5.19: 加顯示進度 + 總數 -->
+                <div id="history-status" style="margin-top:10px; color:#7f8c8d; font-size:0.9em; text-align:center;">
+                    載入中…
                 </div>
             </div>
         </div>
@@ -4145,29 +4164,54 @@ loadBoardHeader();
             else if (view === 'monthly') renderMonthlyAnalysis();
         }
         
-        function renderHistoryTable() { 
+        function renderHistoryTable() {
             var todayStr = getLocalDateString(new Date());
             var sortedLogs = [...appLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            el('history-tbody').innerHTML = sortedLogs.map(log => {
-                var bgStyle = (log.date === todayStr) ? 'background-color: #fff9c4;' : ''; 
+            var tbody = el('history-tbody');
+            var status = el('history-status');
+            tbody.innerHTML = '';
+            if (status) status.textContent = '載入中… 共 ' + sortedLogs.length + ' 筆';
+
+            // v1.5.19: 分批 render, 避免大量 logs 衝到 UI thread
+            var batchSize = 50;
+            var idx = 0;
+
+            function renderRow(log) {
+                var bgStyle = (log.date === todayStr) ? 'background-color: #fff9c4;' : '';
                 var detailText = log.detail || log.unitName || '';
-                
-                var pageStr = (log.start && log.end && log.start !== log.end) ? `P.${log.start}~${log.end}` : (log.start ? `P.${log.start}` : '-');
-                
-                return `<tr style="${bgStyle}">
-                    <td>${log.date}</td>
-                    <td style="font-weight:bold; color:${log.category==='🔄 系統重排'?'var(--danger)':(log.category==='🗓️ 計畫管理'?'var(--purple)':'var(--accent)')};">${log.category}</td>
-                    <td>${log.subject}</td>
-                    <td style="text-align:left; color:#8B4513; font-weight:bold;">${detailText}</td>
-                    <td>${pageStr}</td>
-                    <td>${log.pages} 頁</td>
-                    <td>
-                        <button class="btn-warning" style="padding:4px 8px; margin-bottom:4px;" title="編輯" onclick="openEditLog('${log.id}')">✏️</button>
-                        <button class="btn-danger" style="padding:4px 8px;" title="刪除" onclick="deleteLog('${log.id}')">🗑️</button>
-                    </td>
-                </tr>`;
-            }).join(''); 
+                var pageStr = (log.start && log.end && log.start !== log.end) ? 'P.' + log.start + '~' + log.end : (log.start ? 'P.' + log.start : '-');
+                var color = log.category === '🔄 系統重排' ? 'var(--danger)' : (log.category === '🗓️ 計畫管理' ? 'var(--purple)' : 'var(--accent)');
+                var tr = document.createElement('tr');
+                tr.style.cssText = bgStyle;
+                tr.innerHTML = '<td>' + log.date + '</td>' +
+                    '<td style="font-weight:bold; color:' + color + ';">' + log.category + '</td>' +
+                    '<td>' + (log.subject || '') + '</td>' +
+                    '<td style="text-align:left; color:#8B4513; font-weight:bold;">' + detailText + '</td>' +
+                    '<td>' + pageStr + '</td>' +
+                    '<td>' + (log.pages || 0) + ' 頁</td>' +
+                    '<td>' +
+                        '<button class="btn-warning" style="padding:4px 8px; margin-bottom:4px;" title="編輯" onclick="openEditLog(\'' + log.id + '\')">✏️</button>' +
+                        '<button class="btn-danger" style="padding:4px 8px;" title="刪除" onclick="deleteLog(\'' + log.id + '\')">🗑️</button>' +
+                    '</td>';
+                return tr;
+            }
+
+            function renderBatch() {
+                var end = Math.min(idx + batchSize, sortedLogs.length);
+                var frag = document.createDocumentFragment();
+                for (var i = idx; i < end; i++) {
+                    frag.appendChild(renderRow(sortedLogs[i]));
+                }
+                tbody.appendChild(frag);
+                idx = end;
+                if (status) status.textContent = '已載入 ' + idx + ' / ' + sortedLogs.length + ' 筆';
+                if (idx < sortedLogs.length) {
+                    requestAnimationFrame(renderBatch);
+                } else if (status) {
+                    status.textContent = '✅ 共 ' + sortedLogs.length + ' 筆歷史紀錄';
+                }
+            }
+            renderBatch();
         }
 
         function deleteLog(id) { 
