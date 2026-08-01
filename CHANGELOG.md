@@ -1,5 +1,92 @@
 # 版本演進 (CHANGELOG)
 
+## v1.5.17 (2026-08-01) — 修 _collectSubjectUnits volume branch 漏 _typeName/_instanceName + 教材操作自動 saveToLocal + 改用 custom modal
+
+### 問題
+
+Denias 16:25 反映: 教材庫 tab 1 顯示「會考複習 / 數學 / 複習講義 / 複習講義 (instance)」有第一冊 + 第二冊內容 (數與數線、標準分解式與分數運算、一元一次方程式... 計 9 個 unit), 但 tab 2 「勾選任務範圍」頁面顯示「數學 card: (沒有「複習講義」類型的教材)」。
+
+### 根因
+
+**`_collectSubjectUnits` 的 v1.5.2+ volume instance 分支漏寫 `_typeName` / `_instanceName`** (line ~2299):
+
+```js
+// 原本 (bug):
+if (ins.type === 'volume' && ins.vols && typeof ins.vols === 'object') {
+    (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
+        (ins.vols[volName] || []).forEach(function(u) {
+            out2.push(Object.assign({}, u, { vol: volName }));   // ← 漏寫 _typeName + _instanceName!
+        });
+    });
+}
+// custom branch 有寫 _typeName + _instanceName
+```
+
+但 `renderMissionCheckboxes` line 5063:
+```js
+if (globalTypeFilter !== 'ALL' && info.typeName !== globalTypeFilter) return;
+```
+
+會因為 volume instance 的 `info.typeName === ''` 而被 filter 掉 → `anyShown = false` → 顯示「(沒有「複習講義」類型的教材)」。
+
+### 4 個修法 (v1.5.17 一次修)
+
+#### 1. 修 _collectSubjectUnits volume branch 漏寫欄位 (必修)
+```js
+// v1.5.17 修正:
+if (ins.type === 'volume' && ins.vols && typeof ins.vols === 'object') {
+    (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
+        (ins.vols[volName] || []).forEach(function(u) {
+            out2.push(Object.assign({}, u, {
+                vol: volName,
+                _typeName: typeName,
+                _instanceName: ins.name
+            }));
+        });
+    });
+}
+```
+
+#### 2. 教材操作直接 saveToLocal (不依賴手動「💾 儲存教材庫變更」按鈕)
+所有教材 CRUD (addMasterSubject / renameMasterSubject / deleteMasterSubject / addMaterialType / renameMaterialType / deleteMaterialType / addInstance / renameInstance / deleteInstance) 從 `window.isMasterDirty = true` 改成直接呼叫 `saveToLocal()`。
+
+理由: Denias 之前改了東西忘記按「💾 儲存教材庫變更」按鈕, 結果某些變更沒存到 localStorage。「💾 儲存教材庫變更」按鈕保留 (供批量編輯後一次儲存), 但單一操作要即時存。
+
+#### 3. Safari 撋 native confirm() 換 custom modal
+- `addInstance` 的 `confirm('這個教材需「分冊」嗎?')` 換 `openChoiceModal()` 兩鍵 modal
+- `deleteInstance` 的 `confirm()` 換 custom modal
+- `deleteMasterSubject` 的 `confirm()` 換 custom modal
+- `deleteMaterialType` 的 `confirm()` 換 custom modal
+
+加 `openChoiceModal(title, message, optA, optB, onA, onB)` helper (跟 v1.5.9 `openSaveConfirmModal` 同樣的 dynamic createElement pattern)。
+
+理由: Safari 偶爾會擋 browser confirm() (v1.5.9 教訓), 改成 custom modal 可靠。
+
+#### 4. saveToLocal 加 try/catch + UI 警告
+```js
+// v1.5.17:
+try {
+    localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+} catch(e) {
+    console.error('v1.5.17 saveToLocal FAILED:', e.message);
+    showSaveErrorToast(e);  // 右下角紅色警告
+}
+```
+
+加 `showSaveErrorToast(err)` function: 顯示「⚠️ 資料儲存失敗! 資料只在記憶體, reload 會丟失! 請清理瀏覽器 cache」。
+
+理由: 防未來 setItem 真正失敗 (容量爆 / permission) 時不被發現。
+
+### 教訓
+
+- **★ 不要只看示意圖** — 5 層架構示意圖隱藏了 volume vs custom 的 instance metadata 差異
+- **★ trace script 結果要完全一致才動手** — Denias 16:32 跑出 「_typeName undefined, 有 _typeName 的 unit 數 = 1」 才 commit
+- **★ 用 `custom modal` 取代 `confirm()`** — Safari 不可靠
+- **★ 教材操作要即時 saveToLocal** — 別依賴手動儲存按鈕
+- **★ saveToLocal 要 try/catch** — silent failure 是最大凶手
+
+---
+
 ## v1.5.16 (2026-07-31) — 修 v1.5.13 污染段考複習 + restoreMathLecture 找現有 instance 改名
 
 ### 問題
