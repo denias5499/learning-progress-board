@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.19]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.20]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1830,6 +1830,8 @@
             }
 
             // 3. 從 plans 重建 user.missions (appMissions)
+            // v1.5.20: ⚠️ 修正 — 之前 每次 init 都覆蓋 user.missions, 連「tab 2 勾選」 的 資料 都 丟 失
+            // 修正為 merge: 保留 既有 user.missions, 再 從 plans 補 上 (去重)
             var rebuilt = {};
             (user.plans || []).forEach(function(plan) {
                 Object.keys(plan.grid || {}).forEach(function(dStr) {
@@ -1850,8 +1852,29 @@
             if (!rebuilt['會考複習']['二模']) rebuilt['會考複習']['二模'] = [];
             if (!rebuilt['段考複習']) rebuilt['段考複習'] = {};
 
+            // v1.5.20: merge 既有 user.missions, 不覆蓋
+            var existingMissions = user.missions || {};
             user.missions = rebuilt;
-            console.log('v1.5.4: ✅ 重建 missions (' + Object.keys(rebuilt).length + ' categories)');
+            var mergedCount = 0;
+            Object.keys(existingMissions).forEach(function(cat) {
+                if (!user.missions[cat]) user.missions[cat] = {};
+                Object.keys(existingMissions[cat]).forEach(function(mis) {
+                    if (!user.missions[cat][mis]) {
+                        user.missions[cat][mis] = existingMissions[cat][mis].slice();
+                    } else {
+                        existingMissions[cat][mis].forEach(function(uid) {
+                            if (user.missions[cat][mis].indexOf(uid) === -1) {
+                                user.missions[cat][mis].push(uid);
+                                mergedCount++;
+                            }
+                        });
+                    }
+                });
+            });
+            if (mergedCount > 0) {
+                console.log('v1.5.20: ✅ merge ' + mergedCount + ' 個 tab 2 勾選的 unit ID (從 plans 推 不出 來 的)');
+            }
+            console.log('v1.5.20: ✅ 重建 missions (' + Object.keys(rebuilt).length + ' categories)');
             Object.keys(rebuilt).forEach(function(cat) {
                 var misNames = Object.keys(rebuilt[cat]);
                 var totalUnitIds = misNames.reduce(function(s, m) { return s + rebuilt[cat][m].length; }, 0);
@@ -5268,18 +5291,18 @@ loadBoardHeader();
             }
         }
 
-        function toggleMisUnit(unitId, isChecked, elem) { 
-            var cat = el('set-cat').value; 
-            var mis = el('set-mis').value; 
-            if(!cat || !mis) return; 
-            var arr = appMissions[cat][mis]; 
-            
-            if (isChecked && !arr.includes(unitId)) arr.push(unitId); 
-            else if (!isChecked) { 
-                var idx = arr.indexOf(unitId); 
-                if (idx > -1) arr.splice(idx, 1); 
-            } 
-            
+        function toggleMisUnit(unitId, isChecked, elem) {
+            var cat = el('set-cat').value;
+            var mis = el('set-mis').value;
+            if(!cat || !mis) return;
+            var arr = appMissions[cat][mis];
+
+            if (isChecked && !arr.includes(unitId)) arr.push(unitId);
+            else if (!isChecked) {
+                var idx = arr.indexOf(unitId);
+                if (idx > -1) arr.splice(idx, 1);
+            }
+
             if (elem) {
                 var vol = elem.dataset.vol;
                 var container = elem.closest('.vertical-scroll');
@@ -5293,6 +5316,9 @@ loadBoardHeader();
                     if (masterChk) masterChk.checked = allChecked;
                 }
             }
+
+            // v1.5.20: 立即 saveToLocal, 不依賴「💾 儲存教材庫變更」按鈕
+            saveToLocal();
         }
         
         async function saveSettingsAndAlert(returnHome = false) {

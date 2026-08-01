@@ -1,6 +1,78 @@
 # 版本演進 (CHANGELOG)
 
+## v1.5.20 (2026-08-01) — 修 _v154Migrate 覆蓋 user.missions 丟失 tab 2 勾選
+
+### 問題
+
+Denias 17:15 反映: 在 tab 2 勾選任務範圍後並儲存教材庫變更, 但強刷 v1.5.19 後看不到上一版本勾選的內容。
+
+### 根因
+
+**`v1.5.4` 的 `_v154Migrate` 每次 init 都跑, 從 `user.plans` 重建 `user.missions` 並覆蓋現有 missions!**
+
+兩個獨立的數據源:
+
+1. **tab 2 勾選任務範圍** — `toggleMisUnit` 改 `appMissions[cat][mis]`
+2. **月曆排程** — 排 task 寫進 `plan.grid[date][task]`
+
+v1.5.4 假設這兩個永遠同步, migrate 從 plans 推出 missions 覆蓋 user.missions。但實際上 tab 2 勾選根本沒回頭寫進 plans, 所以 migrate 重建後 Denias 的勾選被丟失。
+
+時序:
+1. tab 2 勾選 unit X → `appMissions['會考複習']['一模']` 加入 X
+2. 按「💾 儲存教材庫變更」 → saveToLocal 寫進 localStorage ✅
+3. 強刷 → init 跑 migrate chain → `_v154Migrate` 從 plans 重建 → 沒看到 X (X 沒在 plans) → `user.missions = rebuilt` 覆蓋
+4. line 2058 setItem 寫進 localStorage ❌
+5. 下次 reload → 讀到空 missions → 看不到勾選
+
+### 修法 (v1.5.20)
+
+#### 1. `_v154Migrate` 改為 merge, 不覆蓋 既有 user.missions
+```js
+// v1.5.20: merge 既有 user.missions, 不覆蓋
+var existingMissions = user.missions || {};
+user.missions = rebuilt;
+var mergedCount = 0;
+Object.keys(existingMissions).forEach(function(cat) {
+    if (!user.missions[cat]) user.missions[cat] = {};
+    Object.keys(existingMissions[cat]).forEach(function(mis) {
+        if (!user.missions[cat][mis]) {
+            user.missions[cat][mis] = existingMissions[cat][mis].slice();
+        } else {
+            existingMissions[cat][mis].forEach(function(uid) {
+                if (user.missions[cat][mis].indexOf(uid) === -1) {
+                    user.missions[cat][mis].push(uid);
+                    mergedCount++;
+                }
+            });
+        }
+    });
+});
+if (mergedCount > 0) {
+    console.log('v1.5.20: ✅ merge ' + mergedCount + ' 個 tab 2 勾選的 unit ID (從 plans 推 不出 來 的)');
+}
+```
+
+#### 2. `toggleMisUnit` 加 saveToLocal
+```js
+// v1.5.20: 立即 saveToLocal, 不依賴「💾 儲存教材庫變更」按鈕
+saveToLocal();
+```
+
+### 復原 Denias 之前 丟失 的 勾選（如果 有的 話）
+
+如果 Denias 之前 勾選 過 但 強 刷 後 沒 看到, 那 些 unit IDs 是 從 plans 推 不出 來 的。 跑 `/tmp/diag_v1520_missions.js` 看 是 否 有 orphan IDs。
+
+### 教訓
+
+- **★ migrate 不 要 無 條 件 覆蓋** — 應 該 merge 或 加 idempotent flag
+- **★ 兩 個 數 據 源 不 要 假 設 同 步** — tab 2 勾選 跟 月曆 排程 是 兩 個 獨 立 維度
+- **★ CRITICAL function 即 時 saveToLocal** — `toggleMisUnit` 改 完 應 該 立 刻 存
+- **★ Denias 之前 反映 「沒生效」 從 來 都 是 migrate 搞 鬼** — 從 v1.5.4 開 始 這 個 migrate 一 直 在
+
+---
+
 ## v1.5.19 (2026-08-01) — 歷史紀錄改成固定大小 console + 分批 render
+ (2026-08-01) — 歷史紀錄改成固定大小 console + 分批 render
 
 ### 問題
 
