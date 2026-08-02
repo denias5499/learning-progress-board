@@ -2890,16 +2890,9 @@ loadBoardHeader();
                     var availableUnits = [];
                     var extract = (u, volName) => {
                         var status = getUnitScheduleStatus(sub, u.name, volName, u.id, u.start, u.end, cat, mis);
-                        if (!status.isFullyScheduled) {
-                            var adjU = { ...u };
-                            // 起點調整只看當前任務（misMaxEnd），不參考其他任務
-                            if (status.misMaxEnd > 0 && status.misMaxEnd >= adjU.start) {
-                                adjU.start = status.misMaxEnd + 1;
-                            }
-                            if (Number(adjU.start) <= Number(adjU.end)) {
-                                availableUnits.push({ id: adjU.id, name: adjU.name, vol: volName, uObj: adjU });
-                            }
-                        }
+                        // v1.5.23: 移除 isFullyScheduled filter，全部顯示讓用戶自由選擇要不要再排
+                        // 不調整 adjU.start，完整顯示原始範圍
+                        availableUnits.push({ id: u.id, name: u.name, vol: volName, uObj: { ...u } });
                     };
 
                     if (sTree.type === 'custom') {
@@ -3572,15 +3565,10 @@ loadBoardHeader();
 
                 var addUnitOpt = (u, volLabel) => {
                     var status = getUnitScheduleStatus(sub, u.name, volLabel, u.id, u.start, u.end, cat, mis);
-                    if (status.isFullyScheduled) return;
+                    // v1.5.23: 移除 isFullyScheduled filter，全部顯示讓用戶自由選擇要不要再排
+                    // 不調整 adjU.start，完整顯示原始範圍
 
                     var adjU = { ...u };
-                    // 起點調整只看當前任務（misMaxEnd），不參考其他任務
-                    if (status.misMaxEnd > 0 && status.misMaxEnd >= adjU.start) {
-                        adjU.start = status.misMaxEnd + 1;
-                    }
-                    if (Number(adjU.start) > Number(adjU.end)) return;
-
                     var safeName = (adjU.name||'').replace(/"/g, '&quot;').replace(/'/g, "\\'");
                     var safeSub = sub.replace(/"/g, '&quot;').replace(/'/g, "\\'");
                     var safeVol = typeof volLabel === 'string' ? volLabel.replace(/'/g, "\\'") : '';
