@@ -2890,9 +2890,9 @@ loadBoardHeader();
                     var availableUnits = [];
                     var extract = (u, volName) => {
                         var status = getUnitScheduleStatus(sub, u.name, volName, u.id, u.start, u.end, cat, mis);
-                        // v1.5.23: 移除 isFullyScheduled filter，全部顯示讓用戶自由選擇要不要再排
+                        // v1.5.24: 移除 isFullyScheduled filter，全部顯示讓用戶自由選擇要不要再排
                         // 不調整 adjU.start，完整顯示原始範圍
-                        availableUnits.push({ id: u.id, name: u.name, vol: volName, uObj: { ...u } });
+                        availableUnits.push({ id: u.id, name: u.name, vol: volName, uObj: { ...u }, misMaxEnd: status.misMaxEnd, quickRead: false });
                     };
 
                     if (sTree.type === 'custom') {
@@ -2905,6 +2905,14 @@ loadBoardHeader();
                     if (availableUnits.length > 0) {
                         var defProgVal = (prefs.subjects && prefs.subjects[sub] && prefs.subjects[sub].progVal) ? prefs.subjects[sub].progVal : 1;
                         var defHours = (prefs.subjects && prefs.subjects[sub] && prefs.subjects[sub].hoursPerUnit) ? prefs.subjects[sub].hoursPerUnit : 2.0;
+
+                        // v1.5.24: 未排過的（misMaxEnd===0）排在前面，已排過的排在後面
+                        availableUnits.sort((a, b) => {
+                            var aUnscheduled = (a.misMaxEnd === 0) ? 0 : 1;
+                            var bUnscheduled = (b.misMaxEnd === 0) ? 0 : 1;
+                            if (aUnscheduled !== bUnscheduled) return aUnscheduled - bUnscheduled;
+                            return (Number(a.uObj.start)||0) - (Number(b.uObj.start)||0);
+                        });
 
                         wizardSubjects.push({
                             name: sub,
@@ -2952,11 +2960,29 @@ loadBoardHeader();
                         </div>
                         <div class="vertical-scroll" style="max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background:#fff;">`;
 
+                // v1.5.24: 全科目的快讀按鈕
+                var hasScheduled = ws.availableUnits.some(u => u.misMaxEnd > 0);
+                if (hasScheduled) {
+                    html += `<div style="margin-bottom:10px;">
+                        <button onclick="setAllQuickRead(${i}, true)" style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:0.85em; margin-right:6px;">☀️ 全部已讀完的設為快讀</button>
+                        <button onclick="setAllQuickRead(${i}, false)" style="background:#94a3b8; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:0.85em;">↺ 取消全部快讀</button>
+                    </div>`;
+                }
+
                 ws.availableUnits.forEach(u => {
                     var isChecked = ws.selectedUnitIds.includes(u.id) ? 'checked' : '';
                     var prefix = u.vol ? `[${u.vol}] ` : '';
                     var pageStr = (u.uObj.start && u.uObj.end && u.uObj.start !== u.uObj.end) ? ` (P.${u.uObj.start}~${u.uObj.end})` : ((u.uObj.start && u.uObj.start === u.uObj.end) ? ` (P.${u.uObj.start})` : '');
-                    html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleWizardUnit(${i}, '${u.id}', this.checked)" style="width:auto; margin-right:8px; transform:scale(1.1);"> ${prefix}${u.name}${pageStr}</label>`;
+                    var isScheduled = u.misMaxEnd > 0;
+                    var qrChecked = u.quickRead ? 'checked' : '';
+                    var qrStyle = u.quickRead ? 'color:#d97706; font-weight:bold;' : 'color:#9ca3af;';
+                    html += `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#f8fafc'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#e2e8f0'};">
+                        <input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleWizardUnit(${i}, '${u.id}', this.checked)" style="width:auto; margin-right:8px; transform:scale(1.1);">
+                        <label style="cursor:pointer; flex:1;">${prefix}${u.name}${pageStr}${isScheduled ? ' <span style="color:#f59e0b; font-size:0.8em;">🔁</span>' : ''}</label>
+                        <label title="快讀（時數打6折）" style="cursor:pointer; ${qrStyle}; white-space:nowrap; margin-left:8px; font-size:0.85em;">
+                            <input type="checkbox" ${qrChecked} onchange="toggleWizardQuickRead(${i}, '${u.id}', this.checked)" style="width:auto; vertical-align:middle; margin-right:3px;">☀️
+                        </label>
+                    </div>`;
                 });
 
                 html += `</div></div></div>`;
@@ -2981,6 +3007,22 @@ loadBoardHeader();
             } else if (!isChecked) {
                 ws.selectedUnitIds = ws.selectedUnitIds.filter(id => id !== unitId);
             }
+            renderWizardSubjects();
+        }
+
+        // v1.5.24: 快讀功能
+        function toggleWizardQuickRead(subjIdx, unitId, isChecked) {
+            var ws = wizardSubjects[subjIdx];
+            var unit = ws.availableUnits.find(u => u.id === unitId);
+            if (unit) unit.quickRead = isChecked;
+            renderWizardSubjects();
+        }
+
+        function setAllQuickRead(subjIdx, doQuickRead) {
+            var ws = wizardSubjects[subjIdx];
+            ws.availableUnits.forEach(u => {
+                if (u.misMaxEnd > 0) u.quickRead = doQuickRead;
+            });
             renderWizardSubjects();
         }
 
@@ -3049,7 +3091,9 @@ loadBoardHeader();
 
                     var chunkSizeHours = 0.5;
                     var numChunks = Math.max(1, Math.ceil(hoursPerUnit / chunkSizeHours));
-                    var actualCost = hoursPerUnit / numChunks;
+                    // v1.5.24: 快讀時數打 6 折
+                    var effectiveHours = hoursPerUnit * (availU.quickRead ? 0.6 : 1.0);
+                    var actualCost = effectiveHours / numChunks;
 
                     var pagesPerChunk = totalPages > 0 ? (totalPages / numChunks) : 0;
                     var currentPage = s;
