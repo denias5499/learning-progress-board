@@ -1,6 +1,58 @@
 # 版本演進 (CHANGELOG)
 
+## v1.5.21 (2026-08-02) — 修智慧排程不檢查 cat/mis,導致一模/二模重複 unit 只排一次
+
+### 問題
+
+Denias 17:36 反映: 進度分類中的任務「一模」&「二模」任務範圍選後,會有重複的科目跟單元,在智慧排程時應該視為各個任務都要執行的單元,現在若在二模中排定,一模就不會再排了!
+
+### 根因
+
+`getUnitScheduleStatus` (line 1627) 檢查 unit 是否已排程時,**只檢查 `unitId` + `subject`,不檢查 `cat`/`mis`** → 一模和二模的同一個 unit 被認為是同一個!
+
+時序:
+1. 二模排程 → `plan.grid[date].push({ cat: '會考複習', mis: '二模', unitId: 'u123', ... })`
+2. 一模排程 → `getUnitScheduleStatus(..., unitId: 'u123')` → 找到二模的 task → 認為已排 → 跳過
+3. 一模沒排到!
+
+### 修法 (v1.5.21)
+
+#### 1. `getUnitScheduleStatus` 加 `targetCat`/`targetMis` 參數
+```js
+function getUnitScheduleStatus(sub, unitName, volName, unitId, unitStart, unitEnd, targetCat, targetMis) {
+    // ...
+    for (let t of tasks) {
+        if (t.subject === sub) {
+            // v1.5.21: 檢查 cat/mis 是否匹配
+            if (targetCat && targetMis) {
+                if (t.cat !== targetCat || t.mis !== targetMis) continue;
+            }
+            // ... match logic
+        }
+    }
+}
+```
+
+#### 2. 更新兩個呼叫點
+- `wzUpdateMis` (line 2879): `getUnitScheduleStatus(..., cat, mis)`
+- `onAeMisChange` (line 3560): `getUnitScheduleStatus(..., cat, mis)`
+
+### 效果
+
+- **一模 & 二模 是兩個獨立任務** → 即使範圍相同 (例如都是「第一冊 1-1」),也分別排程
+- **不會再因為二模排了,一模就不排**
+- **手動新增視窗 (ae-) 也同步修好**
+
+### 教訓
+
+- **★ 多任務系統一定要檢查任務維度** — cat/mis 是獨立維度,不能只看 unitId
+- **★ getUnitScheduleStatus 是全域檢查** — 沒加 cat/mis 前,它檢查所有任務的 grid
+- **★ 智慧排程 wizard 和手動新增視窗都要修** — 兩個地方都用 getUnitScheduleStatus
+
+---
+
 ## v1.5.20 (2026-08-01) — 修 _v154Migrate 覆蓋 user.missions 丟失 tab 2 勾選
+ (2026-08-01) — 修 _v154Migrate 覆蓋 user.missions 丟失 tab 2 勾選
 
 ### 問題
 

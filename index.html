@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.20]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.21]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1624,7 +1624,7 @@
         // 修正處 1：加入這個全新的 getUnitScheduleStatus 函數
         // 來取代原本陽春的 isUnitScheduled 函數
         // ==========================================
-        function getUnitScheduleStatus(sub, unitName, volName, unitId, unitStart, unitEnd) {
+        function getUnitScheduleStatus(sub, unitName, volName, unitId, unitStart, unitEnd, targetCat, targetMis) {
             var pid = el('planner-selector') ? el('planner-selector').value : null;
             if(!pid && appPlans.length > 0) pid = appPlans[appPlans.length - 1].id;
             if(!pid) return { isFullyScheduled: false, maxEnd: 0 };
@@ -1639,6 +1639,10 @@
                 if (Array.isArray(tasks)) {
                     for (let t of tasks) {
                         if (t.subject === sub) {
+                            // v1.5.21: 檢查 cat/mis 是否匹配
+                            if (targetCat && targetMis) {
+                                if (t.cat !== targetCat || t.mis !== targetMis) continue;
+                            }
                             let match = false;
                             if (unitId && t.unitId) {
                                 if (t.unitId === unitId) match = true;
@@ -2872,7 +2876,7 @@ loadBoardHeader();
                     var sTree = mTree[sub];
                     var availableUnits = [];
                     var extract = (u, volName) => {
-                        var status = getUnitScheduleStatus(sub, u.name, volName, u.id, u.start, u.end);
+                        var status = getUnitScheduleStatus(sub, u.name, volName, u.id, u.start, u.end, cat, mis);
                         if (!status.isFullyScheduled) {
                             var adjU = { ...u };
                             if (status.maxEnd > 0 && status.maxEnd >= adjU.start) {
@@ -3553,7 +3557,7 @@ loadBoardHeader();
                 var hasAvailableUnitsForSub = false;
 
                 var addUnitOpt = (u, volLabel) => {
-                    var status = getUnitScheduleStatus(sub, u.name, volLabel, u.id, u.start, u.end);
+                    var status = getUnitScheduleStatus(sub, u.name, volLabel, u.id, u.start, u.end, cat, mis);
                     if (status.isFullyScheduled) return;
 
                     var adjU = { ...u };
