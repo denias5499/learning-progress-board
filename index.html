@@ -1639,9 +1639,10 @@
                 if (Array.isArray(tasks)) {
                     for (let t of tasks) {
                         if (t.subject === sub) {
-                            // v1.5.22: 移除 targetCat/targetMis filter
-                            // 改為：只要此單元在任何任務中已排完，就視為已排（不重複排）
-                            // 這樣一模排過的單元，二模 wizard 不會再秀出來讓你排
+                            // v1.5.21: 檢查 cat/mis 是否匹配
+                            if (targetCat && targetMis) {
+                                if (t.cat !== targetCat || t.mis !== targetMis) continue;
+                            }
                             let match = false;
                             if (unitId && t.unitId) {
                                 if (t.unitId === unitId) match = true;
