@@ -1251,7 +1251,10 @@
                     <div><label>計畫完成日期 (DeadLine)</label><input type="date" id="wz-enddate"></div>
                 </div>
                 <div class="wizard-row" style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-top:10px;">
-                    <label style="color: var(--accent); font-size: 1.05em; margin-bottom:10px; display:block;">⏱️ 每天預定讀書時數（最小單位0.5)</label>
+                    <div style="display:flex; gap:20px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                        <label style="color: var(--accent); font-size: 1.05em;">⏱️ 每天預定讀書時數（最小單位0.5）</label>
+                        <label style="color:#d97706; font-size:0.95em; white-space:nowrap;">☀️ 快讀折扣：<input type="number" id="wz-quickread-discount" value="60" min="10" max="95" step="5" style="width:55px; padding:4px; border-radius:4px; border:1px solid #ccc;" onchange="saveWizardPrefs()"> %（輸入10~95）</label>
+                    </div>
                     <div style="display: flex; gap: 15px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px;">
                         <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.9em; color:var(--secondary);">週一</label><input type="number" id="wz-hrs-1" min="0" step="0.5" value="2" list="hours-list" style="width:70px; padding:5px;" onchange="saveWizardPrefs()"></div>
                         <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.9em; color:var(--secondary);">週二</label><input type="number" id="wz-hrs-2" min="0" step="0.5" value="2" list="hours-list" style="width:70px; padding:5px;" onchange="saveWizardPrefs()"></div>
@@ -1591,15 +1594,17 @@
             if (prefs) {
                 try { return JSON.parse(prefs); } catch(e){}
             }
-            return { hours: {}, subjects: {} };
+            return { hours: {}, subjects: {}, quickReadDiscount: 60 };
         }
 
         function saveWizardPrefs() {
-            var prefs = { hours: {}, subjects: {} };
+            var prefs = { hours: {}, subjects: {}, quickReadDiscount: 60 };
             for(let i=0; i<=6; i++) {
                 let val = el('wz-hrs-' + i).value;
                 if(val) prefs.hours[i] = val;
             }
+            var qrDiscount = el('wz-quickread-discount') ? Number(el('wz-quickread-discount').value) : 60;
+            prefs.quickReadDiscount = Math.max(10, Math.min(95, qrDiscount));
             if(typeof wizardSubjects !== 'undefined') {
                 wizardSubjects.forEach(ws => {
                     prefs.subjects[ws.name] = { progVal: ws.progVal, hoursPerUnit: ws.hoursPerUnit };
@@ -2855,6 +2860,9 @@ loadBoardHeader();
                     el('wz-hrs-' + i).value = prefs.hours[i];
                 }
             }
+            if (el('wz-quickread-discount')) {
+                el('wz-quickread-discount').value = prefs.quickReadDiscount || 60;
+            }
 
             var dStart = new Date();
             el('wz-startdate').value = getLocalDateString(dStart);
@@ -3091,8 +3099,14 @@ loadBoardHeader();
 
                     var chunkSizeHours = 0.5;
                     var numChunks = Math.max(1, Math.ceil(hoursPerUnit / chunkSizeHours));
-                    // v1.5.24: 快讀時數打 6 折
-                    var effectiveHours = hoursPerUnit * (availU.quickRead ? 0.6 : 1.0);
+                    // v1.5.25: 快讀時數可自訂折扣百分比
+                    var qrDiscount = 1.0;
+                    var qrEl = el('wz-quickread-discount');
+                    if (availU.quickRead && qrEl) {
+                        var qrVal = Number(qrEl.value) || 60;
+                        qrDiscount = Math.max(0.10, Math.min(0.95, qrVal / 100));
+                    }
+                    var effectiveHours = hoursPerUnit * (availU.quickRead ? qrDiscount : 1.0);
                     var actualCost = effectiveHours / numChunks;
 
                     var pagesPerChunk = totalPages > 0 ? (totalPages / numChunks) : 0;
