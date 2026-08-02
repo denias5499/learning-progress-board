@@ -1627,24 +1627,21 @@
         function getUnitScheduleStatus(sub, unitName, volName, unitId, unitStart, unitEnd, targetCat, targetMis) {
             var pid = el('planner-selector') ? el('planner-selector').value : null;
             if(!pid && appPlans.length > 0) pid = appPlans[appPlans.length - 1].id;
-            if(!pid) return { isFullyScheduled: false, maxEnd: 0 };
+            if(!pid) return { isFullyScheduled: false, maxEnd: 0, misMaxEnd: 0 };
             var plan = appPlans.find(p => p.id === pid);
-            if(!plan || !plan.grid) return { isFullyScheduled: false, maxEnd: 0 };
+            if(!plan || !plan.grid) return { isFullyScheduled: false, maxEnd: 0, misMaxEnd: 0 };
 
-            let maxScheduledEnd = 0;
+            let maxScheduledEnd = 0;    // 所有任務的 maxEnd → 控制 isFullyScheduled
+            let misMaxEnd = 0;          // 只限當前任務的 maxEnd → 控制 adjU.start 起點調整
             let found = false;
+            let misFound = false;
 
             for (let dateStr in plan.grid) {
                 let tasks = plan.grid[dateStr];
                 if (Array.isArray(tasks)) {
                     for (let t of tasks) {
                         if (t.subject === sub) {
-                            // v1.5.22: 移除 cat/mis filter
-                            // 只要任何任務排過這個單元，就算入 maxEnd
-                            // 如此一來：
-                            //   - 一模排過，二模 wizard 會秀出該單元，但起點自動從一模排到的最後一頁繼續
-                            //   - 單元已 100% 覆蓋（任何任務），則 wizard 不再秀出（不重複排）
-                            // targetCat/targetMis 參數保留（其他 call sites 可能用到），但在此不作 filter
+                            // 判斷是否匹配此單元（不論 cat/mis）
                             let match = false;
                             if (unitId && t.unitId) {
                                 if (t.unitId === unitId) match = true;
@@ -1658,23 +1655,37 @@
                             }
 
                             if (match) {
+                                // 所有任務（cross-mis）都算入 maxScheduledEnd
                                 found = true;
                                 let ep = Number(t.endPage) || 0;
                                 if (ep > maxScheduledEnd) maxScheduledEnd = ep;
+
+                                // 只限當前任務（targetCat/targetMis）的計入 misMaxEnd
+                                if (targetCat && targetMis) {
+                                    if (t.cat === targetCat && t.mis === targetMis) {
+                                        misFound = true;
+                                        if (ep > misMaxEnd) misMaxEnd = ep;
+                                    }
+                                } else {
+                                    // 若沒傳 targetCat/targetMis，misMaxEnd 等於 maxScheduledEnd
+                                    misMaxEnd = maxScheduledEnd;
+                                }
                             }
                         }
                     }
                 }
             }
 
-            if (!found) return { isFullyScheduled: false, maxEnd: 0 };
+            if (!found) return { isFullyScheduled: false, maxEnd: 0, misMaxEnd: 0 };
 
             let uEnd = Number(unitEnd) || 0;
-            if (uEnd > 0 && maxScheduledEnd < uEnd) {
-                return { isFullyScheduled: false, maxEnd: maxScheduledEnd };
+            // isFullyScheduled：只用當前任務的 misMaxEnd 來判斷（跨任務不影響顯示）
+            // maxScheduledEnd：保留給日後擴充用，現已不影響 isFullyScheduled
+            if (uEnd > 0 && misMaxEnd < uEnd) {
+                return { isFullyScheduled: false, maxEnd: maxScheduledEnd, misMaxEnd: misMaxEnd };
             }
 
-            return { isFullyScheduled: true, maxEnd: maxScheduledEnd };
+            return { isFullyScheduled: true, maxEnd: maxScheduledEnd, misMaxEnd: misMaxEnd };
         }
 
         function loadBoardHeader() {
@@ -2881,8 +2892,9 @@ loadBoardHeader();
                         var status = getUnitScheduleStatus(sub, u.name, volName, u.id, u.start, u.end, cat, mis);
                         if (!status.isFullyScheduled) {
                             var adjU = { ...u };
-                            if (status.maxEnd > 0 && status.maxEnd >= adjU.start) {
-                                adjU.start = status.maxEnd + 1;
+                            // 起點調整只看當前任務（misMaxEnd），不參考其他任務
+                            if (status.misMaxEnd > 0 && status.misMaxEnd >= adjU.start) {
+                                adjU.start = status.misMaxEnd + 1;
                             }
                             if (Number(adjU.start) <= Number(adjU.end)) {
                                 availableUnits.push({ id: adjU.id, name: adjU.name, vol: volName, uObj: adjU });
@@ -3563,8 +3575,9 @@ loadBoardHeader();
                     if (status.isFullyScheduled) return;
 
                     var adjU = { ...u };
-                    if (status.maxEnd > 0 && status.maxEnd >= adjU.start) {
-                        adjU.start = status.maxEnd + 1;
+                    // 起點調整只看當前任務（misMaxEnd），不參考其他任務
+                    if (status.misMaxEnd > 0 && status.misMaxEnd >= adjU.start) {
+                        adjU.start = status.misMaxEnd + 1;
                     }
                     if (Number(adjU.start) > Number(adjU.end)) return;
 
