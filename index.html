@@ -1639,10 +1639,12 @@
                 if (Array.isArray(tasks)) {
                     for (let t of tasks) {
                         if (t.subject === sub) {
-                            // v1.5.21: 檢查 cat/mis 是否匹配
-                            if (targetCat && targetMis) {
-                                if (t.cat !== targetCat || t.mis !== targetMis) continue;
-                            }
+                            // v1.5.22: 移除 cat/mis filter
+                            // 只要任何任務排過這個單元，就算入 maxEnd
+                            // 如此一來：
+                            //   - 一模排過，二模 wizard 會秀出該單元，但起點自動從一模排到的最後一頁繼續
+                            //   - 單元已 100% 覆蓋（任何任務），則 wizard 不再秀出（不重複排）
+                            // targetCat/targetMis 參數保留（其他 call sites 可能用到），但在此不作 filter
                             let match = false;
                             if (unitId && t.unitId) {
                                 if (t.unitId === unitId) match = true;
