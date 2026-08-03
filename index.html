@@ -93,7 +93,7 @@
 .dash-weekly-chart h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 1.1em; }
 .dash-week-bars {
     display: flex; align-items: flex-end; gap: 10px; height: 110px;
-    padding: 10px 0; border-bottom: 2px solid var(--border);
+    padding: 30px 0 10px 0; border-bottom: 2px solid var(--border);
 }
 .dash-week-bar-wrap {
     flex: 1; display: flex; flex-direction: column;
@@ -102,10 +102,12 @@
 .dash-week-bar {
     width: 100%; background: #D6C3BF;
     border-radius: 4px 4px 0 0; min-height: 2px; transition: all 0.3s; cursor: pointer;
+    position: relative;
 }
 .dash-week-bar:hover { opacity: 0.75; transform: scaleY(1.05); transform-origin: bottom; }
 .dash-week-label { font-size: 0.75em; color: var(--secondary); font-weight: bold; }
-.dash-week-pages { font-size: 0.7em; color: var(--secondary); }
+.dash-week-pages { font-size: 0.65em; color: var(--secondary); font-weight: bold; }
+.dash-week-pages-inside { font-size: 0.7em; color: #fff; font-weight: bold; position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; }
 
 /* v1.4.0: 強化 7 日 bar 顯示 */
 .dash-week-header {
@@ -125,7 +127,8 @@
 .dash-week-total-unit { font-size: 0.75em; opacity: 0.9; }
 .dash-week-avg-row {
     font-size: 1.05em; color: var(--secondary);
-    margin-top: 12px; margin-bottom: 20px; padding-left: 4px;
+    margin-bottom: 20px; padding-left: 4px;
+    margin-top: 6px;
     display: block;
 }
 .dash-week-avg-row .avg-num {
@@ -5556,11 +5559,13 @@ loadBoardHeader();
                 // 平均線位置 (% 高度)
                 var avgPct = maxPages > 0 ? (avgPages / maxPages * 100) : 0;
                 return '<div class="dash-week-bar-wrap">' +
-                    '<div class="dash-week-pages">' + d.pages + '</div>' +
                     '<div class="dash-week-bar-area">' +
-                        '<div class="dash-week-bar" style="height:' + h + 'px;" title="' + d.date + ': ' + d.pages + ' 頁"></div>' +
+                        '<div class="dash-week-bar" style="height:' + h + 'px;" title="' + d.date + ': ' + d.pages + ' 頁">' +
+                        (h > 15 ? '<div class="dash-week-pages-inside">' + d.pages + '</div>' : '') +
+                        '</div>' +
                         (avgPages > 0 ? '<div class="dash-week-avg-line" style="bottom:' + avgPct + '%;" title="7 日平均 ' + avgPages + ' 頁"></div>' : '') +
                     '</div>' +
+                    '<div class="dash-week-pages">' + d.pages + '</div>' +
                     '<div class="dash-week-label">' + d.label + '</div>' +
                     '<div class="dash-week-date">' + d.md + '</div>' +
                 '</div>';
@@ -5600,8 +5605,8 @@ loadBoardHeader();
                         '<span class="dash-week-total-unit">頁</span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
                 '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
+                '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
             '</div>';
 
             // v1.5.8: 各科整體進度條 — 按 Category (進度大分類) 分組顯示
@@ -5716,8 +5721,8 @@ loadBoardHeader();
                         '<span class="dash-week-total-unit">頁</span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
                 '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
+                '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
             '</div>' +
             subjectBarsHtml;
         }
