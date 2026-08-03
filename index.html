@@ -10,7 +10,7 @@
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
-            --success: #27ae60; --warning: #f39c12; --danger: #e74c3c;
+            --success: #27ae60; --warning: #b18b73; --danger: #f0abba;
             --purple: #8e44ad; --bg: #d5e5e6; --card-bg: #ffffff; 
             --border: #cbd5e1; --mission-bg: #f0f8ff; 
             --btn-peach-dust: #f0d8d6; --btn-peach-fuzz: #ffbe98; 
@@ -87,7 +87,7 @@
 
 /* ===== v1.1: 7-Day Bar Chart ===== */
 .dash-weekly-chart {
-    background: var(--card-bg); padding: 20px; border-radius: 10px;
+    background: #f6d9f5; padding: 20px; border-radius: 10px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px;
 }
 .dash-weekly-chart h3 { margin: 0 0 15px 0; color: var(--primary); font-size: 1.1em; }
@@ -286,8 +286,8 @@
         button { font-family: inherit; font-size: 1em; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; color: white; display: inline-flex; align-items: center; justify-content: center; }
         .btn-primary { background: var(--accent); } .btn-primary:hover { background: #2980b9; }
         .btn-success { background: var(--success); } .btn-success:hover { background: #219653; }
-        .btn-warning { background: var(--warning); } .btn-warning:hover { background: #d68910; }
-        .btn-danger { background: var(--danger); } .btn-danger:hover { background: #c0392b; }
+        .btn-warning { background: var(--warning); color: #fff; } .btn-warning:hover { background: #9a7360; }
+        .btn-danger { background: var(--danger); color: #fff; } .btn-danger:hover { background: #e08fa0; }
         .btn-purple { background: var(--purple); } .btn-purple:hover { background: #732d91; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--secondary); } .btn-outline:hover { background: #e2e8f0; }
 
@@ -561,7 +561,7 @@
         .nav-btn:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.2), inset 0 -2px 3px rgba(0,0,0,0.05); z-index: 10; }
         .nav-btn.active-nav { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.2), inset 0 -2px 3px rgba(0,0,0,0.05); border-color: var(--accent) !important; z-index: 10; }
 
-        .btn-home { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); position: relative; }
+        .btn-home { background: #FFE17A; color: #000; font-weight: bold; font-size: 1em; padding: 6px 14px; border-radius: 6px; border: none; cursor: pointer; display: inline-block; vertical-align: middle; margin-left: 12px; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); position: relative; }
         .btn-home:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.2), inset 0 -2px 3px rgba(0,0,0,0.05); z-index: 10; }
         
         .planner-action-btn { transition: transform 0.2s, filter 0.2s; }
@@ -579,7 +579,7 @@
         .mission-title { font-size: 1.3em; font-weight: bold; color: #1a5276; margin-bottom: 20px; display: inline-block; background: #d6eaf8; padding: 8px 20px; border-radius: 25px; border: 1px solid #a9cce3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
         .card { background: var(--card-bg); padding: 20px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
         
-        .page-card { background: var(--card-bg); padding: 25px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .page-card { background: #c7eefb; padding: 25px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 20px; }
         .page-view { display: none; width: 100%; }
         .page-view.active { display: block; }
         
@@ -869,7 +869,7 @@
                 <span style="color: var(--secondary); font-weight: bold;">➡️</span>
                 <select id="filter-mission" onchange="renderDashboard(); renderTreeView(); renderMonthlyAnalysis();"></select>
             </div>
-            <button class="btn-home" style="background: var(--btn-aqua-sky); color: #2c3e50; font-weight: bold; margin-left: auto;" onclick="returnToHome()">🏠 回首頁</button>
+            <button class="btn-home" onclick="returnToHome()">🏠 回首頁</button>
         </div>
 
         <!-- 主顯示區 -->
