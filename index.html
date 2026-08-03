@@ -102,12 +102,10 @@
 .dash-week-bar {
     width: 100%; background: #D6C3BF;
     border-radius: 4px 4px 0 0; min-height: 2px; transition: all 0.3s; cursor: pointer;
-    position: relative;
 }
 .dash-week-bar:hover { opacity: 0.75; transform: scaleY(1.05); transform-origin: bottom; }
 .dash-week-label { font-size: 0.75em; color: var(--secondary); font-weight: bold; }
-.dash-week-pages { font-size: 0.65em; color: var(--secondary); font-weight: bold; }
-.dash-week-pages-inside { font-size: 0.7em; color: #fff; font-weight: bold; position: absolute; bottom: 2px; left: 0; right: 0; text-align: center; }
+.dash-week-pages { font-size: 0.7em; color: var(--secondary); }
 
 /* v1.4.0: 強化 7 日 bar 顯示 */
 .dash-week-header {
@@ -5559,13 +5557,11 @@ loadBoardHeader();
                 // 平均線位置 (% 高度)
                 var avgPct = maxPages > 0 ? (avgPages / maxPages * 100) : 0;
                 return '<div class="dash-week-bar-wrap">' +
+                    '<div class="dash-week-pages">' + d.pages + '</div>' +
                     '<div class="dash-week-bar-area">' +
-                        '<div class="dash-week-bar" style="height:' + h + 'px;" title="' + d.date + ': ' + d.pages + ' 頁">' +
-                        (h > 15 ? '<div class="dash-week-pages-inside">' + d.pages + '</div>' : '') +
-                        '</div>' +
+                        '<div class="dash-week-bar" style="height:' + h + 'px;" title="' + d.date + ': ' + d.pages + ' 頁"></div>' +
                         (avgPages > 0 ? '<div class="dash-week-avg-line" style="bottom:' + avgPct + '%;" title="7 日平均 ' + avgPages + ' 頁"></div>' : '') +
                     '</div>' +
-                    '<div class="dash-week-pages">' + d.pages + '</div>' +
                     '<div class="dash-week-label">' + d.label + '</div>' +
                     '<div class="dash-week-date">' + d.md + '</div>' +
                 '</div>';
