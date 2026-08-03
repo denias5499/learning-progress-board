@@ -869,8 +869,10 @@
                 <span style="color: var(--secondary); font-weight: bold;">➡️</span>
                 <select id="filter-mission" onchange="renderDashboard(); renderTreeView(); renderMonthlyAnalysis();"></select>
             </div>
-            <button class="btn-home" onclick="returnToHome()">🏠 回首頁</button>
         </div>
+
+        <!-- 回首頁 absolute positioned -->
+        <button class="btn-home" style="position:absolute; left:1644px; top:62px; width:171px; text-align:center; z-index:100;" onclick="returnToHome()">🏠 回首頁</button>
 
         <!-- 主顯示區 -->
         <div id="dashboard-root" class="dash-view active"></div>
