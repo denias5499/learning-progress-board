@@ -125,8 +125,7 @@
 .dash-week-total-unit { font-size: 0.75em; opacity: 0.9; }
 .dash-week-avg-row {
     font-size: 1.05em; color: var(--secondary);
-    margin-bottom: 20px; padding-left: 4px;
-    margin-top: 6px;
+    margin-top: 12px; margin-bottom: 20px; padding-left: 4px;
     display: block;
 }
 .dash-week-avg-row .avg-num {
@@ -5601,8 +5600,8 @@ loadBoardHeader();
                         '<span class="dash-week-total-unit">頁</span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
                 '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
+                '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
             '</div>';
 
             // v1.5.8: 各科整體進度條 — 按 Category (進度大分類) 分組顯示
@@ -5717,8 +5716,8 @@ loadBoardHeader();
                         '<span class="dash-week-total-unit">頁</span>' +
                     '</div>' +
                 '</div>' +
-                '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
                 '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
+                '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
             '</div>' +
             subjectBarsHtml;
         }
