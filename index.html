@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.28]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.29]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1962,6 +1962,53 @@
             });
         }
 
+        // v1.5.29: 同步 plan.grid 裡 task.mis 跟 log.mission
+        // 原因: 之前任務排序/重排順延後，task 的頁數範圍可能跟原始 log 對不上
+        // 先試嚴格比對 (startPage/endPage 完全相等)，再寬鬆比對 (頁數重疊)
+        function _v1529Migrate(uid) {
+            var user = multiData[uid];
+            if (!user) return;
+            if (user._v1529_plan_grid_mis_synced) return; // 確保只跑一次
+            var updated = 0;
+            (user.plans || []).forEach(function(plan){
+                Object.keys(plan.grid || {}).forEach(function(dStr){
+                    (plan.grid[dStr] || []).forEach(function(t){
+                        if (!t.unitId || !t.subject || !t.mis) return;
+                        // 找對應日期/單元的 log
+                        var logs = (user.logs || []).filter(function(l){
+                            return l.unitId === t.unitId && l.subject === t.subject;
+                        });
+                        var matchLog = null;
+                        // 先試嚴格比對 (頁數完全相等)
+                        for (var i = 0; i < logs.length; i++) {
+                            if (Number(logs[i].start) === Number(t.startPage) && Number(logs[i].end) === Number(t.endPage)) {
+                                matchLog = logs[i]; break;
+                            }
+                        }
+                        // 寬鬆比對 (頁數重疊) - 用於順延任務
+                        if (!matchLog) {
+                            for (var j = 0; j < logs.length; j++) {
+                                if (Number(logs[j].end) >= Number(t.startPage) && Number(logs[j].start) <= Number(t.endPage)) {
+                                    matchLog = logs[j]; break;
+                                }
+                            }
+                        }
+                        if (matchLog && matchLog.mission && matchLog.mission !== t.mis) {
+                            console.log('v1.5.29: ' + t.unitName + ' P.' + t.startPage + '~' + t.endPage + ' | ' + t.mis + ' → ' + matchLog.mission);
+                            t.mis = matchLog.mission;
+                            updated++;
+                        }
+                    });
+                });
+            });
+            user._v1529_plan_grid_mis_synced = true;
+            if (updated > 0) {
+                console.log('v1.5.29: ✅ 同步 ' + updated + ' 筆 task.mis 跟 log.mission');
+            } else {
+                console.log('v1.5.29: ✅ task.mis 已跟 log.mission 同步，無需更新');
+            }
+        }
+
 loadBoardHeader();
 
             var currentDataStr = localStorage.getItem(STORAGE_KEY_FAMILY);
@@ -1996,6 +2043,9 @@ loadBoardHeader();
 
                     // v1.5.8: 進度大分類獨立教材庫 migrate (在 v1.5.2 migrate 之前, 讓 master 結構還是舊的時被搬到 masters[cat])
                     _v158Migrate(uid);
+
+                    // v1.5.29: 同步 plan.grid 裡 task.mis 跟 log.mission (頁數重疊比對，處理順延任務)
+                    _v1529Migrate(uid);
 
                     // v1.5.2: migrate - 重新設計為 3 層架構 (Material Type + Instance + Units)
                     // 從 v1.5.1 升級: 把主教材 units 搬到「複習講義」的第一個 instance「(原主教材)」
