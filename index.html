@@ -3913,8 +3913,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function openAddEventModal(dateStr, planId) {
+            // v1.5.51: debugger — 請按 F12 看 Console，按 F8 繼續
+            debugger;
+            console.log('[DEBUG] openAddEventModal', dateStr, planId);
+            console.log('[DEBUG] page-planner classes:', document.getElementById('page-planner').className);
+            console.log('[DEBUG] page-add-event classes (before):', document.getElementById('page-add-event').className);
+
             // v1.5.50: 明確寫入 page-add-event，確保在月曆頁時用 page 模式
             var aeC = document.getElementById('page-add-event');
+            console.log('[DEBUG] aeC found:', !!aeC, aeC ? aeC.id : 'null');
             aeC.querySelector('#ae-date').value = dateStr;
             aeC.querySelector('#ae-date').dataset.pid = planId;
             aeC.querySelector('#ae-date-display').innerText = dateStr;
