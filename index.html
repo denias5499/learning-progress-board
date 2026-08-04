@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.45]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.46]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1019,6 +1019,117 @@
                     <h2>📅 月計畫排程</h2>
                     <button type="button" class="close-btn" onclick="returnToHome()">&times;</button>
                 </div>
+                <div class="filter-bar" style="margin-bottom: 15px; border-left-color: var(--purple); display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: transparent; padding: 0; box-shadow: none; border-left: none;">
+                    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; align-items: center;">
+                        <div style="display: none;"><select id="planner-selector" onchange="renderCalendar()"></select></div>
+                        <div style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
+                            <span style="font-weight: bold; color: var(--secondary);">🔍 分類/任務過濾：</span>
+                            <select id="planner-cat-filter" onchange="onPlannerCatChange()"></select>
+                            <span style="color: var(--secondary); font-weight: bold;">➡️</span>
+                            <select id="planner-mis-filter" onchange="renderCalendar()"></select>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button class="planner-action-btn" onclick="openDoubleCheck()" style="font-weight: 900;">🔍 Double Check</button>
+                            <button class="planner-action-btn" onclick="openWizard()">🪄 建立智慧排程計畫</button>
+                            <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
+                            <button class="cal-sync-btn" onclick="exportPlanJSON()">📦 備份月曆</button>
+                            <button class="cal-sync-btn" onclick="document.getElementById('import-plan-file').click()">📂 匯入月曆</button>
+                            <button class="btn-danger" onclick="deleteCurrentPlan()">🗑️ 刪除排程</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 15px;">
+                    <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(-1)">◀ 上個月</button>
+                    <span id="current-month-display" style="font-weight: bold; font-size: 1.3em; min-width: 140px; text-align: center; color: var(--primary);"></span>
+                    <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(1)">下個月 ▶</button>
+                </div>
+
+                <div class="calendar-wrapper">
+                    <div class="calendar-header">
+                        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- v1.5.46: 手動新增頁 (非 modal，全替換模式) -->
+        <div id="page-add-event" class="page-view" style="display:none;">
+            <div class="page-card">
+                <div class="modal-header">
+                    <h2>📅 手動新增進度 / 自訂行程</h2>
+                    <button type="button" class="close-btn" onclick="closeAddEventPage()">&times;</button>
+                </div>
+
+                <input type="hidden" id="ae-date">
+
+                <div class="form-group" style="background: transparent; border:none; padding:0; margin-bottom: 15px;">
+                    <label style="color: var(--accent); font-size: 1.1em;">📅 日期：<span id="ae-date-display" style="color: var(--primary);"></span></label>
+                    <button class="btn-outline" onclick="closeAddEventPage()" style="margin-left:20px; padding:5px 15px;">← 返回月曆</button>
+                </div>
+
+                <div class="form-group" style="background: #f0f8ff; border: 1px solid #b3d7ff;">
+                    <label style="color:#0056b3; margin-bottom: 12px;">🔗 從教材庫連動進度 (優先依照月曆條件過濾)</label>
+                    <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                        <div style="flex: 1; min-width: 200px;">
+                            <label style="font-size: 0.85em; color: var(--secondary);">【1. 任務 / 專案】</label>
+                            <select id="ae-cat" onchange="onAeCatChange()" style="margin-bottom:8px;"></select>
+                            <select id="ae-mis" onchange="onAeMisChange()"></select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <label style="font-size: 0.85em; color: var(--secondary);">【2. 勾選要加入的單元 (已隱藏月曆中已有的單元)】</label>
+                        <p style="margin: 0 0 5px 0; font-size: 0.8em; color: #7f8c8d;">勾選後會自動彙整至下方的展示區，儲存時將為您建立多筆進度。</p>
+                        <div id="ae-subject-unit-container" style="position:relative; padding:45px 50px 10px 50px; min-height:420px; box-sizing:border-box;">
+                            <div id="ae-nav-bar" style="display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 0 8px 0; font-weight:bold; color:var(--secondary); font-size:0.9em;">
+                                <span id="ae-nav-text">--</span>
+                            </div>
+                            <div onclick="aeSlide(-1)" id="ae-btn-prev" style="position:absolute; top:45px; left:8px; width:34px; height:34px; background:white; border:2px solid #cbd5e1; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); font-size:20px; color:#64748b; line-height:1; z-index:20; user-select:none;">‹</div>
+                            <div onclick="aeSlide(1)" id="ae-btn-next" style="position:absolute; top:45px; right:8px; width:34px; height:34px; background:white; border:2px solid #cbd5e1; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); font-size:20px; color:#64748b; line-height:1; z-index:20; user-select:none;">›</div>
+                            <div id="ae-cards-dynamic" style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ae-selected-display-container" style="display:none; margin-bottom: 15px; background: #fdfefe; border: 2px dashed var(--success); border-radius: 8px; padding: 15px;">
+                    <div style="font-size: 0.9em; color: var(--success); margin-bottom: 8px; font-weight: bold;">✅ 已選取的科目與單元 (可個別修改排入頁碼)</div>
+                    <div id="ae-selected-carousel" class="horizontal-scroll" style="display: flex; gap: 15px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; scroll-behavior: smooth;"></div>
+                </div>
+
+                <div id="ae-manual-inputs-container">
+                    <div style="text-align:center; margin: 15px 0; color:#95a5a6; font-weight:bold; font-size:0.9em;">--- 或者建立單筆自訂行程 ---</div>
+                    <div class="form-group">
+                        <label>標題 / 科目名稱 (必填)</label>
+                        <input type="text" id="ae-subject" placeholder="純自訂行程請自行輸入 (例如：拍畢業照)">
+                    </div>
+                    <div class="form-group">
+                        <label>詳細內容 / 顯示文字 (選填)</label>
+                        <input type="text" id="ae-text" placeholder="例如：第一次模擬考">
+                    </div>
+                    <div class="form-group">
+                        <label>手動輸入進度範圍 (頁碼/選填)</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="ae-start" placeholder="起始頁碼" min="0">
+                            <span>～</span>
+                            <input type="number" id="ae-end" placeholder="結束頁碼" min="0">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="background: #fff8e1; border: 1px solid #ffe082;">
+                    <label style="cursor: pointer; display: flex; align-items: center; margin: 0; color: #d35400;">
+                        <input type="checkbox" id="ae-reminder" style="width: auto; margin-right: 10px; transform: scale(1.3);">
+                        🔔 在日曆上標示為重要提醒
+                    </label>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;">
+                    <button class="btn-outline" onclick="closeAddEventPage()">← 返回月曆</button>
+                    <button class="btn-success" style="padding: 10px 20px; font-size:1.1em;" onclick="saveNewEvent()">💾 儲存排程</button>
+                </div>
+            </div>
+        </div>
                 
                 <div class="filter-bar" style="margin-bottom: 15px; border-left-color: var(--purple); display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: transparent; padding: 0; box-shadow: none; border-left: none;">
                     <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; align-items: center;">
@@ -3796,25 +3907,26 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         function openAddEventModal(dateStr, planId) {
             el('ae-date').value = dateStr;
+            el('ae-date').dataset.pid = planId;
             el('ae-date-display').innerText = dateStr;
-            
+
             var currentCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
             var currentMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
-            
+
             var catOpts = '<option value="">-- 純手動自訂行程 (不連動) --</option>';
             Object.keys(appMissions).forEach(c => catOpts += `<option value="${c}">${c}</option>`);
             el('ae-cat').innerHTML = catOpts;
-            
+
             el('ae-subject').value = '';
             el('ae-text').value = '';
             el('ae-start').value = '';
             el('ae-end').value = '';
             el('ae-reminder').checked = false;
-            el('modal-add-event').dataset.pid = planId;
-            
+            if (el('modal-add-event')) el('modal-add-event').dataset.pid = planId;
+
             window.aeSelectedItems = [];
             updateAeSelectedDisplay();
-            
+
             if (currentCat !== 'ALL' && appMissions[currentCat]) {
                 el('ae-cat').value = currentCat;
                 onAeCatChange(currentMis !== 'ALL' ? currentMis : '');
@@ -3827,8 +3939,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 el('ae-btn-prev').style.display = 'none';
                 el('ae-btn-next').style.display = 'none';
             }
-            
-            openModal('modal-add-event');
+
+            // v1.5.46: 切換到 page-add-event（全替換模式）
+            closeModal('modal-add-event');
+            el('page-planner').style.display = 'none';
+            el('page-add-event').style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+
+        // v1.5.46: 關閉新增頁，返回月曆
+        function closeAddEventPage() {
+            el('page-add-event').style.display = 'none';
+            el('page-planner').style.display = 'block';
+            // 順便重刷月曆，確保顯示最新資料
+            if (typeof renderCalendar === 'function') renderCalendar();
+            window.scrollTo(0, 0);
         }
 
         // ==========================================
@@ -4103,8 +4228,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function saveNewEvent() {
-            let pid = el('modal-add-event').dataset.pid;
-            let dateStr = el('ae-date').value;
+            // v1.5.46: 支援 page 模式 (優先取 page 模式的 ae-date，否則取 modal 的)
+            var aeDateEl = el('modal-add-event').style.display !== 'none' ? document.getElementById('modal-add-event').querySelector('#ae-date') : el('page-add-event').querySelector('#ae-date');
+            var pid = aeDateEl ? aeDateEl.dataset.pid : '';
+            var dateStr = aeDateEl ? aeDateEl.value : '';
             let reminder = el('ae-reminder').checked;
             let cat = el('ae-cat').value || '';
             let mis = el('ae-mis').value || '';
@@ -4207,7 +4334,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             
             saveToLocal();
+            // v1.5.46: 關閉 modal 或 page 模式都能正確返回
             closeModal('modal-add-event');
+            closeAddEventPage();
             renderCalendar();
             checkDailyWorkload(plan, dateStr);
         }
