@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.33]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.34]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2012,6 +2012,47 @@
             }
         }
 
+        // v1.5.34: 統一教材類型順序為 defaultTypes 順序 (複習講義 → 複習卷 → 數字題本 → 模擬題本 → 考古題)
+        function _v1534Migrate(uid) {
+            var user = multiData[uid];
+            if (!user) return;
+            if (user._v1534_type_order_fixed) return;
+            var defaultOrder = ['複習講義','複習卷','數字題本','模擬題本','考古題'];
+            var fixed = 0;
+            function fixCat(catObj) {
+                if (!catObj) return;
+                Object.keys(catObj).forEach(function(subName){
+                    var subj = catObj[subName];
+                    if (!subj || !subj.materials) return;
+                    var mats = subj.materials;
+                    var ordered = {};
+                    // 先按 defaultOrder 加
+                    defaultOrder.forEach(function(t){
+                        if (mats[t]) ordered[t] = mats[t];
+                    });
+                    // 再加自訂類型 (不在 defaultOrder)
+                    Object.keys(mats).forEach(function(t){
+                        if (defaultOrder.indexOf(t) === -1) ordered[t] = mats[t];
+                    });
+                    if (JSON.stringify(Object.keys(mats)) !== JSON.stringify(Object.keys(ordered))) {
+                        subj.materials = ordered;
+                        fixed++;
+                    }
+                });
+            }
+            if (user.masters) {
+                Object.keys(user.masters).forEach(function(catName){
+                    fixCat(user.masters[catName]);
+                });
+            }
+            user._v1534_type_order_fixed = true;
+            if (fixed > 0) {
+                console.log('v1.5.34: ✅ 統一了 ' + fixed + ' 個 subject 的教材類型順序');
+            } else {
+                console.log('v1.5.34: ✅ 所有教材類型順序皆已統一，無需修正');
+            }
+        }
+
 loadBoardHeader();
 
             var currentDataStr = localStorage.getItem(STORAGE_KEY_FAMILY);
@@ -2049,6 +2090,9 @@ loadBoardHeader();
 
                     // v1.5.29: 同步 plan.grid 裡 task.mis 跟 log.mission (頁數重疊比對，處理順延任務)
                     _v1529Migrate(uid);
+
+                    // v1.5.34: 統一教材類型順序為 defaultTypes 順序
+                    _v1534Migrate(uid);
 
                     // v1.5.2: migrate - 重新設計為 3 層架構 (Material Type + Instance + Units)
                     // 從 v1.5.1 升級: 把主教材 units 搬到「複習講義」的第一個 instance「(原主教材)」
