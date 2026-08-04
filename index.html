@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.36]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.37]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1530,6 +1530,7 @@
         window.aeSelectedItems = [];
         window.aeDisplayMode = 'D';  // v1.5.35: 手動新增顯示模式
         window.aeCollapsed = {};     // v1.5.35: 手動新增摺疊狀態
+        window.aeSubjectType = {};  // v1.5.37: 每個科目目前選擇的教材類型 (sub → typeName)
 
         function applyPlannerButtonsColors() {
             const colors = ['#F3D2AC', '#F3B8B1'];
@@ -3856,98 +3857,95 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var subKeys = Object.keys(mTree);
             subKeys = getSortedSubjects(subKeys);
 
-            // v1.5.35: 顯示模式 radio button 區
-            html += `<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin-bottom:12px; padding:8px; background:#f8fafc; border-radius:6px; border:1px solid #e2e8f0;">
-                <span style="font-weight:bold; color:var(--secondary); font-size:0.85em;">顯示方式:</span>`;
-            ['A','B','C','D','E'].forEach(function(m){
-                var labels = {A:'教材類型', B:'冊數/版本', C:'mission+篩選', D:'標籤', E:'摺疊'};
-                var checked = window.aeDisplayMode === m ? 'checked' : '';
-                var borderColor = window.aeDisplayMode === m ? 'var(--accent)' : '#cbd5e1';
-                var bgColor = window.aeDisplayMode === m ? '#e0f2fe' : 'white';
-                html += '<label style="font-size:0.8em; cursor:pointer; padding:3px 8px; border-radius:12px; border:1px solid ' + borderColor + '; background:' + bgColor + ';"><input type="radio" name="ae-display-mode" value="' + m + '" ' + checked + ' onchange="setAeDisplayMode(\'' + m + '\')" style="display:none;">' + labels[m] + '</label>';
-            });
-            html += `</div>`;
-
-            // 收集所有 unit 進一個 array
-            var allUnits = [];
+            // v1.5.37: 每個科目一個全寬卡片，每個卡片內部有教材類型 radio 切換
             subKeys.forEach(function(sub){
                 var sTree = mTree[sub];
+                var subUnits = [];
                 if (sTree.type === 'custom') {
-                    sTree.items['custom'].forEach(function(u){ allUnits.push({sub:sub, u:u, vol:'', typeName:u._typeName||'', instanceName:u._instanceName||''}); });
+                    sTree.items['custom'].forEach(function(u){
+                        subUnits.push({sub:sub, u:u, vol:'', typeName:u._typeName||'', instanceName:u._instanceName||''});
+                    });
                 } else {
                     var vols = appMaster[sub].volOrder ? appMaster[sub].volOrder.filter(function(v){return sTree.items[v];}) : Object.keys(sTree.items);
                     vols.forEach(function(vol){
                         sTree.items[vol].forEach(function(u){
-                            allUnits.push({sub:sub, u:u, vol:vol, typeName:u._typeName||'', instanceName:u._instanceName||''});
+                            subUnits.push({sub:sub, u:u, vol:vol, typeName:u._typeName||'', instanceName:u._instanceName||''});
                         });
                     });
                 }
+                if (subUnits.length === 0) return;
+                html += renderAeSubjectCardHtml(sub, subUnits, cat, mis);
+                hasUnits = true;
             });
-
-            // v1.5.36: 顯示模式 radio button 加 label 「手動新增」
-            html += `</div>`;
-
-            // 依顯示模式渲染
-            var mode = window.aeDisplayMode || 'D';
-            if (mode === 'D') {
-                // 扁平 (按 sub 分組, sub 內按頁數) — v1.5.36 改為全寬垂直堆疊
-                subKeys.forEach(function(sub){
-                    var subUnits = allUnits.filter(function(x){ return x.sub === sub; });
-                    if (subUnits.length === 0) return;
-                    html += renderAeSubjectHtml(sub, subUnits, cat, mis);
-                });
-                hasUnits = allUnits.length > 0;
-            } else {
-                // A/B/C/E 分組渲染
-                var groups = {};
-                allUnits.forEach(function(x){
-                    var k;
-                    if (mode === 'A') k = x.typeName || '(未分類)';
-                    else if (mode === 'B') k = x.instanceName || x.vol || '(未分類)';
-                    else if (mode === 'C') {
-                        var status = getUnitScheduleStatus(x.sub, x.u.name, x.vol, x.u.id, x.u.start, x.u.end, cat, mis);
-                        k = status.misMaxEnd > 0 ? '已排過' : '未排過';
-                    } else { k = '_flat'; }
-                    if (!groups[k]) groups[k] = [];
-                    groups[k].push(x);
-                });
-                Object.keys(groups).forEach(function(gKey){
-                    var gUnits = groups[gKey];
-                    var isCollapsed = window.aeCollapsed[gKey];
-                    html += '<div style="margin-bottom:10px; border:1px solid #e2e8f0; border-radius:6px; background:#fffbeb;">';
-                    html += '<div style="display:flex; align-items:center; padding:8px 10px; background:#fef3c7; cursor:pointer;" onclick="toggleAeGroup(\'' + escapeHtml(gKey).replace(/'/g, "\\'") + '\')">';
-                    html += '<span style="margin-right:8px; font-weight:bold;">' + (isCollapsed ? '▶' : '▼') + '</span>';
-                    html += '<span style="font-weight:bold; color:#92400e;">📦 ' + escapeHtml(gKey) + '</span>';
-                    html += '<span style="margin-left:8px; color:#78716c; font-size:0.85em;">(' + gUnits.length + ' 個單元)</span>';
-                    html += '</div>';
-                    if (!isCollapsed) {
-                        html += '<div style="padding:8px;">';
-                        gUnits.forEach(function(x){
-                            html += renderAeUnitCheckboxHtml(x, cat, mis, mode);
-                            hasUnits = true;
-                        });
-                        html += '</div>';
-                    }
-                    html += '</div>';
-                });
-            }
 
             container.innerHTML = hasUnits ? html : '<div style="color:#27ae60; padding:10px; font-weight:bold;">🎉 此任務的所有單元都已經排入月曆囉！</div>';
         }
 
-        // v1.5.35: 渲染一個科目的容器 (模式 D 用)
-        function renderAeSubjectHtml(sub, subUnits, cat, mis) {
-            // v1.5.36: 像 wizard 一樣的卡片 layout (全寬垂直堆疊，不要水平並排)
+        // v1.5.37: 渲染一個科目的全寬卡片 — 含教材類型 radio 切換
+        function renderAeSubjectCardHtml(sub, subUnits, cat, mis) {
+            // 取得此科目可用的教材類型 (只列實際有 unit 的 type)
+            var availableTypes = [];
+            var seenTypes = {};
+            subUnits.forEach(function(x){
+                var t = x.typeName || '(未分類)';
+                if (!seenTypes[t]) { seenTypes[t] = true; availableTypes.push(t); }
+            });
+            // 按 defaultTypes 順序排序
+            var defaultOrder = ['複習講義','複習卷','數字題本','模擬題本','考古題'];
+            availableTypes.sort(function(a, b){
+                var ai = defaultOrder.indexOf(a), bi = defaultOrder.indexOf(b);
+                if (ai === -1 && bi === -1) return a.localeCompare(b);
+                if (ai === -1) return 1;
+                if (bi === -1) return -1;
+                return ai - bi;
+            });
+
+            // 預設選第一個 type (或在 sessionStorage 裡記住的)
+            if (!window.aeSubjectType[sub] || availableTypes.indexOf(window.aeSubjectType[sub]) === -1) {
+                window.aeSubjectType[sub] = availableTypes[0] || '';
+            }
+            var currentType = window.aeSubjectType[sub];
+
+            // 標題列
             var html = '<div style="border: 1px solid var(--border); border-radius: 8px; background: #fff; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px;">';
             html += '<div style="background: var(--primary); color: white; padding: 10px 15px; font-weight: bold; font-size: 0.95em;">📘 ' + sub + '</div>';
-            html += '<div style="padding: 12px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 10px;">';
-            subUnits.forEach(function(x){
-                html += renderAeUnitCheckboxHtml(x, cat, mis, 'D');
-            });
+
+            // 教材類型 radio (只列有 unit 的 type, 沒有的類型不顯示 radio)
+            if (availableTypes.length > 1) {
+                html += '<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:10px 15px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">';
+                html += '<span style="font-weight:bold; color:var(--secondary); font-size:0.8em;">教材類型:</span>';
+                availableTypes.forEach(function(t){
+                    var checked = currentType === t ? 'checked' : '';
+                    var borderColor = currentType === t ? 'var(--accent)' : '#cbd5e1';
+                    var bgColor = currentType === t ? '#e0f2fe' : 'white';
+                    html += '<label style="font-size:0.8em; cursor:pointer; padding:3px 8px; border-radius:12px; border:1px solid ' + borderColor + '; background:' + bgColor + ';"><input type="radio" name="ae-type-' + sub + '" value="' + escapeHtml(t) + '" ' + checked + ' onchange="setAeSubjectType(\'' + escapeHtml(sub) + '\', \'' + escapeHtml(t).replace(/'/g, "\\'") + '\')" style="display:none;">' + escapeHtml(t) + '</label>';
+                });
+                html += '</div>';
+            }
+
+            // 單元列表 (依 currentType 過濾)
+            html += '<div style="padding: 12px;">';
+            if (currentType) {
+                var filteredUnits = subUnits.filter(function(x){ return (x.typeName || '(未分類)') === currentType; });
+                if (filteredUnits.length === 0) {
+                    html += '<div style="color:#7f8c8d; padding:15px; text-align:center; background:#f9fafb; border-radius:6px;">📝 此教材類型尚無單元</div>';
+                } else {
+                    filteredUnits.forEach(function(x){
+                        html += renderAeUnitCheckboxHtml(x, cat, mis, 'D');
+                    });
+                }
+            } else {
+                html += '<div style="color:#7f8c8d; padding:15px; text-align:center;">📝 此科目無教材類型資料</div>';
+            }
             html += '</div></div>';
             return html;
         }
 
+        // v1.5.37: 切換某科目的教材類型
+        function setAeSubjectType(sub, typeName) {
+            window.aeSubjectType[sub] = typeName;
+            onAeMisChange();
+        }
         // v1.5.35: 渲染手動新增的單元 checkbox row
         function renderAeUnitCheckboxHtml(x, cat, mis, displayMode) {
             var u = x.u;
@@ -3965,18 +3963,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 showQuickRead: false,
                 displayMode: displayMode
             });
-        }
-
-        // v1.5.35: 切換手動新增的顯示模式
-        function setAeDisplayMode(mode) {
-            window.aeDisplayMode = mode;
-            onAeMisChange();
-        }
-
-        // v1.5.35: 展開/收合手動新增的群組
-        function toggleAeGroup(gKey) {
-            window.aeCollapsed[gKey] = !window.aeCollapsed[gKey];
-            onAeMisChange();
         }
 
         function toggleAeUnitSelection(sub, start, end, name, unitId, vol, isChecked) {
