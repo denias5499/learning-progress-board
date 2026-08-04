@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.37]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.38]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1345,9 +1345,12 @@
                 <div style="margin-top: 15px;">
                     <label style="font-size: 0.85em; color: var(--secondary);">【2. 勾選要加入的單元 (已隱藏月曆中已有的單元)】</label>
                     <p style="margin: 0 0 5px 0; font-size: 0.8em; color: #7f8c8d;">勾選後會自動彙整至下方的展示區，儲存時將為您建立多筆進度。</p>
-                    <div id="ae-subject-unit-container" class="horizontal-scroll" style="display: flex; gap: 12px; overflow-x: auto; padding: 10px 0; align-items: flex-start;">
+                    <div id="ae-subject-unit-container" class="vertical-scroll" style="display: flex; flex-direction: column; gap: 12px; padding: 10px 0;">
                         <div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>
                     </div>
+                    <style>
+                        #ae-subject-unit-container > div[id^="ae-subj-card-"] { width: 100% !important; box-sizing: border-box; }
+                    </style>
                 </div>
             </div>
 
@@ -3907,7 +3910,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var currentType = window.aeSubjectType[sub];
 
             // 標題列
-            var html = '<div style="border: 1px solid var(--border); border-radius: 8px; background: #fff; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px;">';
+            var html = '<div id="ae-subj-card-' + sub + '" style="border: 1px solid var(--border); border-radius: 8px; background: #fff; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; width: 100%; box-sizing: border-box;">';
             html += '<div style="background: var(--primary); color: white; padding: 10px 15px; font-weight: bold; font-size: 0.95em;">📘 ' + sub + '</div>';
 
             // 教材類型 radio (只列有 unit 的 type, 沒有的類型不顯示 radio)
