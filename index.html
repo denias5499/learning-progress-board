@@ -3913,23 +3913,24 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function openAddEventModal(dateStr, planId) {
-            el('ae-date').value = dateStr;
-            el('ae-date').dataset.pid = planId;
-            el('ae-date-display').innerText = dateStr;
+            // v1.5.46: 所有表單欄位都寫入目前活躍的容器
+            var aeC = getActiveAeContainer();
+            aeC.querySelector('#ae-date').value = dateStr;
+            aeC.querySelector('#ae-date').dataset.pid = planId;
+            aeC.querySelector('#ae-date-display').innerText = dateStr;
 
             var currentCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
             var currentMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
 
             var catOpts = '<option value="">-- 純手動自訂行程 (不連動) --</option>';
             Object.keys(appMissions).forEach(c => catOpts += `<option value="${c}">${c}</option>`);
-            el('ae-cat').innerHTML = catOpts;
+            aeC.querySelector('#ae-cat').innerHTML = catOpts;
 
-            el('ae-subject').value = '';
-            el('ae-text').value = '';
-            el('ae-start').value = '';
-            el('ae-end').value = '';
-            el('ae-reminder').checked = false;
-            if (el('modal-add-event')) el('modal-add-event').dataset.pid = planId;
+            aeC.querySelector('#ae-subject').value = '';
+            aeC.querySelector('#ae-text').value = '';
+            aeC.querySelector('#ae-start').value = '';
+            aeC.querySelector('#ae-end').value = '';
+            aeC.querySelector('#ae-reminder').checked = false;
 
             window.aeSelectedItems = [];
             updateAeSelectedDisplay();
@@ -3968,30 +3969,32 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // 並自動帶入剩餘的起訖範圍
         // ==========================================
         function onAeCatChange(preselectMis) {
-            var cat = el('ae-cat').value;
+            var aeC = getActiveAeContainer();
+            var cat = aeC.querySelector('#ae-cat').value;
             if(!cat) {
-                el('ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
+                aeC.querySelector('#ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
                 document.querySelectorAll('#ae-cards-dynamic').forEach(function(c){c.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';});
-                getActiveAeContainer().querySelector('#ae-nav-text').textContent = '--';
-                getActiveAeContainer().querySelector('#ae-btn-prev').style.display = 'none';
-                getActiveAeContainer().querySelector('#ae-btn-next').style.display = 'none';
+                aeC.querySelector('#ae-nav-text').textContent = '--';
+                aeC.querySelector('#ae-btn-prev').style.display = 'none';
+                aeC.querySelector('#ae-btn-next').style.display = 'none';
                 return;
             }
             populateSelect('ae-mis', Object.keys(appMissions[cat] || {}), null);
-            el('ae-mis').insertAdjacentHTML('afterbegin', '<option value="">-- 請選擇任務 --</option>');
-            
+            aeC.querySelector('#ae-mis').insertAdjacentHTML('afterbegin', '<option value="">-- 請選擇任務 --</option>');
+
             if (typeof preselectMis === 'string' && preselectMis && appMissions[cat][preselectMis]) {
-                el('ae-mis').value = preselectMis;
+                aeC.querySelector('#ae-mis').value = preselectMis;
             } else {
-                el('ae-mis').value = '';
+                aeC.querySelector('#ae-mis').value = '';
             }
             onAeMisChange();
         }
 
         function onAeMisChange() {
-            var cat = el('ae-cat').value;
-            var mis = el('ae-mis').value;
-            var container = el('ae-subject-unit-container');
+            var aeC = getActiveAeContainer();
+            var cat = aeC.querySelector('#ae-cat').value;
+            var mis = aeC.querySelector('#ae-mis').value;
+            var container = aeC.querySelector('#ae-subject-unit-container');
             var cardsDynamic = getActiveAeContainer().querySelector('#ae-cards-dynamic');
             if(!cat || !mis) {
                 cardsDynamic.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
@@ -4235,21 +4238,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function saveNewEvent() {
-            // v1.5.46: 支援 page 模式 (優先取 page 模式的 ae-date，否則取 modal 的)
-            var aeDateEl = el('modal-add-event').style.display !== 'none' ? document.getElementById('modal-add-event').querySelector('#ae-date') : el('page-add-event').querySelector('#ae-date');
+            // v1.5.46: 支援 page 模式 — 所有表單欄位都從目前活躍的容器讀取
+            var aeC = getActiveAeContainer();
+            var aeDateEl = aeC.querySelector('#ae-date');
             var pid = aeDateEl ? aeDateEl.dataset.pid : '';
             var dateStr = aeDateEl ? aeDateEl.value : '';
-            let reminder = el('ae-reminder').checked;
-            let cat = el('ae-cat').value || '';
-            let mis = el('ae-mis').value || '';
-            
+            let reminder = aeC.querySelector('#ae-reminder').checked;
+            let cat = aeC.querySelector('#ae-cat').value || '';
+            let mis = aeC.querySelector('#ae-mis').value || '';
+
             let plan = appPlans.find(p => p.id === pid);
             if(!plan.grid[dateStr]) plan.grid[dateStr] = [];
-            
+
             if (window.aeSelectedItems && window.aeSelectedItems.length > 0) {
                 let hasUnfinished = false;
                 let unfinishedTasks = [];
-                
+
                 window.aeSelectedItems.forEach(item => {
                     let ep = Number(item.end) || 0;
                     let origEp = Number(item.origEnd) || 0;
@@ -4267,13 +4271,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     let txt = item.name;
                     let sp = Number(item.start) || 0;
                     let ep = Number(item.end) || 0;
-                    
+
                     let displayText = (reminder ? '🔔 ' : '') + `[${item.sub}] ` + txt;
                     if (sp && ep) {
                         if (sp !== ep) displayText += ` P.${sp}~${ep}`;
                         else displayText += ` P.${sp}`;
                     }
-                    
+
                     plan.grid[dateStr].push({
                         id: genId(),
                         subject: item.sub,
@@ -4295,7 +4299,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         let nextDate = new Date(dateStr);
                         nextDate.setDate(nextDate.getDate() + 1);
                         let nextDateStr = getLocalDateString(nextDate);
-                        
+
                         if (!plan.grid[nextDateStr]) plan.grid[nextDateStr] = [];
 
                         unfinishedTasks.forEach(item => {
@@ -4319,13 +4323,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
 
             } else {
-                let sub = el('ae-subject').value.trim();
-                let txt = el('ae-text').value.trim();
-                let sp = Number(el('ae-start').value) || 0;
-                let ep = Number(el('ae-end').value) || 0;
-                
+                let sub = aeC.querySelector('#ae-subject').value.trim();
+                let txt = aeC.querySelector('#ae-text').value.trim();
+                let sp = Number(aeC.querySelector('#ae-start').value) || 0;
+                let ep = Number(aeC.querySelector('#ae-end').value) || 0;
+
                 if(!sub) return alert('請輸入標題或科目名稱！');
-                
+
                 let displayText = (reminder ? '🔔 ' : '') + `[${sub}] `;
                 if (txt) displayText += txt;
                 if (sp && ep) {
@@ -4339,9 +4343,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     cat: '', mis: '', unitId: '', vol: '', unitName: txt, postponeCount: 0
                 });
             }
-            
+
             saveToLocal();
-            // v1.5.46: 關閉 modal 或 page 模式都能正確返回
             closeModal('modal-add-event');
             closeAddEventPage();
             renderCalendar();
