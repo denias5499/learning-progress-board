@@ -3913,8 +3913,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function openAddEventModal(dateStr, planId) {
-            // v1.5.46: 所有表單欄位都寫入目前活躍的容器
-            var aeC = getActiveAeContainer();
+            // v1.5.50: 明確寫入 page-add-event，確保在月曆頁時用 page 模式
+            var aeC = document.getElementById('page-add-event');
             aeC.querySelector('#ae-date').value = dateStr;
             aeC.querySelector('#ae-date').dataset.pid = planId;
             aeC.querySelector('#ae-date-display').innerText = dateStr;
@@ -3936,22 +3936,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
             updateAeSelectedDisplay();
 
             if (currentCat !== 'ALL' && appMissions[currentCat]) {
-                el('ae-cat').value = currentCat;
+                aeC.querySelector('#ae-cat').value = currentCat;
                 onAeCatChange(currentMis !== 'ALL' ? currentMis : '');
             } else {
-                el('ae-cat').value = '';
-                el('ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
-                // v1.5.46: 同時更新 modal 和 page-add-event 的卡片區
-                document.querySelectorAll('#ae-cards-dynamic').forEach(c => c.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>');
-                document.querySelectorAll('#ae-nav-text').forEach(t => t.textContent = '--');
-                document.querySelectorAll('#ae-btn-prev').forEach(b => b.style.display = 'none');
-                document.querySelectorAll('#ae-btn-next').forEach(b => b.style.display = 'none');
+                aeC.querySelector('#ae-cat').value = '';
+                aeC.querySelector('#ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
+                aeC.querySelector('#ae-cards-dynamic').innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
+                aeC.querySelector('#ae-nav-text').textContent = '--';
+                aeC.querySelector('#ae-btn-prev').style.display = 'none';
+                aeC.querySelector('#ae-btn-next').style.display = 'none';
             }
 
-            // v1.5.46: 切換到 page-add-event（全替換模式，改用 .active class）
+            // v1.5.50: 切換到 page-add-event（全替換模式）
             closeModal('modal-add-event');
             el('page-planner').classList.remove('active');
-            el('page-add-event').classList.add('active');
+            aeC.classList.add('active');
             window.scrollTo(0, 0);
         }
 
