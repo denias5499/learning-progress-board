@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.29]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.30]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2969,12 +2969,25 @@ loadBoardHeader();
                         var defHours = (prefs.subjects && prefs.subjects[sub] && prefs.subjects[sub].hoursPerUnit) ? prefs.subjects[sub].hoursPerUnit : 2.0;
 
                         // v1.5.24: 未排過的（misMaxEnd===0）排在前面，已排過的排在後面
-                        availableUnits.sort((a, b) => {
-                            var aUnscheduled = (a.misMaxEnd === 0) ? 0 : 1;
-                            var bUnscheduled = (b.misMaxEnd === 0) ? 0 : 1;
-                            if (aUnscheduled !== bUnscheduled) return aUnscheduled - bUnscheduled;
-                            return (Number(a.uObj.start)||0) - (Number(b.uObj.start)||0);
-                        });
+                        // v1.5.29: 排序 — 三層優先序
+                            // 1. 屬於當前 mission (unitId 在 appMissions[cat][mis] 裡) 的未排過 → 最前面
+                            // 2. 屬於當前 mission 的已排過
+                            // 3. 不屬於當前 mission 的未排過
+                            // 4. 不屬於當前 mission 的已排過
+                            // 同優先序內按頁數排序
+                            var misUnitIds = (appMissions[cat] && appMissions[cat][mis]) ? appMissions[cat][mis] : [];
+                            var misSet = new Set(misUnitIds);
+                            availableUnits.sort((a, b) => {
+                                var aInMis = misSet.has(a.id) ? 0 : 1;
+                                var bInMis = misSet.has(b.id) ? 0 : 1;
+                                var aUnscheduled = (a.misMaxEnd === 0) ? 0 : 1;
+                                var bUnscheduled = (b.misMaxEnd === 0) ? 0 : 1;
+                                // 兩層 key 合併排序: inMis * 2 + unscheduled
+                                var aKey = aInMis * 2 + aUnscheduled;
+                                var bKey = bInMis * 2 + bUnscheduled;
+                                if (aKey !== bKey) return aKey - bKey;
+                                return (Number(a.uObj.start)||0) - (Number(b.uObj.start)||0);
+                            });
 
                         wizardSubjects.push({
                             name: sub,
