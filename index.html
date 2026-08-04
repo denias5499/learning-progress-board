@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.30]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.31]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3048,7 +3048,13 @@ loadBoardHeader();
                     var isChecked = ws.selectedUnitIds.includes(u.id) ? 'checked' : '';
                     var prefix = u.vol ? `[${u.vol}] ` : '';
                     var pageStr = (u.uObj.start && u.uObj.end && u.uObj.start !== u.uObj.end) ? ` (P.${u.uObj.start}~${u.uObj.end})` : ((u.uObj.start && u.uObj.start === u.uObj.end) ? ` (P.${u.uObj.start})` : '');
-                    var isScheduled = u.misMaxEnd > 0;
+                    // v1.5.31: 只要 appLogs 有這個 unit 的記錄，就算已排過（不限當前 mission）
+                    var isScheduled = u.misMaxEnd > 0 || (function(){
+                        for (var li = 0; li < appLogs.length; li++) {
+                            if (appLogs[li].unitId === u.id) return true;
+                        }
+                        return false;
+                    })();
                     var qrChecked = u.quickRead ? 'checked' : '';
                     var qrStyle = u.quickRead ? 'color:#d97706; font-weight:bold;' : 'color:#9ca3af;';
                     html += `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#f8fafc'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#e2e8f0'};">
