@@ -3821,7 +3821,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 el('ae-cat').value = '';
                 el('ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
-                el('ae-subject-unit-container').innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
+                var cards = el('ae-cards-dynamic');
+                if (cards) cards.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
+                el('ae-nav-text').textContent = '--';
+                el('ae-btn-prev').style.display = 'none';
+                el('ae-btn-next').style.display = 'none';
             }
             
             openModal('modal-add-event');
@@ -3835,7 +3839,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var cat = el('ae-cat').value;
             if(!cat) {
                 el('ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
-                el('ae-subject-unit-container').innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
+                var cards = el('ae-cards-dynamic');
+                if (cards) cards.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
+                el('ae-nav-text').textContent = '--';
+                el('ae-btn-prev').style.display = 'none';
+                el('ae-btn-next').style.display = 'none';
                 return;
             }
             populateSelect('ae-mis', Object.keys(appMissions[cat] || {}), null);
