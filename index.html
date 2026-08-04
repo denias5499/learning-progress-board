@@ -3905,6 +3905,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
         }
 
+        // v1.5.46: helper — 取得目前活躍的 add-event 容器（modal 或 page-add-event）
+        function getActiveAeContainer() {
+            var modalEl = document.getElementById('modal-add-event');
+            if (modalEl && modalEl.style.display !== 'none') return modalEl;
+            return document.getElementById('page-add-event');
+        }
+
         function openAddEventModal(dateStr, planId) {
             el('ae-date').value = dateStr;
             el('ae-date').dataset.pid = planId;
@@ -3933,11 +3940,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 el('ae-cat').value = '';
                 el('ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
-                var cards = el('ae-cards-dynamic');
-                if (cards) cards.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
-                el('ae-nav-text').textContent = '--';
-                el('ae-btn-prev').style.display = 'none';
-                el('ae-btn-next').style.display = 'none';
+                // v1.5.46: 同時更新 modal 和 page-add-event 的卡片區
+                document.querySelectorAll('#ae-cards-dynamic').forEach(c => c.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>');
+                document.querySelectorAll('#ae-nav-text').forEach(t => t.textContent = '--');
+                document.querySelectorAll('#ae-btn-prev').forEach(b => b.style.display = 'none');
+                document.querySelectorAll('#ae-btn-next').forEach(b => b.style.display = 'none');
             }
 
             // v1.5.46: 切換到 page-add-event（全替換模式，改用 .active class）
@@ -3964,11 +3971,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var cat = el('ae-cat').value;
             if(!cat) {
                 el('ae-mis').innerHTML = '<option value="">(不選擇任務)</option>';
-                var cards = el('ae-cards-dynamic');
-                if (cards) cards.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
-                el('ae-nav-text').textContent = '--';
-                el('ae-btn-prev').style.display = 'none';
-                el('ae-btn-next').style.display = 'none';
+                document.querySelectorAll('#ae-cards-dynamic').forEach(function(c){c.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';});
+                getActiveAeContainer().querySelector('#ae-nav-text').textContent = '--';
+                getActiveAeContainer().querySelector('#ae-btn-prev').style.display = 'none';
+                getActiveAeContainer().querySelector('#ae-btn-next').style.display = 'none';
                 return;
             }
             populateSelect('ae-mis', Object.keys(appMissions[cat] || {}), null);
@@ -3986,12 +3992,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var cat = el('ae-cat').value;
             var mis = el('ae-mis').value;
             var container = el('ae-subject-unit-container');
-            var cardsDynamic = el('ae-cards-dynamic');
+            var cardsDynamic = getActiveAeContainer().querySelector('#ae-cards-dynamic');
             if(!cat || !mis) {
                 cardsDynamic.innerHTML = '<div style="color:#7f8c8d; padding:10px;">(請先選擇上方分類與任務)</div>';
-                el('ae-nav-text').textContent = '--';
-                el('ae-btn-prev').style.display = 'none';
-                el('ae-btn-next').style.display = 'none';
+                getActiveAeContainer().querySelector('#ae-nav-text').textContent = '--';
+                getActiveAeContainer().querySelector('#ae-btn-prev').style.display = 'none';
+                getActiveAeContainer().querySelector('#ae-btn-next').style.display = 'none';
                 return;
             }
             var mTree = buildMissionTree(cat, mis);
@@ -4021,9 +4027,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var validSubs = Object.keys(subjectData);
             if (validSubs.length === 0) {
                 cardsDynamic.innerHTML = '<div style="color:#27ae60; padding:10px; font-weight:bold;">🎉 此任務的所有單元都已經排入月曆囉！</div>';
-                el('ae-btn-prev').style.display = 'none';
-                el('ae-btn-next').style.display = 'none';
-                el('ae-nav-text').textContent = '--';
+                getActiveAeContainer().querySelector('#ae-btn-prev').style.display = 'none';
+                getActiveAeContainer().querySelector('#ae-btn-next').style.display = 'none';
+                getActiveAeContainer().querySelector('#ae-nav-text').textContent = '--';
                 return;
             }
 
@@ -4036,9 +4042,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var hideNav = total <= 1;
 
             // 更新 static 按鈕 + nav 文字
-            el('ae-nav-text').textContent = (window.aeCurrentSubIdx + 1) + ' / ' + total + '  📘 ' + currentSub;
-            el('ae-btn-prev').style.display = hideNav ? 'none' : 'flex';
-            el('ae-btn-next').style.display = hideNav ? 'none' : 'flex';
+            getActiveAeContainer().querySelector('#ae-nav-text').textContent = (window.aeCurrentSubIdx + 1) + ' / ' + total + '  📘 ' + currentSub;
+            getActiveAeContainer().querySelector('#ae-btn-prev').style.display = hideNav ? 'none' : 'flex';
+            getActiveAeContainer().querySelector('#ae-btn-next').style.display = hideNav ? 'none' : 'flex';
 
             // 產生卡片 HTML，寫入 #ae-cards-dynamic
             var html = '';
@@ -4069,12 +4075,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
             // 切換卡片顯示
             subKeys.forEach(function(sub, idx){
-                var cardEl = el('ae-subj-card-' + idx);
+                var cardEl = getActiveAeContainer().querySelector('#ae-subj-card-' + idx);
                 if (cardEl) cardEl.style.display = idx === window.aeCurrentSubIdx ? 'block' : 'none';
             });
 
             // 更新 static nav 文字
-            var navText = el('ae-nav-text');
+            var navText = getActiveAeContainer().querySelector('#ae-nav-text');
             if (navText) navText.textContent = (window.aeCurrentSubIdx + 1) + ' / ' + total + '  📘 ' + currentSub;
         }
 
@@ -4178,9 +4184,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
         };
 
         function updateAeSelectedDisplay() {
-            var container = el('ae-selected-display-container');
-            var carousel = el('ae-selected-carousel');
-            var manualInputs = el('ae-manual-inputs-container');
+            var aeC = getActiveAeContainer();
+            var container = aeC.querySelector('#ae-selected-display-container');
+            var carousel = aeC.querySelector('#ae-selected-carousel');
+            var manualInputs = aeC.querySelector('#ae-manual-inputs-container');
             
             if (window.aeSelectedItems.length === 0) {
                 container.style.display = 'none';
