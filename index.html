@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.40]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.42]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3888,12 +3888,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var currentSub = validSubs[window.aeCurrentSubIdx];
             var hideNav = total <= 1;
 
-            // v1.5.40: ◀ ▶ 固定在容器兩側，與卡片進度指示在同一外層
-            var html = '<div style="position:relative; padding:0 50px; user-select:none;">'; // 左右各留 50px 給箭頭
+            // v1.5.41: ◀ ▶ 按鈕位置固定 — 給容器 min-height，讓 top:50% 有穩定基準
+            // 先計算所有卡片的最大高度，給容器一個 min-height
+            var maxCardHeight = 320; // 預設值（px），足夠容納最多 unit 的卡片
 
-            // 進度指示 + 科目名
-            html += '<div id="ae-nav-bar" style="text-align:center; padding:8px 0 12px 0; font-weight:bold; color:var(--secondary); font-size:0.9em;">';
-            html += '<span style="background:var(--primary); color:white; padding:2px 10px; border-radius:12px; margin-right:8px;">' + (window.aeCurrentSubIdx + 1) + ' / ' + total + '</span>';
+            var html = '<div style="position:relative; padding:0 50px; user-select:none; min-height:' + maxCardHeight + 'px;">'; // 左右各留 50px 給箭頭
+
+            // 進度指示 + 科目名 (移到 ◀ ▶ 按鈕同一行)
+            html += '<div id="ae-nav-bar" style="display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 0 8px 0; font-weight:bold; color:var(--secondary); font-size:0.9em;">';
+            html += '<span style="background:var(--primary); color:white; padding:2px 10px; border-radius:12px;">' + (window.aeCurrentSubIdx + 1) + ' / ' + total + '</span>';
             html += '<span style="font-size:1.1em;">📘 ' + currentSub + '</span>';
             html += '</div>';
 
@@ -3930,6 +3933,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             subKeys = getSortedSubjects(subKeys);
             var total = subKeys.length;
             window.aeCurrentSubIdx = (window.aeCurrentSubIdx + dir + total) % total;
+            var currentSub = subKeys[window.aeCurrentSubIdx];
 
             // 切換卡片顯示
             subKeys.forEach(function(sub, idx){
@@ -3937,17 +3941,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (cardEl) cardEl.style.display = idx === window.aeCurrentSubIdx ? 'block' : 'none';
             });
 
-            // 更新進度指示
-            var currentSub = subKeys[window.aeCurrentSubIdx];
-            var wrapper = el('ae-cards-wrapper');
-            if (wrapper) {
-                var parent = wrapper.parentElement;
-                // 更新進度文字
-                var indicator = parent.querySelector('div[style*="text-align:center"]');
-                if (indicator) {
-                    indicator.innerHTML = '<span style="background:var(--primary); color:white; padding:2px 10px; border-radius:12px; margin-right:8px;">' + (window.aeCurrentSubIdx + 1) + ' / ' + total + '</span>' +
-                        '<span style="font-size:1.1em;">📘 ' + currentSub + '</span>';
-                }
+            // 更新 ◀▶ 按鈕下方的進度文字 (ae-nav-bar 是 id)
+            var navBar = el('ae-nav-bar');
+            if (navBar) {
+                navBar.innerHTML = '<span style="background:var(--primary); color:white; padding:2px 10px; border-radius:12px;">' + (window.aeCurrentSubIdx + 1) + ' / ' + total + '</span>' +
+                    '<span style="font-size:1.1em;">📘 ' + currentSub + '</span>';
             }
         }
 
