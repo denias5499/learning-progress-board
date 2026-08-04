@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.31]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.32]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3048,10 +3048,17 @@ loadBoardHeader();
                     var isChecked = ws.selectedUnitIds.includes(u.id) ? 'checked' : '';
                     var prefix = u.vol ? `[${u.vol}] ` : '';
                     var pageStr = (u.uObj.start && u.uObj.end && u.uObj.start !== u.uObj.end) ? ` (P.${u.uObj.start}~${u.uObj.end})` : ((u.uObj.start && u.uObj.start === u.uObj.end) ? ` (P.${u.uObj.start})` : '');
-                    // v1.5.31: 只要 appLogs 有這個 unit 的記錄，就算已排過（不限當前 mission）
+                    // v1.5.32: 已排過判斷 — 掃描所有 plan.grid 有這個 unitId 的 task (不限 isDone/mis/cat)
+                    // 意義: 只要這個 unit 已經出現在月曆上（不管是否完成），就算「排過」
                     var isScheduled = u.misMaxEnd > 0 || (function(){
-                        for (var li = 0; li < appLogs.length; li++) {
-                            if (appLogs[li].unitId === u.id) return true;
+                        for (var pi = 0; pi < appPlans.length; pi++) {
+                            var pgrid = appPlans[pi].grid || {};
+                            for (var d in pgrid) {
+                                var tasks = pgrid[d] || [];
+                                for (var ti = 0; ti < tasks.length; ti++) {
+                                    if (tasks[ti].unitId === u.id) return true;
+                                }
+                            }
                         }
                         return false;
                     })();
