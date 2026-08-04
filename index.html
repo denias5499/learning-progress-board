@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.32]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.33]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1598,11 +1598,11 @@
             if (prefs) {
                 try { return JSON.parse(prefs); } catch(e){}
             }
-            return { hours: {}, subjects: {}, quickReadDiscount: 60 };
+            return { hours: {}, subjects: {}, quickReadDiscount: 60, displayMode: 'D' };
         }
 
         function saveWizardPrefs() {
-            var prefs = { hours: {}, subjects: {}, quickReadDiscount: 60 };
+            var prefs = { hours: {}, subjects: {}, quickReadDiscount: 60, displayMode: 'D' };
             for(let i=0; i<=6; i++) {
                 let val = el('wz-hrs-' + i).value;
                 if(val) prefs.hours[i] = val;
@@ -1611,9 +1611,12 @@
             prefs.quickReadDiscount = Math.max(10, Math.min(95, qrDiscount));
             if(typeof wizardSubjects !== 'undefined') {
                 wizardSubjects.forEach(ws => {
-                    prefs.subjects[ws.name] = { progVal: ws.progVal, hoursPerUnit: ws.hoursPerUnit };
+                    prefs.subjects[ws.name] = { progVal: ws.progVal, hoursPerUnit: ws.hoursPerUnit, displayMode: ws.displayMode || 'D' };
                 });
             }
+            // 全域 displayMode (e.g. 所有科目統一)
+            var globalDm = document.querySelector('input[name="wz-display-mode"]:checked');
+            if (globalDm) prefs.globalDisplayMode = globalDm.value;
             localStorage.setItem(STORAGE_KEY_WIZARD_PREFS, JSON.stringify(prefs));
         }
 
@@ -2950,18 +2953,18 @@ loadBoardHeader();
                 subKeys.forEach(sub => {
                     var sTree = mTree[sub];
                     var availableUnits = [];
-                    var extract = (u, volName) => {
+                    var extract = (u, volName, typeName, instanceName) => {
                         var status = getUnitScheduleStatus(sub, u.name, volName, u.id, u.start, u.end, cat, mis);
                         // v1.5.24: 移除 isFullyScheduled filter，全部顯示讓用戶自由選擇要不要再排
                         // 不調整 adjU.start，完整顯示原始範圍
-                        availableUnits.push({ id: u.id, name: u.name, vol: volName, uObj: { ...u }, misMaxEnd: status.misMaxEnd, quickRead: false });
+                        availableUnits.push({ id: u.id, name: u.name, vol: volName, typeName: typeName || '', instanceName: instanceName || '', uObj: { ...u }, misMaxEnd: status.misMaxEnd, quickRead: false });
                     };
 
                     if (sTree.type === 'custom') {
-                        sTree.items['custom'].forEach(u => extract(u, ''));
+                        sTree.items['custom'].forEach(u => extract(u, '', '', ''));
                     } else {
                         var vols = appMaster[sub].volOrder ? appMaster[sub].volOrder.filter(v => sTree.items[v]) : Object.keys(sTree.items);
-                        vols.forEach(v => sTree.items[v].forEach(u => extract(u, v)));
+                        vols.forEach(v => sTree.items[v].forEach(u => extract(u, v, u._typeName || '', u._instanceName || '')));
                     }
 
                     if (availableUnits.length > 0) {
@@ -2989,13 +2992,16 @@ loadBoardHeader();
                                 return (Number(a.uObj.start)||0) - (Number(b.uObj.start)||0);
                             });
 
+                        var savedMode = (prefs.subjects && prefs.subjects[sub] && prefs.subjects[sub].displayMode) ? prefs.subjects[sub].displayMode : (prefs.globalDisplayMode || 'D');
                         wizardSubjects.push({
                             name: sub,
-                            progVal: defProgVal, 
-                            progType: 'unit', 
-                            hoursPerUnit: defHours, 
+                            progVal: defProgVal,
+                            progType: 'unit',
+                            hoursPerUnit: defHours,
                             availableUnits: availableUnits,
-                            selectedUnitIds: availableUnits.map(u => u.id)
+                            selectedUnitIds: availableUnits.map(u => u.id),
+                            displayMode: savedMode,
+                            collapsed: {} // key: groupKey → true/false
                         });
                     }
                 });
@@ -3032,6 +3038,14 @@ loadBoardHeader();
                                 <label style="display:inline; margin-right:5px; font-weight:bold; color:var(--secondary);">每單元所需時數:</label>
                                 <input type="number" value="${ws.hoursPerUnit}" min="0.5" step="0.5" list="hours-list" style="width:70px; padding:6px; border-radius:4px; border:1px solid #ccc;" onchange="wizardSubjects[${i}].hoursPerUnit=Math.max(0.5, Number(this.value)); saveWizardPrefs();"> 小時
                             </div>
+                            <div style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <span style="font-weight:bold; color:var(--secondary); font-size:0.85em;">顯示方式:</span>
+                                ${['A','B','C','D','E'].map(function(m){
+                                    var labels = {A:'教材類型', B:'冊數/版本', C:'mission+篩選', D:'標籤', E:'摺疊'};
+                                    var checked = ws.displayMode === m ? 'checked' : '';
+                                    return '<label style="font-size:0.8em; cursor:pointer; padding:3px 8px; border-radius:12px; border:1px solid ' + (ws.displayMode === m ? 'var(--accent)' : '#cbd5e1') + '; background:' + (ws.displayMode === m ? '#e0f2fe' : 'white') + ';"><input type="radio" name="wz-dm-' + i + '" value="' + m + '" ' + checked + ' onchange="setWizardDisplayMode(' + i + ', \'' + m + '\')" style="display:none;">' + labels[m] + '</label>';
+                                }).join('')}
+                            </div>
                         </div>
                         <div class="vertical-scroll" style="max-height: 180px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; background:#fff;">`;
 
@@ -3044,38 +3058,120 @@ loadBoardHeader();
                     </div>`;
                 }
 
-                ws.availableUnits.forEach(u => {
-                    var isChecked = ws.selectedUnitIds.includes(u.id) ? 'checked' : '';
-                    var prefix = u.vol ? `[${u.vol}] ` : '';
-                    var pageStr = (u.uObj.start && u.uObj.end && u.uObj.start !== u.uObj.end) ? ` (P.${u.uObj.start}~${u.uObj.end})` : ((u.uObj.start && u.uObj.start === u.uObj.end) ? ` (P.${u.uObj.start})` : '');
-                    // v1.5.32: 已排過判斷 — 掃描所有 plan.grid 有這個 unitId 的 task (不限 isDone/mis/cat)
-                    // 意義: 只要這個 unit 已經出現在月曆上（不管是否完成），就算「排過」
-                    var isScheduled = u.misMaxEnd > 0 || (function(){
-                        for (var pi = 0; pi < appPlans.length; pi++) {
-                            var pgrid = appPlans[pi].grid || {};
-                            for (var d in pgrid) {
-                                var tasks = pgrid[d] || [];
-                                for (var ti = 0; ti < tasks.length; ti++) {
-                                    if (tasks[ti].unitId === u.id) return true;
-                                }
+                // v1.5.33: 依 displayMode 選擇渲染方式
+                var mode = ws.displayMode || 'D';
+                if (mode === 'D' || mode === 'A' || mode === 'B' || mode === 'C' || mode === 'E') {
+                    if (mode === 'D') {
+                        // 模式 D：扁平 (按頁數排序) + 帶 type/instance 標籤
+                        ws.availableUnits.forEach(u => {
+                            html += renderWizardUnitRowHtml(ws, i, u);
+                        });
+                    } else {
+                        // 模式 A/B/C/E：分組渲染
+                        var groups = {};
+                        ws.availableUnits.forEach(u => {
+                            var k = getGroupKey(mode, u);
+                            if (!groups[k]) groups[k] = [];
+                            groups[k].push(u);
+                        });
+                        Object.keys(groups).forEach(gKey => {
+                            var gUnits = groups[gKey];
+                            var allGChecked = gUnits.every(u => ws.selectedUnitIds.includes(u.id));
+                            var isCollapsed = ws.collapsed[gKey];
+                            html += `<div style="margin-bottom:8px; border:1px solid #e2e8f0; border-radius:6px; background:#fffbeb;">`;
+                            html += `<div style="display:flex; align-items:center; padding:8px 10px; background:#fef3c7; cursor:pointer;" onclick="toggleWizardGroup(${i}, '${escapeHtml(gKey).replace(/'/g, "\\'")}')">`;
+                            html += `<span style="margin-right:8px; font-weight:bold;">${isCollapsed ? '▶' : '▼'}</span>`;
+                            html += `<span style="font-weight:bold; color:#92400e;">📦 ${gKey}</span>`;
+                            html += `<span style="margin-left:8px; color:#78716c; font-size:0.85em;">(${gUnits.length} 個單元)</span>`;
+                            html += `<label style="margin-left:auto; font-size:0.85em;" onclick="event.stopPropagation();"><input type="checkbox" ${allGChecked ? 'checked' : ''} onchange="toggleWizardGroupUnits(${i}, '${escapeHtml(gKey).replace(/'/g, "\\'")}', this.checked)" style="width:auto; margin-right:4px;">全選</label>`;
+                            html += `</div>`;
+                            if (!isCollapsed) {
+                                html += `<div style="padding:8px;">`;
+                                gUnits.forEach(u => {
+                                    html += renderWizardUnitRowHtml(ws, i, u);
+                                });
+                                html += `</div>`;
                             }
-                        }
-                        return false;
-                    })();
-                    var qrChecked = u.quickRead ? 'checked' : '';
-                    var qrStyle = u.quickRead ? 'color:#d97706; font-weight:bold;' : 'color:#9ca3af;';
-                    html += `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#f8fafc'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#e2e8f0'};">
-                        <input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleWizardUnit(${i}, '${u.id}', this.checked)" style="width:auto; margin-right:8px; transform:scale(1.1);">
-                        <label style="cursor:pointer; flex:1;">${prefix}${u.name}${pageStr}${isScheduled ? ' <span style="color:#f59e0b; font-size:0.8em;">🔁</span>' : ''}</label>
-                        <label title="快讀（時數打6折）" style="cursor:pointer; ${qrStyle}; white-space:nowrap; margin-left:8px; font-size:0.85em;">
-                            <input type="checkbox" ${qrChecked} onchange="toggleWizardQuickRead(${i}, '${u.id}', this.checked)" style="width:auto; vertical-align:middle; margin-right:3px;">☀️
-                        </label>
-                    </div>`;
-                });
+                            html += `</div>`;
+                        });
+                    }
+                }
 
                 html += `</div></div></div>`;
             });
             container.innerHTML = html;
+        }
+
+        // v1.5.33: 切換科目的顯示方式 (A/B/C/D/E)
+        function setWizardDisplayMode(subjIdx, mode) {
+            wizardSubjects[subjIdx].displayMode = mode;
+            saveWizardPrefs();
+            renderWizardSubjects();
+        }
+
+        // v1.5.33: 展開 / 收合群組
+        function toggleWizardGroup(subjIdx, groupKey) {
+            var ws = wizardSubjects[subjIdx];
+            ws.collapsed[groupKey] = !ws.collapsed[groupKey];
+            renderWizardSubjects();
+        }
+
+        // v1.5.33: 群組內的全選 / 取消全選
+        function toggleWizardGroupUnits(subjIdx, groupKey, isChecked) {
+            var ws = wizardSubjects[subjIdx];
+            var groupUnits = ws.availableUnits.filter(function(u){
+                return getGroupKey(ws.displayMode, u) === groupKey;
+            });
+            if (isChecked) {
+                groupUnits.forEach(function(u){
+                    if (ws.selectedUnitIds.indexOf(u.id) === -1) ws.selectedUnitIds.push(u.id);
+                });
+            } else {
+                var removeIds = groupUnits.map(function(u){ return u.id; });
+                ws.selectedUnitIds = ws.selectedUnitIds.filter(function(id){ return removeIds.indexOf(id) === -1; });
+            }
+            renderWizardSubjects();
+        }
+
+        function getGroupKey(mode, u) {
+            if (mode === 'A') return u.typeName || '(未分類)';
+            if (mode === 'B') return u.instanceName || u.vol || '(未分類)';
+            if (mode === 'C') return u.misMaxEnd > 0 ? '已排過' : '未排過';
+            return '_flat'; // D 和 E 不分組
+        }
+
+        // v1.5.33: 統一渲染單元 HTML (背景色 + 勾選 + 快讀)
+        function renderWizardUnitRowHtml(ws, i, u) {
+            var isChecked = ws.selectedUnitIds.includes(u.id) ? 'checked' : '';
+            var prefix = u.vol ? `[${u.vol}] ` : '';
+            var pageStr = (u.uObj.start && u.uObj.end && u.uObj.start !== u.uObj.end) ? ` (P.${u.uObj.start}~${u.uObj.end})` : ((u.uObj.start && u.uObj.start === u.uObj.end) ? ` (P.${u.uObj.start})` : '');
+            // v1.5.32: 已排過判斷
+            var isScheduled = u.misMaxEnd > 0 || (function(){
+                for (var pi = 0; pi < appPlans.length; pi++) {
+                    var pgrid = appPlans[pi].grid || {};
+                    for (var d in pgrid) {
+                        var tasks = pgrid[d] || [];
+                        for (var ti = 0; ti < tasks.length; ti++) {
+                            if (tasks[ti].unitId === u.id) return true;
+                        }
+                    }
+                }
+                return false;
+            })();
+            var qrChecked = u.quickRead ? 'checked' : '';
+            var qrStyle = u.quickRead ? 'color:#d97706; font-weight:bold;' : 'color:#9ca3af;';
+            var instanceTag = '';
+            if (ws.displayMode === 'D' || ws.displayMode === 'E') {
+                if (u.typeName) instanceTag += '<span style="background:#fef3c7; color:#92400e; font-size:0.7em; padding:1px 5px; border-radius:8px; margin-right:4px;">📖' + u.typeName + '</span>';
+                if (u.instanceName) instanceTag += '<span style="background:#dbeafe; color:#1e40af; font-size:0.7em; padding:1px 5px; border-radius:8px; margin-right:4px;">📘' + u.instanceName + '</span>';
+            }
+            return `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#f8fafc'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#e2e8f0'};">
+                <input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleWizardUnit(${i}, '${u.id}', this.checked)" style="width:auto; margin-right:8px; transform:scale(1.1);">
+                <label style="cursor:pointer; flex:1;">${instanceTag}${prefix}${u.name}${pageStr}${isScheduled ? ' <span style="color:#f59e0b; font-size:0.8em;">🔁</span>' : ''}</label>
+                <label title="快讀（時數打折）" style="cursor:pointer; ${qrStyle}; white-space:nowrap; margin-left:8px; font-size:0.85em;">
+                    <input type="checkbox" ${qrChecked} onchange="toggleWizardQuickRead(${i}, '${u.id}', this.checked)" style="width:auto; vertical-align:middle; margin-right:3px;">☀️
+                </label>
+            </div>`;
         }
 
         function toggleWizardSubjectUnits(subjIdx, isChecked) {
