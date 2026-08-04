@@ -1055,7 +1055,7 @@
         </div>
 
         <!-- v1.5.46: 手動新增頁 (非 modal，全替換模式) -->
-        <div id="page-add-event" class="page-view" style="display:none;">
+        <div id="page-add-event" class="page-view">
             <div class="page-card">
                 <div class="modal-header">
                     <h2>📅 手動新增進度 / 自訂行程</h2>
@@ -3940,17 +3940,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 el('ae-btn-next').style.display = 'none';
             }
 
-            // v1.5.46: 切換到 page-add-event（全替換模式）
+            // v1.5.46: 切換到 page-add-event（全替換模式，改用 .active class）
             closeModal('modal-add-event');
-            el('page-planner').style.display = 'none';
-            el('page-add-event').style.display = 'block';
+            el('page-planner').classList.remove('active');
+            el('page-add-event').classList.add('active');
             window.scrollTo(0, 0);
         }
 
         // v1.5.46: 關閉新增頁，返回月曆
         function closeAddEventPage() {
-            el('page-add-event').style.display = 'none';
-            el('page-planner').style.display = 'block';
+            el('page-add-event').classList.remove('active');
+            el('page-planner').classList.add('active');
             // 順便重刷月曆，確保顯示最新資料
             if (typeof renderCalendar === 'function') renderCalendar();
             window.scrollTo(0, 0);
