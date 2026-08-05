@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.52]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.53]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3870,17 +3870,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 aeC.querySelector('#ae-btn-next').style.display = 'none';
             }
 
-            // v1.5.50: 切換到 page-add-event（全替換模式）
-            closeModal('modal-add-event');
-            el('page-planner').classList.remove('active');
+            // v1.5.53: 同時設 inline style + class，避免被舊 inline style 壓過
+            var pp = document.getElementById('page-planner');
+            if (pp) { pp.classList.remove('active'); pp.style.display = 'none'; }
             aeC.classList.add('active');
+            aeC.style.display = 'block';
             window.scrollTo(0, 0);
         }
 
         // v1.5.46: 關閉新增頁，返回月曆
         function closeAddEventPage() {
-            el('page-add-event').classList.remove('active');
-            el('page-planner').classList.add('active');
+            // v1.5.53: 同時設 inline style + class
+            var aeC = document.getElementById('page-add-event');
+            var pp = document.getElementById('page-planner');
+            if (aeC) { aeC.classList.remove('active'); aeC.style.display = 'none'; }
+            if (pp) { pp.classList.add('active'); pp.style.display = 'block'; }
             // 順便重刷月曆，確保顯示最新資料
             if (typeof renderCalendar === 'function') renderCalendar();
             window.scrollTo(0, 0);
