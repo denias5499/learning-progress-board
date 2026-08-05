@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.68]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.69]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -277,7 +277,7 @@
         .container { max-width: 1200px; margin: 0 auto; }
         
         .header { display: flex; justify-content: space-between; align-items: center; background: #e3f6fb; padding: 15px 25px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; flex-wrap: wrap; gap: 15px; }
-        .header h1 { margin: 0; font-size: 1.8em; color: var(--primary); cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: bold; white-space: nowrap; }
+        .header h1 { margin: 0; font-size: 1.8em; color: var(--primary); display: flex; align-items: center; gap: 10px; font-weight: bold; white-space: nowrap; }
         .header-controls { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
         
         .user-selector-container { display: flex; align-items: center; background: #e2e8f0; padding: 6px 12px; border-radius: 8px; gap: 8px; }
@@ -858,7 +858,7 @@
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
                     <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color: #c4e0f9 !important;">📊 學習統計分析</button>
                 </div>
-                <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color: #FFE17A !important; margin-left: auto;">🏠 回首頁</button>
+                <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color: #FFE17A !important; position: absolute; right: 16px; top: 22px;">🏠 回首頁</button>
             </div>
         </div>
 
@@ -1746,7 +1746,7 @@
             } else {
                 html += `<span style="margin-right:8px; font-size:1.2em; vertical-align:middle;">${emoji}</span>`;
             }
-            html += `<span style="vertical-align:middle;">${title}</span><span onclick="event.stopPropagation(); openBoardSettings();" title="自訂標章與圖示" style="cursor:pointer; font-size:0.55em; opacity:0.55; vertical-align:middle; padding:2px 6px; border-radius:6px; transition:all 0.2s; margin-left:4px;" onmouseover="this.style.opacity=1; this.style.background='#f1f5f9';" onmouseout="this.style.opacity=0.55; this.style.background='transparent';">✏️</span>`;
+            html += `<span style="vertical-align:middle;">${title}</span><span onclick="event.stopPropagation(); openBoardSettings();" title="自訂標章與圖示" style="cursor:pointer; font-size:0.55em; opacity:0.55; vertical-align:middle; padding:2px 6px; border-radius:6px; transition:all 0.2s; margin-left:0px;" onmouseover="this.style.opacity=1; this.style.background='#f1f5f9';" onmouseout="this.style.opacity=0.55; this.style.background='transparent';">✏️</span>`;
             el('main-app-title').innerHTML = html;
         }
 
