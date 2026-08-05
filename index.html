@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.77]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.78]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6536,11 +6536,26 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var st = getStatus(u.id, t);
                             var dotClass = 'dot-' + st;
                             var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
-                            html += '<li class="tree-unit">';
+                            var totalPages = u.end - u.start + 1;
+                            var suInfo = scheduledUnits[u.id];
+                            var coveredPages = suInfo ? suInfo.covered : 0;
+                            var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
+                            var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
+                            var barFilled = Math.round(pct / 10);
+                            var barEmpty = 10 - barFilled;
+                            var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
+                            var cat4jump = suInfo ? suInfo.firstCat : '';
+                            var mis4jump = suInfo ? suInfo.firstMis : (treeCat !== 'ALL' ? treeCat : '');
+                            html += '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')" style="cursor:pointer;" title="點擊跳到月曆檢視">';
                             html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
                             html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
                             if (range) html += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
-                            if (scheduledUnits[u.id]) html += '<span class="tree-unit-clock" title="已排入計畫">⏰</span>';
+                            html += '<span class="tree-unit-progress" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; margin-left:8px; white-space:nowrap;">';
+                            html += barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)';
+                            html += '</span>';
+                            if (suInfo && suInfo.totalTasks > 0) {
+                                html += '<span class="tree-unit-clock" title="已排 ' + suInfo.totalTasks + ' 個任務">⏰×' + suInfo.totalTasks + '</span>';
+                            }
                             html += '</li>';
                         });
                         html += '</ul></ul>';
