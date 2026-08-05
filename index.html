@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.56]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.57]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -856,9 +856,7 @@
                 <div class="btn-group">
                     <button id="nav-btn-settings" class="nav-btn nav-btn-1" onclick="openSettings()">⚙️ 教材庫與備份</button>
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
-                    <button id="nav-btn-history" class="nav-btn nav-btn-3" onclick="openHistory()">📝 歷史紀錄</button>
-                    <button id="nav-btn-daily" class="nav-btn nav-btn-4" onclick="openDailyInput()">✅ 每日輸入</button>
-                    <button id="nav-btn-stats" class="nav-btn nav-btn-5" onclick="openStats()" style="background-color: #c4e0f9 !important;">📊 學習統計分析</button>
+                    <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color: #c4e0f9 !important;">📊 學習統計分析</button>
                 </div>
             </div>
         </div>
@@ -889,6 +887,8 @@
                 <div class="tab-container">
                     <button class="tab-btn active" id="btn-tab-master" onclick="switchTab('master')">🗂️ 1. 建立基本教材庫</button>
                     <button class="tab-btn" id="btn-tab-mission" onclick="switchTab('mission')">📋 2. 勾選任務範圍</button>
+                    <button class="tab-btn" id="btn-tab-daily" onclick="switchTab('daily')">✅ 3. 每日輸入</button>
+                    <button class="tab-btn" id="btn-tab-history" onclick="switchTab('history')">📝 4. 歷史紀錄</button>
                 </div>
                 
                 <div id="pane-master" class="tab-pane active">
@@ -1129,46 +1129,51 @@
                     <button class="btn-success" style="padding: 10px 20px; font-size:1.1em;" onclick="saveNewEvent()">💾 儲存排程</button>
                 </div>
             </div>
-        </div>
-                
-                
 
-        <!-- 每日進度回報 -->
-        <div id="page-daily" class="page-view">
-            <div class="page-card">
-                <div class="modal-header">
-                    <h2 id="daily-modal-title">✅ 新增進度與檢查計畫落後</h2>
-                    <button type="button" class="close-btn" onclick="returnToHome()">&times;</button>
-                </div>
-                <input type="hidden" id="daily-edit-id">
-                
-                <div class="form-group" style="background: transparent; border:none; padding:0;">
-                    <label>日期</label><input type="date" id="daily-date" onchange="updateDailyPlanTasks()">
-                </div>
-                
-                <div class="form-group" style="background: #fdf2e9; border: 1px solid #fad7a1; border-left: 5px solid var(--warning);">
-                    <label style="color: #d35400;">🔗 關聯今日月曆計畫任務 (落後將自動順延)</label>
-                    <select id="daily-plan-task" onchange="onDailyPlanTaskSelect()"></select>
-                    <p style="font-size:0.85em; color:#e67e22; margin: 5px 0 0 0;">(任務列表將根據下方所選擇的分類與任務自動過濾。選擇後會自動帶入應完成的頁碼，若實際完成頁數不足，將自動把未完成進度順延至明日)</p>
+                <!-- v1.5.57: tab 3 - 每日輸入 (原 page-daily 內容) -->
+                <div id="pane-daily" class="tab-pane">
+                    <h3 style="color:var(--primary); margin-top:0;">✅ 每日進度回報</h3>
+                    <input type="hidden" id="daily-edit-id">
+                    <div class="form-group" style="background: transparent; border:none; padding:0;">
+                        <label>日期</label><input type="date" id="daily-date" onchange="updateDailyPlanTasks()">
+                    </div>
+                    <div class="form-group" style="background: #fdf2e9; border: 1px solid #fad7a1; border-left: 5px solid var(--warning);">
+                        <label style="color: #d35400;">🔗 關聯今日月曆計畫任務 (落後將自動順延)</label>
+                        <select id="daily-plan-task" onchange="onDailyPlanTaskSelect()"></select>
+                        <p style="font-size:0.85em; color:#e67e22; margin: 5px 0 0 0;">(任務列表將根據下方所選擇的分類與任務自動過濾。選擇後會自動帶入應完成的頁碼，若實際完成頁數不足，將自動把未完成進度順延至明日)</p>
+                    </div>
+                    <div class="form-group"><label>1️⃣ 進度分類</label><select id="daily-category" onchange="onDailyCategoryChange()"></select></div>
+                    <div class="form-group"><label>2️⃣ 任務名稱</label><select id="daily-mission" onchange="onDailyMissionChange()"></select></div>
+                    <div class="form-group"><label>3️⃣ 選擇單元</label><select id="daily-unit"></select></div>
+                    <div class="form-group">
+                        <label>本次實際完成範圍 (頁碼)</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="daily-start" placeholder="起" min="1">
+                            <span style="font-weight: bold; color: var(--secondary);">～</span>
+                            <input type="number" id="daily-end" placeholder="迄" min="1">
+                        </div>
+                    </div>
+                    <div style="text-align: right; margin-top: 25px;"><button type="button" class="btn-primary" onclick="saveDailyLog()">💾 儲存回報</button></div>
                 </div>
 
-                <div class="form-group"><label>1️⃣ 進度分類</label><select id="daily-category" onchange="onDailyCategoryChange()"></select></div>
-                <div class="form-group"><label>2️⃣ 任務名稱</label><select id="daily-mission" onchange="onDailyMissionChange()"></select></div>
-                <div class="form-group"><label>3️⃣ 選擇單元</label><select id="daily-unit"></select></div>
-                
-                <div class="form-group">
-                    <label>本次實際完成範圍 (頁碼)</label>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <input type="number" id="daily-start" placeholder="起" min="1">
-                        <span style="font-weight: bold; color: var(--secondary);">～</span>
-                        <input type="number" id="daily-end" placeholder="迄" min="1">
+                <!-- v1.5.57: tab 4 - 歷史紀錄 (原 page-history 內容) -->
+                <div id="pane-history" class="tab-pane">
+                    <h3 style="color:var(--primary); margin-top:0;">📝 歷史紀錄與系統 Log</h3>
+                    <div class="history-console" id="history-console">
+                        <table class="history-tb">
+                            <thead><tr><th>日期</th><th>類型/任務</th><th>科目</th><th>單元/說明</th><th>起迭</th><th>頁數</th><th>操作</th></tr></thead>
+                            <tbody id="history-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="history-status" style="margin-top:10px; color:#7f8c8d; font-size:0.9em; text-align:center;">
+                        載入中…
                     </div>
                 </div>
-                
-                <div style="text-align: right; margin-top: 25px;"><button type="button" class="btn-primary" onclick="saveDailyLog()">💾 儲存回報</button></div>
             </div>
         </div>
-        
+                
+                
+
         <!-- v1.4.0: 學習統計分析 -->
         <div id="page-stats" class="page-view">
             <div class="page-card">
@@ -1192,27 +1197,6 @@
                 </div>
                 <div id="stats-monthly" class="stats-view">
                     <div id="monthly-root"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 歷史紀錄 -->
-        <div id="page-history" class="page-view">
-            <div class="page-card">
-                <div class="modal-header">
-                    <h2>📝 歷史紀錄與系統 Log</h2>
-                    <button type="button" class="close-btn" onclick="returnToHome()">&times;</button>
-                </div>
-                <!-- v1.5.19: 固定大小 console, 可用滑鼠 + scroll bar 滚動 -->
-                <div class="history-console" id="history-console">
-                    <table class="history-tb">
-                        <thead><tr><th>日期</th><th>類型/任務</th><th>科目</th><th>單元/說明</th><th>起迭</th><th>頁數</th><th>操作</th></tr></thead>
-                        <tbody id="history-tbody"></tbody>
-                    </table>
-                </div>
-                <!-- v1.5.19: 加顯示進度 + 總數 -->
-                <div id="history-status" style="margin-top:10px; color:#7f8c8d; font-size:0.9em; text-align:center;">
-                    載入中…
                 </div>
             </div>
         </div>
@@ -1611,8 +1595,8 @@
                 el(pageId).style.display = 'block';
                 if (pageId === 'page-settings' && el('nav-btn-settings')) el('nav-btn-settings').classList.add('active-nav');
                 if (pageId === 'page-planner' && el('nav-btn-planner')) el('nav-btn-planner').classList.add('active-nav');
-                if (pageId === 'page-history' && el('nav-btn-history')) el('nav-btn-history').classList.add('active-nav');
-                if (pageId === 'page-daily' && el('nav-btn-daily')) el('nav-btn-daily').classList.add('active-nav');
+                // v1.5.57: page-history no longer has a top nav button
+                // v1.5.57: page-daily no longer has a top nav button
                 if (pageId === 'page-stats' && el('nav-btn-stats')) el('nav-btn-stats').classList.add('active-nav');
             }
         }
@@ -4744,7 +4728,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
             returnToHome(); 
         }
 
-        function openHistory() { renderHistoryTable(); showPage('page-history'); }
+        function openHistory() { 
+            // v1.5.57: 改成切到 page-settings 的 history tab
+            if (el('page-settings').style.display !== 'block') {
+                showPage('page-settings');
+            }
+            switchTab('history');
+            renderHistoryTable();
+        }
 
         // === v1.4.0: 學習統計分析 ===
         function openStats() {
@@ -4941,12 +4932,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function switchTab(tabId) { 
-            if(el('pane-master').classList.contains('active')) extractCurrentEditorData(); 
+            if(el('pane-master') && el('pane-master').classList.contains('active')) extractCurrentEditorData(); 
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active')); 
             document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active')); 
-            el('btn-tab-' + tabId).classList.add('active'); 
-            el('pane-' + tabId).classList.add('active'); 
+            if(el('btn-tab-' + tabId)) el('btn-tab-' + tabId).classList.add('active'); 
+            if(el('pane-' + tabId)) el('pane-' + tabId).classList.add('active'); 
             if(tabId === 'mission') renderMissionCheckboxes(); 
+            if(tabId === 'daily') { 
+                if(typeof openDailyInput === 'function') openDailyInput(); 
+            } else if(tabId === 'history') { 
+                if(typeof openHistory === 'function') openHistory(); 
+            } 
         }
         
         function extractCurrentEditorData() {
