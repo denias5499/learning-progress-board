@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.72]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.73]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3753,21 +3753,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 let maxUnitEnd = newEnd;
                 let foundMasterEnd = false;
                 
-                // (A) 取得該單元真正的總結尾頁數 (maxUnitEnd)
-                if (task.subject && appMaster[task.subject]) {
-                    let sInfo = appMaster[task.subject];
-                    let u = null;
-                    if (sInfo.type === 'custom') {
-                        u = sInfo.units.find(x => x.id === task.unitId);
-                    } else {
-                        for(let v in sInfo.vols) {
-                            u = sInfo.vols[v].find(x => x.id === task.unitId);
-                            if(u) break;
-                        }
+                // (A) v1.5.73: 取得該單元真正的總結尾頁數 (maxUnitEnd)
+                // 優先從 multiData 取得最新資料,fallback 才用 appMaster
+                if (task.subject && task.unitId) {
+                    let sInfo = null;
+                    let user = multiData[currentUserId];
+                    if (user && user.masters && task.cat && user.masters[task.cat]) {
+                        sInfo = user.masters[task.cat][task.subject];
                     }
-                    if (u && u.end) {
-                        maxUnitEnd = Number(u.end);
-                        foundMasterEnd = true;
+                    if (!sInfo && appMaster && appMaster[task.subject]) {
+                        sInfo = appMaster[task.subject];
+                    }
+                    if (sInfo) {
+                        let u = null;
+                        if (sInfo.type === 'custom') {
+                            u = sInfo.units.find(x => x.id === task.unitId);
+                        } else {
+                            for(let v in sInfo.vols) {
+                                u = sInfo.vols[v].find(x => x.id === task.unitId);
+                                if(u) break;
+                            }
+                        }
+                        if (u && u.end) {
+                            maxUnitEnd = Number(u.end);
+                            foundMasterEnd = true;
+                        }
                     }
                 }
                 
@@ -3819,38 +3829,78 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     }
                 }
                 
-                // (D) 如果所有未來任務都更新完了，但還有「剩餘頁數」沒排完，則在最後新增一天
+                // (D) v1.5.73: 自動往下加日期,分配剩餘頁數
+                let overflowDates = [];
+                let overflowExceedsPlan = false;
                 if (currentStart <= maxUnitEnd && newEnd < oldEnd) {
-                    // 決定要插入在哪一天（如果有未來任務，就插在最後一個未來任務的隔天；否則插在修改日的隔天）
-                    let insertDateStr = '';
+                    // 計算每日分配的頁數容量 (用現有 futureTasks 的平均容量,最少 3 頁/天)
+                    let avgCapacity = futureTasks.length > 0
+                        ? Math.ceil(futureTasks.reduce((sum, ft) => sum + ((ft.task.endPage && ft.task.startPage) ? (ft.task.endPage - ft.task.startPage + 1) : 1), 0) / futureTasks.length)
+                        : 5;
+                    let perDayPages = Math.max(avgCapacity, 3);
+                    
+                    // 決定起始日期
+                    let startDate = new Date(dateStr);
                     if (futureTasks.length > 0) {
-                        let lastDate = futureTasks[futureTasks.length - 1].date;
-                        let nextDate = new Date(lastDate);
-                        nextDate.setDate(nextDate.getDate() + 1);
-                        insertDateStr = getLocalDateString(nextDate);
-                    } else {
-                        let nextDate = new Date(dateStr);
-                        nextDate.setDate(nextDate.getDate() + 1);
-                        insertDateStr = getLocalDateString(nextDate);
+                        startDate = new Date(futureTasks[futureTasks.length - 1].date);
                     }
+                    startDate.setDate(startDate.getDate() + 1);
                     
-                    if (!plan.grid[insertDateStr]) plan.grid[insertDateStr] = [];
+                    let leftoverStart = currentStart;
                     let subjectName = task.subject || '自訂';
+                    let dayCount = 0;
                     
-                    plan.grid[insertDateStr].unshift({
-                        id: genId(), subject: subjectName, 
-                        text: baseText + (currentStart === maxUnitEnd ? ` P.${currentStart}` : ` P.${currentStart}~${maxUnitEnd}`),
-                        startPage: currentStart, endPage: maxUnitEnd, isDone: false,
-                        cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
-                        postponeCount: (task.postponeCount || 0) + 1,
-                        isAuto: task.isAuto
-                    });
-                    
-                    appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延', start: currentStart, end: maxUnitEnd, pages: maxUnitEnd - currentStart + 1, detail: `手動調整進度，剩餘 P.${currentStart}~${maxUnitEnd} 順延至 ${insertDateStr}` });
-                    checkDailyWorkload(plan, insertDateStr);
+                    while (leftoverStart <= maxUnitEnd) {
+                        let dayEnd = Math.min(leftoverStart + perDayPages - 1, maxUnitEnd);
+                        let dayDateStr = getLocalDateString(startDate);
+                        dayCount++;
+                        
+                        // 檢查是否超出 mission 計畫完成日期
+                        let exceedsPlan = plan.end && dayDateStr > plan.end;
+                        
+                        if (exceedsPlan) overflowExceedsPlan = true;
+                        overflowDates.push(dayDateStr);
+                        
+                        if (!plan.grid[dayDateStr]) plan.grid[dayDateStr] = [];
+                        plan.grid[dayDateStr].unshift({
+                            id: genId(), subject: subjectName, 
+                            text: baseText + (leftoverStart === dayEnd ? ` P.${leftoverStart}` : ` P.${leftoverStart}~${dayEnd}`),
+                            startPage: leftoverStart, endPage: dayEnd, isDone: false,
+                            cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
+                            postponeCount: (task.postponeCount || 0) + dayCount,
+                            isAuto: task.isAuto
+                        });
+                        
+                        appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延', start: leftoverStart, end: dayEnd, pages: dayEnd - leftoverStart + 1, detail: `手動調整進度，剩餘 P.${leftoverStart}~${dayEnd} 順延至 ${dayDateStr}${exceedsPlan ? ' (超出 mission 計畫完成日期)' : ''}` });
+                        checkDailyWorkload(plan, dayDateStr);
+                        
+                        leftoverStart = dayEnd + 1;
+                        startDate.setDate(startDate.getDate() + 1);
+                    }
                 }
                 
-                alert(`✅ 已為您更新進度！後續相關排程已自動連動推移。`);
+                // 改進 2 + 3: 顯示補排結果訊息
+                if (currentStart <= maxUnitEnd && newEnd < oldEnd && overflowDates.length > 0) {
+                    // 有補排,提示用戶
+                    let msg = `✅ 已為您更新進度！
+
+`;
+                    if (overflowDates.length === 1) {
+                        msg += `新增任務到 ${overflowDates[0]}`;
+                    } else {
+                        msg += `新增 ${overflowDates.length} 個任務到 ${overflowDates[0]} ~ ${overflowDates[overflowDates.length - 1]}`;
+                    }
+                    if (overflowExceedsPlan) {
+                        msg += `
+
+⚠️ 注意：部分新任務超出 mission 預定完成日期 (${plan.end})`;
+                        msg += `
+建議：可在「歷史紀錄」查看，或重新檢視 mission 規劃`;
+                    }
+                    alert(msg);
+                } else {
+                    alert(`✅ 已為您更新進度！後續相關排程已自動連動推移。`);
+                }
                 
             } else if (!task.unitId && oldEnd && newEnd && newEnd < oldEnd) {
                 // [保留機制]：若是「純手動無連動單元」的舊任務，退回原本的簡單順延邏輯
