@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.55]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.54]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1131,7 +1131,44 @@
             </div>
         </div>
                 
+                <div class="filter-bar" style="margin-bottom: 15px; border-left-color: var(--purple); display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: transparent; padding: 0; box-shadow: none; border-left: none;">
+                    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; align-items: center;">
+                        <div style="display: none;"><select id="planner-selector" onchange="renderCalendar()"></select></div>
+                        <div style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
+                            <span style="font-weight: bold; color: var(--secondary);">🔍 分類/任務過濾：</span>
+                            <select id="planner-cat-filter" onchange="onPlannerCatChange()"></select>
+                            <span style="color: var(--secondary); font-weight: bold;">➡️</span>
+                            <select id="planner-mis-filter" onchange="renderCalendar()"></select>
+                        </div>
+                        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                            <button class="planner-action-btn" onclick="openDoubleCheck()" style="font-weight: 900;">🔍 Double Check</button>
+                            <button class="planner-action-btn" onclick="openWizard()">🪄 建立智慧排程計畫</button>
+                            
+                            <!-- 統一顏色的按鍵 -->
+                            <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
+                            <button class="cal-sync-btn" onclick="exportPlanJSON()">📦 備份月曆</button>
+                            <button class="cal-sync-btn" onclick="document.getElementById('import-plan-file').click()">📂 匯入月曆</button>
+                            <input type="file" id="import-plan-file" style="display: none;" accept=".json">
+                            
+                            <button class="btn-danger" onclick="deleteCurrentPlan()">🗑️ 刪除排程</button>
+                        </div>
+                    </div>
+                </div>
                 
+                <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 15px;">
+                    <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(-1)">◀ 上個月</button>
+                    <span id="current-month-display" style="font-weight: bold; font-size: 1.3em; min-width: 140px; text-align: center; color: var(--primary);"></span>
+                    <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(1)">下個月 ▶</button>
+                </div>
+
+                <div class="calendar-wrapper">
+                    <div class="calendar-header">
+                        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                    </div>
+                    <div class="calendar-grid" id="calendar-grid"></div>
+                </div>
+            </div>
+        </div>
 
         <!-- 每日進度回報 -->
         <div id="page-daily" class="page-view">
