@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.74]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.75]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6911,7 +6911,27 @@ function renderWizardUnitRowHtml(ws, i, u) {
             
             // 過濾掉沒有資料的
             let validUnits = Object.values(units).filter(u => u.total > 0);
-            if (validUnits.length === 0) return '';
+            
+            // v1.5.75: debug 顯示為什麼 widget 沒出現
+            if (validUnits.length === 0) {
+                let totalTasks = 0, tasksWithUnit = 0;
+                appPlans.forEach(p => {
+                    Object.keys(p.grid || {}).forEach(d => {
+                        (p.grid[d] || []).forEach(t => {
+                            totalTasks++;
+                            if (t.unitId) tasksWithUnit++;
+                        });
+                    });
+                });
+                console.log('[renderUnitCoverage] 沒有有效單元, 統計:', {
+                    appPlans_count: appPlans.length,
+                    totalTasks: totalTasks,
+                    tasksWithUnitId: tasksWithUnit,
+                    units_collected: Object.keys(units).length,
+                    master_keys: user ? Object.keys(user.masters || {}) : 'no user'
+                });
+                return '<div style="margin-top: 25px; padding: 20px; background: #fff3cd; border-radius: 12px; border: 1px solid #ffe082;">📚 <b>單元進度總覽</b> (debug: 共 ' + Object.keys(units).length + ' 個單元, ' + tasksWithUnit + ' 個有 unitId 的任務 — 詳見 Console)</div>';
+            }
             
             // 排序: 進度低的在前 (需要關注的)
             validUnits.sort((a, b) => (a.covered / a.total) - (b.covered / b.total));
