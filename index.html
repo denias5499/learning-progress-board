@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.73]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.74]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6854,9 +6854,150 @@ function renderWizardUnitRowHtml(ws, i, u) {
             root.innerHTML = html;
         }
 
+        function renderUnitCoverage() {
+            // v1.5.74: 單元進度總覽 (Dashboard widget)
+            var units = {}; // { 'cat|mis|unitId': {cat, mis, sub, vol, unitId, unitName, covered, total, isDone} }
+            var user = multiData[currentUserId];
+            
+            // 收集每個計畫的任務覆蓋頁數
+            appPlans.forEach(plan => {
+                if (!plan.grid || !plan.cat || !plan.name) return;
+                Object.keys(plan.grid).forEach(d => {
+                    (plan.grid[d] || []).forEach(t => {
+                        if (!t.unitId || !t.startPage || !t.endPage) return;
+                        let pages = t.endPage - t.startPage + 1;
+                        let key = plan.cat + '|' + plan.name + '|' + t.unitId;
+                        if (!units[key]) {
+                            units[key] = {
+                                cat: plan.cat, mis: plan.name,
+                                unitId: t.unitId, sub: t.subject, vol: t.vol || '',
+                                unitName: t.unitName || t.text.split(' ')[0] || t.subject,
+                                covered: 0, total: 0, hasTask: false,
+                                isDone: false
+                            };
+                        }
+                        units[key].covered += pages;
+                        units[key].hasTask = true;
+                    });
+                });
+            });
+            
+            // 從教材庫讀單元總頁數
+            Object.keys(units).forEach(key => {
+                let u = units[key];
+                if (user && user.masters && user.masters[u.cat] && user.masters[u.cat][u.sub]) {
+                    let sInfo = user.masters[u.cat][u.sub];
+                    let unit = null;
+                    if (sInfo.type === 'custom') {
+                        unit = sInfo.units ? sInfo.units.find(x => x.id === u.unitId) : null;
+                    } else if (sInfo.vols) {
+                        for (let v in sInfo.vols) {
+                            unit = sInfo.vols[v].find(x => x.id === u.unitId);
+                            if (unit) break;
+                        }
+                    }
+                    if (unit && unit.start && unit.end) {
+                        u.total = unit.end - unit.start + 1;
+                        u.unitStart = unit.start;
+                        u.unitEnd = unit.end;
+                        u.actualUnitName = unit.name;
+                        u.isDone = u.covered >= u.total;
+                    }
+                }
+                if (u.total === 0) {
+                    u.total = u.covered; // 沒有教材庫資料,用已排頁數當作 total
+                }
+            });
+            
+            // 過濾掉沒有資料的
+            let validUnits = Object.values(units).filter(u => u.total > 0);
+            if (validUnits.length === 0) return '';
+            
+            // 排序: 進度低的在前 (需要關注的)
+            validUnits.sort((a, b) => (a.covered / a.total) - (b.covered / b.total));
+            
+            // 分類: 完成 / 部分 / 缺漏
+            let complete = validUnits.filter(u => u.covered >= u.total);
+            let partial = validUnits.filter(u => u.covered > 0 && u.covered < u.total);
+            let missing = validUnits.filter(u => u.covered === 0);
+            
+            let html = '<div style="margin-top: 25px; padding: 20px; background: white; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border: 1px solid var(--border);">';
+            html += '<h3 style="margin: 0 0 8px 0; color: var(--primary); display: flex; align-items: center; gap: 10px;">';
+            html += '<span>📚 單元進度總覽</span>';
+            html += '<span style="font-size:0.65em; color:var(--secondary); font-weight:normal;">(' + validUnits.length + ' 個單元)</span>';
+            html += '</h3>';
+            html += '<p style="margin: 0 0 15px 0; font-size: 0.85em; color: var(--secondary);">點擊單元可跳到月曆檢視</p>';
+            
+            // 缺漏 (紅色)
+            if (missing.length > 0) {
+                html += renderCoverageSection('❌ 缺漏 (尚未排入月曆)', missing, '#e74c3c');
+            }
+            // 部分 (黃色)
+            if (partial.length > 0) {
+                html += renderCoverageSection('⚠️ 部分完成', partial, '#f39c12');
+            }
+            // 完成 (綠色)
+            if (complete.length > 0) {
+                html += renderCoverageSection('✅ 已完成', complete, '#27ae60');
+            }
+            
+            html += '</div>';
+            
+            function renderCoverageSection(title, list, color) {
+                let s = '<div style="margin-bottom: 15px;">';
+                s += '<div style="font-weight: bold; color: ' + color + '; margin-bottom: 8px; font-size: 0.95em;">' + title + ' (' + list.length + ')</div>';
+                list.forEach(u => {
+                    let pct = Math.round(u.covered / u.total * 100);
+                    let barFilled = Math.round(pct / 5); // 20 格
+                    let barEmpty = 20 - barFilled;
+                    let bar = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
+                    s += '<div onclick="switchUnitCoverageView(\'' + u.cat + '\', \'' + u.mis + '\')" style="cursor:pointer; display:flex; align-items:center; gap:12px; padding:8px 12px; margin-bottom:6px; background:#f8fafc; border-radius:6px; border-left: 4px solid ' + color + '; transition: all 0.2s;" onmouseover="this.style.background=\'#e0f2fe\';" onmouseout="this.style.background=\'#f8fafc\';">';
+                    s += '<div style="flex:1; min-width:0;">';
+                    s += '<div style="font-weight:bold; color:var(--primary); font-size:0.95em; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">';
+                    s += u.actualUnitName || u.unitName;
+                    s += '</div>';
+                    s += '<div style="font-size:0.75em; color:var(--secondary); margin-top:2px;">';
+                    s += u.sub + ' · ' + u.mis;
+                    if (u.vol) s += ' · ' + u.vol;
+                    s += '</div>';
+                    s += '</div>';
+                    s += '<div style="font-family: monospace; font-size: 0.85em; color: ' + color + '; white-space: nowrap; min-width: 140px; text-align: right;">';
+                    s += bar + ' ' + u.covered + '/' + u.total + ' (' + pct + '%)';
+                    s += '</div>';
+                    s += '</div>';
+                });
+                s += '</div>';
+                return s;
+            }
+            
+            return html;
+        }
+        
+        function switchUnitCoverageView(cat, mis) {
+            // v1.5.74: 切到月曆 + 套用篩選
+            showPage('page-planner');
+            var plannerSel = el('planner-selector');
+            if (plannerSel) {
+                var targetPlan = appPlans.find(p => p.cat === cat && p.name === mis);
+                if (targetPlan) {
+                    plannerSel.value = targetPlan.id;
+                    renderCalendar();
+                }
+            }
+            var catFilter = el('planner-cat-filter');
+            if (catFilter) {
+                catFilter.value = cat;
+                onPlannerCatChange();
+            }
+            var misFilter = el('planner-mis-filter');
+            if (misFilter) misFilter.value = mis;
+            renderCalendar();
+        }
+        
         function renderDashboard() { 
             var root = el('dashboard-root'); root.innerHTML = ''; 
             root.innerHTML += renderDashSummary();
+            root.innerHTML += renderUnitCoverage();
             
             var filterCat = el('filter-category') ? el('filter-category').value : 'ALL'; 
             var filterMis = el('filter-mission') ? el('filter-mission').value : 'ALL'; 
