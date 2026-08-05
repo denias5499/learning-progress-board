@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.55]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.56]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1033,7 +1033,7 @@
                             <button class="planner-action-btn" onclick="openWizard()">🪄 建立智慧排程計畫</button>
                             <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
                             <button class="cal-sync-btn" onclick="exportPlanJSON()">📦 備份月曆</button>
-                            <button class="cal-sync-btn" onclick="document.getElementById('import-plan-file').click()">📂 匯入月曆</button>
+                            <button class="cal-sync-btn" onclick="document.getElementById('import-plan-file').click()">📂 匯入月曆</button><input type="file" id="import-plan-file" style="display: none;" accept=".json">
                             <button class="btn-danger" onclick="deleteCurrentPlan()">🗑️ 刪除排程</button>
                         </div>
                     </div>
@@ -4552,7 +4552,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
         }
         
-        document.getElementById('import-plan-file').addEventListener('change', function(e) { 
+        var importPlanFileEl = document.getElementById('import-plan-file'); if (importPlanFileEl) importPlanFileEl.addEventListener('change', function(e) { 
             var file = e.target.files[0]; 
             if (!file) return; 
             var reader = new FileReader(); 
