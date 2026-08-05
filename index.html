@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.75]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.76]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6859,19 +6859,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var units = {}; // { 'cat|mis|unitId': {cat, mis, sub, vol, unitId, unitName, covered, total, isDone} }
             var user = multiData[currentUserId];
             
-            // 收集每個計畫的任務覆蓋頁數
+            // v1.5.76: 收集每個計畫的任務覆蓋頁數 (用 t.cat / t.mis,因 plan 沒有 cat 欄位)
             appPlans.forEach(plan => {
-                if (!plan.grid || !plan.cat || !plan.name) return;
+                if (!plan.grid) return;
                 Object.keys(plan.grid).forEach(d => {
                     (plan.grid[d] || []).forEach(t => {
-                        if (!t.unitId || !t.startPage || !t.endPage) return;
+                        if (!t.unitId || !t.startPage || !t.endPage || !t.cat) return;
                         let pages = t.endPage - t.startPage + 1;
-                        let key = plan.cat + '|' + plan.name + '|' + t.unitId;
+                        let key = t.cat + '|' + (t.mis || plan.name || '') + '|' + t.unitId;
                         if (!units[key]) {
                             units[key] = {
-                                cat: plan.cat, mis: plan.name,
+                                cat: t.cat, mis: t.mis || plan.name || '',
                                 unitId: t.unitId, sub: t.subject, vol: t.vol || '',
-                                unitName: t.unitName || t.text.split(' ')[0] || t.subject,
+                                unitName: t.unitName || '',
                                 covered: 0, total: 0, hasTask: false,
                                 isDone: false
                             };
