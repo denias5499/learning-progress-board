@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.81]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.82]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6898,30 +6898,61 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
         
         function jumpToUnitCalendar(unitId, cat, mis) {
-            // v1.5.80: 從樹狀圖點單元 → 切到月曆 + 套用篩選 + 高亮該單元的任務
+            // v1.5.82: 從樹狀圖點單元 → 切到月曆 + 套用篩選 + 高亮該單元的任務
+            console.log('[jumpToUnitCalendar] unitId:', unitId, 'cat:', cat, 'mis:', mis);
+            console.log('[jumpToUnitCalendar] suInfo:', window._treeScheduledUnits && window._treeScheduledUnits[unitId]);
+            console.log('[jumpToUnitCalendar] appPlans:', appPlans.map(p => ({cat: p.cat, name: p.name, id: p.id})));
+            
             showPage('page-planner');
             
-            // v1.5.80 fix: 從 window 全域讀 scheduledUnits (避免 closure 變數抓不到)
+            // v1.5.82: 3 段式 plan 查找
             var suInfo = unitId && window._treeScheduledUnits ? window._treeScheduledUnits[unitId] : null;
-            var targetPlanId = suInfo ? suInfo.firstPlanId : null;
+            var targetPlanId = null;
+            
+            // 第一優先: suInfo.firstPlanId (這個 unit 真的被排在哪個 plan)
+            if (suInfo && suInfo.firstPlanId) {
+                targetPlanId = suInfo.firstPlanId;
+            }
+            // 第二優先: 用 cat+mis 找
+            if (!targetPlanId && cat && mis) {
+                var p = appPlans.find(p => p.cat === cat && p.name === mis);
+                if (p) targetPlanId = p.id;
+            }
+            // 第三優先: 用 cat 找第一個 plan
+            if (!targetPlanId && cat) {
+                var p = appPlans.find(p => p.cat === cat);
+                if (p) targetPlanId = p.id;
+            }
+            // 第四優先: 用 suInfo.firstCat 找
+            if (!targetPlanId && suInfo && suInfo.firstCat) {
+                var p = appPlans.find(p => p.cat === suInfo.firstCat);
+                if (p) targetPlanId = p.id;
+            }
+            // 最後 fallback: 用第一個 plan
+            if (!targetPlanId && appPlans.length > 0) {
+                targetPlanId = appPlans[0].id;
+            }
+            
+            console.log('[jumpToUnitCalendar] targetPlanId:', targetPlanId);
             
             var plannerSel = el('planner-selector');
-            if (!targetPlanId && plannerSel && cat && mis) {
-                var targetPlan = appPlans.find(p => p.cat === cat && p.name === mis);
-                if (targetPlan) targetPlanId = targetPlan.id;
-            }
             if (plannerSel && targetPlanId) {
                 plannerSel.value = targetPlanId;
                 renderCalendar();
             }
             
+            // 用 plan 的 cat/mis 設 filter (因為 plan.name 不一定等於 mis)
+            var targetPlan = appPlans.find(p => p.id === targetPlanId);
+            var filterCat = targetPlan ? targetPlan.cat : (cat || 'ALL');
+            var filterMis = mis || 'ALL';
+            
             var catFilter = el('planner-cat-filter');
             if (catFilter) {
-                catFilter.value = cat || 'ALL';
+                catFilter.value = filterCat;
                 onPlannerCatChange();
             }
             var misFilter = el('planner-mis-filter');
-            if (misFilter) misFilter.value = mis || 'ALL';
+            if (misFilter) misFilter.value = filterMis;
             
             // 把 unitId 存在 window 上,讓 renderCalendar 高亮該單元
             window._highlightUnitId = unitId || null;
