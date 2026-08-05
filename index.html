@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.58]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.59]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -990,6 +990,46 @@
                     </div>
                 </div>
                 
+                <!-- v1.5.58: tab 3 - 每日輸入 (放在 page-settings 內,跟 pane-master/mission 同層) -->
+                <div id="pane-daily" class="tab-pane">
+                    <h3 style="color:var(--primary); margin-top:0;">✅ 每日進度回報</h3>
+                    <input type="hidden" id="daily-edit-id">
+                    <div class="form-group" style="background: transparent; border:none; padding:0;">
+                        <label>日期</label><input type="date" id="daily-date" onchange="updateDailyPlanTasks()">
+                    </div>
+                    <div class="form-group" style="background: #fdf2e9; border: 1px solid #fad7a1; border-left: 5px solid var(--warning);">
+                        <label style="color: #d35400;">🔗 關聯今日月曆計畫任務 (落後將自動順延)</label>
+                        <select id="daily-plan-task" onchange="onDailyPlanTaskSelect()"></select>
+                        <p style="font-size:0.85em; color:#e67e22; margin: 5px 0 0 0;">(任務列表將根據下方所選擇的分類與任務自動過濾。選擇後會自動帶入應完成的頁碼，若實際完成頁數不足，將自動把未完成進度順延至明日)</p>
+                    </div>
+                    <div class="form-group"><label>1️⃣ 進度分類</label><select id="daily-category" onchange="onDailyCategoryChange()"></select></div>
+                    <div class="form-group"><label>2️⃣ 任務名稱</label><select id="daily-mission" onchange="onDailyMissionChange()"></select></div>
+                    <div class="form-group"><label>3️⃣ 選擇單元</label><select id="daily-unit"></select></div>
+                    <div class="form-group">
+                        <label>本次實際完成範圍 (頁碼)</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" id="daily-start" placeholder="起" min="1">
+                            <span style="font-weight: bold; color: var(--secondary);">～</span>
+                            <input type="number" id="daily-end" placeholder="迄" min="1">
+                        </div>
+                    </div>
+                    <div style="text-align: right; margin-top: 25px;"><button type="button" class="btn-primary" onclick="saveDailyLog()">💾 儲存回報</button></div>
+                </div>
+
+                <!-- v1.5.58: tab 4 - 歷史紀錄 (放在 page-settings 內) -->
+                <div id="pane-history" class="tab-pane">
+                    <h3 style="color:var(--primary); margin-top:0;">📝 歷史紀錄與系統 Log</h3>
+                    <div class="history-console" id="history-console">
+                        <table class="history-tb">
+                            <thead><tr><th>日期</th><th>類型/任務</th><th>科目</th><th>單元/說明</th><th>起迭</th><th>頁數</th><th>操作</th></tr></thead>
+                            <tbody id="history-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div id="history-status" style="margin-top:10px; color:#7f8c8d; font-size:0.9em; text-align:center;">
+                        載入中…
+                    </div>
+                </div>
+
                 <hr style="border: 0; border-top: 2px solid var(--border); margin: 30px 0 20px 0;">
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: #fdf2e9; padding: 15px; border-radius: 8px;">
@@ -1127,47 +1167,6 @@
                 <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 25px;">
                     <button class="btn-outline" onclick="closeAddEventPage()">← 返回月曆</button>
                     <button class="btn-success" style="padding: 10px 20px; font-size:1.1em;" onclick="saveNewEvent()">💾 儲存排程</button>
-                </div>
-            </div>
-
-                <!-- v1.5.57: tab 3 - 每日輸入 (原 page-daily 內容) -->
-                <div id="pane-daily" class="tab-pane">
-                    <h3 style="color:var(--primary); margin-top:0;">✅ 每日進度回報</h3>
-                    <input type="hidden" id="daily-edit-id">
-                    <div class="form-group" style="background: transparent; border:none; padding:0;">
-                        <label>日期</label><input type="date" id="daily-date" onchange="updateDailyPlanTasks()">
-                    </div>
-                    <div class="form-group" style="background: #fdf2e9; border: 1px solid #fad7a1; border-left: 5px solid var(--warning);">
-                        <label style="color: #d35400;">🔗 關聯今日月曆計畫任務 (落後將自動順延)</label>
-                        <select id="daily-plan-task" onchange="onDailyPlanTaskSelect()"></select>
-                        <p style="font-size:0.85em; color:#e67e22; margin: 5px 0 0 0;">(任務列表將根據下方所選擇的分類與任務自動過濾。選擇後會自動帶入應完成的頁碼，若實際完成頁數不足，將自動把未完成進度順延至明日)</p>
-                    </div>
-                    <div class="form-group"><label>1️⃣ 進度分類</label><select id="daily-category" onchange="onDailyCategoryChange()"></select></div>
-                    <div class="form-group"><label>2️⃣ 任務名稱</label><select id="daily-mission" onchange="onDailyMissionChange()"></select></div>
-                    <div class="form-group"><label>3️⃣ 選擇單元</label><select id="daily-unit"></select></div>
-                    <div class="form-group">
-                        <label>本次實際完成範圍 (頁碼)</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" id="daily-start" placeholder="起" min="1">
-                            <span style="font-weight: bold; color: var(--secondary);">～</span>
-                            <input type="number" id="daily-end" placeholder="迄" min="1">
-                        </div>
-                    </div>
-                    <div style="text-align: right; margin-top: 25px;"><button type="button" class="btn-primary" onclick="saveDailyLog()">💾 儲存回報</button></div>
-                </div>
-
-                <!-- v1.5.57: tab 4 - 歷史紀錄 (原 page-history 內容) -->
-                <div id="pane-history" class="tab-pane">
-                    <h3 style="color:var(--primary); margin-top:0;">📝 歷史紀錄與系統 Log</h3>
-                    <div class="history-console" id="history-console">
-                        <table class="history-tb">
-                            <thead><tr><th>日期</th><th>類型/任務</th><th>科目</th><th>單元/說明</th><th>起迭</th><th>頁數</th><th>操作</th></tr></thead>
-                            <tbody id="history-tbody"></tbody>
-                        </table>
-                    </div>
-                    <div id="history-status" style="margin-top:10px; color:#7f8c8d; font-size:0.9em; text-align:center;">
-                        載入中…
-                    </div>
                 </div>
             </div>
         </div>
