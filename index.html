@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.53]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.54]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1271,11 +1271,49 @@
                 </div>
             </div>
             <hr style="border:0; border-top:1px dashed var(--border); margin:20px 0;">
-            <div style="margin: 15px 0 25px 0; background: #e0f2fe; padding: 20px; border-radius: 12px; border: 1px dashed var(--accent);">
+            <div style="margin: 15px 0 25px 0; background: #e0f2fe; padding: 20px; border-radius: 12px; border: 1px dashed var(--accent); text-align:left;">
                 <label style="font-weight:bold; color:#0369a1; display:block; margin-bottom:10px; cursor: pointer;">
-                    📁 從電腦上傳照片作為主圖示 (將自動壓縮)
+                    📁 從電腦上傳照片作為主圖示 (將自動壓縮並保留原比例)
                 </label>
                 <input type="file" id="board-logo-upload" accept="image/*" style="cursor: pointer; display:block; margin: 0 auto;" onchange="handleBoardLogoUpload(this)">
+                <div id="board-logo-preview" style="margin-top:15px; padding:15px; background:white; border-radius:8px; border:1px solid var(--accent); display:none;">
+                    <div style="text-align:center; margin-bottom:12px; padding:10px; background:#f8fafc; border-radius:6px;">
+                        <div style="font-size:0.85em; color:var(--secondary); margin-bottom:6px;">👀 即時預覽 (標題列):</div>
+                        <div id="board-logo-preview-title" style="font-size:1.3em; font-weight:bold; color:var(--primary);"></div>
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:0.85em; color:var(--secondary); display:block; margin-bottom:5px;">
+                            📏 高度: <span id="board-logo-height-label">1.2</span>em
+                        </label>
+                        <input type="range" id="board-logo-height" min="0.8" max="3.5" step="0.1" value="1.2" style="width:100%;" oninput="updateBoardLogoPreview()">
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:0.85em; display:flex; align-items:center; gap:6px; cursor:pointer;">
+                            <input type="checkbox" id="board-logo-lock-ratio" checked onchange="updateBoardLogoPreview()">
+                            🔒 鎖定寬高比 (按比例自動算寬度)
+                        </label>
+                    </div>
+                    <div style="margin-bottom:10px;" id="board-logo-width-row">
+                        <label style="font-size:0.85em; color:var(--secondary); display:block; margin-bottom:5px;">
+                            📐 寬度: <span id="board-logo-width-label">1.2</span>em
+                        </label>
+                        <input type="range" id="board-logo-width" min="0.8" max="4" step="0.1" value="1.2" style="width:100%;" oninput="updateBoardLogoPreview()">
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:0.85em; color:var(--secondary); display:block; margin-bottom:5px;">🖼️ 填滿方式</label>
+                        <select id="board-logo-fit" style="width:100%; padding:6px;" onchange="updateBoardLogoPreview()">
+                            <option value="contain">📦 contain — 完整顯示 (可能有留白)</option>
+                            <option value="cover">✂️ cover — 填滿裁切 (不留白)</option>
+                            <option value="fill">↔️ fill — 拉伸 (可能變形)</option>
+                            <option value="scale-down">📏 scale-down — 較小者 (contain + none)</option>
+                            <option value="none">🖼️ none — 原始大小</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:12px;">
+                        <button type="button" class="btn-primary" style="flex:1;" onclick="saveBoardLogoSize()">💾 儲存圖片設定</button>
+                        <button type="button" class="btn-outline" onclick="removeBoardLogo()">🗑️ 移除圖片</button>
+                    </div>
+                </div>
             </div>
             <div style="margin-bottom: 10px;">
                 <label style="font-weight:bold; color:var(--secondary); font-size:1.1em;">✨ 或點擊下方選擇內建圖示 ✨</label>
@@ -1556,6 +1594,9 @@
         var STORAGE_KEY_BOARD_TITLE = 'StudyMap_BoardTitle_V20';
         var STORAGE_KEY_BOARD_LOGO = 'StudyMap_BoardLogo_V20';
         var STORAGE_KEY_BOARD_EMOJI = 'StudyMap_BoardEmoji_V20';
+        var STORAGE_KEY_BOARD_LOGO_HEIGHT = 'StudyMap_BoardLogoHeight_V20';
+        var STORAGE_KEY_BOARD_LOGO_WIDTH = 'StudyMap_BoardLogoWidth_V20';
+        var STORAGE_KEY_BOARD_LOGO_FIT = 'StudyMap_BoardLogoFit_V20';
         var STORAGE_KEY_WIZARD_PREFS = 'StudyMap_WizardPrefs_V20';
         var STORAGE_KEY_THEME = 'StudyMap_Theme_V21';
         
@@ -1748,16 +1789,73 @@
             var title = localStorage.getItem(STORAGE_KEY_BOARD_TITLE) || '學習地圖與專案進度看板';
             var logo = localStorage.getItem(STORAGE_KEY_BOARD_LOGO) || '';
             var emoji = localStorage.getItem(STORAGE_KEY_BOARD_EMOJI) || '📊';
-            
+            var logoH = parseFloat(localStorage.getItem(STORAGE_KEY_BOARD_LOGO_HEIGHT)) || 1.2;
+            var logoW = parseFloat(localStorage.getItem(STORAGE_KEY_BOARD_LOGO_WIDTH)) || 1.2;
+            var logoFit = localStorage.getItem(STORAGE_KEY_BOARD_LOGO_FIT) || 'cover';
+
             var html = '';
             if (logo) {
-                html += `<img src="${logo}" style="height:1.2em; width:1.2em; border-radius:8px; margin-right:8px; object-fit:cover; vertical-align:middle;">`;
+                html += `<img src="${logo}" style="height:${logoH}em; width:${logoW}em; border-radius:8px; margin-right:8px; object-fit:${logoFit}; vertical-align:middle;">`;
             } else {
-                html += `<span style="margin-right:8px; font-size:1.1em; vertical-align:middle;">${emoji}</span>`;
+                html += `<span style="margin-right:8px; font-size:1.2em; vertical-align:middle;">${emoji}</span>`;
             }
             html += `<span style="vertical-align:middle;">${title}</span> <span style="font-size: 0.5em; opacity: 0.5; vertical-align:middle; margin-left:8px;">✏️</span>`;
-            
+
             el('main-app-title').innerHTML = html;
+        }
+
+        function updateBoardLogoPreview() {
+            var logo = localStorage.getItem(STORAGE_KEY_BOARD_LOGO) || '';
+            if (!logo) return;
+            var title = localStorage.getItem(STORAGE_KEY_BOARD_TITLE) || '學習地圖與專案進度看板';
+            var h = parseFloat(document.getElementById('board-logo-height').value) || 1.2;
+            var w = parseFloat(document.getElementById('board-logo-width').value) || 1.2;
+            var fit = document.getElementById('board-logo-fit').value || 'cover';
+            var lockRatio = document.getElementById('board-logo-lock-ratio').checked;
+
+            document.getElementById('board-logo-height-label').textContent = h.toFixed(1);
+            document.getElementById('board-logo-width-label').textContent = w.toFixed(1);
+
+            // 鎖定寬高比時: 同步 width slider 跟著 height 變
+            if (lockRatio) {
+                // 用 img 原始比例計算 (從 logo data URL)
+                var img = new Image();
+                img.onload = function() {
+                    var ratio = img.width / img.height;
+                    var newW = (h * ratio).toFixed(1);
+                    document.getElementById('board-logo-width').value = newW;
+                    document.getElementById('board-logo-width-label').textContent = newW;
+                    document.getElementById('board-logo-preview-title').innerHTML =
+                        `<img src="${logo}" style="height:${h}em; width:${newW}em; border-radius:8px; margin-right:8px; object-fit:${fit}; vertical-align:middle;"><span style="vertical-align:middle;">${title}</span>`;
+                };
+                img.src = logo;
+            } else {
+                document.getElementById('board-logo-preview-title').innerHTML =
+                    `<img src="${logo}" style="height:${h}em; width:${w}em; border-radius:8px; margin-right:8px; object-fit:${fit}; vertical-align:middle;"><span style="vertical-align:middle;">${title}</span>`;
+            }
+        }
+
+        function saveBoardLogoSize() {
+            var h = parseFloat(document.getElementById('board-logo-height').value) || 1.2;
+            var w = parseFloat(document.getElementById('board-logo-width').value) || 1.2;
+            var fit = document.getElementById('board-logo-fit').value || 'cover';
+            localStorage.setItem(STORAGE_KEY_BOARD_LOGO_HEIGHT, h.toFixed(1));
+            localStorage.setItem(STORAGE_KEY_BOARD_LOGO_WIDTH, w.toFixed(1));
+            localStorage.setItem(STORAGE_KEY_BOARD_LOGO_FIT, fit);
+            loadBoardHeader();
+            closeModal('modal-board-settings');
+            alert('✅ 圖片設定已儲存！');
+        }
+
+        function removeBoardLogo() {
+            if (!confirm('確定要移除自訂圖片嗎？將恢復使用預設圖示。')) return;
+            localStorage.removeItem(STORAGE_KEY_BOARD_LOGO);
+            localStorage.removeItem(STORAGE_KEY_BOARD_LOGO_HEIGHT);
+            localStorage.removeItem(STORAGE_KEY_BOARD_LOGO_WIDTH);
+            localStorage.removeItem(STORAGE_KEY_BOARD_LOGO_FIT);
+            localStorage.setItem(STORAGE_KEY_BOARD_EMOJI, '📊');
+            loadBoardHeader();
+            closeModal('modal-board-settings');
         }
 
         function applyTheme(theme) {
@@ -1806,14 +1904,31 @@
             reader.onload = function(e) {
                 let img = new Image();
                 img.onload = function() {
+                    // v1.5.54: 不裁方! 保留原始比例,只壓縮到合理大小 (max 800x800)
+                    let maxDim = 800;
+                    let w = img.width, h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) { h = h * (maxDim / w); w = maxDim; }
+                        else { w = w * (maxDim / h); h = maxDim; }
+                    }
                     let canvas = document.createElement('canvas');
+                    canvas.width = Math.round(w);
+                    canvas.height = Math.round(h);
                     let ctx = canvas.getContext('2d');
-                    let size = Math.min(img.width, img.height);
-                    canvas.width = 150; canvas.height = 150;
-                    ctx.drawImage(img, (img.width - size)/2, (img.height - size)/2, size, size, 0, 0, 150, 150);
-                    localStorage.setItem(STORAGE_KEY_BOARD_LOGO, canvas.toDataURL('image/jpeg', 0.8));
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    let dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    localStorage.setItem(STORAGE_KEY_BOARD_LOGO, dataUrl);
+
+                    // 顯示 size controls
+                    document.getElementById('board-logo-preview').style.display = 'block';
+                    document.getElementById('board-logo-height').value = '1.2';
+                    document.getElementById('board-logo-width').value = '1.2';
+                    document.getElementById('board-logo-fit').value = 'cover';
+                    document.getElementById('board-logo-lock-ratio').checked = true;
+                    document.getElementById('board-logo-width-row').style.display = 'block';
+                    updateBoardLogoPreview();
+
                     loadBoardHeader();
-                    closeModal('modal-board-settings');
                 };
                 img.src = e.target.result;
             };
