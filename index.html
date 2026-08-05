@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.57]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.58]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -872,7 +872,7 @@
         </div>
 
         <!-- 回首頁 absolute positioned -->
-        <button class="btn-home" style="position:absolute; left:1644px; top:24px; width:171px; text-align:center; z-index:100;" onclick="returnToHome()">🏠 回首頁</button>
+        <button class="btn-home" style="position:absolute; right:20px; top:24px; min-width:140px; text-align:center; z-index:100;" onclick="returnToHome()">🏠 回首頁</button>
 
         <!-- 主顯示區 -->
         <div id="dashboard-root" class="dash-view active"></div>
@@ -4938,11 +4938,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if(el('btn-tab-' + tabId)) el('btn-tab-' + tabId).classList.add('active'); 
             if(el('pane-' + tabId)) el('pane-' + tabId).classList.add('active'); 
             if(tabId === 'mission') renderMissionCheckboxes(); 
-            if(tabId === 'daily') { 
-                if(typeof openDailyInput === 'function') openDailyInput(); 
-            } else if(tabId === 'history') { 
-                if(typeof openHistory === 'function') openHistory(); 
-            } 
+            // v1.5.58: history tab 切換時自動 render 表格
+            if(tabId === 'history' && typeof renderHistoryTable === 'function') renderHistoryTable(); 
         }
         
         function extractCurrentEditorData() {
