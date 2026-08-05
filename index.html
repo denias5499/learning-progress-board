@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.79]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.80]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6392,9 +6392,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return 'todo';
             }
 
-            // v1.5.79: 覆蓋頁數 + 排程資訊 (跨所有 plan 累計,記住 cat/mis 供點擊跳轉)
-            // 計算「所有排進月曆的任務」= covered,不管 isDone (因為「有排 = 有覆蓋」)
-            var scheduledUnits = {};  // { unitId: { covered, totalTasks, firstCat, firstMis } }
+            // v1.5.80: 覆蓋頁數 + 排程資訊 (跨所有 plan 累計,記住 cat/mis 供點擊跳轉)
+            // v1.5.80 fix: 改用 window 全域變數,讓 jumpToUnitCalendar 能讀到
+            window._treeScheduledUnits = {};  // { unitId: { covered, totalTasks, firstCat, firstMis, firstPlanId } }
             if (Array.isArray(appPlans)) {
                 appPlans.forEach(plan => {
                     if (!plan.grid) return;
@@ -6403,16 +6403,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         if (!Array.isArray(tasks)) return;
                         tasks.forEach(t => {
                             if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
-                            if (!scheduledUnits[t.unitId]) {
-                                scheduledUnits[t.unitId] = {
+                            if (!window._treeScheduledUnits[t.unitId]) {
+                                window._treeScheduledUnits[t.unitId] = {
                                     covered: 0, totalTasks: 0, doneTasks: 0,
                                     firstCat: t.cat, firstMis: t.mis || plan.name || '',
                                     firstPlanId: plan.id
                                 };
                             }
-                            scheduledUnits[t.unitId].covered += (t.endPage - t.startPage + 1);
-                            scheduledUnits[t.unitId].totalTasks += 1;
-                            if (t.isDone) scheduledUnits[t.unitId].doneTasks += 1;
+                            window._treeScheduledUnits[t.unitId].covered += (t.endPage - t.startPage + 1);
+                            window._treeScheduledUnits[t.unitId].totalTasks += 1;
+                            if (t.isDone) window._treeScheduledUnits[t.unitId].doneTasks += 1;
                         });
                     });
                 });
@@ -6492,7 +6492,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
                             // v1.5.77: 計算覆蓋率 + 進度條
                             var totalPages = u.end - u.start + 1;
-                            var suInfo = scheduledUnits[u.id];
+                            var suInfo = window._treeScheduledUnits[u.id];
                             var coveredPages = suInfo ? suInfo.covered : 0;
                             var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
                             var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
@@ -6538,7 +6538,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var dotClass = 'dot-' + st;
                             var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
                             var totalPages = u.end - u.start + 1;
-                            var suInfo = scheduledUnits[u.id];
+                            var suInfo = window._treeScheduledUnits[u.id];
                             var coveredPages = suInfo ? suInfo.covered : 0;
                             var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
                             var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
@@ -6898,11 +6898,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
         
         function jumpToUnitCalendar(unitId, cat, mis) {
-            // v1.5.79: 從樹狀圖點單元 → 切到月曆 + 套用篩選 + 高亮該單元的任務
+            // v1.5.80: 從樹狀圖點單元 → 切到月曆 + 套用篩選 + 高亮該單元的任務
             showPage('page-planner');
             
-            // 先找對應的 plan 並切過去 (從 scheduledUnits 拿 planId,如果沒有就 fallback 用 cat+mis 找)
-            var suInfo = unitId && scheduledUnits ? scheduledUnits[unitId] : null;
+            // v1.5.80 fix: 從 window 全域讀 scheduledUnits (避免 closure 變數抓不到)
+            var suInfo = unitId && window._treeScheduledUnits ? window._treeScheduledUnits[unitId] : null;
             var targetPlanId = suInfo ? suInfo.firstPlanId : null;
             
             var plannerSel = el('planner-selector');
