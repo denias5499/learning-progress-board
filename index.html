@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.86]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.87]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -649,29 +649,30 @@
             position: absolute; top: 1px; right: 4px;
             font-size: 0.85em; color: #f57c00; z-index: 5;
         }
-        /* v1.5.86: highlight 橫條 */
+        /* v1.5.87: highlight 橫條 (在 month-nav-row 最左側) */
         .highlight-banner {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
             background: #fff3cd;
             border: 1px solid #ffc107;
             border-radius: 8px;
-            padding: 12px 18px;
-            margin-bottom: 15px;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            flex-wrap: wrap;
-            font-size: 1em;
+            padding: 8px 14px;
+            font-size: 0.95em;
             color: #5d4037;
+            flex: 0 1 auto;
         }
+        .highlight-banner .banner-content { white-space: nowrap; }
         .highlight-banner button {
             background: #ffc107;
             color: #5d4037;
             border: none;
-            padding: 6px 16px;
+            padding: 4px 12px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: bold;
-            font-size: 0.95em;
+            font-size: 0.9em;
+            white-space: nowrap;
         }
         .highlight-banner button:hover { background: #ffb300; }
         
@@ -1115,10 +1116,13 @@
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 15px;">
-                    <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(-1)">◀ 上個月</button>
-                    <span id="current-month-display" style="font-weight: bold; font-size: 1.3em; min-width: 140px; text-align: center; color: var(--primary);"></span>
-                    <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(1)">下個月 ▶</button>
+                <div id="month-nav-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                    <div id="calendar-highlight-banner" style="display: none;"></div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(-1)">◀ 上個月</button>
+                        <span id="current-month-display" style="font-weight: bold; font-size: 1.3em; min-width: 140px; text-align: center; color: var(--primary);"></span>
+                        <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(1">下個月 ▶</button>
+                    </div>
                 </div>
 
                 <div class="calendar-wrapper">
@@ -2883,16 +2887,16 @@ loadBoardHeader();
             var todayStr = getLocalDateString(new Date());
             if(!plan.grid || typeof plan.grid !== 'object') plan.grid = {};
 
-            // v1.5.86: highlight 橫條 (只有從樹狀圖點過來時才顯示)
+            // v1.5.87: highlight 橫條改到獨立容器 (在月曆切換的同一排最左側)
             var highlightUid = window._highlightUnitId;
+            var bannerEl = el('calendar-highlight-banner');
             if (highlightUid && window._treeScheduledUnits && window._treeScheduledUnits[highlightUid]) {
                 var hsu = window._treeScheduledUnits[highlightUid];
-                // 去掉 mis 開頭的 emoji (ex: 📚 一模 -> 一模)
                 var cleanMis = (hsu.firstMis || '').replace(/^[\uD800-\uDBFF][\uDC00-\uDFFF]+\s*/g, '').trim();
-                html += '<div class="highlight-banner">';
-                html += '📌 ' + escapeHtml(hsu.unitName || '單元') + ' (' + escapeHtml(hsu.firstCat) + ' → ' + escapeHtml(cleanMis) + ')';
-                html += '<button onclick="returnToTreeView()">← 返回樹狀圖</button>';
-                html += '</div>';
+                bannerEl.innerHTML = '<span class="banner-content">📌 ' + escapeHtml(hsu.unitName || '單元') + ' (' + escapeHtml(hsu.firstCat) + ' → ' + escapeHtml(cleanMis) + ')</span><button onclick="returnToTreeView()">← 返回樹狀圖</button>';
+                bannerEl.style.display = 'inline-flex';
+            } else {
+                bannerEl.style.display = 'none';
             }
 
             for(var i=0; i<42; i++) {
@@ -6453,15 +6457,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
 
             function getStatus(unitId, total) {
-                var done = logData[unitId] ? logData[unitId].pages : 0;
+                // v1.5.87: 改用 window._treeScheduledUnits (doneTasks 反映 checkbox 勾選)
+                var suInfo = window._treeScheduledUnits && window._treeScheduledUnits[unitId];
+                var done = suInfo ? suInfo.doneTasks : 0;
                 if (done >= total) return 'done';
                 if (done > 0) return 'progress';
                 return 'todo';
             }
 
-            // v1.5.80: 覆蓋頁數 + 排程資訊 (跨所有 plan 累計,記住 cat/mis 供點擊跳轉)
-            // v1.5.80 fix: 改用 window 全域變數,讓 jumpToUnitCalendar 能讀到
-            window._treeScheduledUnits = {};  // { unitId: { covered, totalTasks, firstCat, firstMis, firstPlanId } }
+            // v1.5.87: scheduledUnits 同步存到 window 全域 (供 getStatus 等其他函式讀取)
+            window._treeScheduledUnits = {};
             if (Array.isArray(appPlans)) {
                 appPlans.forEach(plan => {
                     if (!plan.grid) return;
@@ -6472,14 +6477,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
                             if (!window._treeScheduledUnits[t.unitId]) {
                                 window._treeScheduledUnits[t.unitId] = {
-                                    covered: 0, totalTasks: 0, doneTasks: 0,
+                                    covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
                                     firstCat: t.cat, firstMis: t.mis || plan.name || '',
                                     firstPlanId: plan.id
                                 };
                             }
-                            window._treeScheduledUnits[t.unitId].covered += (t.endPage - t.startPage + 1);
+                            var pages = t.endPage - t.startPage + 1;
+                            window._treeScheduledUnits[t.unitId].covered += pages;
                             window._treeScheduledUnits[t.unitId].totalTasks += 1;
-                            if (t.isDone) window._treeScheduledUnits[t.unitId].doneTasks += 1;
+                            if (t.isDone) {
+                                window._treeScheduledUnits[t.unitId].donePages += pages;
+                                window._treeScheduledUnits[t.unitId].doneTasks += 1;
+                            }
                         });
                     });
                 });
@@ -6560,7 +6569,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             // v1.5.77: 計算覆蓋率 + 進度條
                             var totalPages = u.end - u.start + 1;
                             var suInfo = window._treeScheduledUnits[u.id];
-                            var coveredPages = suInfo ? suInfo.covered : 0;
+                            // v1.5.87: 改用 donePages (checkbox 勾選的頁數) 而非 covered (所有排入)
+                            var coveredPages = suInfo ? suInfo.donePages : 0;
                             var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
                             var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
                             var barFilled = Math.round(pct / 10);
@@ -6606,7 +6616,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
                             var totalPages = u.end - u.start + 1;
                             var suInfo = window._treeScheduledUnits[u.id];
-                            var coveredPages = suInfo ? suInfo.covered : 0;
+                            // v1.5.87: 改用 donePages (checkbox 勾選的頁數) 而非 covered (所有排入)
+                            var coveredPages = suInfo ? suInfo.donePages : 0;
                             var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
                             var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
                             var barFilled = Math.round(pct / 10);
