@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.91]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.92]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3822,12 +3822,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // ==========================================
             if (task.unitId && oldEnd && newEnd && oldEnd !== newEnd) {
                 // v1.5.88: debug log
-                console.log('[Reroute] date=' + dateStr + ' oldEnd=' + oldEnd + ' newEnd=' + newEnd + ' unitId=' + task.unitId);
+
                 let maxUnitEnd = newEnd;
                 let foundMasterEnd = false;
                 
-                // (A) v1.5.73: 取得該單元真正的總結尾頁數 (maxUnitEnd)
+                // (A) v1.5.92: 取得該單元真正的總結尾頁數 (maxUnitEnd)
                 // 優先從 multiData 取得最新資料,fallback 才用 appMaster
+                // v1.5.92: 支援新架構 (materials[*].instances[*].units)
                 if (task.subject && task.unitId) {
                     let sInfo = null;
                     let user = multiData[currentUserId];
@@ -3841,10 +3842,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         let u = null;
                         if (sInfo.type === 'custom') {
                             u = sInfo.units.find(x => x.id === task.unitId);
-                        } else {
-                            for(let v in sInfo.vols) {
+                        } else if (sInfo.vols && Object.keys(sInfo.vols).length > 0) {
+                            // 舊架構: sInfo.vols[冊名].units
+                            for (let v in sInfo.vols) {
                                 u = sInfo.vols[v].find(x => x.id === task.unitId);
-                                if(u) break;
+                                if (u) break;
+                            }
+                        } else if (sInfo.materials) {
+                            // v1.5.92: 新架構: sInfo.materials[類型].instances[].units
+                            for (let matType in sInfo.materials) {
+                                let mat = sInfo.materials[matType];
+                                if (mat && mat.instances) {
+                                    for (let inst of mat.instances) {
+                                        if (inst && inst.units) {
+                                            u = inst.units.find(x => x.id === task.unitId);
+                                            if (u) break;
+                                        }
+                                    }
+                                }
+                                if (u) break;
                             }
                         }
                         if (u && u.end) {
@@ -3854,11 +3870,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     }
                 }
                 
-                // 防呆：如果找不到母體或新設定大於母體，以目前操作的最大值為準
-                if (!foundMasterEnd || maxUnitEnd < Math.max(oldEnd, newEnd)) {
+                // 防呆: 1) 教材庫找不到時,從月曆上同 unitId 的任務推算 maxUnitEnd
+                //      2) 如果新設定大於母體,以目前操作的最大值為準
+                if (!foundMasterEnd) {
+                    let maxEndInCalendar = Math.max(oldEnd, newEnd);
+                    if (plan && plan.grid) {
+                        Object.keys(plan.grid).forEach(d => {
+                            (plan.grid[d] || []).forEach(t => {
+                                if (t.unitId === task.unitId && t.endPage) {
+                                    maxEndInCalendar = Math.max(maxEndInCalendar, t.endPage);
+                                }
+                            });
+                        });
+                    }
+                    maxUnitEnd = maxEndInCalendar;
+                }
+                if (maxUnitEnd < Math.max(oldEnd, newEnd)) {
                     maxUnitEnd = Math.max(oldEnd, newEnd);
                 }
-                console.log('[Reroute A] maxUnitEnd=' + maxUnitEnd + ' foundMasterEnd=' + foundMasterEnd);
+
 
                 // (B) 收集此日期「之後」，屬於「同一個單元」的所有任務
                 let futureTasks = [];
@@ -3874,7 +3904,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 
                 // 按照日期先後排序
                 futureTasks.sort((a, b) => a.date.localeCompare(b.date));
-                console.log('[Reroute B] futureTasks=' + futureTasks.length + ' currentStart=' + (newEnd + 1));
+
                 
                 let currentStart = newEnd + 1; // 接下來要分配的起始頁
                 
@@ -3904,7 +3934,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     }
                 }
                 
-                console.log('[Reroute D] currentStart=' + currentStart + ' maxUnitEnd=' + maxUnitEnd + ' will_create=' + (currentStart <= maxUnitEnd));
+
                 // (D) v1.5.73: 自動往下加日期,分配剩餘頁數
                 let overflowDates = [];
                 let overflowExceedsPlan = false;
@@ -3953,9 +3983,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         leftoverStart = dayEnd + 1;
                         startDate.setDate(startDate.getDate() + 1);
                     }
-                    console.log('[Reroute E] created ' + dayCount + ' task(s) on dates: ' + overflowDates.join(','));
-                } else {
-                    console.log('[Reroute E] no task created (condition not met)');
                 }
                 
                 // 改進 2 + 3: 顯示補排結果訊息
