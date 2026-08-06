@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.89]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.90]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3822,10 +3822,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // ==========================================
             if (task.unitId && oldEnd && newEnd && oldEnd !== newEnd) {
                 // v1.5.88: debug log
-                console.log('[saveCalendarTask] Reroute triggered:', {
-                    dateStr, oldEnd, newEnd,
-                    unitId: task.unitId, subject: task.subject, vol: task.vol, cat: task.cat
-                });
+                console.log('[Reroute] date=' + dateStr + ' oldEnd=' + oldEnd + ' newEnd=' + newEnd + ' unitId=' + task.unitId);
                 let maxUnitEnd = newEnd;
                 let foundMasterEnd = false;
                 
@@ -3861,7 +3858,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (!foundMasterEnd || maxUnitEnd < Math.max(oldEnd, newEnd)) {
                     maxUnitEnd = Math.max(oldEnd, newEnd);
                 }
-                console.log('[Reroute A] maxUnitEnd:', maxUnitEnd, 'foundMasterEnd:', foundMasterEnd);
+                console.log('[Reroute A] maxUnitEnd=' + maxUnitEnd + ' foundMasterEnd=' + foundMasterEnd);
 
                 // (B) 收集此日期「之後」，屬於「同一個單元」的所有任務
                 let futureTasks = [];
@@ -3877,7 +3874,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 
                 // 按照日期先後排序
                 futureTasks.sort((a, b) => a.date.localeCompare(b.date));
-                console.log('[Reroute B] futureTasks:', futureTasks.length, 'currentStart:', newEnd + 1);
+                console.log('[Reroute B] futureTasks=' + futureTasks.length + ' currentStart=' + (newEnd + 1));
                 
                 let currentStart = newEnd + 1; // 接下來要分配的起始頁
                 
@@ -3907,7 +3904,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     }
                 }
                 
-                console.log('[Reroute D] currentStart:', currentStart, 'maxUnitEnd:', maxUnitEnd, 'will_create:', currentStart <= maxUnitEnd);
+                console.log('[Reroute D] currentStart=' + currentStart + ' maxUnitEnd=' + maxUnitEnd + ' will_create=' + (currentStart <= maxUnitEnd));
                 // (D) v1.5.73: 自動往下加日期,分配剩餘頁數
                 let overflowDates = [];
                 let overflowExceedsPlan = false;
