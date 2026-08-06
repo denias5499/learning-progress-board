@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.82]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.83]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2810,12 +2810,19 @@ loadBoardHeader();
             let allowedUnitIds = new Set();
             let allowedSubjects = new Set();
             
-            if (fCat !== 'ALL') {
-                if (fMis !== 'ALL') {
+            if (fCat !== 'ALL' && appMissions[fCat]) {  // v1.5.83: 加防呆 appMissions[fCat]
+                if (fMis !== 'ALL' && appMissions[fCat][fMis]) {
                     (appMissions[fCat][fMis] || []).forEach(id => allowedUnitIds.add(id));
                     let mTree = buildMissionTree(fCat, fMis);
                     Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
+                } else if (fMis === 'ALL') {
+                    Object.keys(appMissions[fCat]).forEach(m => {
+                        (appMissions[fCat][m] || []).forEach(id => allowedUnitIds.add(id));
+                        let mTree = buildMissionTree(fCat, m);
+                        Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
+                    });
                 } else {
+                    // v1.5.83: fMis 找不到 (可能 emoji 被截斷),fallback 用 ALL
                     Object.keys(appMissions[fCat]).forEach(m => {
                         (appMissions[fCat][m] || []).forEach(id => allowedUnitIds.add(id));
                         let mTree = buildMissionTree(fCat, m);
