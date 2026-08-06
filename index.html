@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.83]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.84]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6905,65 +6905,95 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
         
         function jumpToUnitCalendar(unitId, cat, mis) {
-            // v1.5.82: 從樹狀圖點單元 → 切到月曆 + 套用篩選 + 高亮該單元的任務
-            console.log('[jumpToUnitCalendar] unitId:', unitId, 'cat:', cat, 'mis:', mis);
-            console.log('[jumpToUnitCalendar] suInfo:', window._treeScheduledUnits && window._treeScheduledUnits[unitId]);
-            console.log('[jumpToUnitCalendar] appPlans:', appPlans.map(p => ({cat: p.cat, name: p.name, id: p.id})));
+            // v1.5.84: 完整重寫 - 從樹狀圖點單元 → 切月曆 + 正確切 plan + 篩選
+            var suInfo = window._treeScheduledUnits && window._treeScheduledUnits[unitId];
             
-            showPage('page-planner');
-            
-            // v1.5.82: 3 段式 plan 查找
-            var suInfo = unitId && window._treeScheduledUnits ? window._treeScheduledUnits[unitId] : null;
+            // 1. 找 plan (4 段式查找,最可靠的是 suInfo.firstPlanId)
             var targetPlanId = null;
-            
-            // 第一優先: suInfo.firstPlanId (這個 unit 真的被排在哪個 plan)
-            if (suInfo && suInfo.firstPlanId) {
-                targetPlanId = suInfo.firstPlanId;
-            }
-            // 第二優先: 用 cat+mis 找
+            if (suInfo && suInfo.firstPlanId) targetPlanId = suInfo.firstPlanId;
             if (!targetPlanId && cat && mis) {
                 var p = appPlans.find(p => p.cat === cat && p.name === mis);
                 if (p) targetPlanId = p.id;
             }
-            // 第三優先: 用 cat 找第一個 plan
             if (!targetPlanId && cat) {
                 var p = appPlans.find(p => p.cat === cat);
                 if (p) targetPlanId = p.id;
             }
-            // 第四優先: 用 suInfo.firstCat 找
-            if (!targetPlanId && suInfo && suInfo.firstCat) {
-                var p = appPlans.find(p => p.cat === suInfo.firstCat);
-                if (p) targetPlanId = p.id;
-            }
-            // 最後 fallback: 用第一個 plan
-            if (!targetPlanId && appPlans.length > 0) {
-                targetPlanId = appPlans[0].id;
+            if (!targetPlanId && appPlans.length > 0) targetPlanId = appPlans[0].id;
+            
+            if (!targetPlanId) {
+                console.log('[jumpToUnitCalendar] 找不到任何 plan');
+                return;
             }
             
-            console.log('[jumpToUnitCalendar] targetPlanId:', targetPlanId);
+            // 2. 先呼叫 openPlanner() 確保 dropdown 選項已 populate
+            openPlanner();
             
+            // 3. 設定 planner-selector
             var plannerSel = el('planner-selector');
-            if (plannerSel && targetPlanId) {
+            if (plannerSel) {
                 plannerSel.value = targetPlanId;
-                renderCalendar();
             }
             
-            // 用 plan 的 cat/mis 設 filter (因為 plan.name 不一定等於 mis)
+            // 4. 設定 cat/mis filter (用 plan 的 cat + 該 unit 的 firstMis)
             var targetPlan = appPlans.find(p => p.id === targetPlanId);
             var filterCat = targetPlan ? targetPlan.cat : (cat || 'ALL');
-            var filterMis = mis || 'ALL';
+            // mis: 優先用 suInfo.firstMis,但要確認 dropdown 有這個選項
+            var filterMis = 'ALL';  // 預設 ALL (最安全,顯示 plan 內所有 mis)
+            if (suInfo && suInfo.firstMis) {
+                // 確認 dropdown 內有這個 option
+                var misFilterEl = el('planner-mis-filter');
+                if (misFilterEl) {
+                    var misOptions = Array.from(misFilterEl.options).map(o => o.value);
+                    if (misOptions.includes(suInfo.firstMis)) {
+                        filterMis = suInfo.firstMis;
+                    } else {
+                        // v1.5.84: mis 找不到時,嘗試加 emoji 前綴比對
+                        var matched = misOptions.find(o => o.includes(suInfo.firstMis) || suInfo.firstMis.includes(o));
+                        if (matched) filterMis = matched;
+                    }
+                }
+            }
             
+            // 5. 設 filter 值並更新 mission dropdown
             var catFilter = el('planner-cat-filter');
             if (catFilter) {
                 catFilter.value = filterCat;
-                onPlannerCatChange();
+                onPlannerCatChange();  // 這會更新 misFilter 的 options
             }
             var misFilter = el('planner-mis-filter');
-            if (misFilter) misFilter.value = filterMis;
+            if (misFilter) {
+                misFilter.value = filterMis;
+            }
             
-            // 把 unitId 存在 window 上,讓 renderCalendar 高亮該單元
+            // 6. 切到該單元任務的月份 (看 plan.grid 內有沒有該 unit 的 task,跳到那個月)
+            var targetMonth = null;
+            if (suInfo && unitId) {
+                if (targetPlan && targetPlan.grid) {
+                    Object.keys(targetPlan.grid).forEach(dStr => {
+                        var tasks = targetPlan.grid[dStr] || [];
+                        for (var i = 0; i < tasks.length; i++) {
+                            if (tasks[i].unitId === unitId && !targetMonth) {
+                                targetMonth = dStr.substring(0, 7); // YYYY-MM
+                            }
+                        }
+                    });
+                }
+            }
+            
+            // 7. 切月份
+            if (targetMonth && typeof currentViewDate !== 'undefined') {
+                var parts = targetMonth.split('-');
+                currentViewDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
+            }
+            
+            // 8. 設定 highlight unitId
             window._highlightUnitId = unitId || null;
+            
+            // 9. 最終 renderCalendar
             renderCalendar();
+            
+            console.log('[jumpToUnitCalendar] OK:', { planId: targetPlanId, cat: filterCat, mis: filterMis, month: targetMonth });
         }
         
         function renderDashboard() { 
