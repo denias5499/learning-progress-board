@@ -639,6 +639,41 @@
         .calendar-day:hover { background: #fdfefe; }
         .calendar-day.weekend { background: #f8fafc; }
         .calendar-day.other-month { background: #f1f5f9; opacity: 0.5; }
+        /* v1.5.86: highlight 日期 */
+        .calendar-day.has-highlight {
+            background: #fff3cd !important;
+            border: 2px solid #ffc107 !important;
+            box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+        }
+        .calendar-day .highlight-pin {
+            position: absolute; top: 1px; right: 4px;
+            font-size: 0.85em; color: #f57c00; z-index: 5;
+        }
+        /* v1.5.86: highlight 橫條 */
+        .highlight-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            font-size: 1em;
+            color: #5d4037;
+        }
+        .highlight-banner button {
+            background: #ffc107;
+            color: #5d4037;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.95em;
+        }
+        .highlight-banner button:hover { background: #ffb300; }
         
         .date-label-container { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
         .date-num { font-weight: bold; font-size: 1em; color: #7f8c8d; padding: 2px 6px; display: inline-block; }
@@ -1573,6 +1608,11 @@
             document.querySelectorAll('.page-view').forEach(p => p.style.display = 'none');
             el('dashboard-root').style.display = 'none';
             el('starmap-root').style.display = 'none';
+            
+            // v1.5.86: 離開月曆時清除 highlight
+            if (pageId !== 'page-planner') {
+                window._highlightUnitId = null;
+            }
             
             // 修正：動態清除白底框,保留回首頁按鍵的透明背景
             
@@ -2843,6 +2883,18 @@ loadBoardHeader();
             var todayStr = getLocalDateString(new Date());
             if(!plan.grid || typeof plan.grid !== 'object') plan.grid = {};
 
+            // v1.5.86: highlight 橫條 (只有從樹狀圖點過來時才顯示)
+            var highlightUid = window._highlightUnitId;
+            if (highlightUid && window._treeScheduledUnits && window._treeScheduledUnits[highlightUid]) {
+                var hsu = window._treeScheduledUnits[highlightUid];
+                // 去掉 mis 開頭的 emoji (ex: 📚 一模 -> 一模)
+                var cleanMis = (hsu.firstMis || '').replace(/^[\uD800-\uDBFF][\uDC00-\uDFFF]+\s*/g, '').trim();
+                html += '<div class="highlight-banner">';
+                html += '📌 ' + escapeHtml(hsu.unitName || '單元') + ' (' + escapeHtml(hsu.firstCat) + ' → ' + escapeHtml(cleanMis) + ')';
+                html += '<button onclick="returnToTreeView()">← 返回樹狀圖</button>';
+                html += '</div>';
+            }
+
             for(var i=0; i<42; i++) {
                 var d = new Date(startDate); d.setDate(startDate.getDate() + i);
                 var dStr = getLocalDateString(d);
@@ -2946,8 +2998,16 @@ loadBoardHeader();
                 
                 var isToday = dStr === todayStr ? 'background:var(--accent); color:white; border-radius:4px;' : '';
                 
+                // v1.5.86: 檢查這個日期是否有 highlight 單元的任務
+                var hasHighlight = false;
+                if (highlightUid && tasks && tasks.length > 0) {
+                    hasHighlight = tasks.some(function(t) { return t.unitId === highlightUid; });
+                }
+                var classStrWithHighlight = hasHighlight ? classStr + ' has-highlight' : classStr;
+                
                 html += `
-                <div class="${classStr}" ondragover="allowDrop(event)" ondrop="dropTask(event, '${dStr}')">
+                <div class="${classStrWithHighlight}" ondragover="allowDrop(event)" ondrop="dropTask(event, '${dStr}')">
+                    ${hasHighlight ? '<span class="highlight-pin" title="包含醒目單元">📌</span>' : ''}
                     <div class="date-label-container">
                         <span class="date-num" style="${isToday}">${d.getDate()}</span>
                         <button class="add-event-btn" title="手動新增自訂進度" onclick="openAddEventModal('${dStr}', '${pid}'); event.stopPropagation();">＋</button>
@@ -6905,10 +6965,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
         
         function jumpToUnitCalendar(unitId, cat, mis) {
-            // v1.5.84: 完整重寫 - 從樹狀圖點單元 → 切月曆 + 正確切 plan + 篩選
+            // v1.5.86: 簡化 - 點單元 → 切月曆 + 設 highlight (不清掉其他任務)
             var suInfo = window._treeScheduledUnits && window._treeScheduledUnits[unitId];
             
-            // 1. 找 plan (4 段式查找,最可靠的是 suInfo.firstPlanId)
+            // 1. 找 plan
             var targetPlanId = null;
             if (suInfo && suInfo.firstPlanId) targetPlanId = suInfo.firstPlanId;
             if (!targetPlanId && cat && mis) {
@@ -6926,74 +6986,53 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return;
             }
             
-            // 2. 先呼叫 openPlanner() 確保 dropdown 選項已 populate
+            // 2. openPlanner() 確保 dropdown populate
             openPlanner();
             
             // 3. 設定 planner-selector
             var plannerSel = el('planner-selector');
-            if (plannerSel) {
-                plannerSel.value = targetPlanId;
-            }
+            if (plannerSel) plannerSel.value = targetPlanId;
             
-            // 4. 設定 cat/mis filter (用 plan 的 cat + 該 unit 的 firstMis)
+            // 4. cat = plan 的 cat, mis = ALL (全部顯示)
             var targetPlan = appPlans.find(p => p.id === targetPlanId);
             var filterCat = targetPlan ? targetPlan.cat : (cat || 'ALL');
-            // mis: 優先用 suInfo.firstMis,但要確認 dropdown 有這個選項
-            var filterMis = 'ALL';  // 預設 ALL (最安全,顯示 plan 內所有 mis)
-            if (suInfo && suInfo.firstMis) {
-                // 確認 dropdown 內有這個 option
-                var misFilterEl = el('planner-mis-filter');
-                if (misFilterEl) {
-                    var misOptions = Array.from(misFilterEl.options).map(o => o.value);
-                    if (misOptions.includes(suInfo.firstMis)) {
-                        filterMis = suInfo.firstMis;
-                    } else {
-                        // v1.5.84: mis 找不到時,嘗試加 emoji 前綴比對
-                        var matched = misOptions.find(o => o.includes(suInfo.firstMis) || suInfo.firstMis.includes(o));
-                        if (matched) filterMis = matched;
-                    }
-                }
-            }
-            
-            // 5. 設 filter 值並更新 mission dropdown
             var catFilter = el('planner-cat-filter');
             if (catFilter) {
                 catFilter.value = filterCat;
-                onPlannerCatChange();  // 這會更新 misFilter 的 options
+                onPlannerCatChange();
             }
             var misFilter = el('planner-mis-filter');
-            if (misFilter) {
-                misFilter.value = filterMis;
-            }
+            if (misFilter) misFilter.value = 'ALL';
             
-            // 6. 切到該單元任務的月份 (看 plan.grid 內有沒有該 unit 的 task,跳到那個月)
+            // 5. 切到該單元第一個 task 的月份
             var targetMonth = null;
-            if (suInfo && unitId) {
-                if (targetPlan && targetPlan.grid) {
-                    Object.keys(targetPlan.grid).forEach(dStr => {
-                        var tasks = targetPlan.grid[dStr] || [];
-                        for (var i = 0; i < tasks.length; i++) {
-                            if (tasks[i].unitId === unitId && !targetMonth) {
-                                targetMonth = dStr.substring(0, 7); // YYYY-MM
-                            }
+            if (targetPlan && targetPlan.grid) {
+                Object.keys(targetPlan.grid).forEach(dStr => {
+                    var tasks = targetPlan.grid[dStr] || [];
+                    for (var i = 0; i < tasks.length; i++) {
+                        if (tasks[i].unitId === unitId && !targetMonth) {
+                            targetMonth = dStr.substring(0, 7);
                         }
-                    });
-                }
+                    }
+                });
             }
-            
-            // 7. 切月份
             if (targetMonth && typeof currentViewDate !== 'undefined') {
                 var parts = targetMonth.split('-');
                 currentViewDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, 1);
             }
             
-            // 8. 設定 highlight unitId
-            window._highlightUnitId = unitId || null;
+            // 6. 設 highlight (不清掉其他任務,所有任務都顯示)
+            window._highlightUnitId = unitId;
+            window._filteredGrid = null;
             
-            // 9. 最終 renderCalendar
+            // 7. render
             renderCalendar();
-            
-            console.log('[jumpToUnitCalendar] OK:', { planId: targetPlanId, cat: filterCat, mis: filterMis, month: targetMonth });
+        }
+        
+        function returnToTreeView() {
+            // v1.5.86: 從月曆返回樹狀圖
+            openStats();
+            // switchStatsView('tree') - 在 openStats 裡已處理
         }
         
         function renderDashboard() { 
