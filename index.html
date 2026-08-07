@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.96]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.97]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3890,18 +3890,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
 
 
-                // (B) 收集此日期「之後」，屬於「同一個單元」且未完成 + 自動排程的任務
-                // v1.5.96: 排除 isDone 和非自動的任務 (使用者手動加的任務不要自動重排)
+                // (B) 收集此日期「之後」，屬於「同一個單元」且未完成的任務
+                // v1.5.96: 排除已 done 的任務; 沒 isAuto 旗標也視為 auto (舊資料相容)
+                // v1.5.97: 如果全部都 isAuto=false, 才跳過 (使用者手動加的不要重排)
                 let futureTasks = [];
+                let allManual = true;
                 Object.keys(plan.grid).forEach(d => {
                     if (d > dateStr) {
                         plan.grid[d].forEach(t => {
-                            if (t.unitId === task.unitId && !t.isDone && t.isAuto) {
+                            if (t.unitId === task.unitId && !t.isDone) {
+                                if (t.isAuto) allManual = false;
                                 futureTasks.push({ date: d, task: t });
                             }
                         });
                     }
                 });
+                // 全部都是手動加的 → 不要自動重排
+                if (allManual && futureTasks.length > 0 && !futureTasks.some(function(ft) { return ft.task.isAuto === undefined; })) {
+                    futureTasks = [];
+                }
                 
                 // 按照日期先後排序
                 futureTasks.sort((a, b) => a.date.localeCompare(b.date));
