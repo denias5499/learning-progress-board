@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.97]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.98]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3772,6 +3772,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function saveCalendarTask() {
+            // v1.5.98: 儲存前先清理歷史重複任務 (合併同一天同單元的兩筆)
+            var cleanedCount = cleanDuplicateSameDayTasks();
+            if (cleanedCount > 0) {
+                console.log('🧹 已清理 ' + cleanedCount + ' 筆同一天同單元重複任務');
+            }
+            
             var pid = el('planner-selector').value; 
             var dateStr = el('pc-date').value; 
             var taskId = el('pc-taskid').value;
@@ -4011,8 +4017,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     while (leftoverStart <= maxUnitEnd && dayCount < useDays) {
                         const dayPages = (dayCount < extraPages) ? pagesPerDay + 1 : pagesPerDay;
                         const dayEnd = Math.min(leftoverStart + dayPages - 1, maxUnitEnd);
-                        const dayDateStr = getLocalDateString(startDate);
+                        let dayDateStr = getLocalDateString(startDate);
                         dayCount++;
+                        // v1.5.98: 防呆 — 如果當天已有同 unitId 的任務, 跳過這天 (找下一個空日)
+                        let dupAttempts = 0;
+                        while (dupAttempts < 7 && plan.grid[dayDateStr] && (plan.grid[dayDateStr] || []).some(function(t) { return t.unitId === task.unitId; })) {
+                            startDate.setDate(startDate.getDate() + 1);
+                            dayDateStr = getLocalDateString(startDate);
+                            dupAttempts++;
+                        }
                         
                         // 檢查是否超出 mission 計畫完成日期
                         const exceedsPlan = plan.end && dayDateStr > plan.end;
@@ -4165,6 +4178,50 @@ function renderWizardUnitRowHtml(ws, i, u) {
             closeModal('modal-planner-cell'); 
             renderCalendar();
             if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
+        }
+
+        // v1.5.98: 清理同一天同單元重複任務 (合併兩筆為一筆)
+        function cleanDuplicateSameDayTasks() {
+            if (!appPlans || appPlans.length === 0) return 0;
+            let totalCleaned = 0;
+            appPlans.forEach(function(plan) {
+                if (!plan.grid) return;
+                Object.keys(plan.grid).forEach(function(d) {
+                    var tasks = plan.grid[d] || [];
+                    if (tasks.length < 2) return;
+                    var byUnit = {};
+                    tasks.forEach(function(t) {
+                        if (!t.unitId) return;
+                        if (!byUnit[t.unitId]) byUnit[t.unitId] = [];
+                        byUnit[t.unitId].push(t);
+                    });
+                    Object.keys(byUnit).forEach(function(uid) {
+                        var group = byUnit[uid];
+                        if (group.length < 2) return;
+                        group.sort(function(a, b) { return (a.startPage || 0) - (b.startPage || 0); });
+                        var baseText = group[0].text.replace(/P\.\d+(~\d+)?\s*$/, '').trim();
+                        var merged = {
+                            id: group[0].id,
+                            subject: group[0].subject,
+                            cat: group[0].cat,
+                            mis: group[0].mis,
+                            unitId: uid,
+                            vol: group[0].vol,
+                            unitName: group[0].unitName,
+                            isAuto: group[0].isAuto,
+                            postponeCount: group[0].postponeCount || 0,
+                            startPage: group[0].startPage,
+                            endPage: group[group.length - 1].endPage,
+                            isDone: group.some(function(t) { return t.isDone; }),
+                            text: baseText + ' P.' + group[0].startPage + '~' + group[group.length - 1].endPage
+                        };
+                        var remaining = tasks.filter(function(t) { return t.unitId !== uid; });
+                        plan.grid[d] = remaining.concat([merged]);
+                        totalCleaned += group.length - 1;
+                    });
+                });
+            });
+            return totalCleaned;
         }
 
         function deleteCalendarTask() {
