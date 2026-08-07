@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.98]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.99]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2518,6 +2518,13 @@ loadBoardHeader();
                 av.style.display = 'block';
             }
 
+            // v1.5.99: 切換使用者時自動清理歷史重複任務
+            var cleanedOnSwitch = cleanDuplicateSameDayTasks();
+            if (cleanedOnSwitch > 0) {
+                console.log('🧹 v1.5.99 切換使用者時清理 ' + cleanedOnSwitch + ' 筆同一天同單元重複任務');
+                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+            }
+            
             autoMigrateLogsToCalendar();
             updateFilters();
         }
