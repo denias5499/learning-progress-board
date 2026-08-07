@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.101]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.102]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1116,13 +1116,27 @@
                     </div>
                 </div>
 
-                <div id="month-nav-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
+                <div id="month-nav-row" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
                     <div id="calendar-highlight-banner" style="display: none;"></div>
                     <div style="display: flex; gap: 10px; align-items: center;">
                         <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(-1)">◀ 上個月</button>
                         <span id="current-month-display" style="font-weight: bold; font-size: 1.3em; min-width: 140px; text-align: center; color: var(--primary);"></span>
                         <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(1">下個月 ▶</button>
                     </div>
+                    <!-- v1.5.102: Undo + 命名快照按鈕 -->
+                    <div style="display: flex; gap: 8px; align-items: center; margin-left: 20px;">
+                        <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em;" onclick="performUndo()" title="回到上一步儲存前的狀態 (最近 5 步)">↶ Undo</button>
+                        <button class="btn-primary" style="padding: 5px 12px; font-size:0.85em;" onclick="saveNamedSnapshot()" title="存一個命名快照, 之後可以一鍵還原">📌 存快照</button>
+                        <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em;" onclick="toggleSnapshotList()" title="列出所有命名快照">📸 快照清單</button>
+                    </div>
+                </div>
+                <!-- v1.5.102: 命名快照清單 (預設隱藏) -->
+                <div id="named-snapshot-container" style="display:none; margin-bottom: 15px; padding: 12px; background: #fefce8; border: 1px solid #fde68a; border-radius: 8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <strong style="color:#92400e;">📸 命名快照</strong>
+                        <button type="button" onclick="document.getElementById('named-snapshot-container').style.display='none'" style="background:none; border:none; cursor:pointer; font-size:1.2em;">✕</button>
+                    </div>
+                    <div id="named-snapshot-list"></div>
                 </div>
 
                 <div class="calendar-wrapper">
@@ -2540,10 +2554,178 @@ loadBoardHeader();
             }
             // v1.5.17: try/catch 防止 setItem 失敗 (容量 / permission) 導致資料丟失不被發現
             try {
+                // v1.5.102: 儲存前 snapshot 到 undoStack (最多 5 步)
+                pushUndoSnapshot();
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
             } catch(e) {
                 console.error('v1.5.17 saveToLocal FAILED:', e.message, 'size:', JSON.stringify(multiData).length);
                 showSaveErrorToast(e);
+            }
+        }
+
+        // v1.5.102: Undo / Snapshot 機制
+        var STORAGE_KEY_UNDO = 'StudyMap_UndoStack_V102';
+        var STORAGE_KEY_NAMED = 'StudyMap_NamedSnapshots_V102';
+        var MAX_UNDO_STEPS = 5;
+        var MAX_NAMED_SNAPSHOTS = 10;
+
+        function pushUndoSnapshot() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_UNDO) || '{}';
+                var stack = JSON.parse(raw);
+                if (!stack[currentUserId]) stack[currentUserId] = [];
+                // 深拷貝 multiData 摘要 (plans + logs + missions)
+                var snap = JSON.parse(JSON.stringify({
+                    plans: multiData[currentUserId].plans,
+                    logs: multiData[currentUserId].logs,
+                    missions: multiData[currentUserId].missions
+                }));
+                snap._time = Date.now();
+                stack[currentUserId].push(snap);
+                // 只保留最近 MAX_UNDO_STEPS 個
+                if (stack[currentUserId].length > MAX_UNDO_STEPS) {
+                    stack[currentUserId] = stack[currentUserId].slice(-MAX_UNDO_STEPS);
+                }
+                localStorage.setItem(STORAGE_KEY_UNDO, JSON.stringify(stack));
+            } catch(e) {
+                console.warn('pushUndoSnapshot failed:', e.message);
+            }
+        }
+
+        function performUndo() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_UNDO) || '{}';
+                var stack = JSON.parse(raw);
+                var userStack = stack[currentUserId] || [];
+                if (userStack.length === 0) {
+                    alert('❌ 沒有可還原的快照。');
+                    return;
+                }
+                var lastSnap = userStack.pop();
+                var timeStr = new Date(lastSnap._time).toLocaleString();
+                if (!confirm('↶ 還原到 ' + timeStr + ' 的狀態？\n(目前的變更會被覆蓋)')) {
+                    return;
+                }
+                // 還原 plans / logs / missions
+                multiData[currentUserId].plans = lastSnap.plans;
+                multiData[currentUserId].logs = lastSnap.logs;
+                multiData[currentUserId].missions = lastSnap.missions;
+                appPlans = lastSnap.plans;
+                appLogs = lastSnap.logs;
+                appMissions = lastSnap.missions;
+                // 寫回 stack (扣掉一個)
+                stack[currentUserId] = userStack;
+                localStorage.setItem(STORAGE_KEY_UNDO, JSON.stringify(stack));
+                saveToLocal();
+                renderCalendar();
+                renderDashboard();
+                renderTreeView();
+                alert('✅ 已還原到 ' + timeStr + '\n剩餘 ' + userStack.length + ' 步可還原');
+            } catch(e) {
+                console.error('performUndo failed:', e.message);
+                alert('還原失敗: ' + e.message);
+            }
+        }
+
+        function saveNamedSnapshot() {
+            var name = prompt('📌 為快照命名 (例如「段考前 v1」):', '');
+            if (!name) return;
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                if (!named[currentUserId]) named[currentUserId] = [];
+                var snap = JSON.parse(JSON.stringify({
+                    plans: multiData[currentUserId].plans,
+                    logs: multiData[currentUserId].logs,
+                    missions: multiData[currentUserId].missions
+                }));
+                snap.name = name;
+                snap.time = Date.now();
+                named[currentUserId].push(snap);
+                // 只保留 MAX_NAMED_SNAPSHOTS 個
+                if (named[currentUserId].length > MAX_NAMED_SNAPSHOTS) {
+                    named[currentUserId] = named[currentUserId].slice(-MAX_NAMED_SNAPSHOTS);
+                }
+                localStorage.setItem(STORAGE_KEY_NAMED, JSON.stringify(named));
+                alert('✅ 已儲存快照「' + name + '」');
+                updateNamedSnapshotDisplay();
+            } catch(e) {
+                alert('儲存快照失敗: ' + e.message);
+            }
+        }
+
+        function restoreNamedSnapshot(idx) {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                var userNamed = named[currentUserId] || [];
+                if (idx >= userNamed.length) return;
+                var snap = userNamed[idx];
+                var timeStr = new Date(snap.time).toLocaleString();
+                if (!confirm('↶ 還原到快照「' + snap.name + '」(' + timeStr + ')？')) return;
+                multiData[currentUserId].plans = snap.plans;
+                multiData[currentUserId].logs = snap.logs;
+                multiData[currentUserId].missions = snap.missions;
+                appPlans = snap.plans;
+                appLogs = snap.logs;
+                appMissions = snap.missions;
+                saveToLocal();
+                renderCalendar();
+                renderDashboard();
+                renderTreeView();
+                alert('✅ 已還原到「' + snap.name + '」');
+            } catch(e) {
+                alert('還原失敗: ' + e.message);
+            }
+        }
+
+        function deleteNamedSnapshot(idx) {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                var userNamed = named[currentUserId] || [];
+                if (idx >= userNamed.length) return;
+                var snap = userNamed[idx];
+                if (!confirm('🗑️ 確定刪除快照「' + snap.name + '」？')) return;
+                userNamed.splice(idx, 1);
+                named[currentUserId] = userNamed;
+                localStorage.setItem(STORAGE_KEY_NAMED, JSON.stringify(named));
+                updateNamedSnapshotDisplay();
+            } catch(e) {
+                alert('刪除失敗: ' + e.message);
+            }
+        }
+
+        function toggleSnapshotList() {
+            var c = document.getElementById('named-snapshot-container');
+            if (!c) return;
+            c.style.display = c.style.display === 'none' ? 'block' : 'none';
+            if (c.style.display === 'block') updateNamedSnapshotDisplay();
+        }
+        
+        function updateNamedSnapshotDisplay() {
+            var container = document.getElementById('named-snapshot-list');
+            if (!container) return;
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                var userNamed = named[currentUserId] || [];
+                if (userNamed.length === 0) {
+                    container.innerHTML = '<div style="color:#7f8c8d; padding:8px; font-size:0.85em;">尚無快照</div>';
+                    return;
+                }
+                var html = '';
+                userNamed.forEach(function(snap, idx) {
+                    var timeStr = new Date(snap.time).toLocaleString();
+                    html += '<div style="display:flex; align-items:center; gap:8px; padding:6px 8px; margin-bottom:4px; background:#fff; border:1px solid #e2e8f0; border-radius:4px;">' +
+                        '<span style="flex:1; font-size:0.85em;">📸 <strong>' + escapeHtml(snap.name) + '</strong> <span style="color:#7f8c8d; font-size:0.8em;">(' + timeStr + ')</span></span>' +
+                        '<button type="button" class="btn-primary" style="padding:3px 8px; font-size:0.8em;" onclick="restoreNamedSnapshot(' + idx + ')">↶ 還原</button>' +
+                        '<button type="button" class="btn-danger" style="padding:3px 8px; font-size:0.8em;" onclick="deleteNamedSnapshot(' + idx + ')">🗑️</button>' +
+                        '</div>';
+                });
+                container.innerHTML = html;
+            } catch(e) {
+                container.innerHTML = '<div style="color:#e74c3c; padding:8px;">讀取快照失敗</div>';
             }
         }
 
@@ -3422,7 +3604,7 @@ function renderUnitRowHtml(u, opts) {
                     <input type="checkbox" ${qrChecked} onchange="${opts.onQuickReadChange || ''}" style="width:auto; vertical-align:middle; margin-right:3px;">☀️
                 </label>`;
     }
-    return `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#f8fafc'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#e2e8f0'};">
+    return `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#fef3c7'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#fde2c5'};">
                 <input type="checkbox" value="${u.id}" ${isChecked} onchange="${onChange}" style="width:auto; margin-right:8px; transform:scale(1.1);">
                 <label style="cursor:pointer; flex:1;">${instanceTag}${prefix}${u.name}${pageStr}${isScheduled ? ' <span style="color:#f59e0b; font-size:0.8em;">🔁</span>' : ''}</label>
                 ${quickReadHtml}
@@ -3724,7 +3906,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             cat: el('wz-cat').value, mis: el('wz-mis').value,
                             unitId: item.unitId, vol: item.vol, unitName: item.unitName,
                             postponeCount: 0,
-                            isAuto: true 
+                            isAuto: true,
+                            wizardRunId: 'w_' + Date.now()  // v1.5.102: 標記是哪次 wizard 跑的
                         });
                         tasksCreated++;
                     }
@@ -3732,6 +3915,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             
             if(tasksCreated === 0) return alert('沒有產生任何任務！\n請檢查：\n1. 所有單元是否已經被手動排程過了\n2. 每日總時數是否過少\n3. 設定的日期區間內是否有非手動排程的空檔日');
+            // v1.5.102: 記錄最後一次 wizard 跑的時間 (給「刪除排程」用)
+            if (typeof plan !== 'undefined' && plan) {
+                plan.lastWizardRunTime = Date.now();
+            }
 
             if (unplacedChunks.length > 0) {
                 if (userChoseForceFit) {
@@ -3755,13 +3942,54 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function deleteCurrentPlan() { 
             var pid = el('planner-selector').value; 
             if(!pid) return; 
-            if(confirm("確定清除此計畫中的「自動排程」任務嗎？\n(此操作無法還原，但您手動輸入與自訂的進度將會被安全保留)")) { 
-                var plan = appPlans.find(p => p.id === pid);
+            // v1.5.102: 改成只刪「最新一次 wizard 跑出來的」 (用 wizardRunId)
+            var plan = appPlans.find(p => p.id === pid);
+            if (!plan || !plan.grid) return;
+            
+            // 找最新 wizardRunId
+            var latestRunId = null;
+            var latestRunTime = 0;
+            Object.keys(plan.grid).forEach(function(dStr) {
+                (plan.grid[dStr] || []).forEach(function(t) {
+                    if (t.wizardRunId && t.wizardRunTime && t.wizardRunTime > latestRunTime) {
+                        latestRunId = t.wizardRunId;
+                        latestRunTime = t.wizardRunTime;
+                    }
+                });
+            });
+            // fallback: 找 plan 自己的 lastWizardRunTime
+            if (!latestRunTime && plan.lastWizardRunTime) {
+                latestRunTime = plan.lastWizardRunTime;
+            }
+            // 找所有 isAuto 但沒 wizardRunId 的任務, 視為舊的
+            var oldAutoCount = 0;
+            Object.keys(plan.grid).forEach(function(dStr) {
+                (plan.grid[dStr] || []).forEach(function(t) {
+                    if (t.isAuto && !t.wizardRunId) oldAutoCount++;
+                });
+            });
+            
+            var confirmMsg = (latestRunTime > 0)
+                ? "🗑️ 確定刪除「最新一次 wizard 排程」的任務嗎？\n(只刪最新一次跑的, 之前的智慧排程與手動加的都保留)\n\n⚠️ 注意: 還有 " + oldAutoCount + " 筆舊的自動排程任務 (沒 wizardRunId 標記) 將保留。"
+                : "🗑️ 確定清除此計畫中的「自動排程」任務嗎？\n(將刪除所有 isAuto=true 的任務)\n\n⚠️ 注意: 此操作無法還原, 但手動任務會保留。";
+            
+            if(confirm(confirmMsg)) { 
                 if(plan && plan.grid) {
                     var deletedCount = 0;
                     Object.keys(plan.grid).forEach(dStr => {
                         var origLen = plan.grid[dStr].length;
-                        plan.grid[dStr] = plan.grid[dStr].filter(t => !t.isAuto);
+                        if (latestRunTime > 0) {
+                            // 只刪最新一次 wizard 的任務
+                            plan.grid[dStr] = plan.grid[dStr].filter(function(t) {
+                                if (!t.isAuto) return true;  // 保留手動
+                                if (!t.wizardRunId) return true;  // 保留舊 auto
+                                if (t.wizardRunTime && t.wizardRunTime >= latestRunTime - 1000) return false;  // 刪最新
+                                return true;
+                            });
+                        } else {
+                            // 沒 lastWizardRunTime, fallback 刪所有 isAuto
+                            plan.grid[dStr] = plan.grid[dStr].filter(t => !t.isAuto);
+                        }
                         deletedCount += (origLen - plan.grid[dStr].length);
                         if(plan.grid[dStr].length === 0) delete plan.grid[dStr];
                     });
@@ -6781,15 +7009,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return 'todo';
             }
 
-            // v1.5.87: scheduledUnits 同步存到 window 全域 (供 getStatus 等其他函式讀取)
+            // v1.5.102: 改用 logDataAll 算 donePages (跟首頁一致, 支援跨單元任務)
             window._treeScheduledUnits = {};
+            // 先收集 task 資料 (給 getStatus / covered / totalTasks 用)
             if (Array.isArray(appPlans)) {
-                appPlans.forEach(plan => {
+                appPlans.forEach(function(plan) {
                     if (!plan.grid) return;
-                    Object.keys(plan.grid).forEach(dStr => {
+                    Object.keys(plan.grid).forEach(function(dStr) {
                         var tasks = plan.grid[dStr];
                         if (!Array.isArray(tasks)) return;
-                        tasks.forEach(t => {
+                        tasks.forEach(function(t) {
                             if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
                             if (!window._treeScheduledUnits[t.unitId]) {
                                 window._treeScheduledUnits[t.unitId] = {
@@ -6802,11 +7031,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             window._treeScheduledUnits[t.unitId].covered += pages;
                             window._treeScheduledUnits[t.unitId].totalTasks += 1;
                             if (t.isDone) {
-                                window._treeScheduledUnits[t.unitId].donePages += pages;
                                 window._treeScheduledUnits[t.unitId].doneTasks += 1;
                             }
                         });
                     });
+                });
+            }
+            // v1.5.102: donePages 從 appLogs 算 (跨單元任務會拆 log 給每個被涵蓋的 unit)
+            if (Array.isArray(appLogs)) {
+                appLogs.forEach(function(l) {
+                    if (!l.unitId) return;
+                    if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
+                    if (!window._treeScheduledUnits[l.unitId]) {
+                        window._treeScheduledUnits[l.unitId] = {
+                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                            firstCat: l.category || '', firstMis: l.mission || '',
+                            firstPlanId: null
+                        };
+                    }
+                    window._treeScheduledUnits[l.unitId].donePages += (l.pages || 0);
                 });
             }
 
