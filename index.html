@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.95]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.96]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3890,12 +3890,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
 
 
-                // (B) 收集此日期「之後」，屬於「同一個單元」的所有任務
+                // (B) 收集此日期「之後」，屬於「同一個單元」且未完成 + 自動排程的任務
+                // v1.5.96: 排除 isDone 和非自動的任務 (使用者手動加的任務不要自動重排)
                 let futureTasks = [];
                 Object.keys(plan.grid).forEach(d => {
                     if (d > dateStr) {
                         plan.grid[d].forEach(t => {
-                            if (t.unitId === task.unitId) {
+                            if (t.unitId === task.unitId && !t.isDone && t.isAuto) {
                                 futureTasks.push({ date: d, task: t });
                             }
                         });
@@ -3954,6 +3955,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         if (plan.end && fDate > plan.end) {
                             overflowExceedsPlan = true;
                         }
+                        if (overflowDates.indexOf(fDate) === -1) overflowDates.push(fDate);
                     }
                 }
                 
@@ -4025,8 +4027,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     pendingOriginalEnd = plan.end;
                 }
                 
-                // 改進 2 + 3: 顯示補排結果訊息
-                if (currentStart <= maxUnitEnd && newEnd < oldEnd && overflowDates.length > 0) {
+                // 改進 2 + 3: 顯示補排結果訊息 (v1.5.96: 不管 (C) 或 (D) 都要看)
+                if ((currentStart <= maxUnitEnd || pendingTasks.length > 0) && newEnd < oldEnd) {
                     // v1.5.93: 建立所有 pendingTasks
                     pendingTasks.forEach(function(p) {
                         if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
