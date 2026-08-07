@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.102]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.103]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3907,7 +3907,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             unitId: item.unitId, vol: item.vol, unitName: item.unitName,
                             postponeCount: 0,
                             isAuto: true,
-                            wizardRunId: 'w_' + Date.now()  // v1.5.102: 標記是哪次 wizard 跑的
+                            wizardRunId: 'w_' + Date.now(),  // v1.5.102: 標記是哪次 wizard 跑的
+                            wizardRunTime: Date.now()  // v1.5.103: 給「刪除排程」用
                         });
                         tasksCreated++;
                     }
@@ -4148,6 +4149,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
 
 
+                // v1.5.103: 提早宣告 overflowDates / overflowExceedsPlan (避免 TDZ error)
+                let overflowDates = [];
+                let overflowExceedsPlan = false;
+                
                 // (B) 收集此日期「之後」，屬於「同一個單元」且未完成的任務
                 // v1.5.96: 排除已 done 的任務; 沒 isAuto 旗標也視為 auto (舊資料相容)
                 // v1.5.97: 如果全部都 isAuto=false, 才跳過 (使用者手動加的不要重排)
@@ -4226,8 +4231,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 
 
                 // (D) v1.5.93: 平均分配 + 超出 plan.end 警告
-                let overflowDates = [];
-                let overflowExceedsPlan = false;
+                // v1.5.103: overflowDates / overflowExceedsPlan 已在前面宣告
                 let pendingTasks = [];  // 暫存待建立的任務,等使用者決定後才建
                 let pendingOriginalEnd = null;  // 原本的 plan.end (用於取消時還原)
                 let pendingNewEnd = null;  // 延長後的新 plan.end
