@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.94]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.95]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3908,9 +3908,24 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 
                 let currentStart = newEnd + 1; // 接下來要分配的起始頁
                 
-                // (C) v1.5.94: 平均重新分配 (round-robin)
+                // (C) v1.5.95: 平均重新分配 + 考慮 plan.end
                 const cTotalPages = maxUnitEnd - newEnd;
-                const cUseDays = futureTasks.length;
+                // 計算可用天數 (plan.end 存在時)
+                let cAvailableDays = Infinity;
+                if (plan.end) {
+                    const todayDate = new Date(dateStr);
+                    const planEndDate = new Date(plan.end);
+                    cAvailableDays = Math.max(1, Math.ceil((planEndDate - todayDate) / (1000 * 60 * 60 * 24)));
+                }
+                // 理想天數: 3 頁/天
+                const cIdealDays = Math.max(1, Math.ceil(cTotalPages / 3));
+                // 實際天數: min(理想, 可用, 現有 futureTasks)
+                let cUseDays = Math.min(
+                    futureTasks.length,
+                    cAvailableDays === Infinity ? cIdealDays : Math.min(cIdealDays, cAvailableDays)
+                );
+                if (cUseDays === 0 && cTotalPages > 0) cUseDays = 1;
+                
                 if (cUseDays > 0) {
                     const cPagesPerDay = Math.floor(cTotalPages / cUseDays);
                     const cExtraPages = cTotalPages % cUseDays;
@@ -3918,25 +3933,26 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     for (let i = 0; i < futureTasks.length; i++) {
                         const ft = futureTasks[i].task;
                         const fDate = futureTasks[i].date;
-                        const dayPages = (i < cExtraPages) ? cPagesPerDay + 1 : cPagesPerDay;
                         
-                        if (currentStart > maxUnitEnd) {
+                        // 多餘的 future tasks 刪除
+                        if (i >= cUseDays || currentStart > maxUnitEnd) {
                             plan.grid[fDate] = plan.grid[fDate].filter(x => x.id !== ft.id);
-                        } else {
-                            const nextEnd = Math.min(currentStart + dayPages - 1, maxUnitEnd);
-                            ft.startPage = currentStart;
-                            ft.endPage = nextEnd;
-                            
-                            const ftBase = ft.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
-                            ft.text = ftBase + (currentStart === nextEnd ? ` P.${currentStart}` : ` P.${currentStart}~${nextEnd}`);
-                            
-                            currentStart = nextEnd + 1;
-                            
-                            // v1.5.94: 檢查是否超出 plan.end
-                            if (plan.end && fDate > plan.end) {
-                                overflowExceedsPlan = true;
-                                if (overflowDates.indexOf(fDate) === -1) overflowDates.push(fDate);
-                            }
+                            continue;
+                        }
+                        
+                        const dayPages = (i < cExtraPages) ? cPagesPerDay + 1 : cPagesPerDay;
+                        const nextEnd = Math.min(currentStart + dayPages - 1, maxUnitEnd);
+                        ft.startPage = currentStart;
+                        ft.endPage = nextEnd;
+                        
+                        const ftBase = ft.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
+                        ft.text = ftBase + (currentStart === nextEnd ? ` P.${currentStart}` : ` P.${currentStart}~${nextEnd}`);
+                        
+                        currentStart = nextEnd + 1;
+                        
+                        // v1.5.95: 檢查 plan.end
+                        if (plan.end && fDate > plan.end) {
+                            overflowExceedsPlan = true;
                         }
                     }
                 }
@@ -4026,13 +4042,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         checkDailyWorkload(plan, p.dateStr);
                     });
                     
-                    // v1.5.94: 如果超出 plan.end, 撤銷任務並顯示 3 選項
+                    // v1.5.95: 如果超出 plan.end, 撤銷任務並用 3 選項 modal
                     if (overflowExceedsPlan) {
                         // 撤銷剛才建立的任務
                         pendingTasks.forEach(function(p) {
-                            plan.grid[p.dateStr] = (plan.grid[p.dateStr] || []).filter(t => 
-                                !(t.startPage === p.startPage && t.endPage === p.endPage && t.unitId === task.unitId)
-                            );
+                            plan.grid[p.dateStr] = (plan.grid[p.dateStr] || []).filter(function(t) { 
+                                return !(t.startPage === p.startPage && t.endPage === p.endPage && t.unitId === task.unitId);
+                            });
                         });
                         
                         // 計算讀書時數
@@ -4041,84 +4057,71 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         const availableDaysForPlan = Math.max(1, Math.ceil((new Date(plan.end) - new Date(dateStr)) / (1000 * 60 * 60 * 24)));
                         const neededDays = pendingTasks.length;
                         const addedMinutesPerDay = Math.ceil(totalPages * minutesPerPage / availableDaysForPlan);
+                        const minExtraDays = Math.max(1, neededDays - availableDaysForPlan);
                         
                         const choiceMsg = `⚠️ 平均分配會超出計畫完成日期 (${plan.end})\n\n` +
                             `剩餘 ${totalPages} 頁需 ${neededDays} 天\n` +
                             `但計畫剩 ${availableDaysForPlan} 天\n\n` +
                             `📊 讀書時數估算 (預設 ${minutesPerPage} 分/頁):\n` +
                             `  - 總時數: ${totalPages * minutesPerPage} 分鐘\n` +
-                            `  - 每天需 +${addedMinutesPerDay} 分鐘\n\n` +
-                            `選擇處理方式:`;
+                            `  - 每天需 +${addedMinutesPerDay} 分鐘`;
                         
-                        // v1.5.94: 用 openChoiceModal 顯示, 但只有 2 選項
-                        // 我們用 confirm 處理強制擠進, 取消 處理其他
-                        // v1.5.95: 延長完成日期用 prompt
-                        if (confirm(choiceMsg + `\n\n[確定] = 強制擠進 (每天 +${addedMinutesPerDay} 分鐘)\n[取消] = 不儲存, 改延長完成日期`)) {
-                            // 強制擠進: 重新建立任務
-                            pendingTasks.forEach(function(p) {
-                                if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
-                                plan.grid[p.dateStr].unshift({
-                                    id: genId(), subject: subjectName, 
-                                    text: baseText + (p.startPage === p.endPage ? ` P.${p.startPage}` : ` P.${p.startPage}~${p.endPage}`),
-                                    startPage: p.startPage, endPage: p.endPage, isDone: false,
-                                    cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
-                                    postponeCount: (task.postponeCount || 0) + 1,
-                                    isAuto: task.isAuto
+                        // v1.5.95: 用 3 選項 modal
+                        openThreeChoiceModal(
+                            '⏰ 重新分配超出計畫日期',
+                            choiceMsg,
+                            '📅 強制擠進',
+                            '⏰ 延長完成日期',
+                            '✕ 取消這次編輯',
+                            function() {
+                                // 選項 A: 強制擠進 - 重建任務
+                                pendingTasks.forEach(function(p) {
+                                    if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
+                                    plan.grid[p.dateStr].unshift({
+                                        id: genId(), subject: subjectName, 
+                                        text: baseText + (p.startPage === p.endPage ? ` P.${p.startPage}` : ` P.${p.startPage}~${p.endPage}`),
+                                        startPage: p.startPage, endPage: p.endPage, isDone: false,
+                                        cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
+                                        postponeCount: (task.postponeCount || 0) + 1,
+                                        isAuto: task.isAuto
+                                    });
+                                    appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (強制擠進)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `強制擠進, 超出計畫完成日期` });
+                                    checkDailyWorkload(plan, p.dateStr);
                                 });
-                                appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (強制擠進)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `強制擠進, 超出計畫完成日期` });
-                                checkDailyWorkload(plan, p.dateStr);
-                            });
-                            alert(`✅ 已強制擠進 (每天 +${addedMinutesPerDay} 分鐘)。建議日後延長 plan.end。`);
-                        } else {
-                            // 取消: 詢問延長天數
-                            const minDate = new Date(plan.end);
-                            minDate.setDate(minDate.getDate() + 1);
-                            const minDateStr = getLocalDateString(minDate);
-                            const extraDays = prompt(`取消強制擠進。\n\n請輸入要延長的"天數" (1-7):\n最少需延長 ${neededDays - availableDaysForPlan} 天 (新計畫完成日期 = ${minDateStr} 或之後)\n\n輸入 0 = 完全取消這次編輯`, String(Math.max(1, neededDays - availableDaysForPlan)));
-                            
-                            if (extraDays === null || extraDays === "0") {
-                                // 完全取消
+                                alert(`✅ 已強制擠進 (每天 +${addedMinutesPerDay} 分鐘)。建議日後延長 plan.end。`);
+                            },
+                            function() {
+                                // 選項 B: 延長完成日期
+                                openExtendDateDialog(plan.end, minExtraDays, 7, function(days) {
+                                    const newEndDate = new Date(plan.end);
+                                    newEndDate.setDate(newEndDate.getDate() + days);
+                                    const newEndDateStr = getLocalDateString(newEndDate);
+                                    plan.end = newEndDateStr;
+                                    
+                                    // 重建任務
+                                    pendingTasks.forEach(function(p) {
+                                        if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
+                                        plan.grid[p.dateStr].unshift({
+                                            id: genId(), subject: subjectName, 
+                                            text: baseText + (p.startPage === p.endPage ? ` P.${p.startPage}` : ` P.${p.startPage}~${p.endPage}`),
+                                            startPage: p.startPage, endPage: p.endPage, isDone: false,
+                                            cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
+                                            postponeCount: (task.postponeCount || 0) + 1,
+                                            isAuto: task.isAuto
+                                        });
+                                        appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (延長計畫)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `延長 plan.end 至 ${newEndDateStr} 後排入` });
+                                        checkDailyWorkload(plan, p.dateStr);
+                                    });
+                                    alert(`✅ 已延長 plan.end 至 ${newEndDateStr} 並建立任務。`);
+                                });
+                            },
+                            function() {
+                                // 選項 C: 完全取消
                                 task.startPage = Number(el('pc-start').value) || 0;
                                 task.endPage = oldEnd;
-                                plan.grid[dateStr].forEach(t => {
-                                    if (t.unitId === task.unitId && t.text.includes(`P.${newEnd}`)) {
-                                        // 還原
-                                    }
-                                });
                                 alert('已取消這次編輯。');
-                                return;
                             }
-                            
-                            const days = parseInt(extraDays);
-                            if (isNaN(days) || days < 1 || days > 7) {
-                                alert('天數無效, 已取消這次編輯。');
-                                return;
-                            }
-                            
-                            // 延長 plan.end
-                            const newEndDate = new Date(plan.end);
-                            newEndDate.setDate(newEndDate.getDate() + days);
-                            const newEndDateStr = getLocalDateString(newEndDate);
-                            plan.end = newEndDateStr;
-                            pendingNewEnd = newEndDateStr;
-                            
-                            // 重新建立任務
-                            pendingTasks.forEach(function(p) {
-                                if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
-                                plan.grid[p.dateStr].unshift({
-                                    id: genId(), subject: subjectName, 
-                                    text: baseText + (p.startPage === p.endPage ? ` P.${p.startPage}` : ` P.${p.startPage}~${p.endPage}`),
-                                    startPage: p.startPage, endPage: p.endPage, isDone: false,
-                                    cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
-                                    postponeCount: (task.postponeCount || 0) + 1,
-                                    isAuto: task.isAuto
-                                });
-                                appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (延長計畫)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `延長 plan.end 至 ${newEndDateStr} 後排入` });
-                                checkDailyWorkload(plan, p.dateStr);
-                            });
-                            
-                            alert(`✅ 已延長 plan.end 至 ${newEndDateStr} 並建立任務。`);
-                        }
+                        );
                     } else {
                         // 沒超出 plan.end
                         alert(`✅ 已為您更新進度!\n\n新增 ${pendingTasks.length} 個任務到 ${overflowDates[0]} ~ ${overflowDates[overflowDates.length - 1]}`);
@@ -6233,6 +6236,75 @@ function renderWizardUnitRowHtml(ws, i, u) {
             document.body.appendChild(modal);
             el('modal-choice-a').onclick = function() { modal.remove(); if (onA) onA(); };
             el('modal-choice-b').onclick = function() { modal.remove(); if (onB) onB(); };
+        }
+
+        // v1.5.95: 3 選項 modal (強制/延長/取消)
+        function openThreeChoiceModal(title, message, optA, optB, optC, onA, onB, onC) {
+            var existing = el('modal-three-choice');
+            if (existing) existing.remove();
+            var modal = document.createElement('div');
+            modal.id = 'modal-three-choice';
+            modal.className = 'modal-bg';
+            modal.style.zIndex = '3500';
+            modal.style.display = 'flex';
+            modal.innerHTML = '<div class="modal-content" style="max-width: 500px;">' +
+                '<div class="modal-header"><h2 style="color:var(--accent);">' + escapeHtml(title) + '</h2></div>' +
+                '<div style="padding: 15px 0; text-align: center; color: var(--secondary); white-space: pre-line;">' + escapeHtml(message) + '</div>' +
+                '<div style="display: flex; gap: 10px; justify-content: center; margin-top: 15px; flex-wrap: wrap;">' +
+                    '<button type="button" class="btn-primary" id="modal-three-a" style="padding: 10px 18px;">' + escapeHtml(optA) + '</button>' +
+                    '<button type="button" class="btn-primary" id="modal-three-b" style="padding: 10px 18px;">' + escapeHtml(optB) + '</button>' +
+                    '<button type="button" class="btn-outline" id="modal-three-c" style="padding: 10px 18px;">' + escapeHtml(optC) + '</button>' +
+                '</div>' +
+            '</div>';
+            document.body.appendChild(modal);
+            el('modal-three-a').onclick = function() { modal.remove(); if (onA) onA(); };
+            el('modal-three-b').onclick = function() { modal.remove(); if (onB) onB(); };
+            el('modal-three-c').onclick = function() { modal.remove(); if (onC) onC(); };
+        }
+
+        // v1.5.95: 延長完成日期子對話框
+        function openExtendDateDialog(currentEndDate, minDays, maxDays, onConfirm) {
+            var existing = el('modal-extend-date');
+            if (existing) existing.remove();
+            var modal = document.createElement('div');
+            modal.id = 'modal-extend-date';
+            modal.className = 'modal-bg';
+            modal.style.zIndex = '3600';
+            modal.style.display = 'flex';
+            
+            var minDate = new Date(currentEndDate);
+            minDate.setDate(minDate.getDate() + 1);
+            var minDateStr = getLocalDateString(minDate);
+            var defaultDate = new Date(currentEndDate);
+            defaultDate.setDate(defaultDate.getDate() + minDays);
+            var defaultDateStr = getLocalDateString(defaultDate);
+            
+            modal.innerHTML = '<div class="modal-content" style="max-width: 460px;">' +
+                '<div class="modal-header"><h2 style="color:var(--accent);">⏰ 延長計畫完成日期</h2></div>' +
+                '<div style="padding: 15px;">' +
+                    '<div style="margin-bottom: 12px; padding: 8px; background: #f8fafc; border-radius: 6px;">' +
+                        '<div>目前完成日期: <strong>' + escapeHtml(currentEndDate) + '</strong></div>' +
+                        '<div>至少需延長: <strong>' + minDays + ' 天 (到 ' + escapeHtml(minDateStr) + ' 或之後)</strong></div>' +
+                    '</div>' +
+                    '<div style="margin-bottom: 8px;">要延長幾天: <input type="number" id="modal-extend-days" min="' + minDays + '" max="' + maxDays + '" value="' + minDays + '" style="padding: 8px; width: 80px; font-size: 1.1em; margin-left: 8px;"> 天</div>' +
+                    '<div style="font-size: 0.85em; color: #7f8c8d;">範圍: ' + minDays + ' 到 ' + maxDays + ' 天 (輸入 0 = 完全取消)</div>' +
+                '</div>' +
+                '<div style="display: flex; gap: 12px; justify-content: flex-end; padding: 0 15px 15px;">' +
+                    '<button type="button" class="btn-primary" id="modal-extend-ok" style="padding: 8px 20px;">確定延長</button>' +
+                    '<button type="button" class="btn-outline" id="modal-extend-cancel" style="padding: 8px 20px;">取消</button>' +
+                '</div>' +
+            '</div>';
+            document.body.appendChild(modal);
+            el('modal-extend-ok').onclick = function() {
+                var days = parseInt(el('modal-extend-days').value);
+                if (isNaN(days) || days < minDays || days > maxDays) {
+                    alert('請輸入 ' + minDays + ' 到 ' + maxDays + ' 之間的天數');
+                    return;
+                }
+                modal.remove();
+                if (onConfirm) onConfirm(days);
+            };
+            el('modal-extend-cancel').onclick = function() { modal.remove(); };
         }
 
         function onSaveConfirmContinue() {
