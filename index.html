@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.92]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.93]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3935,75 +3935,187 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
                 
 
-                // (D) v1.5.73: 自動往下加日期,分配剩餘頁數
+                // (D) v1.5.93: 平均分配 + 超出 plan.end 警告
                 let overflowDates = [];
                 let overflowExceedsPlan = false;
+                let pendingTasks = [];  // 暫存待建立的任務,等使用者決定後才建
+                let pendingOriginalEnd = null;  // 原本的 plan.end (用於取消時還原)
+                let pendingNewEnd = null;  // 延長後的新 plan.end
+                let subjectName = task.subject || '自訂';
+                
                 if (currentStart <= maxUnitEnd && newEnd < oldEnd) {
-                    // 計算每日分配的頁數容量 (用現有 futureTasks 的平均容量,最少 3 頁/天)
-                    let avgCapacity = futureTasks.length > 0
-                        ? Math.ceil(futureTasks.reduce((sum, ft) => sum + ((ft.task.endPage && ft.task.startPage) ? (ft.task.endPage - ft.task.startPage + 1) : 1), 0) / futureTasks.length)
-                        : 5;
-                    let perDayPages = Math.max(avgCapacity, 3);
+                    const totalPages = maxUnitEnd - currentStart + 1;
                     
-                    // 決定起始日期
+                    // 計算可用天數 (plan.end - 今天)
+                    let availableDays = Infinity;
+                    if (plan.end) {
+                        const todayDate = new Date(dateStr);
+                        const planEndDate = new Date(plan.end);
+                        const daysDiff = Math.ceil((planEndDate - todayDate) / (1000 * 60 * 60 * 24));
+                        availableDays = Math.max(1, daysDiff);
+                    }
+                    
+                    // 平均分攤 (3 頁/天),算出理想天數
+                    const basePerDay = 3;
+                    const idealDays = Math.max(1, Math.ceil(totalPages / basePerDay));
+                    
+                    // 起始日期
                     let startDate = new Date(dateStr);
                     if (futureTasks.length > 0) {
                         startDate = new Date(futureTasks[futureTasks.length - 1].date);
                     }
                     startDate.setDate(startDate.getDate() + 1);
                     
+                    // 決定實際使用天數 (有限制就用限制內的天數)
+                    const useDays = (availableDays === Infinity) ? idealDays : Math.min(idealDays, availableDays);
+                    
+                    // v1.5.93: 平均分配 (前 extraPages 天多 1 頁, 其餘 basePerDay)
+                    const pagesPerDay = Math.floor(totalPages / useDays);
+                    const extraPages = totalPages % useDays;
+                    
                     let leftoverStart = currentStart;
-                    let subjectName = task.subject || '自訂';
                     let dayCount = 0;
                     
-                    while (leftoverStart <= maxUnitEnd) {
-                        let dayEnd = Math.min(leftoverStart + perDayPages - 1, maxUnitEnd);
-                        let dayDateStr = getLocalDateString(startDate);
+                    while (leftoverStart <= maxUnitEnd && dayCount < useDays) {
+                        const dayPages = (dayCount < extraPages) ? pagesPerDay + 1 : pagesPerDay;
+                        const dayEnd = Math.min(leftoverStart + dayPages - 1, maxUnitEnd);
+                        const dayDateStr = getLocalDateString(startDate);
                         dayCount++;
                         
                         // 檢查是否超出 mission 計畫完成日期
-                        let exceedsPlan = plan.end && dayDateStr > plan.end;
-                        
+                        const exceedsPlan = plan.end && dayDateStr > plan.end;
                         if (exceedsPlan) overflowExceedsPlan = true;
                         overflowDates.push(dayDateStr);
                         
-                        if (!plan.grid[dayDateStr]) plan.grid[dayDateStr] = [];
-                        plan.grid[dayDateStr].unshift({
-                            id: genId(), subject: subjectName, 
-                            text: baseText + (leftoverStart === dayEnd ? ` P.${leftoverStart}` : ` P.${leftoverStart}~${dayEnd}`),
-                            startPage: leftoverStart, endPage: dayEnd, isDone: false,
-                            cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
-                            postponeCount: (task.postponeCount || 0) + dayCount,
-                            isAuto: task.isAuto
+                        // v1.5.93: 暫存任務,等使用者決定
+                        pendingTasks.push({
+                            dateStr: dayDateStr,
+                            startPage: leftoverStart,
+                            endPage: dayEnd
                         });
-                        
-                        appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延', start: leftoverStart, end: dayEnd, pages: dayEnd - leftoverStart + 1, detail: `手動調整進度，剩餘 P.${leftoverStart}~${dayEnd} 順延至 ${dayDateStr}${exceedsPlan ? ' (超出 mission 計畫完成日期)' : ''}` });
-                        checkDailyWorkload(plan, dayDateStr);
                         
                         leftoverStart = dayEnd + 1;
                         startDate.setDate(startDate.getDate() + 1);
                     }
+                    
+                    // 暫存原本的 plan.end (用於取消時還原)
+                    pendingOriginalEnd = plan.end;
                 }
                 
                 // 改進 2 + 3: 顯示補排結果訊息
                 if (currentStart <= maxUnitEnd && newEnd < oldEnd && overflowDates.length > 0) {
-                    // 有補排,提示用戶
-                    let msg = `✅ 已為您更新進度！
-
-`;
-                    if (overflowDates.length === 1) {
-                        msg += `新增任務到 ${overflowDates[0]}`;
-                    } else {
-                        msg += `新增 ${overflowDates.length} 個任務到 ${overflowDates[0]} ~ ${overflowDates[overflowDates.length - 1]}`;
-                    }
+                    // v1.5.93: 建立所有 pendingTasks
+                    pendingTasks.forEach(function(p) {
+                        if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
+                        plan.grid[p.dateStr].unshift({
+                            id: genId(), subject: subjectName, 
+                            text: baseText + (p.startPage === p.endPage ? ` P.${p.startPage}` : ` P.${p.startPage}~${p.endPage}`),
+                            startPage: p.startPage, endPage: p.endPage, isDone: false,
+                            cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
+                            postponeCount: (task.postponeCount || 0) + 1,
+                            isAuto: task.isAuto
+                        });
+                        appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `手動調整進度，剩餘 P.${p.startPage}~${p.endPage} 順延至 ${p.dateStr}` });
+                        checkDailyWorkload(plan, p.dateStr);
+                    });
+                    
+                    // v1.5.94: 如果超出 plan.end, 撤銷任務並顯示 3 選項
                     if (overflowExceedsPlan) {
-                        msg += `
-
-⚠️ 注意：部分新任務超出 mission 預定完成日期 (${plan.end})`;
-                        msg += `
-建議：可在「歷史紀錄」查看，或重新檢視 mission 規劃`;
+                        // 撤銷剛才建立的任務
+                        pendingTasks.forEach(function(p) {
+                            plan.grid[p.dateStr] = (plan.grid[p.dateStr] || []).filter(t => 
+                                !(t.startPage === p.startPage && t.endPage === p.endPage && t.unitId === task.unitId)
+                            );
+                        });
+                        
+                        // 計算讀書時數
+                        const totalPages = pendingTasks.reduce((s, p) => s + (p.endPage - p.startPage + 1), 0);
+                        const minutesPerPage = 5;
+                        const availableDaysForPlan = Math.max(1, Math.ceil((new Date(plan.end) - new Date(dateStr)) / (1000 * 60 * 60 * 24)));
+                        const neededDays = pendingTasks.length;
+                        const addedMinutesPerDay = Math.ceil(totalPages * minutesPerPage / availableDaysForPlan);
+                        
+                        const choiceMsg = `⚠️ 平均分配會超出計畫完成日期 (${plan.end})\n\n` +
+                            `剩餘 ${totalPages} 頁需 ${neededDays} 天\n` +
+                            `但計畫剩 ${availableDaysForPlan} 天\n\n` +
+                            `📊 讀書時數估算 (預設 ${minutesPerPage} 分/頁):\n` +
+                            `  - 總時數: ${totalPages * minutesPerPage} 分鐘\n` +
+                            `  - 每天需 +${addedMinutesPerDay} 分鐘\n\n` +
+                            `選擇處理方式:`;
+                        
+                        // v1.5.94: 用 openChoiceModal 顯示, 但只有 2 選項
+                        // 我們用 confirm 處理強制擠進, 取消 處理其他
+                        // v1.5.95: 延長完成日期用 prompt
+                        if (confirm(choiceMsg + `\n\n[確定] = 強制擠進 (每天 +${addedMinutesPerDay} 分鐘)\n[取消] = 不儲存, 改延長完成日期`)) {
+                            // 強制擠進: 重新建立任務
+                            pendingTasks.forEach(function(p) {
+                                if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
+                                plan.grid[p.dateStr].unshift({
+                                    id: genId(), subject: subjectName, 
+                                    text: baseText + (p.startPage === p.endPage ? ` P.${p.startPage}` : ` P.${p.startPage}~${p.endPage}`),
+                                    startPage: p.startPage, endPage: p.endPage, isDone: false,
+                                    cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
+                                    postponeCount: (task.postponeCount || 0) + 1,
+                                    isAuto: task.isAuto
+                                });
+                                appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (強制擠進)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `強制擠進, 超出計畫完成日期` });
+                                checkDailyWorkload(plan, p.dateStr);
+                            });
+                            alert(`✅ 已強制擠進 (每天 +${addedMinutesPerDay} 分鐘)。建議日後延長 plan.end。`);
+                        } else {
+                            // 取消: 詢問延長天數
+                            const minDate = new Date(plan.end);
+                            minDate.setDate(minDate.getDate() + 1);
+                            const minDateStr = getLocalDateString(minDate);
+                            const extraDays = prompt(`取消強制擠進。\n\n請輸入要延長的"天數" (1-7):\n最少需延長 ${neededDays - availableDaysForPlan} 天 (新計畫完成日期 = ${minDateStr} 或之後)\n\n輸入 0 = 完全取消這次編輯`, String(Math.max(1, neededDays - availableDaysForPlan)));
+                            
+                            if (extraDays === null || extraDays === "0") {
+                                // 完全取消
+                                task.startPage = Number(el('pc-start').value) || 0;
+                                task.endPage = oldEnd;
+                                plan.grid[dateStr].forEach(t => {
+                                    if (t.unitId === task.unitId && t.text.includes(`P.${newEnd}`)) {
+                                        // 還原
+                                    }
+                                });
+                                alert('已取消這次編輯。');
+                                return;
+                            }
+                            
+                            const days = parseInt(extraDays);
+                            if (isNaN(days) || days < 1 || days > 7) {
+                                alert('天數無效, 已取消這次編輯。');
+                                return;
+                            }
+                            
+                            // 延長 plan.end
+                            const newEndDate = new Date(plan.end);
+                            newEndDate.setDate(newEndDate.getDate() + days);
+                            const newEndDateStr = getLocalDateString(newEndDate);
+                            plan.end = newEndDateStr;
+                            pendingNewEnd = newEndDateStr;
+                            
+                            // 重新建立任務
+                            pendingTasks.forEach(function(p) {
+                                if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
+                                plan.grid[p.dateStr].unshift({
+                                    id: genId(), subject: subjectName, 
+                                    text: baseText + (p.startPage === p.endPage ? ` P.${p.startPage}` : ` P.${p.startPage}~${p.endPage}`),
+                                    startPage: p.startPage, endPage: p.endPage, isDone: false,
+                                    cat: task.cat, mis: task.mis, unitId: task.unitId, vol: task.vol, unitName: task.unitName,
+                                    postponeCount: (task.postponeCount || 0) + 1,
+                                    isAuto: task.isAuto
+                                });
+                                appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (延長計畫)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `延長 plan.end 至 ${newEndDateStr} 後排入` });
+                                checkDailyWorkload(plan, p.dateStr);
+                            });
+                            
+                            alert(`✅ 已延長 plan.end 至 ${newEndDateStr} 並建立任務。`);
+                        }
+                    } else {
+                        // 沒超出 plan.end
+                        alert(`✅ 已為您更新進度!\n\n新增 ${pendingTasks.length} 個任務到 ${overflowDates[0]} ~ ${overflowDates[overflowDates.length - 1]}`);
                     }
-                    alert(msg);
                 } else {
                     alert(`✅ 已為您更新進度！後續相關排程已自動連動推移。`);
                 }
