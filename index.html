@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.93]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.94]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3908,29 +3908,36 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 
                 let currentStart = newEnd + 1; // 接下來要分配的起始頁
                 
-                // (C) 遍歷未來的任務，重新分配起迄頁碼 (保持該日原有的頁數容量)
-                for (let i = 0; i < futureTasks.length; i++) {
-                    let ft = futureTasks[i].task;
-                    let fDate = futureTasks[i].date;
+                // (C) v1.5.94: 平均重新分配 (round-robin)
+                const cTotalPages = maxUnitEnd - newEnd;
+                const cUseDays = futureTasks.length;
+                if (cUseDays > 0) {
+                    const cPagesPerDay = Math.floor(cTotalPages / cUseDays);
+                    const cExtraPages = cTotalPages % cUseDays;
                     
-                    // 計算這個未來任務原本承擔的頁數容量
-                    let capacity = (ft.endPage && ft.startPage) ? (ft.endPage - ft.startPage + 1) : 1;
-                    
-                    if (currentStart > maxUnitEnd) {
-                        // 如果頁數已經提前分配完畢，多餘的未來任務直接刪除
-                        plan.grid[fDate] = plan.grid[fDate].filter(x => x.id !== ft.id);
-                    } else {
-                        let nextEnd = currentStart + capacity - 1;
-                        if (nextEnd > maxUnitEnd) nextEnd = maxUnitEnd; // 不可超過單元上限
+                    for (let i = 0; i < futureTasks.length; i++) {
+                        const ft = futureTasks[i].task;
+                        const fDate = futureTasks[i].date;
+                        const dayPages = (i < cExtraPages) ? cPagesPerDay + 1 : cPagesPerDay;
                         
-                        ft.startPage = currentStart;
-                        ft.endPage = nextEnd;
-                        
-                        // 更新文字
-                        let ftBase = ft.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
-                        ft.text = ftBase + (currentStart === nextEnd ? ` P.${currentStart}` : ` P.${currentStart}~${nextEnd}`);
-                        
-                        currentStart = nextEnd + 1;
+                        if (currentStart > maxUnitEnd) {
+                            plan.grid[fDate] = plan.grid[fDate].filter(x => x.id !== ft.id);
+                        } else {
+                            const nextEnd = Math.min(currentStart + dayPages - 1, maxUnitEnd);
+                            ft.startPage = currentStart;
+                            ft.endPage = nextEnd;
+                            
+                            const ftBase = ft.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
+                            ft.text = ftBase + (currentStart === nextEnd ? ` P.${currentStart}` : ` P.${currentStart}~${nextEnd}`);
+                            
+                            currentStart = nextEnd + 1;
+                            
+                            // v1.5.94: 檢查是否超出 plan.end
+                            if (plan.end && fDate > plan.end) {
+                                overflowExceedsPlan = true;
+                                if (overflowDates.indexOf(fDate) === -1) overflowDates.push(fDate);
+                            }
+                        }
                     }
                 }
                 
