@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.104]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.103]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2554,15 +2554,6 @@ loadBoardHeader();
             }
             // v1.5.17: try/catch 防止 setItem 失敗 (容量 / permission) 導致資料丟失不被發現
             try {
-                // v1.5.104: 儲存前先拆跨單元任務 (一次性, 不會重複拆)
-                var splitN = splitCrossUnitTasks();
-                if (splitN > 0) {
-                    console.log('🔀 v1.5.104 拆了 ' + splitN + ' 個跨單元任務');
-                    // 拆完後需要把 appPlans 同步回 multiData
-                    if (multiData[currentUserId]) {
-                        multiData[currentUserId].plans = appPlans;
-                    }
-                }
                 // v1.5.102: 儲存前 snapshot 到 undoStack (最多 5 步)
                 pushUndoSnapshot();
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
@@ -3160,14 +3151,6 @@ loadBoardHeader();
                         var cleanText = task.text.replace(/\[🔄 順延\]\s*/g, '').replace(/🔔\s*/g, '').replace(/^【.*?】\s*/, '');
                         var isReminder = task.text.includes('🔔');
 
-                        // v1.5.104: 跨單元任務加 ⚠️ 標記
-                        var crossUnitInfo = isCrossUnitTask(task);
-                        var crossUnitMark = '';
-                        if (crossUnitInfo) {
-                            var unitNames = crossUnitInfo.units.map(function(u) { return u.name + '(' + u.pages + '頁)'; }).join(' + ');
-                            crossUnitMark = '⚠️ ';
-                        }
-
                         if (linkedLog) {
                             var detailStr = linkedLog.detail || linkedLog.unitName || '';
                             var subStr = linkedLog.subject || task.subject || '';
@@ -3189,14 +3172,8 @@ loadBoardHeader();
 
                         var displayText = cleanText;
                         if (isReminder) displayText = '🔔 ' + displayText;
-                        // v1.5.104: 跨單元任務前加 ⚠️
-                        if (crossUnitMark) displayText = crossUnitMark + displayText;
 
                         var titleAttr = (displayText || "").replace(/"/g, '&quot;');
-                        if (crossUnitInfo) {
-                            var crossTitle = crossUnitInfo.units.map(function(u) { return u.name + ' (' + u.pages + '頁)'; }).join(' + ');
-                            titleAttr += ' | 跨單元: ' + crossTitle;
-                        }
                         var taskClasses = `task-item ${task.isDone ? 'done' : ''} ${isOverdue ? 'overdue' : ''} ${(isBottleneck && !task.isDone) ? 'bottleneck' : ''}`;
                         
                         tasksHtml += `
@@ -3603,41 +3580,6 @@ function isUnitScheduledAnywhere(u) {
         return result;
     }
     return maxEndFound > 0;
-}
-
-// v1.5.104: 檢查 task 是否跨多個 unit (月曆顯示用)
-function isCrossUnitTask(task) {
-    if (!task || !task.startPage || !task.endPage) return null;
-    var unitsInRange = {};
-    if (!appMaster) return null;
-    Object.keys(appMaster).forEach(function(subj) {
-        var s = appMaster[subj];
-        if (s && s.materials) {
-            Object.keys(s.materials).forEach(function(mt) {
-                var mat = s.materials[mt];
-                if (mat && mat.instances) {
-                    mat.instances.forEach(function(inst) {
-                        if (inst && inst.units) {
-                            inst.units.forEach(function(u) {
-                                var overlap = 0;
-                                for (var p = task.startPage; p <= task.endPage; p++) {
-                                    if (p >= u.start && p <= u.end) overlap++;
-                                }
-                                if (overlap > 0) {
-                                    unitsInRange[u.id] = {name: u.name, pages: overlap, vol: inst.name || ''};
-                                }
-                            });
-                        }
-                    });
-                }
-            });
-        }
-    });
-    var keys = Object.keys(unitsInRange);
-    if (keys.length <= 1) return null;
-    return {count: keys.length, units: keys.map(function(uid) {
-        return {uid: uid, name: unitsInRange[uid].name, pages: unitsInRange[uid].pages, vol: unitsInRange[uid].vol};
-    })};
 }
 
 function renderUnitRowHtml(u, opts) {
@@ -4492,153 +4434,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
             closeModal('modal-planner-cell'); 
             renderCalendar();
             if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
-        }
-
-        // v1.5.104: 自動拆跨單元任務 (一個 task 範圍跨多個 unit, 拆成多筆)
-        function splitCrossUnitTasks() {
-            if (!appPlans || appPlans.length === 0) return 0;
-            // 抓教材庫所有 units
-            var allUnits = {};
-            if (appMaster) {
-                Object.keys(appMaster).forEach(function(subj) {
-                    var s = appMaster[subj];
-                    if (s.materials) {
-                        Object.keys(s.materials).forEach(function(mt) {
-                            var mat = s.materials[mt];
-                            if (mat && mat.instances) {
-                                mat.instances.forEach(function(inst) {
-                                    if (inst && inst.units) {
-                                        inst.units.forEach(function(u) {
-                                            allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
-                                        });
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
-            var splitCount = 0;
-            appPlans.forEach(function(plan) {
-                if (!plan.grid) return;
-                // 複製 grid 的 keys, 避免邊改邊 iterate
-                var dates = Object.keys(plan.grid);
-                dates.forEach(function(dStr) {
-                    var tasks = plan.grid[dStr] || [];
-                    var newTasks = [];
-                    for (var i = 0; i < tasks.length; i++) {
-                        var t = tasks[i];
-                        if (!t || !t.unitId || !t.startPage || !t.endPage) {
-                            newTasks.push(t);
-                            continue;
-                        }
-                        // 找這個 task 範圍內的所有 unit (按頁範圍)
-                        var u = allUnits[t.unitId];
-                        if (!u) {
-                            newTasks.push(t);
-                            continue;
-                        }
-                        // 簡單拆法: 用 task 本身的 unitId + 教材庫, 找跨範圍的其他 unit
-                        // 從 startPage 走到 endPage, 收集切換點
-                        var ranges = [];  // [{start, end, unitId, vol, unitName}]
-                        var curStart = t.startPage;
-                        var curUid = t.unitId;
-                        var curVol = t.vol || '';
-                        var curName = u.name;
-                        for (var p = t.startPage; p <= t.endPage; p++) {
-                            // 找 p 屬於哪個 unit (只考慮 start <= p <= end 且 unitId !== curUid 或 vol 不同)
-                            var foundUid = curUid;
-                            var foundVol = curVol;
-                            var foundName = curName;
-                            var found = false;
-                            Object.keys(allUnits).forEach(function(uid) {
-                                var cu = allUnits[uid];
-                                if (p >= cu.start && p <= cu.end) {
-                                    foundUid = uid;
-                                    foundName = cu.name;
-                                    found = true;
-                                }
-                            });
-                            if (!found) {
-                                foundUid = curUid;
-                                foundName = u.name;
-                            }
-                            if (foundUid !== curUid && ranges.length > 0) {
-                                // 切換 unit: 關閉上一段
-                                var last = ranges[ranges.length - 1];
-                                last.end = p - 1;
-                                // 開新段
-                                ranges.push({start: p, end: t.endPage, unitId: foundUid, vol: curVol, unitName: foundName});
-                                curUid = foundUid;
-                                curName = foundName;
-                            } else if (ranges.length === 0) {
-                                ranges.push({start: p, end: t.endPage, unitId: foundUid, vol: curVol, unitName: foundName});
-                                curUid = foundUid;
-                                curName = foundName;
-                            }
-                        }
-                        // 收尾
-                        if (ranges.length > 0) {
-                            ranges[ranges.length - 1].end = t.endPage;
-                        }
-                        // 過濾空範圍
-                        ranges = ranges.filter(function(r) { return r.end >= r.start; });
-                        
-                        if (ranges.length <= 1) {
-                            // 沒跨單元, 保留
-                            newTasks.push(t);
-                            continue;
-                        }
-                        // 跨單元, 拆成多筆
-                        splitCount++;
-                        ranges.forEach(function(r) {
-                            var subText = (t.text || '').replace(/P\.\d+(~\d+)?\s*$/, '').trim();
-                            if (r.start === r.end) {
-                                subText += ' P.' + r.start;
-                            } else {
-                                subText += ' P.' + r.start + '~' + r.end;
-                            }
-                            // 找對應的 vol
-                            var rVol = '';
-                            if (appMaster && appMaster[t.subject] && appMaster[t.subject].materials) {
-                                Object.keys(appMaster[t.subject].materials).forEach(function(mt) {
-                                    var mat = appMaster[t.subject].materials[mt];
-                                    if (mat && mat.instances) {
-                                        mat.instances.forEach(function(inst) {
-                                            if (inst && inst.units) {
-                                                inst.units.forEach(function(u) {
-                                                    if (u.id === r.unitId) {
-                                                        rVol = inst.name || '';
-                                                    }
-                                                });
-                                            }
-                                        });
-                                    }
-                                });
-                            }
-                            newTasks.push({
-                                id: genId(),
-                                subject: t.subject,
-                                text: subText,
-                                startPage: r.start,
-                                endPage: r.end,
-                                isDone: t.isDone,
-                                cat: t.cat,
-                                mis: t.mis,
-                                unitId: r.unitId,
-                                vol: rVol,
-                                unitName: r.unitName,
-                                postponeCount: t.postponeCount || 0,
-                                isAuto: t.isAuto,
-                                wizardRunId: t.wizardRunId,
-                                wizardRunTime: t.wizardRunTime
-                            });
-                        });
-                    }
-                    plan.grid[dStr] = newTasks;
-                });
-            });
-            return splitCount;
         }
 
         // v1.5.98: 清理同一天同單元重複任務 (合併兩筆為一筆)
@@ -7246,51 +7041,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     });
                 });
             }
-            // v1.5.104: donePages 改用 task 重疊頁數算法 (跨單元任務自動拆到每個被涵蓋的 unit)
-            // 先抓教材庫所有 units
-            var allUnits104 = {};
-            if (appMaster) {
-                Object.keys(appMaster).forEach(function(subj) {
-                    var s = appMaster[subj];
-                    if (s.materials) {
-                        Object.keys(s.materials).forEach(function(mt) {
-                            var mat = s.materials[mt];
-                            if (mat && mat.instances) {
-                                mat.instances.forEach(function(inst) {
-                                    if (inst && inst.units) {
-                                        inst.units.forEach(function(u) {
-                                            allUnits104[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
-                                        });
-                                    }
-                                });
-                            }
-                        });
+            // v1.5.102: donePages 從 appLogs 算 (跨單元任務會拆 log 給每個被涵蓋的 unit)
+            if (Array.isArray(appLogs)) {
+                appLogs.forEach(function(l) {
+                    if (!l.unitId) return;
+                    if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
+                    if (!window._treeScheduledUnits[l.unitId]) {
+                        window._treeScheduledUnits[l.unitId] = {
+                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                            firstCat: l.category || '', firstMis: l.mission || '',
+                            firstPlanId: null
+                        };
                     }
-                });
-            }
-            // 對每個 isDone task, 算每個 unit 的重疊頁數, 加到對應 unit
-            if (Array.isArray(appPlans)) {
-                appPlans.forEach(function(plan) {
-                    if (!plan.grid) return;
-                    Object.keys(plan.grid).forEach(function(dStr) {
-                        (plan.grid[dStr] || []).forEach(function(t) {
-                            if (!t || !t.isDone || !t.startPage || !t.endPage) return;
-                            Object.keys(allUnits104).forEach(function(uid) {
-                                var u = allUnits104[uid];
-                                var s = t.startPage > u.start ? t.startPage : u.start;
-                                var e = t.endPage < u.end ? t.endPage : u.end;
-                                if (e >= s) {
-                                    if (!window._treeScheduledUnits[uid]) {
-                                        window._treeScheduledUnits[uid] = {
-                                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                                            firstCat: '', firstMis: '', firstPlanId: null
-                                        };
-                                    }
-                                    window._treeScheduledUnits[uid].donePages += (e - s + 1);
-                                }
-                            });
-                        });
-                    });
+                    window._treeScheduledUnits[l.unitId].donePages += (l.pages || 0);
                 });
             }
 
