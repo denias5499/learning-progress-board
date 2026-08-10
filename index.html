@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.110]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.111]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1108,7 +1108,7 @@
                             <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
                             <button class="cal-sync-btn" onclick="exportPlanJSON()">📦 備份月曆</button>
                             <button class="cal-sync-btn" onclick="document.getElementById('import-plan-file').click()">📂 匯入月曆</button><input type="file" id="import-plan-file" style="display: none;" accept=".json">
-                            <button class="btn-danger" onclick="deleteCurrentPlan()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
+                            <button class="btn-danger" onclick="showRevertWizardModal()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
                         </div>
                     </div>
                 </div>
@@ -4181,6 +4181,168 @@ function renderWizardUnitRowHtml(ws, i, u) {
             renderCalendar(); 
         }
 
+        // v1.5.111: 撤回智慧排程 - 自訂 modal 顯示「將被刪除/保留的清單」
+        function showRevertWizardModal() {
+            var pid = el('planner-selector').value;
+            if (!pid) return alert('請先選擇計畫！');
+            var plan = appPlans.find(p => p.id === pid);
+            if (!plan || !plan.grid) return;
+            
+            var latestRunTime = 0;
+            Object.keys(plan.grid).forEach(function(dStr) {
+                (plan.grid[dStr] || []).forEach(function(t) {
+                    if (t.wizardRunTime && t.wizardRunTime > latestRunTime) latestRunTime = t.wizardRunTime;
+                });
+            });
+            if (!latestRunTime && plan.lastWizardRunTime) latestRunTime = plan.lastWizardRunTime;
+            
+            var toDelete = [];
+            var toKeepAuto = [];
+            var toKeepManual = [];
+            
+            Object.keys(plan.grid).forEach(function(dStr) {
+                (plan.grid[dStr] || []).forEach(function(t) {
+                    var isLatestWizard = (latestRunTime > 0) && t.wizardRunTime && t.wizardRunTime >= latestRunTime - 1000;
+                    if (isLatestWizard) {
+                        toDelete.push({date: dStr, task: t});
+                    } else if (!t.isAuto) {
+                        toKeepManual.push({date: dStr, task: t});
+                    } else {
+                        toKeepAuto.push({date: dStr, task: t});
+                    }
+                });
+            });
+            
+            toDelete.sort(function(a, b) { return a.date.localeCompare(b.date); });
+            
+            var endChangeText = '';
+            if (plan.lastWizardRunTime && plan.originalEndBeforeLastWizard && plan.end !== plan.originalEndBeforeLastWizard) {
+                endChangeText = '<div style="background:#fff3cd; padding:10px; border-radius:6px; margin-top:8px; color:#856404;">' +
+                    '<div style="font-weight:bold; margin-bottom:4px;">📅 計畫完成日期將被還原:</div>' +
+                    '<div>原本 <strong>' + escapeHtml(plan.originalEndBeforeLastWizard) + '</strong> → 已延長到 <strong>' + escapeHtml(plan.end) + '</strong></div>' +
+                    '<div style="margin-top:4px;">⚠️ 撤回後將還原到 <strong>' + escapeHtml(plan.originalEndBeforeLastWizard) + '</strong></div>' +
+                    '</div>';
+            }
+            
+            var deleteListHtml = '';
+            var previewCount = Math.min(5, toDelete.length);
+            if (toDelete.length === 0) {
+                deleteListHtml = '<div style="color:#7f8c8d; padding:8px; text-align:center;">沒有找到可撤回的任務</div>';
+            } else {
+                for (var i = 0; i < previewCount; i++) {
+                    var item = toDelete[i];
+                    deleteListHtml += '<div style="padding:4px 8px; border-bottom:1px solid #f1f5f9; font-size:0.9em;">' +
+                        '<span style="color:var(--accent); font-weight:bold;">' + escapeHtml(item.date) + '</span> ' +
+                        '<span>' + escapeHtml(item.task.subject) + ' ' + escapeHtml(item.task.unitName || '') + ' P.' + item.task.startPage + '~' + item.task.endPage + '</span>' +
+                        '</div>';
+                }
+                if (toDelete.length > previewCount) {
+                    var fullListId = 'revert-full-list-' + Date.now();
+                    deleteListHtml += '<div id="' + fullListId + '" style="display:none;">';
+                    for (var j = previewCount; j < toDelete.length; j++) {
+                        var it = toDelete[j];
+                        deleteListHtml += '<div style="padding:4px 8px; border-bottom:1px solid #f1f5f9; font-size:0.9em;">' +
+                            '<span style="color:var(--accent); font-weight:bold;">' + escapeHtml(it.date) + '</span> ' +
+                            '<span>' + escapeHtml(it.task.subject) + ' ' + escapeHtml(it.task.unitName || '') + ' P.' + it.task.startPage + '~' + it.task.endPage + '</span>' +
+                            '</div>';
+                    }
+                    deleteListHtml += '</div>' +
+                        '<button type="button" class="btn-outline" onclick="document.getElementById(\'' + fullListId + '\').style.display=\'block\'; this.style.display=\'none\';" style="margin-top:6px; padding:4px 12px; font-size:0.85em;">📋 展開完整清單 (剩餘 ' + (toDelete.length - previewCount) + ' 筆)</button>';
+                }
+            }
+            
+            var existing = el('modal-revert-wizard');
+            if (existing) existing.remove();
+            
+            var modal = document.createElement('div');
+            modal.id = 'modal-revert-wizard';
+            modal.className = 'modal-bg';
+            modal.style.zIndex = '3500';
+            modal.style.display = 'flex';
+            modal.innerHTML = '<div class="modal-content" style="max-width:600px;">' +
+                '<div class="modal-header"><h2 style="color:var(--danger);">↩️ 撤回智慧排程</h2></div>' +
+                '<div style="padding: 15px;">' +
+                    '<div style="background:#fee; padding:12px; border-radius:6px; margin-bottom:12px;">' +
+                        '<div style="font-weight:bold; color:var(--danger); margin-bottom:8px;">🗑️ 將刪除的任務 (' + toDelete.length + ' 筆):</div>' +
+                        deleteListHtml +
+                    '</div>' +
+                    '<div style="background:#efe; padding:12px; border-radius:6px; margin-bottom:12px;">' +
+                        '<div style="font-weight:bold; color:#27ae60; margin-bottom:6px;">✅ 將保留:</div>' +
+                        '<div style="padding-left:12px; font-size:0.9em;">' +
+                            '• 手動加的任務: <strong>' + toKeepManual.length + '</strong> 筆<br>' +
+                            '• 之前的智慧排程: <strong>' + toKeepAuto.length + '</strong> 筆' +
+                        '</div>' +
+                    '</div>' +
+                    endChangeText +
+                '</div>' +
+                '<div style="display:flex; gap:10px; justify-content:flex-end; padding:0 15px 15px;">' +
+                    '<button type="button" class="btn-outline" onclick="closeRevertWizardModal()" style="padding:8px 20px;">✕ 取消</button>' +
+                    '<button type="button" class="btn-danger" onclick="confirmRevertWizard()" style="padding:8px 20px;">✓ 確認撤回</button>' +
+                '</div>' +
+            '</div>';
+            document.body.appendChild(modal);
+            el('modal-revert-wizard').addEventListener('click', function(e) {
+                if (e.target.id === 'modal-revert-wizard') closeRevertWizardModal();
+            });
+        }
+        
+        function closeRevertWizardModal() {
+            var m = el('modal-revert-wizard');
+            if (m) m.remove();
+        }
+        
+        function confirmRevertWizard() {
+            closeRevertWizardModal();
+            // v1.5.111: 保留雙重確認 (原生 confirm)
+            if (!confirm('⚠️ 確定要撤回智慧排程嗎？\n\n此操作會:\n• 刪除所有這次智慧排程產生的任務\n• 還原計畫完成日期\n• 保留所有手動加的任務\n\n確定執行？')) return;
+            executeRevertWizard();
+        }
+        
+        function executeRevertWizard() {
+            var pid = el('planner-selector').value;
+            var plan = appPlans.find(p => p.id === pid);
+            if (!plan || !plan.grid) return;
+            
+            var latestRunTime = 0;
+            Object.keys(plan.grid).forEach(function(dStr) {
+                (plan.grid[dStr] || []).forEach(function(t) {
+                    if (t.wizardRunTime && t.wizardRunTime > latestRunTime) latestRunTime = t.wizardRunTime;
+                });
+            });
+            if (!latestRunTime && plan.lastWizardRunTime) latestRunTime = plan.lastWizardRunTime;
+            
+            if (plan.originalEndBeforeLastWizard && plan.end !== plan.originalEndBeforeLastWizard) {
+                plan.end = plan.originalEndBeforeLastWizard;
+            }
+            
+            var deletedCount = 0;
+            Object.keys(plan.grid).forEach(function(dStr) {
+                var origLen = plan.grid[dStr].length;
+                if (latestRunTime > 0) {
+                    plan.grid[dStr] = plan.grid[dStr].filter(function(t) {
+                        if (!t.isAuto) return true;
+                        if (!t.wizardRunId) return true;
+                        if (t.wizardRunTime && t.wizardRunTime >= latestRunTime - 1000) return false;
+                        return true;
+                    });
+                } else {
+                    plan.grid[dStr] = plan.grid[dStr].filter(function(t) { return !t.isAuto; });
+                }
+                deletedCount += (origLen - plan.grid[dStr].length);
+                if (plan.grid[dStr].length === 0) delete plan.grid[dStr];
+            });
+            
+            saveToLocal();
+            updatePlannerSelector();
+            renderCalendar();
+            
+            if (deletedCount > 0) {
+                alert('✅ 已撤回 ' + deletedCount + ' 筆智慧排程任務');
+            } else {
+                alert('❌ 沒有找到可撤回的任務 (目前的進度皆為手動建立)');
+            }
+        }
+        
         function deleteCurrentPlan() { 
             var pid = el('planner-selector').value; 
             if(!pid) return; 
