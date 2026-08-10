@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.107]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.108]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2932,16 +2932,16 @@ loadBoardHeader();
                     if (!typeObj || !Array.isArray(typeObj.instances)) return;
                     typeObj.instances.forEach(function(ins) {
                         if (!ins) return;
-                        if (ins.type === 'volume' && ins.vols && typeof ins.vols === 'object') {
+                        // v1.5.107: 支援 inst.vols (不管 ins.type 是否有)
+                        if (ins.vols && typeof ins.vols === 'object') {
                             (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
                                 (ins.vols[volName] || []).forEach(function(u) {
-                                    // v1.5.17: 補 _typeName / _instanceName, 否則 renderMissionCheckboxes type filter 會把所有 volume instance filter 掉
                                     out2.push(Object.assign({}, u, { vol: volName, _typeName: typeName, _instanceName: ins.name }));
                                 });
                             });
-                        } else if (Array.isArray(ins.units)) {
+                        }
+                        if (Array.isArray(ins.units)) {
                             ins.units.forEach(function(u) {
-                                // v1.5.11: vol 改成 grouping key (typeName + instanceName), 方便 UI 顯示
                                 out2.push(Object.assign({}, u, {
                                     vol: ins.type === 'volume' ? (u.vol || 'custom') : typeName + '|' + ins.name,
                                     _instanceName: ins.name,
@@ -3711,51 +3711,45 @@ function getUnitDonePagesByOverlap() {
     if (!appPlans || appPlans.length === 0) return result;
     var allUnits = {};
     var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
-    if (masters) {
-        Object.keys(masters).forEach(function(cat) {
-            var catSubjects = masters[cat];
-            if (!catSubjects) return;
-            Object.keys(catSubjects).forEach(function(subj) {
-                var s = catSubjects[subj];
-                if (s && s.materials) {
-                    Object.keys(s.materials).forEach(function(mt) {
-                        var mat = s.materials[mt];
-                        if (mat && mat.instances) {
-                            mat.instances.forEach(function(inst) {
-                                if (inst && inst.units) {
-                                    inst.units.forEach(function(u) {
-                                        if (!allUnits[u.id]) {
-                                            allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
-                                        }
-                                    });
-                                }
-                            });
+    function collectUnits(s, subj) {
+        if (!s || !s.materials) return;
+        Object.keys(s.materials).forEach(function(mt) {
+            var mat = s.materials[mt];
+            if (!mat || !mat.instances) return;
+            mat.instances.forEach(function(inst) {
+                if (!inst) return;
+                if (inst.vols && typeof inst.vols === 'object') {
+                    Object.keys(inst.vols).forEach(function(volName) {
+                        (inst.vols[volName] || []).forEach(function(u) {
+                            if (u && u.id && !allUnits[u.id]) {
+                                allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
+                            }
+                        });
+                    });
+                }
+                if (inst.units && Array.isArray(inst.units)) {
+                    inst.units.forEach(function(u) {
+                        if (u && u.id && !allUnits[u.id]) {
+                            allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
                         }
                     });
                 }
             });
         });
     }
+    if (masters) {
+        Object.keys(masters).forEach(function(cat) {
+            var catSubjects = masters[cat];
+            if (!catSubjects) return;
+            Object.keys(catSubjects).forEach(function(subj) {
+                collectUnits(catSubjects[subj], subj);
+            });
+        });
+    }
     // fallback 用 appMaster
     if (Object.keys(allUnits).length === 0 && appMaster) {
         Object.keys(appMaster).forEach(function(subj) {
-            var s = appMaster[subj];
-            if (s && s.materials) {
-                Object.keys(s.materials).forEach(function(mt) {
-                    var mat = s.materials[mt];
-                    if (mat && mat.instances) {
-                        mat.instances.forEach(function(inst) {
-                            if (inst && inst.units) {
-                                inst.units.forEach(function(u) {
-                                    if (!allUnits[u.id]) {
-                                        allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
-                                    }
-                                });
-                            }
-                        });
-                    }
-                });
-            }
+            collectUnits(appMaster[subj], subj);
         });
     }
     appPlans.forEach(function(plan) {
@@ -3794,15 +3788,22 @@ function getCrossUnitRanges(task) {
     var units = [];
     Object.keys(s.materials).forEach(function(mt) {
         var mat = s.materials[mt];
-        if (mat && mat.instances) {
-            mat.instances.forEach(function(inst) {
-                if (inst && inst.units) {
-                    inst.units.forEach(function(u) {
-                        units.push(u);
+        if (!mat || !mat.instances) return;
+        mat.instances.forEach(function(inst) {
+            if (!inst) return;
+            if (inst.vols && typeof inst.vols === 'object') {
+                Object.keys(inst.vols).forEach(function(volName) {
+                    (inst.vols[volName] || []).forEach(function(u) {
+                        if (u && u.id) units.push(u);
                     });
-                }
-            });
-        }
+                });
+            }
+            if (inst.units && Array.isArray(inst.units)) {
+                inst.units.forEach(function(u) {
+                    if (u && u.id) units.push(u);
+                });
+            }
+        });
     });
     var ranges = [];
     for (var p = task.startPage; p <= task.endPage; p++) {
