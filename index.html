@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.109]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.110]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -708,6 +708,8 @@
         .input-emoji-btn { font-size: 1.6em; cursor: pointer; padding: 5px; border-radius: 8px; background: #f1f5f9; transition: 0.2s; display: inline-flex; justify-content: center; align-items: center; width: 42px; height: 42px; border: 1px solid transparent; user-select: none; }
         .input-emoji-btn:hover { background: #e2e8f0; border-color: var(--accent); transform: scale(1.1); }
 
+        /* v1.5.110: print-area 預設隱藏, @media print 才顯示 */
+        .print-area, #print-area { display: none; }
         @media print {
             @page { size: A4 landscape; margin: 0; }
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -1075,14 +1077,7 @@
                         <div style="display: flex; gap: 10px;">
                             <button type="button" class="btn-primary" onclick="exportDataToFile()">📥 匯出 JSON 備份</button>
                             <button type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
-                            <!-- v1.5.14: 從舊備份還原數學等缺複習講義的科目 -->
-                            <button type="button" class="btn-success" onclick="restoreFromOldBackup()" style="background:#16a085;">📦 從舊備份還原</button>
-                            <!-- v1.5.15: 專門補數學的複習講義 (Denias 22:19 指定) -->
-                            <button type="button" class="btn-success" onclick="restoreMathLecture()" style="background:#c0392b;">🛠️ 數學補回複習講義</button>
-                            <!-- v1.5.16: 清段考複習的 5 個會考 type (v1.5.13 遺留的污染) -->
-                            <button type="button" class="btn-warning" onclick="cleanupSegmentExamTypes()" style="background:#e67e22;">🧹 清段考複習的會考 type</button>
-                            <!-- v1.5.106: 清理教材庫 P.1-1 placeholder -->
-                            <button type="button" class="btn-warning" onclick="cleanupP1PlaceholderUnitsUI()" style="background:#d35400;">🧹 清理 P.1-1 placeholder</button>
+
                             <input type="file" id="import-file" style="display: none;" accept=".json">
                         </div>
                     </div>
@@ -1113,7 +1108,7 @@
                             <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
                             <button class="cal-sync-btn" onclick="exportPlanJSON()">📦 備份月曆</button>
                             <button class="cal-sync-btn" onclick="document.getElementById('import-plan-file').click()">📂 匯入月曆</button><input type="file" id="import-plan-file" style="display: none;" accept=".json">
-                            <button class="btn-danger" onclick="deleteCurrentPlan()">🗑️ 刪除排程</button>
+                            <button class="btn-danger" onclick="deleteCurrentPlan()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
                         </div>
                     </div>
                 </div>
@@ -5239,6 +5234,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             openModal('modal-print-settings');
         }
 
+        // v1.5.110: 改為每 14 天一頁 (原本一個月一頁)
         function executePrint() {
             var startVal = el('print-start-month').value;
             var endVal = el('print-end-month').value;
@@ -5246,6 +5242,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             
             var startDate = new Date(startVal + "-01");
             var endDate = new Date(endVal + "-01");
+            // 結束日期設為月底 (該月最後一天)
+            endDate = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
             
             if(endDate < startDate) return alert("結束月份不能早於開始月份！");
 
@@ -5258,145 +5256,156 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var printArea = el('print-area');
             var html = '';
             
-            var currDate = new Date(startDate);
-            while(currDate <= endDate) {
-                var y = currDate.getFullYear();
-                var m = currDate.getMonth();
-                
-                html += `<div class="print-page">
-                    <div class="print-title">${y}年${m + 1}月 學習進度計畫表</div>
-                    <table class="print-table">
-                        <thead>
-                            <tr>
-                                <th class="col-subj">科目</th>
-                                <th>週日</th><th>週一</th><th>週二</th><th>週三</th><th>週四</th><th>週五</th><th>週六</th>
-                            </tr>
-                        </thead>`;
-                
-                var firstDay = new Date(y, m, 1);
-                var lastDay = new Date(y, m + 1, 0);
-                var startPad = firstDay.getDay();
-                var totalCells = Math.ceil((lastDay.getDate() + startPad) / 7) * 7;
-                var totalWeeks = totalCells / 7;
-                
-                let fCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
-                let fMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
-                let allowedUnitIds = new Set();
-                let allowedSubjects = new Set();
-                
-                if (fCat !== 'ALL') {
-                    if (fMis !== 'ALL') {
-                        (appMissions[fCat][fMis] || []).forEach(id => allowedUnitIds.add(id));
-                        let mTree = buildMissionTree(fCat, fMis);
+            let fCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
+            let fMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
+            let allowedUnitIds = new Set();
+            let allowedSubjects = new Set();
+            
+            if (fCat !== 'ALL') {
+                if (fMis !== 'ALL') {
+                    (appMissions[fCat][fMis] || []).forEach(id => allowedUnitIds.add(id));
+                    let mTree = buildMissionTree(fCat, fMis);
+                    Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
+                } else {
+                    Object.keys(appMissions[fCat]).forEach(ms => {
+                        (appMissions[fCat][ms] || []).forEach(id => allowedUnitIds.add(id));
+                        let mTree = buildMissionTree(fCat, ms);
                         Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
-                    } else {
-                        Object.keys(appMissions[fCat]).forEach(ms => {
-                            (appMissions[fCat][ms] || []).forEach(id => allowedUnitIds.add(id));
-                            let mTree = buildMissionTree(fCat, ms);
-                            Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
-                        });
-                    }
+                    });
+                }
+            }
+            
+            var targetOrder = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
+            
+            // 從 startDate 開始, 每 14 天 (兩週) 一頁
+            var currStart = new Date(startDate);
+            while (currStart <= endDate) {
+                var pageEnd = new Date(currStart);
+                pageEnd.setDate(pageEnd.getDate() + 13);  // +13 天 = 兩週 (含起始)
+                if (pageEnd > endDate) pageEnd = new Date(endDate);
+                
+                // 標題: 跨月顯示 "X月Y日 - Z月W日", 同月顯示 "X月Y-W日"
+                var titleText;
+                if (currStart.getMonth() === pageEnd.getMonth() && currStart.getFullYear() === pageEnd.getFullYear()) {
+                    titleText = currStart.getFullYear() + '年' + (currStart.getMonth() + 1) + '月' + currStart.getDate() + '-' + pageEnd.getDate() + '日';
+                } else {
+                    titleText = currStart.getFullYear() + '年' + (currStart.getMonth() + 1) + '月' + currStart.getDate() + '日 - ' + (pageEnd.getMonth() + 1) + '月' + pageEnd.getDate() + '日';
                 }
                 
-                var targetOrder = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
-
-                for(var w=0; w<totalWeeks; w++) {
-                    html += `<tbody class="print-week-group">`;
+                html += '<div class="print-page">';
+                html += '<div class="print-title">' + titleText + ' 學習進度計畫表</div>';
+                html += '<table class="print-table">';
+                html += '<thead><tr><th class="col-subj">科目</th><th>週日</th><th>週一</th><th>週二</th><th>週三</th><th>週四</th><th>週五</th><th>週六</th></tr></thead>';
+                
+                // 兩週: 每週一行
+                var weekStart = new Date(currStart);
+                while (weekStart <= pageEnd) {
+                    var weekEndDate = new Date(weekStart);
+                    weekEndDate.setDate(weekEndDate.getDate() + 6);
+                    if (weekEndDate > pageEnd) weekEndDate = new Date(pageEnd);
+                    
                     var weekDates = [];
-                    for(var d=0; d<7; d++) {
-                        weekDates.push(new Date(y, m, w * 7 + d - startPad + 1));
+                    var d = new Date(weekStart);
+                    while (d <= weekEndDate) {
+                        weekDates.push(new Date(d));
+                        d.setDate(d.getDate() + 1);
                     }
-
-                    html += `<tr class="week-date-row"><td>日期</td>`;
-                    weekDates.forEach(cellDate => {
-                        var isCurrentMonth = cellDate.getMonth() === m;
-                        html += `<td>${isCurrentMonth ? cellDate.getDate() : ''}</td>`;
-                    });
-                    html += `</tr>`;
-
+                    
                     var weekTasks = {};
                     var hasTasks = false;
-
-                    if(plan && plan.grid) {
-                        for(var d=0; d<7; d++) {
-                            var dateStr = getLocalDateString(weekDates[d]);
+                    
+                    if (plan && plan.grid) {
+                        weekDates.forEach(function(cellDate) {
+                            var dateStr = getLocalDateString(cellDate);
                             var tasks = plan.grid[dateStr] || [];
                             
-                            let filteredTasks = [...tasks];
-                            if (fCat !== 'ALL') {
-                                filteredTasks = filteredTasks.filter(t => {
-                                    if (t.unitId) {
-                                        return allowedUnitIds.has(t.unitId);
-                                    }
-                                    if (t.cat) {
-                                        if (t.cat !== fCat) return false;
-                                        if (fMis !== 'ALL' && t.mis !== fMis) return false;
-                                        return true;
-                                    }
-                                    if (!appMaster[t.subject]) return true; 
-                                    if (allowedSubjects && !allowedSubjects.has(t.subject)) return false;
+                            var filteredTasks = tasks.filter(function(t) {
+                                if (fCat === 'ALL') return true;
+                                if (t.unitId) return allowedUnitIds.has(t.unitId);
+                                if (t.cat) {
+                                    if (t.cat !== fCat) return false;
+                                    if (fMis !== 'ALL' && t.mis !== fMis) return false;
                                     return true;
-                                });
-                            }
-
-                            filteredTasks.forEach(t => {
+                                }
+                                if (!appMaster[t.subject]) return true;
+                                if (allowedSubjects && !allowedSubjects.has(t.subject)) return false;
+                                return true;
+                            });
+                            
+                            filteredTasks.forEach(function(t) {
                                 var subj = t.subject || '其他';
-                                if(!weekTasks[subj]) weekTasks[subj] = [[],[],[],[],[],[],[]];
-                                weekTasks[subj][d].push(t);
+                                if (!weekTasks[subj]) weekTasks[subj] = [];
+                                var colIdx = weekDates.indexOf(cellDate);
+                                if (!weekTasks[subj][colIdx]) weekTasks[subj][colIdx] = [];
+                                weekTasks[subj][colIdx].push(t);
                                 hasTasks = true;
                             });
-                        }
+                        });
                     }
-
-                    if(hasTasks) {
-                        var subjectsThisWeek = Object.keys(weekTasks);
-                        subjectsThisWeek.sort((a, b) => {
-                            var idxA = targetOrder.indexOf(a);
-                            var idxB = targetOrder.indexOf(b);
-                            if (idxA === -1) idxA = 999;
-                            if (idxB === -1) idxB = 999;
+                    
+                    html += '<tbody class="print-week-group">';
+                    html += '<tr class="week-date-row"><td>日期</td>';
+                    weekDates.forEach(function(cellDate) {
+                        html += '<td>' + cellDate.getDate() + '</td>';
+                    });
+                    html += '</tr>';
+                    
+                    if (hasTasks) {
+                        var subjects = Object.keys(weekTasks);
+                        subjects.sort(function(a, b) {
+                            var idxA = targetOrder.indexOf(a); if (idxA === -1) idxA = 999;
+                            var idxB = targetOrder.indexOf(b); if (idxB === -1) idxB = 999;
                             if (idxA !== idxB) return idxA - idxB;
                             return a.localeCompare(b);
                         });
-
-                        subjectsThisWeek.forEach(subj => {
-                            html += `<tr><td class="subj-cell">${subj}</td>`;
-                            for(var d=0; d<7; d++) {
-                                html += `<td class="task-cell">`;
-                                weekTasks[subj][d].forEach(t => {
-                                    let pageText = '';
+                        
+                        subjects.forEach(function(subj) {
+                            html += '<tr><td class="subj-cell">' + subj + '</td>';
+                            weekDates.forEach(function(_, idx) {
+                                html += '<td class="task-cell">';
+                                var tasks = weekTasks[subj][idx] || [];
+                                tasks.forEach(function(t) {
+                                    var pageText = '';
                                     if (t.startPage && t.endPage) {
-                                        pageText = t.startPage === t.endPage ? `P.${t.startPage}` : `P.${t.startPage}~${t.endPage}`;
+                                        pageText = t.startPage === t.endPage ? 'P.' + t.startPage : 'P.' + t.startPage + '~' + t.endPage;
                                     } else if (t.startPage) {
-                                        pageText = `P.${t.startPage}`;
+                                        pageText = 'P.' + t.startPage;
                                     } else {
-                                        let match = t.text.match(/P\.\d+(?:~\d+)?/);
+                                        var match = t.text.match(/P\.\d+(?:~\d+)?/);
                                         if (match) pageText = match[0];
                                         else pageText = '✔️'; 
                                     }
-                                    
                                     var box = t.isDone ? '☑ ' : '☐ ';
                                     var doneClass = t.isDone ? 'done' : '';
-                                    html += `<div class="print-task ${doneClass}">${box}${pageText}</div>`;
+                                    html += '<div class="print-task ' + doneClass + '">' + box + pageText + '</div>';
                                 });
-                                html += `</td>`;
-                            }
-                            html += `</tr>`;
+                                html += '</td>';
+                            });
+                            html += '</tr>';
                         });
                     } else {
-                        html += `<tr><td class="subj-cell" style="color:#cbd5e1;">(無排程)</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+                        html += '<tr><td class="subj-cell" style="color:#cbd5e1;">(無排程)</td>';
+                        for (var k = 0; k < weekDates.length; k++) html += '<td></td>';
+                        html += '</tr>';
                     }
-                    html += `</tbody>`;
+                    html += '</tbody>';
+                    
+                    // 下週從 weekEndDate + 1 開始
+                    weekStart = new Date(weekEndDate);
+                    weekStart.setDate(weekStart.getDate() + 1);
                 }
                 
-                html += `</table></div>`; 
-                currDate.setMonth(currDate.getMonth() + 1);
+                html += '</table></div>';
+                
+                // 下兩週從 pageEnd + 1 開始
+                currStart = new Date(pageEnd);
+                currStart.setDate(currStart.getDate() + 1);
             }
             
             printArea.innerHTML = html;
             closeModal('modal-print-settings');
             
-            setTimeout(() => {
+            setTimeout(function() {
                 window.print();
             }, 300);
         }
