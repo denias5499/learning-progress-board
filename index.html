@@ -1027,6 +1027,16 @@
                             <button type="button" class="btn-primary" style="border-radius: 50%; width: 40px; height: 40px; padding: 0; box-shadow: 0 3px 6px rgba(0,0,0,0.3); font-size: 1.2em; display:flex; align-items:center; justify-content:center;" onclick="scrollMissionSubjects(1)" title="向右箭頭 (下一頁)">➡️</button>
                         </div>
                     </div>
+
+                    <!-- v1.5.112: 任務每日時數預設 -->
+                    <div style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; border: 2px dashed #f59e0b; position: relative;">
+                        <h3 style="margin-top: 0; margin-bottom: 10px; color: #d97706;">🎯 任務每日時數預設 (v1.5.112 新功能)</h3>
+                        <p style="color: var(--secondary); font-size: 0.85em; margin-top: 0; margin-bottom: 12px;">為每個大分類設定「每日讀書時數」。智慧排程會優先使用此設定取代上方 7 天預設。日期範圍 override 會再優先於此設定。設為 0 = 不使用。</p>
+                        <div id="apre-cat-hours-container"></div>
+                        <div style="text-align: right; margin-top: 10px;">
+                            <button type="button" class="btn-primary" onclick="saveAppPrefsAndClose()">💾 儲存</button>
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- v1.5.58: tab 3 - 每日輸入 (放在 page-settings 內,跟 pane-master/mission 同層) -->
@@ -1422,6 +1432,15 @@
                         <option value="4.5"><option value="5.0"><option value="5.5"><option value="6.0">
                     </datalist>
                 </div>
+                <!-- v1.5.112: 自訂日期時數範圍 (優先於上方 7 天預設) -->
+                <div class="wizard-row" style="background:#fefce8; border:1px solid #fde047; border-radius:8px; padding:15px; margin-top:10px;">
+                    <div style="display:flex; gap:15px; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                        <label style="color:#a16207; font-size:1.05em; font-weight:bold;">📅 自訂日期時數 (優先於上方預設)</label>
+                        <button type="button" class="btn-outline" onclick="addHourOverride()" style="font-size:0.9em;">➕ 新增日期範圍</button>
+                    </div>
+                    <div id="wz-overrides-container"></div>
+                    <p style="font-size:0.8em; color:#854d0e; margin:5px 0 0 0;">💡 範例: 段考週 1.0 小時、模考週 1.5 小時。留空 = 該日不排。設定會優先於上方 7 天預設。</p>
+                </div>
             </div>
 
             <div class="wizard-section">
@@ -1552,6 +1571,40 @@
             </div>
             <p style="color: #7f8c8d; font-size: 0.9em; margin-top: 0;">系統自動比對您的「歷史紀錄/Log」與「月曆排程」，以下是過去未完成或未回報的任務，請手動調整或順延。</p>
             <div id="dc-list" style="max-height: 400px; overflow-y: auto; padding-right: 10px;"></div>
+        </div>
+    </div>
+
+    <!-- v1.5.112: 自訂日期時數範圍 modal -->
+    <div id="modal-hour-override" class="modal-bg" style="z-index: 2080;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📅 自訂日期時數範圍</h2>
+                <button type="button" class="close-btn" onclick="closeModal('modal-hour-override')">&times;</button>
+            </div>
+            <div class="wizard-row">
+                <div style="flex:1;"><label>開始日期</label><input type="date" id="hov-start"></div>
+                <div style="flex:1;"><label>結束日期</label><input type="date" id="hov-end"></div>
+            </div>
+            <div class="wizard-row">
+                <div style="flex:1;"><label>備註 (選填)</label><input type="text" id="hov-note" placeholder="例如: 段考週"></div>
+            </div>
+            <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-top:10px;">
+                <label style="font-weight:bold; color:var(--accent);">⏱️ 每週時數配置 (留空 = 該日不排)</label>
+                <div style="display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; margin-top:10px;">
+                    <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週一</label><input type="number" id="hov-h-1" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週二</label><input type="number" id="hov-h-2" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週三</label><input type="number" id="hov-h-3" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週四</label><input type="number" id="hov-h-4" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週五</label><input type="number" id="hov-h-5" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週六</label><input type="number" id="hov-h-6" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週日</label><input type="number" id="hov-h-0" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
+                </div>
+                <p style="font-size:0.8em; color:#854d0e; margin:8px 0 0 0;">💡 提示: 0 = 該日不排。例: 段考週 1.0 小時只讀 1 個單元。</p>
+            </div>
+            <div style="text-align: right; margin-top: 15px; display:flex; gap:10px; justify-content:flex-end;">
+                <button type="button" class="btn-outline" onclick="closeModal('modal-hour-override')">✕ 取消</button>
+                <button type="button" class="btn-primary" onclick="saveHourOverride()">💾 儲存</button>
+            </div>
         </div>
     </div>
 
@@ -1700,13 +1753,110 @@
             prefs.quickReadDiscount = Math.max(10, Math.min(95, qrDiscount));
             if(typeof wizardSubjects !== 'undefined') {
                 wizardSubjects.forEach(ws => {
-                    prefs.subjects[ws.name] = { progVal: ws.progVal, hoursPerUnit: ws.hoursPerUnit, displayMode: ws.displayMode || 'D' };
+                    // v1.5.112: 順便存 selectedUnitIds 供下次預設 (default 改為非全選後)
+                    var selectedUnitIds = ws.selectedUnitIds || [];
+                    prefs.subjects[ws.name] = {
+                        progVal: ws.progVal,
+                        hoursPerUnit: ws.hoursPerUnit,
+                        displayMode: ws.displayMode || 'D',
+                        selectedUnitIds: selectedUnitIds
+                    };
                 });
             }
             // 全域 displayMode (e.g. 所有科目統一)
             var globalDm = document.querySelector('input[name="wz-display-mode"]:checked');
             if (globalDm) prefs.globalDisplayMode = globalDm.value;
             localStorage.setItem(STORAGE_KEY_WIZARD_PREFS, JSON.stringify(prefs));
+        }
+
+        // === v1.5.112: 全域 App Prefs (三大任務預設時數) ===
+        var STORAGE_KEY_APP_PREFS = 'StudyMap_AppPrefs_V112';
+
+        function loadAppPrefs() {
+            var p = localStorage.getItem(STORAGE_KEY_APP_PREFS);
+            if (p) { try { return JSON.parse(p); } catch(e){} }
+            return { taskHours: {} };
+        }
+
+        function saveAppPrefs(prefs) {
+            if (!prefs) prefs = loadAppPrefs();
+            // 從 DOM 讀取每個 cat 的時數
+            if (document.querySelectorAll('[id^="apre-hours-"]').length > 0) {
+                document.querySelectorAll('[id^="apre-hours-"]').forEach(function(inp) {
+                    var cat = inp.id.replace('apre-hours-', '');
+                    var val = Number(inp.value);
+                    if (val > 0) prefs.taskHours[cat] = val;
+                    else delete prefs.taskHours[cat];
+                });
+            }
+            localStorage.setItem(STORAGE_KEY_APP_PREFS, JSON.stringify(prefs));
+        }
+
+        // === v1.5.112: plan.hourConfig 初始化 ===
+        function ensurePlanHourConfig(plan) {
+            if (!plan) return null;
+            if (!plan.hourConfig) {
+                plan.hourConfig = {
+                    defaults: { 0: 4, 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 4 },
+                    taskHours: {},  // 該計畫自己的任務時數覆寫 (優先從 appPrefs 拉過來)
+                    overrides: []   // 日期範圍 override (最高優先)
+                };
+            } else {
+                if (!plan.hourConfig.defaults) plan.hourConfig.defaults = { 0: 4, 1: 2, 2: 2, 3: 2, 4: 2, 5: 2, 6: 4 };
+                if (!plan.hourConfig.taskHours) plan.hourConfig.taskHours = {};
+                if (!plan.hourConfig.overrides) plan.hourConfig.overrides = [];
+            }
+            return plan.hourConfig;
+        }
+
+        // === v1.5.112: 取得某天的時數 (優先序: override > taskHours > defaults) ===
+        function getEffectiveDailyHours(dStr, dw, hourConfig, cat) {
+            if (!hourConfig) hourConfig = { defaults: {0:4,1:2,2:2,3:2,4:2,5:2,6:4}, taskHours: {}, overrides: [] };
+            // 1. matching override
+            var overrides = hourConfig.overrides || [];
+            for (var i = 0; i < overrides.length; i++) {
+                var ov = overrides[i];
+                if (dStr >= ov.start && dStr <= ov.end) {
+                    if (ov.dailyHours && ov.dailyHours[dw] !== undefined && ov.dailyHours[dw] !== null) {
+                        return Math.max(0, Number(ov.dailyHours[dw]) || 0);
+                    }
+                }
+            }
+            // 2. taskHours[cat] (計畫自己的)
+            if (cat && hourConfig.taskHours && hourConfig.taskHours[cat] !== undefined) {
+                return Math.max(0, Number(hourConfig.taskHours[cat]) || 0);
+            }
+            // 3. defaults[dw]
+            var defaults = hourConfig.defaults || { 0:4,1:2,2:2,3:2,4:2,5:2,6:4 };
+            return Math.max(0, Number(defaults[dw]) || 0);
+        }
+
+        // === v1.5.112: 任務預設時數 UI ===
+        function renderAppPrefsCatHours() {
+            var container = el('apre-cat-hours-container');
+            if (!container) return;
+            var cats = Object.keys(appMissions);
+            if (cats.length === 0) {
+                container.innerHTML = '<div style="color:#7f8c8d; font-size:0.85em;">(尚未設定任何進度大分類)</div>';
+                return;
+            }
+            var prefs = loadAppPrefs();
+            var html = '<div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap:10px;">';
+            cats.forEach(function(cat) {
+                var cur = (prefs.taskHours && prefs.taskHours[cat]) ? prefs.taskHours[cat] : 0;
+                html += '<div style="display:flex; align-items:center; gap:8px; background:#fffbeb; padding:8px 12px; border-radius:6px; border:1px solid #fde68a;">';
+                html += '<span style="flex:1; font-weight:bold; color:#92400e;">📚 ' + cat + '</span>';
+                html += '<input type="number" id="apre-hours-' + cat + '" min="0" step="0.5" value="' + cur + '" style="width:70px; padding:5px; border-radius:4px; border:1px solid #ccc; text-align:center;">';
+                html += '<span style="font-size:0.85em; color:var(--secondary);">小時/天</span>';
+                html += '</div>';
+            });
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function saveAppPrefsAndClose() {
+            saveAppPrefs();
+            alert('🎉 已儲存任務每日時數預設！\n下次開啟智慧排程時會自動套用。');
         }
 
         function getSortedSubjects(subjects) {
@@ -3452,8 +3602,137 @@ loadBoardHeader();
             el('wz-startdate').value = getLocalDateString(dStart);
             var dEnd = new Date(); dEnd.setMonth(dEnd.getMonth() + 1);
             el('wz-enddate').value = getLocalDateString(dEnd);
-            
+
+            // v1.5.112: 確保當前 plan 有 hourConfig, 讀取其 defaults 填入 wz-hrs-X
+            var wizPlan = getCurrentWizardPlan();
+            if (wizPlan) {
+                ensurePlanHourConfig(wizPlan);
+                var hcDefaults = wizPlan.hourConfig.defaults;
+                for (let i = 0; i <= 6; i++) {
+                    if (hcDefaults && hcDefaults[i] !== undefined) {
+                        el('wz-hrs-' + i).value = hcDefaults[i];
+                    }
+                }
+                renderHourOverrides();
+            } else {
+                var ovContainer = el('wz-overrides-container');
+                if (ovContainer) ovContainer.innerHTML = '<div style="color:#7f8c8d; font-size:0.85em;">(請先選擇計畫名稱才能設定 override)</div>';
+            }
+
             openModal('modal-wizard');
+        }
+
+        // v1.5.112: 取得 wizard 當前操作的 plan
+        function getCurrentWizardPlan() {
+            var pid = el('planner-selector').value;
+            if (pid) {
+                var p = appPlans.find(function(x){ return x.id === pid; });
+                if (p) return p;
+            }
+            return null;
+        }
+
+        // v1.5.112: 渲染 wizard 內的 overrides 列表
+        function renderHourOverrides() {
+            var container = el('wz-overrides-container');
+            if (!container) return;
+            var plan = getCurrentWizardPlan();
+            if (!plan) { container.innerHTML = ''; return; }
+            ensurePlanHourConfig(plan);
+            var overrides = plan.hourConfig.overrides || [];
+            if (overrides.length === 0) {
+                container.innerHTML = '<div style="color:#7f8c8d; font-size:0.85em; padding:8px;">(未設定任何自訂日期範圍)</div>';
+                return;
+            }
+            var html = '';
+            overrides.forEach(function(ov, idx) {
+                var days = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+                var dailyStr = '';
+                for (var i = 0; i <= 6; i++) {
+                    var h = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
+                    dailyStr += days[i] + ': ' + h + 'h  ';
+                }
+                var noteStr = ov.note ? ' — ' + ov.note : '';
+                html += '<div style="background:#fffbeb; border:1px solid #fde047; border-radius:6px; padding:8px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; gap:10px;">';
+                html += '<div style="flex:1;">';
+                html += '<strong>📅 ' + ov.start + ' ~ ' + ov.end + '</strong>' + noteStr;
+                html += '<div style="font-size:0.8em; color:#78716c; margin-top:3px;">' + dailyStr + '</div>';
+                html += '</div>';
+                html += '<div style="display:flex; gap:6px;">';
+                html += '<button type="button" class="btn-warning" style="padding:4px 8px; font-size:0.85em;" onclick="editHourOverride(' + idx + ')">✏️</button>';
+                html += '<button type="button" class="btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="deleteHourOverride(' + idx + ')">🗑️</button>';
+                html += '</div>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        // v1.5.112: 新增 override
+        function addHourOverride() {
+            window._editingOverrideIdx = -1;
+            el('hov-start').value = '';
+            el('hov-end').value = '';
+            el('hov-note').value = '';
+            for (var i = 0; i <= 6; i++) el('hov-h-' + i).value = 0;
+            openModal('modal-hour-override');
+        }
+
+        // v1.5.112: 編輯 override
+        function editHourOverride(idx) {
+            var plan = getCurrentWizardPlan();
+            if (!plan) return;
+            var ov = plan.hourConfig.overrides[idx];
+            if (!ov) return;
+            window._editingOverrideIdx = idx;
+            el('hov-start').value = ov.start || '';
+            el('hov-end').value = ov.end || '';
+            el('hov-note').value = ov.note || '';
+            for (var i = 0; i <= 6; i++) {
+                el('hov-h-' + i).value = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
+            }
+            openModal('modal-hour-override');
+        }
+
+        // v1.5.112: 刪除 override
+        function deleteHourOverride(idx) {
+            var plan = getCurrentWizardPlan();
+            if (!plan) return;
+            ensurePlanHourConfig(plan);
+            if (!confirm('確定要刪除這個自訂日期範圍？')) return;
+            plan.hourConfig.overrides.splice(idx, 1);
+            saveToLocal();
+            renderHourOverrides();
+        }
+
+        // v1.5.112: 儲存 override (新增或編輯)
+        function saveHourOverride() {
+            var plan = getCurrentWizardPlan();
+            if (!plan) { alert('請先選擇計畫！'); return; }
+            ensurePlanHourConfig(plan);
+            var start = el('hov-start').value;
+            var end = el('hov-end').value;
+            if (!start || !end) { alert('請填寫開始/結束日期！'); return; }
+            if (start > end) { alert('結束日期不能早於開始日期！'); return; }
+            var dailyHours = {};
+            for (var i = 0; i <= 6; i++) {
+                dailyHours[i] = Number(el('hov-h-' + i).value) || 0;
+            }
+            var ov = {
+                start: start,
+                end: end,
+                dailyHours: dailyHours,
+                note: el('hov-note').value || ''
+            };
+            var idx = window._editingOverrideIdx;
+            if (idx === undefined || idx < 0) {
+                plan.hourConfig.overrides.push(ov);
+            } else {
+                plan.hourConfig.overrides[idx] = ov;
+            }
+            window._editingOverrideIdx = -1;
+            saveToLocal();
+            closeModal('modal-hour-override');
+            renderHourOverrides();
         }
 
         function wzUpdateMis() { 
@@ -3520,13 +3799,19 @@ loadBoardHeader();
                             });
 
                         var savedMode = (prefs.subjects && prefs.subjects[sub] && prefs.subjects[sub].displayMode) ? prefs.subjects[sub].displayMode : (prefs.globalDisplayMode || 'D');
+                        // v1.5.112: default 改為非全選, 用戶主動勾選要的 unit
+                        var allUIds = availableUnits.map(u => u.id);
+                        var savedSel = (prefs.subjects && prefs.subjects[sub] && prefs.subjects[sub].selectedUnitIds) ? prefs.subjects[sub].selectedUnitIds : [];
+                        var selectedUnitIds = [];
+                        var savedSet = new Set(savedSel);
+                        allUIds.forEach(function(uid) { if (savedSet.has(uid)) selectedUnitIds.push(uid); });
                         wizardSubjects.push({
                             name: sub,
                             progVal: defProgVal,
                             progType: 'unit',
                             hoursPerUnit: defHours,
                             availableUnits: availableUnits,
-                            selectedUnitIds: availableUnits.map(u => u.id),
+                            selectedUnitIds: selectedUnitIds,  // v1.5.112: default 為空 (除非 prefs 有保存)
                             displayMode: savedMode,
                             collapsed: {} // key: groupKey → true/false
                         });
@@ -3546,13 +3831,18 @@ loadBoardHeader();
             var html = '';
             wizardSubjects.forEach((ws, i) => {
                 var allSelected = (ws.availableUnits.length > 0) && (ws.selectedUnitIds.length === ws.availableUnits.length);
+                var someSelected = ws.selectedUnitIds.length > 0 && !allSelected;
                 var isMasterChecked = allSelected ? 'checked' : '';
+                var isMasterIndet = someSelected ? 'data-indet="1"' : '';
+                var selCount = ws.selectedUnitIds.length;
+                var totalCount = ws.availableUnits.length;
+                var masterLabel = allSelected ? '☑ 全選 (取消)' : (someSelected ? '▣ 部分已選 (' + selCount + '/' + totalCount + ')' : '☐ 全部未選 (全選)');
 
                 html += `<div style="background: white; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 15px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                     <div style="background: var(--primary); color: white; padding: 10px 15px; font-weight: bold; display:flex; justify-content:space-between; align-items:center;">
                         <span>📘 ${ws.name}</span>
                         <div>
-                            <label style="margin-right:10px; font-size:0.9em; cursor:pointer;"><input type="checkbox" ${isMasterChecked} onchange="toggleWizardSubjectUnits(${i}, this.checked)" style="width:auto; margin-right:5px;">全選 / 取消全選</label>
+                            <label style="margin-right:10px; font-size:0.9em; cursor:pointer; ${someSelected ? 'color:#fbbf24; font-weight:bold;' : ''}"><input type="checkbox" ${isMasterChecked} ${isMasterIndet} onchange="toggleWizardSubjectUnits(${i}, this.checked)" style="width:auto; margin-right:5px;">${masterLabel}</label>
                         </div>
                     </div>
                     <div style="padding: 15px;">
@@ -3627,6 +3917,16 @@ loadBoardHeader();
                 html += `</div></div></div>`;
             });
             container.innerHTML = html;
+            // v1.5.112: 設定 indeterminate state (部分已選時)
+            container.querySelectorAll('input[data-indet="1"]').forEach(function(cb) {
+                cb.indeterminate = true;
+            });
+            // v1.5.112: debug log 顯示 selectedUnitIds 統計, 方便追蹤 bug 2
+            wizardSubjects.forEach(function(ws, i) {
+                if (ws.availableUnits.length > 0) {
+                    console.log('[wizard ' + ws.name + '] selected: ' + ws.selectedUnitIds.length + '/' + ws.availableUnits.length);
+                }
+            });
         }
 
         // v1.5.33: 切換科目的顯示方式 (A/B/C/D/E)
@@ -3925,11 +4225,26 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!plan.grid) plan.grid = {};
 
             var dailyRemain = {};
+            // v1.5.112: 用 plan.hourConfig 計算時數 (override > taskHours > defaults)
+            ensurePlanHourConfig(plan);
+            // 同步 wz-hrs-X 到 plan.hourConfig.defaults (讓計畫記住用戶設定)
+            for (let i = 0; i <= 6; i++) {
+                var inpVal = Number(el('wz-hrs-' + i).value) || 0;
+                plan.hourConfig.defaults[i] = inpVal;
+            }
+            var planCat = el('wz-cat').value;
+            // v1.5.112: 如果 plan 沒有設定自己的 taskHours, 從 appPrefs 拉過來
+            if (!plan.hourConfig.taskHours || Object.keys(plan.hourConfig.taskHours).length === 0) {
+                var appPrefs = loadAppPrefs();
+                if (appPrefs && appPrefs.taskHours) {
+                    plan.hourConfig.taskHours = Object.assign({}, appPrefs.taskHours);
+                }
+            }
             var d = new Date(startDate);
             while(d <= endDate) {
                 var dStr = getLocalDateString(d);
                 var dw = d.getDay();
-                var dh = Number(el('wz-hrs-' + dw).value) || 0; 
+                var dh = getEffectiveDailyHours(dStr, dw, plan.hourConfig, planCat);
                 
                 if (dh > 0) {
                     var existingTasksCount = plan.grid[dStr] ? plan.grid[dStr].length : 0;
@@ -8597,6 +8912,7 @@ document.getElementById('import-file').addEventListener('change', function(e) {
 
         initUsers();
         loadTheme();
+        renderAppPrefsCatHours();  // v1.5.112: 初始化任務預設時數 UI
     </script>
 </body>
 </html>
