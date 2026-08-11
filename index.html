@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.118]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.119]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2760,6 +2760,8 @@ loadBoardHeader();
                 multiData[currentUserId].logs = appLogs;
                 multiData[currentUserId].plans = appPlans;
             }
+            // v1.5.119: invalidate schedule map cache (plan.grid 可能改了)
+            invalidateSchedCache();
             // v1.5.17: try/catch 防止 setItem 失敗 (容量 / permission) 導致資料丟失不被發現
             try {
                 // v1.5.106: 任何 save 前先做安全備份 (不限時間, 最多 10 個)
@@ -3992,8 +3994,8 @@ function wzUpdateSubjects() {
                 var subKeys = Object.keys(mTree);
                 subKeys = getSortedSubjects(subKeys);
 
-                // v1.5.117: 一次掃 grid 建 schedule map, 所有 unit O(1) 讀取
-                var scheduleMap = buildScheduleMap(cat, mis);
+                // v1.5.117 + v1.5.119: 用共用 cache 讀 schedule map
+                var scheduleMap = getScheduleMapFromCache(cat, mis);
 
                 subKeys.forEach(sub => {
                     var sTree = mTree[sub];
@@ -4219,24 +4221,73 @@ function wzUpdateSubjects() {
 
         // v1.5.35: 通用單元 HTML 渲染 (wizard + manual add 共用)
 // opts = { isChecked, onChange, showQuickRead, u.quickRead, displayMode, context }
+// v1.5.119: schedule map cache — 避免 isUnitScheduledAnywhere 每次都掃描所有 plan.grid
+// renderWizardSubjects 內毎 unit 都會呼叫, 270 units × O(grid_size) 變 270 × O(1)
+function getScheduleMapFromCache(targetCat, targetMis) {
+    var pid = el('planner-selector') ? el('planner-selector').value : null;
+    if (!pid && appPlans.length > 0) pid = appPlans[appPlans.length - 1].id;
+    var key = (pid || 'null') + '|' + (targetCat || '') + '|' + (targetMis || '');
+    if (window._schedCache && window._schedCache.key === key) return window._schedCache.map;
+
+    var plan = pid ? appPlans.find(function(p) { return p.id === pid; }) : null;
+    var map = {};
+    if (plan && plan.grid) {
+        for (var dateStr in plan.grid) {
+            var tasks = plan.grid[dateStr];
+            if (!Array.isArray(tasks)) continue;
+            for (var ti = 0; ti < tasks.length; ti++) {
+                var t = tasks[ti];
+                if (!t.unitId) continue;
+                var ep = Number(t.endPage) || 0;
+                if (!map[t.unitId]) map[t.unitId] = { maxEnd: 0, misMaxEnd: 0 };
+                var entry = map[t.unitId];
+                if (ep > entry.maxEnd) entry.maxEnd = ep;
+                if (targetCat && targetMis && t.cat === targetCat && t.mis === targetMis) {
+                    if (ep > entry.misMaxEnd) entry.misMaxEnd = ep;
+                } else if (!targetCat || !targetMis) {
+                    entry.misMaxEnd = entry.maxEnd;
+                }
+            }
+        }
+    }
+    window._schedCache = { key: key, map: map };
+    return map;
+}
+
+function invalidateSchedCache() {
+    window._schedCache = null;
+}
+
 function isUnitScheduledAnywhere(u) {
     // v1.5.100: 修 bug — 不只檢查「有任務」, 還要檢查「任務 maxEndPage >= 單元 end」
     // 否則只排了一半的單元會被誤判為「已排過」, 教材庫顯示黃色
     // v1.5.101: 加 debug log + 容錯 u.end 是字串/數字/undefined
     // v1.5.116: 支援 u.uObj.end (availU 結構)
-    var maxEndFound = 0;
-    if (u.misMaxEnd && u.misMaxEnd > 0) maxEndFound = Math.max(maxEndFound, Number(u.misMaxEnd));
-    for (var pi = 0; pi < appPlans.length; pi++) {
-        var pgrid = appPlans[pi].grid || {};
-        for (var d in pgrid) {
-            var tasks = pgrid[d] || [];
-            for (var ti = 0; ti < tasks.length; ti++) {
-                if (tasks[ti].unitId === u.id) {
-                    var ep = Number(tasks[ti].endPage) || 0;
-                    if (ep > maxEndFound) maxEndFound = ep;
+    // v1.5.119: 用 schedule map cache, 避免每次掃描所有 plan.grid
+    var cat = el('wz-cat') ? el('wz-cat').value : '';
+    var mis = el('wz-mis') ? el('wz-mis').value : '';
+    var sm = getScheduleMapFromCache(cat, mis)[u.id];
+    var maxEndFound, misMaxEnd;
+    if (sm) {
+        maxEndFound = sm.maxEnd;
+        misMaxEnd = sm.misMaxEnd;
+    } else {
+        // fallback: 沒 cache (非 wizard 環境), 用舊邏輯
+        maxEndFound = 0;
+        if (u.misMaxEnd && u.misMaxEnd > 0) maxEndFound = Math.max(maxEndFound, Number(u.misMaxEnd));
+        for (var pi = 0; pi < appPlans.length; pi++) {
+            var pgrid = appPlans[pi].grid || {};
+            for (var d in pgrid) {
+                var tasks = pgrid[d] || [];
+                for (var ti = 0; ti < tasks.length; ti++) {
+                    if (tasks[ti].unitId === u.id) {
+                        var ep = Number(tasks[ti].endPage) || 0;
+                        if (ep > maxEndFound) maxEndFound = ep;
+                    }
                 }
             }
         }
+        misMaxEnd = maxEndFound;
     }
     var uEnd = Number(u.uObj ? u.uObj.end : u.end);
     if (uEnd > 0) {
