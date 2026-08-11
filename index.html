@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.114]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.115]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1439,20 +1439,16 @@
                         <option value="4.5"><option value="5.0"><option value="5.5"><option value="6.0">
                     </datalist>
                 </div>
-                <!-- v1.5.114: 自訂日期時數範圍 (簡化設計) -->
-                <div class="wizard-row" style="background:linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); border:1px solid #fde047; border-radius:10px; padding:14px; margin-top:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+                <!-- v1.5.115: 特殊日期時數排程 (改名 + hover 提示) -->
+                <div class="wizard-row" style="background:linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); border:1px solid #fde047; border-radius:10px; padding:14px; margin-top:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);" title="💡 可新增「連續範圍」(如段考週) 或「個別特殊日期」(如模擬考日) 的時數配置。設 0 = 該日不排。">
                     <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:10px;">
                         <div>
-                            <label style="color:#a16207; font-size:1.05em; font-weight:bold;">📅 日期時數排程</label>
-                            <span style="margin-left:8px; font-size:0.8em; color:#854d0e;">期間調整 · 優先於上方</span>
+                            <label style="color:#a16207; font-size:1.05em; font-weight:bold; cursor:help;" title="💡 設定期間或個別日期的讀書時數 · 優先於上方預設">📅 特殊日期時數排程</label>
+                            <span style="margin-left:8px; font-size:0.8em; color:#854d0e;">期間 + 個別日期 · 優先於上方</span>
                         </div>
-                        <button type="button" class="btn-primary" onclick="addHourOverride()" style="font-size:0.85em; padding:6px 12px;">＋ 新增</button>
+                        <button type="button" class="btn-primary" onclick="addHourOverride()" style="font-size:0.85em; padding:6px 12px;" title="新增連續範圍或特殊日期">＋ 新增</button>
                     </div>
                     <div id="wz-overrides-container"></div>
-                    <p style="font-size:0.75em; color:#92400e; margin:8px 0 0 0; display:flex; gap:6px; align-items:center;">
-                        <span style="background:#fbbf24; color:white; padding:1px 6px; border-radius:8px; font-size:0.85em;">i</span>
-                        設 0 = 該日不排 · 例: 段考週將會考設為 0.5 小時
-                    </p>
                 </div>
             </div>
 
@@ -1607,7 +1603,7 @@
             <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-top:10px;">
                 <label style="font-weight:bold; color:var(--accent); display:flex; align-items:center; gap:6px;">
                     <span style="background:var(--accent); color:white; padding:2px 8px; border-radius:10px; font-size:0.85em;">⏱️</span>
-                    每週時數配置
+                    每週時數配置 (適用於連續範圍內的每天)
                     <span style="font-weight:normal; color:#7f8c8d; font-size:0.85em;">(0 = 該日不排)</span>
                 </label>
                 <div style="display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; margin-top:10px;">
@@ -1620,6 +1616,19 @@
                     <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週日</label><input type="number" id="hov-h-0" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
                 </div>
             </div>
+
+<!-- v1.5.115: 特殊日期列表 (個別日期, 不需在範圍內) -->
+<div style="background:linear-gradient(135deg, #f0f9ff 0%, #dbeafe 100%); border:1px solid #93c5fd; border-radius:8px; padding:15px; margin-top:10px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <label style="font-weight:bold; color:#1e40af; display:flex; align-items:center; gap:6px;">
+            <span style="background:#3b82f6; color:white; padding:2px 8px; border-radius:10px; font-size:0.85em;">📍</span>
+            特殊日期 (個別日期, 不需在範圍內)
+        </label>
+        <button type="button" class="btn-outline" onclick="addSpecialDateRow()" style="font-size:0.8em; padding:4px 10px;">＋ 新增特殊日期</button>
+    </div>
+    <div id="hov-special-dates-container"></div>
+    <p style="font-size:0.75em; color:#1e40af; margin:8px 0 0 0;">💡 模擬考日 / 段考日等個別日期。優先於連續範圍設定。</p>
+</div>
             <div style="text-align: right; margin-top: 15px; display:flex; gap:10px; justify-content:flex-end;">
                 <button type="button" class="btn-outline" onclick="closeModal('modal-hour-override')">✕ 取消</button>
                 <button type="button" class="btn-primary" onclick="saveHourOverride()">💾 儲存</button>
@@ -1831,11 +1840,23 @@
         // === v1.5.112: 取得某天的時數 (優先序: override > taskHours > defaults) ===
         function getEffectiveDailyHours(dStr, dw, hourConfig, cat) {
             if (!hourConfig) hourConfig = { defaults: {0:4,1:2,2:2,3:2,4:2,5:2,6:4}, taskHours: {}, overrides: [] };
-            // 1. matching override
             var overrides = hourConfig.overrides || [];
+            // v1.5.115: 先試特殊日期 (最高優先)
             for (var i = 0; i < overrides.length; i++) {
                 var ov = overrides[i];
-                if (dStr >= ov.start && dStr <= ov.end) {
+                if (ov.specialDates && ov.specialDates.length > 0) {
+                    for (var j = 0; j < ov.specialDates.length; j++) {
+                        var sd = ov.specialDates[j];
+                        if (dStr === sd.date && sd.hours !== undefined) {
+                            return Math.max(0, Number(sd.hours) || 0);
+                        }
+                    }
+                }
+            }
+            // 1. 連續範圍 override
+            for (var i = 0; i < overrides.length; i++) {
+                var ov = overrides[i];
+                if (ov.start && ov.end && dStr >= ov.start && dStr <= ov.end) {
                     if (ov.dailyHours && ov.dailyHours[dw] !== undefined && ov.dailyHours[dw] !== null) {
                         return Math.max(0, Number(ov.dailyHours[dw]) || 0);
                     }
@@ -3711,32 +3732,58 @@ loadBoardHeader();
                     dayCount = Math.round((e - s) / 86400000) + 1;
                 }
                 var noteStr = ov.note ? ' · ' + ov.note : '';
-                html += '<div style="background:#fffbeb; border:1px solid #fde047; border-radius:8px; padding:10px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px;">';
-                // 左: 日期 + 備註
+                var specialDates = ov.specialDates || [];
+                var hasRange = ov.start && ov.end;
+                var hasSpecial = specialDates.length > 0;
+                html += '<div style="background:#fffbeb; border:1px solid #fde047; border-radius:8px; padding:10px 12px; margin-bottom:8px;">';
+                // 頂部: 日期 + 備註 + edit/delete
+                html += '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:' + (hasRange || hasSpecial ? '8px' : '0') + ';">';
                 html += '<div style="flex:1; min-width:0;">';
-                html += '<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">';
-                html += '<span style="background:#a16207; color:white; padding:2px 8px; border-radius:10px; font-size:0.85em; font-weight:bold;">' + dayCount + ' 天</span>';
-                html += '<strong style="color:#92400e;">' + (ov.start || '?') + ' ~ ' + (ov.end || '?') + '</strong>';
-                if (ov.note) html += '<span style="color:#a16207; font-size:0.85em;">' + escapeHtml(ov.note) + '</span>';
-                html += '</div>';
-                // 中: 7 天時數條 + 總時數
-                html += '<div style="display:flex; gap:2px; align-items:center;">';
-                for (var i = 0; i <= 6; i++) {
-                    var h = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
-                    var bgColor = h === 0 ? '#e5e7eb' : (h >= 1 ? '#3b82f6' : '#93c5fd');
-                    var textColor = h === 0 ? '#9ca3af' : 'white';
-                    html += '<div title="週' + daysShort[i] + ': ' + h + '小時" style="flex:1; min-width:24px; padding:3px 2px; text-align:center; background:' + bgColor + '; color:' + textColor + '; font-size:0.7em; border-radius:3px;">';
-                    html += daysShort[i] + '<br>' + h;
+                if (hasRange) {
+                    html += '<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">';
+                    html += '<span style="background:#a16207; color:white; padding:2px 8px; border-radius:10px; font-size:0.85em; font-weight:bold;">' + dayCount + ' 天</span>';
+                    html += '<strong style="color:#92400e;">' + ov.start + ' ~ ' + ov.end + '</strong>';
+                    if (ov.note) html += '<span style="color:#a16207; font-size:0.85em;">' + escapeHtml(ov.note) + '</span>';
                     html += '</div>';
                 }
-                html += '<div style="margin-left:8px; padding:2px 8px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px; font-size:0.8em; font-weight:bold; color:#92400e;">合計 ' + totalHours + 'h</div>';
-                html += '</div>';
+                if (!hasRange && ov.note) {
+                    html += '<div style="color:#a16207; font-size:0.9em; font-weight:bold;">📍 ' + escapeHtml(ov.note) + '</div>';
+                }
+                if (!hasRange && !ov.note) {
+                    html += '<div style="color:#a16207; font-size:0.85em;">(未命名)</div>';
+                }
                 html += '</div>';
                 // 右: edit/delete 按鈕
                 html += '<div style="display:flex; gap:4px; flex-shrink:0;">';
                 html += '<button type="button" title="編輯" style="padding:4px 8px; background:#f59e0b; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="editHourOverride(' + idx + ')">✏️</button>';
                 html += '<button type="button" title="刪除" style="padding:4px 8px; background:#ef4444; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="deleteHourOverride(' + idx + ')">🗑️</button>';
                 html += '</div>';
+                html += '</div>';
+                // 中: 7 天時數條 + 總時數 (僅連續範圍)
+                if (hasRange) {
+                    html += '<div style="display:flex; gap:2px; align-items:center;">';
+                    for (var i = 0; i <= 6; i++) {
+                        var h = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
+                        var bgColor = h === 0 ? '#e5e7eb' : (h >= 1 ? '#3b82f6' : '#93c5fd');
+                        var textColor = h === 0 ? '#9ca3af' : 'white';
+                        html += '<div title="週' + daysShort[i] + ': ' + h + '小時" style="flex:1; min-width:24px; padding:3px 2px; text-align:center; background:' + bgColor + '; color:' + textColor + '; font-size:0.7em; border-radius:3px;">';
+                        html += daysShort[i] + '<br>' + h;
+                        html += '</div>';
+                    }
+                    html += '<div style="margin-left:8px; padding:2px 8px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px; font-size:0.8em; font-weight:bold; color:#92400e;">合計 ' + totalHours + 'h</div>';
+                    html += '</div>';
+                }
+                // 下: 特殊日期 chip
+                if (hasSpecial) {
+                    html += '<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #fde047; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">';
+                    html += '<span style="font-size:0.75em; color:#1e40af; font-weight:bold;">📍 特殊日期:</span>';
+                    specialDates.forEach(function(sd) {
+                        var sdNote = sd.note ? ' · ' + escapeHtml(sd.note) : '';
+                        var sdColor = sd.hours === 0 ? '#94a3b8' : '#3b82f6';
+                        html += '<span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold; border:1px solid #' + sdColor + ';">' + sd.date + ' · ' + sd.hours + 'h' + sdNote + '</span>';
+                    });
+                    html += '</div>';
+                }
                 html += '</div>';
             });
             container.innerHTML = html;
@@ -3755,6 +3802,9 @@ loadBoardHeader();
             el('hov-end').value = '';
             el('hov-note').value = '';
             for (var i = 0; i <= 6; i++) el('hov-h-' + i).value = 0;
+            // v1.5.115: 初始化特殊日期為空
+            window._hovSpecialDates = [];
+            renderSpecialDatesInModal();
             openModal('modal-hour-override');
         }
 
@@ -3771,6 +3821,11 @@ loadBoardHeader();
             for (var i = 0; i <= 6; i++) {
                 el('hov-h-' + i).value = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
             }
+            // v1.5.115: 載入特殊日期
+            window._hovSpecialDates = (ov.specialDates || []).map(function(sd) {
+                return { date: sd.date || '', hours: sd.hours !== undefined ? sd.hours : 1.0, note: sd.note || '' };
+            });
+            renderSpecialDatesInModal();
             openModal('modal-hour-override');
         }
 
@@ -3797,20 +3852,36 @@ loadBoardHeader();
             ensurePlanHourConfig(plan);
             var start = el('hov-start').value;
             var end = el('hov-end').value;
-            if (!start || !end) {
-                alert('請填寫開始與結束日期！\n\n(目前讀到: 開始="' + start + '", 結束="' + end + '")\n如果兩個都有填但還是跳此訊息, 請重新點一下日期欄位讓 iOS picker 同步。');
+            // v1.5.115: 允許只填特殊日期 (不需要連續範圍)
+            var hasSpecialDates = (window._hovSpecialDates && window._hovSpecialDates.length > 0);
+            if ((!start || !end) && !hasSpecialDates) {
+                alert('請填寫「連續範圍」或至少一個「特殊日期」！\n\n(目前連續範圍: 開始="' + start + '", 結束="' + end + '")');
                 return;
             }
-            if (start > end) { alert('結束日期不能早於開始日期！'); return; }
+            if (start && end && start > end) { alert('結束日期不能早於開始日期！'); return; }
             var dailyHours = {};
             for (var i = 0; i <= 6; i++) {
                 dailyHours[i] = Number(el('hov-h-' + i).value) || 0;
             }
+            // v1.5.115: 收集特殊日期 (過濾空值)
+            var specialDates = [];
+            if (window._hovSpecialDates) {
+                window._hovSpecialDates.forEach(function(sd) {
+                    if (sd.date) {
+                        specialDates.push({
+                            date: sd.date,
+                            hours: Number(sd.hours) || 0,
+                            note: sd.note || ''
+                        });
+                    }
+                });
+            }
             var ov = {
-                start: start,
-                end: end,
+                start: start || '',
+                end: end || '',
                 dailyHours: dailyHours,
-                note: el('hov-note').value || ''
+                note: el('hov-note').value || '',
+                specialDates: specialDates
             };
             var idx = window._editingOverrideIdx;
             if (idx === undefined || idx < 0) {
@@ -3819,9 +3890,53 @@ loadBoardHeader();
                 plan.hourConfig.overrides[idx] = ov;
             }
             window._editingOverrideIdx = -1;
+            window._hovSpecialDates = null;
             saveToLocal();
             closeModal('modal-hour-override');
             renderHourOverrides();
+        }
+
+        // v1.5.115: 特殊日期 UI helpers
+        function addSpecialDateRow(date, hours, note) {
+            if (!window._hovSpecialDates) window._hovSpecialDates = [];
+            window._hovSpecialDates.push({
+                date: date || '',
+                hours: hours !== undefined ? hours : 1.0,
+                note: note || ''
+            });
+            renderSpecialDatesInModal();
+        }
+
+        function removeSpecialDateRow(idx) {
+            if (!window._hovSpecialDates) return;
+            window._hovSpecialDates.splice(idx, 1);
+            renderSpecialDatesInModal();
+        }
+
+        function renderSpecialDatesInModal() {
+            var container = el('hov-special-dates-container');
+            if (!container) return;
+            var list = window._hovSpecialDates || [];
+            if (list.length === 0) {
+                container.innerHTML = '<div style="color:#94a3b8; font-size:0.85em; padding:8px; text-align:center;">尚無無特殊日期</div>';
+                return;
+            }
+            var html = '';
+            list.forEach(function(sd, idx) {
+                html += '<div style="display:flex; gap:6px; align-items:center; background:white; padding:6px 8px; border-radius:6px; border:1px solid #cbd5e1; margin-bottom:6px;">';
+                html += '<input type="date" value="' + (sd.date || '') + '" onchange="updateSpecialDateField(' + idx + ', \'date\', this.value)" style="padding:3px; border-radius:4px; border:1px solid #cbd5e1; font-size:0.9em; width:130px;">';
+                html += '<input type="number" value="' + (sd.hours !== undefined ? sd.hours : 1.0) + '" min="0" step="0.5" onchange="updateSpecialDateField(' + idx + ', \'hours\', this.value)" style="padding:3px; border-radius:4px; border:1px solid #cbd5e1; font-size:0.9em; width:55px; text-align:center;">';
+                html += '<span style="font-size:0.8em; color:var(--secondary);">小時</span>';
+                html += '<input type="text" value="' + escapeHtml(sd.note || '') + '" placeholder="備註 (例: 模擬考)" onchange="updateSpecialDateField(' + idx + ', \'note\', this.value)" style="flex:1; padding:3px 6px; border-radius:4px; border:1px solid #cbd5e1; font-size:0.9em;">';
+                html += '<button type="button" onclick="removeSpecialDateRow(' + idx + ')" style="background:#ef4444; color:white; border:none; padding:3px 7px; border-radius:4px; cursor:pointer; font-size:0.8em;" title="刪除">🗑</button>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function updateSpecialDateField(idx, field, value) {
+            if (!window._hovSpecialDates || !window._hovSpecialDates[idx]) return;
+            window._hovSpecialDates[idx][field] = value;
         }
 
         function wzUpdateMis() { 
