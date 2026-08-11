@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.113]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.114]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1029,12 +1029,19 @@
                     </div>
 
                     <!-- v1.5.112: 任務每日時數預設 -->
-                    <div style="margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; border: 2px dashed #f59e0b; position: relative;">
-                        <h3 style="margin-top: 0; margin-bottom: 10px; color: #d97706;">🎯 任務每日時數預設 (v1.5.112 新功能)</h3>
-                        <p style="color: var(--secondary); font-size: 0.85em; margin-top: 0; margin-bottom: 12px;">為每個大分類設定「每日讀書時數」。智慧排程會優先使用此設定取代上方 7 天預設。日期範圍 override 會再優先於此設定。設為 0 = 不使用。</p>
+                    <div style="margin-top: 20px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); padding: 15px; border-radius: 8px; border: 2px dashed #f59e0b; position: relative;">
+                        <h3 style="margin-top: 0; margin-bottom: 6px; color: #d97706; display:flex; align-items:center; gap:8px;">
+                            <span style="background:#f59e0b; color:white; padding:3px 10px; border-radius:10px; font-size:0.85em;">🎯</span>
+                            任務預設時數
+                            <span style="font-weight:normal; font-size:0.7em; color:#92400e; background:white; padding:2px 8px; border-radius:8px;">v1.5.114</span>
+                        </h3>
+                        <p style="color: var(--secondary); font-size: 0.85em; margin: 0 0 12px 0; line-height:1.5;">
+                            <strong>為每個大分類設「每日讀書時數」</strong> · 智慧排程會<strong style="color:#d97706;">優先</strong>採用此設定取代上方 7 天預設。
+                        </p>
                         <div id="apre-cat-hours-container"></div>
-                        <div style="text-align: right; margin-top: 10px;">
-                            <button type="button" class="btn-primary" onclick="saveAppPrefsAndClose()">💾 儲存</button>
+                        <div style="text-align: right; margin-top: 12px; display:flex; gap:8px; justify-content:flex-end; align-items:center;">
+                            <span style="font-size:0.75em; color:#92400e;">💡 設 0 = 該任務不使用此預設</span>
+                            <button type="button" class="btn-primary" onclick="saveAppPrefsAndClose()" style="padding:6px 16px;">💾 儲存</button>
                         </div>
                     </div>
                 </div>
@@ -1432,14 +1439,20 @@
                         <option value="4.5"><option value="5.0"><option value="5.5"><option value="6.0">
                     </datalist>
                 </div>
-                <!-- v1.5.112: 自訂日期時數範圍 (優先於上方 7 天預設) -->
-                <div class="wizard-row" style="background:#fefce8; border:1px solid #fde047; border-radius:8px; padding:15px; margin-top:10px;">
-                    <div style="display:flex; gap:15px; align-items:center; justify-content:space-between; margin-bottom:10px;">
-                        <label style="color:#a16207; font-size:1.05em; font-weight:bold;">📅 自訂日期時數 (優先於上方預設)</label>
-                        <button type="button" class="btn-outline" onclick="addHourOverride()" style="font-size:0.9em;">➕ 新增日期範圍</button>
+                <!-- v1.5.114: 自訂日期時數範圍 (簡化設計) -->
+                <div class="wizard-row" style="background:linear-gradient(135deg, #fefce8 0%, #fef3c7 100%); border:1px solid #fde047; border-radius:10px; padding:14px; margin-top:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+                    <div style="display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                        <div>
+                            <label style="color:#a16207; font-size:1.05em; font-weight:bold;">📅 日期時數排程</label>
+                            <span style="margin-left:8px; font-size:0.8em; color:#854d0e;">期間調整 · 優先於上方</span>
+                        </div>
+                        <button type="button" class="btn-primary" onclick="addHourOverride()" style="font-size:0.85em; padding:6px 12px;">＋ 新增</button>
                     </div>
                     <div id="wz-overrides-container"></div>
-                    <p style="font-size:0.8em; color:#854d0e; margin:5px 0 0 0;">💡 範例: 段考週 1.0 小時、模考週 1.5 小時。留空 = 該日不排。設定會優先於上方 7 天預設。</p>
+                    <p style="font-size:0.75em; color:#92400e; margin:8px 0 0 0; display:flex; gap:6px; align-items:center;">
+                        <span style="background:#fbbf24; color:white; padding:1px 6px; border-radius:8px; font-size:0.85em;">i</span>
+                        設 0 = 該日不排 · 例: 段考週將會考設為 0.5 小時
+                    </p>
                 </div>
             </div>
 
@@ -1588,8 +1601,15 @@
             <div class="wizard-row">
                 <div style="flex:1;"><label>備註 (選填)</label><input type="text" id="hov-note" placeholder="例如: 段考週"></div>
             </div>
+            <p style="font-size:0.75em; color:#7f8c8d; margin:0 0 10px 0; padding:6px 10px; background:#f0f9ff; border-radius:6px; border-left:3px solid #3b82f6;">
+                💡 <strong>可以跟計畫開始日期同一天</strong> · 系統會自動套用到該日期。
+            </p>
             <div style="background:#fff; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-top:10px;">
-                <label style="font-weight:bold; color:var(--accent);">⏱️ 每週時數配置 (留空 = 該日不排)</label>
+                <label style="font-weight:bold; color:var(--accent); display:flex; align-items:center; gap:6px;">
+                    <span style="background:var(--accent); color:white; padding:2px 8px; border-radius:10px; font-size:0.85em;">⏱️</span>
+                    每週時數配置
+                    <span style="font-weight:normal; color:#7f8c8d; font-size:0.85em;">(0 = 該日不排)</span>
+                </label>
                 <div style="display: flex; gap: 8px; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 8px; margin-top:10px;">
                     <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週一</label><input type="number" id="hov-h-1" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
                     <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週二</label><input type="number" id="hov-h-2" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
@@ -1599,7 +1619,6 @@
                     <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週六</label><input type="number" id="hov-h-6" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
                     <div style="display:flex; flex-direction:column; gap:5px;"><label style="font-size:0.85em; color:var(--secondary);">週日</label><input type="number" id="hov-h-0" min="0" step="0.5" value="0" style="width:60px; padding:4px;"></div>
                 </div>
-                <p style="font-size:0.8em; color:#854d0e; margin:8px 0 0 0;">💡 提示: 0 = 該日不排。例: 段考週 1.0 小時只讀 1 個單元。</p>
             </div>
             <div style="text-align: right; margin-top: 15px; display:flex; gap:10px; justify-content:flex-end;">
                 <button type="button" class="btn-outline" onclick="closeModal('modal-hour-override')">✕ 取消</button>
@@ -1856,7 +1875,24 @@
 
         function saveAppPrefsAndClose() {
             saveAppPrefs();
-            alert('🎉 已儲存任務每日時數預設！\n下次開啟智慧排程時會自動套用。');
+            // v1.5.114: 用 toast 取代 alert
+            showAppPrefsToast('已儲存！下次開啟智慧排程時會自動套用。');
+        }
+
+        // v1.5.114: toast 提示 (右下角顯示 3 秒自動消失)
+        var _appPrefsToastTimer = null;
+        function showAppPrefsToast(msg) {
+            var existing = document.getElementById('apre-toast');
+            if (existing) existing.remove();
+            var toast = document.createElement('div');
+            toast.id = 'apre-toast';
+            toast.innerHTML = '<span style="margin-right:6px;">✅</span>' + msg;
+            toast.style.cssText = 'position:fixed; bottom:30px; right:30px; background:#10b981; color:white; padding:12px 20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.2); z-index:99999; font-weight:bold; font-size:0.95em;';
+            document.body.appendChild(toast);
+            if (_appPrefsToastTimer) clearTimeout(_appPrefsToastTimer);
+            _appPrefsToastTimer = setTimeout(function() {
+                if (toast.parentNode) toast.remove();
+            }, 3000);
         }
 
         function getSortedSubjects(subjects) {
@@ -3657,26 +3693,49 @@ loadBoardHeader();
             ensurePlanHourConfig(plan);
             var overrides = plan.hourConfig.overrides || [];
             if (overrides.length === 0) {
-                container.innerHTML = '<div style="color:#7f8c8d; font-size:0.85em; padding:8px;">(未設定任何自訂日期範圍)</div>';
+                container.innerHTML = '<div style="color:#a8a29e; font-size:0.85em; padding:10px; text-align:center; background:rgba(255,255,255,0.6); border-radius:6px; border:1px dashed #fde047;">尚無設定 · 點上方「＋ 新增」建立</div>';
                 return;
             }
             var html = '';
             overrides.forEach(function(ov, idx) {
-                var days = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
-                var dailyStr = '';
+                var daysShort = ['日', '一', '二', '三', '四', '五', '六'];
+                // v1.5.114: 計算總時數
+                var totalHours = 0;
+                for (var i = 0; i <= 6; i++) {
+                    totalHours += (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
+                }
+                // 計算天數
+                var dayCount = 0;
+                if (ov.start && ov.end) {
+                    var s = new Date(ov.start), e = new Date(ov.end);
+                    dayCount = Math.round((e - s) / 86400000) + 1;
+                }
+                var noteStr = ov.note ? ' · ' + ov.note : '';
+                html += '<div style="background:#fffbeb; border:1px solid #fde047; border-radius:8px; padding:10px 12px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px;">';
+                // 左: 日期 + 備註
+                html += '<div style="flex:1; min-width:0;">';
+                html += '<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">';
+                html += '<span style="background:#a16207; color:white; padding:2px 8px; border-radius:10px; font-size:0.85em; font-weight:bold;">' + dayCount + ' 天</span>';
+                html += '<strong style="color:#92400e;">' + (ov.start || '?') + ' ~ ' + (ov.end || '?') + '</strong>';
+                if (ov.note) html += '<span style="color:#a16207; font-size:0.85em;">' + escapeHtml(ov.note) + '</span>';
+                html += '</div>';
+                // 中: 7 天時數條 + 總時數
+                html += '<div style="display:flex; gap:2px; align-items:center;">';
                 for (var i = 0; i <= 6; i++) {
                     var h = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
-                    dailyStr += days[i] + ': ' + h + 'h  ';
+                    var bgColor = h === 0 ? '#e5e7eb' : (h >= 1 ? '#3b82f6' : '#93c5fd');
+                    var textColor = h === 0 ? '#9ca3af' : 'white';
+                    html += '<div title="週' + daysShort[i] + ': ' + h + '小時" style="flex:1; min-width:24px; padding:3px 2px; text-align:center; background:' + bgColor + '; color:' + textColor + '; font-size:0.7em; border-radius:3px;">';
+                    html += daysShort[i] + '<br>' + h;
+                    html += '</div>';
                 }
-                var noteStr = ov.note ? ' — ' + ov.note : '';
-                html += '<div style="background:#fffbeb; border:1px solid #fde047; border-radius:6px; padding:8px 12px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center; gap:10px;">';
-                html += '<div style="flex:1;">';
-                html += '<strong>📅 ' + ov.start + ' ~ ' + ov.end + '</strong>' + noteStr;
-                html += '<div style="font-size:0.8em; color:#78716c; margin-top:3px;">' + dailyStr + '</div>';
+                html += '<div style="margin-left:8px; padding:2px 8px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px; font-size:0.8em; font-weight:bold; color:#92400e;">合計 ' + totalHours + 'h</div>';
                 html += '</div>';
-                html += '<div style="display:flex; gap:6px;">';
-                html += '<button type="button" class="btn-warning" style="padding:4px 8px; font-size:0.85em;" onclick="editHourOverride(' + idx + ')">✏️</button>';
-                html += '<button type="button" class="btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="deleteHourOverride(' + idx + ')">🗑️</button>';
+                html += '</div>';
+                // 右: edit/delete 按鈕
+                html += '<div style="display:flex; gap:4px; flex-shrink:0;">';
+                html += '<button type="button" title="編輯" style="padding:4px 8px; background:#f59e0b; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="editHourOverride(' + idx + ')">✏️</button>';
+                html += '<button type="button" title="刪除" style="padding:4px 8px; background:#ef4444; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="deleteHourOverride(' + idx + ')">🗑️</button>';
                 html += '</div>';
                 html += '</div>';
             });
@@ -3859,6 +3918,15 @@ loadBoardHeader();
             }
 
             var html = '';
+            // v1.5.114: 批次快捷按鈕
+            html += '<div style="display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; padding:8px; background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px;">';
+            html += '<span style="font-weight:bold; color:var(--secondary); font-size:0.85em; display:flex; align-items:center;">⚡ 批次:</span>';
+            html += '<button type="button" onclick="selectUnscheduledUnits()" style="background:#3b82f6; color:white; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font-size:0.85em;" title="自動勾選所有 misMaxEnd===0 的 unit">☀️ 只勾選未排過的</button>';
+            html += '<button type="button" onclick="selectScheduledUnits()" style="background:#f59e0b; color:white; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font-size:0.85em;" title="自動勾選所有 misMaxEnd>0 的 unit (已排過的)">🔁 只勾選已排過的</button>';
+            html += '<button type="button" onclick="selectAllUnits()" style="background:#10b981; color:white; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font-size:0.85em;" title="勾選全部">☑ 全部勾選</button>';
+            html += '<button type="button" onclick="clearAllUnits()" style="background:#94a3b8; color:white; border:none; padding:5px 12px; border-radius:5px; cursor:pointer; font-size:0.85em;" title="取消全部">☐ 全部取消</button>';
+            html += '</div>';
+
             wizardSubjects.forEach((ws, i) => {
                 var allSelected = (ws.availableUnits.length > 0) && (ws.selectedUnitIds.length === ws.availableUnits.length);
                 var someSelected = ws.selectedUnitIds.length > 0 && !allSelected;
@@ -3872,7 +3940,7 @@ loadBoardHeader();
                     <div style="background: var(--primary); color: white; padding: 10px 15px; font-weight: bold; display:flex; justify-content:space-between; align-items:center;">
                         <span>📘 ${ws.name}</span>
                         <div>
-                            <label style="margin-right:10px; font-size:0.9em; cursor:pointer; ${someSelected ? 'color:#fbbf24; font-weight:bold;' : ''}"><input type="checkbox" ${isMasterChecked} ${isMasterIndet} onchange="toggleWizardSubjectUnits(${i}, this.checked)" style="width:auto; margin-right:5px;">${masterLabel}</label>
+                            <label style="margin-right:10px; font-size:0.9em; cursor:pointer; ${someSelected ? 'color:#fbbf24; font-weight:bold;' : ''}"><input type="checkbox" class="wz-master-cb" ${isMasterChecked} ${isMasterIndet} onchange="toggleWizardSubjectUnits(${i}, this.checked)" style="width:auto; margin-right:5px;"><span class="wz-master-label">${masterLabel}</span></label>
                         </div>
                     </div>
                     <div style="padding: 15px;">
@@ -3930,7 +3998,7 @@ loadBoardHeader();
                             html += `<span style="margin-right:8px; font-weight:bold;">${isCollapsed ? '▶' : '▼'}</span>`;
                             html += `<span style="font-weight:bold; color:#92400e;">📦 ${gKey}</span>`;
                             html += `<span style="margin-left:8px; color:#78716c; font-size:0.85em;">(${gUnits.length} 個單元)</span>`;
-                            html += `<label style="margin-left:auto; font-size:0.85em;" onclick="event.stopPropagation();"><input type="checkbox" ${allGChecked ? 'checked' : ''} onchange="toggleWizardGroupUnits(${i}, '${escapeHtml(gKey).replace(/'/g, "\\'")}', this.checked)" style="width:auto; margin-right:4px;">全選</label>`;
+                            html += `<label style="margin-left:auto; font-size:0.85em;" onclick="event.stopPropagation();"><input type="checkbox" class="wz-group-cb" ${allGChecked ? 'checked' : ''} onchange="toggleWizardGroupUnits(${i}, '${escapeHtml(gKey).replace(/'/g, "\\'")}', this.checked)" style="width:auto; margin-right:4px;">全選</label>`;
                             html += `</div>`;
                             if (!isCollapsed) {
                                 html += `<div style="padding:8px;">`;
@@ -3946,32 +4014,15 @@ loadBoardHeader();
 
                 html += `</div></div></div>`;
             });
-            // v1.5.113: 保留 scroll position (避免勾 unit 後跳回頂部)
-            var prevScrollTop = container.scrollTop;
             container.innerHTML = html;
             // v1.5.112: 設定 indeterminate state (部分已選時)
             container.querySelectorAll('input[data-indet="1"]').forEach(function(cb) {
                 cb.indeterminate = true;
             });
-            // v1.5.113: 恢復 scroll position (兩個機制都試)
-            requestAnimationFrame(function() {
-                container.scrollTop = prevScrollTop;
-                // v1.5.113: 如果有「最近勾選的 unit id」, 額外 scroll 該 unit into view
-                if (window._lastToggledUnitId) {
-                    var targetCb = container.querySelector('input[type="checkbox"][value="' + window._lastToggledUnitId + '"]');
-                    if (targetCb) {
-                        var rowDiv = targetCb.closest('div[style*="display:flex"]') || targetCb.parentElement;
-                        if (rowDiv && rowDiv.scrollIntoView) {
-                            try { rowDiv.scrollIntoView({ block: 'nearest', behavior: 'instant' }); } catch(e) {}
-                        }
-                    }
-                    window._lastToggledUnitId = null;
-                }
-            });
             // v1.5.112: debug log 顯示 selectedUnitIds 統計, 方便追蹤 bug 2
             wizardSubjects.forEach(function(ws, i) {
                 if (ws.availableUnits.length > 0) {
-                    console.log('[wizard ' + ws.name + '] selected: ' + ws.selectedUnitIds.length + '/' + ws.availableUnits.length + ', scrollTop=' + prevScrollTop);
+                    console.log('[wizard ' + ws.name + '] selected: ' + ws.selectedUnitIds.length + '/' + ws.availableUnits.length);
                 }
             });
         }
@@ -4004,7 +4055,10 @@ loadBoardHeader();
                 var removeIds = groupUnits.map(function(u){ return u.id; });
                 ws.selectedUnitIds = ws.selectedUnitIds.filter(function(id){ return removeIds.indexOf(id) === -1; });
             }
-            renderWizardSubjects();
+            // v1.5.114: 不重建整個 DOM, 只更新此科目所有 unit + master
+            updateSubjectUnitCheckboxes(subjIdx);
+            updateSubjectMasterUI(subjIdx);
+            debouncedSaveWizardPrefs();
         }
 
         function getGroupKey(mode, u) {
@@ -4189,11 +4243,11 @@ function renderUnitRowHtml(u, opts) {
     var quickReadHtml = '';
     if (showQuickRead) {
         quickReadHtml = `<label title="快讀（時數打折）" style="cursor:pointer; ${qrStyle}; white-space:nowrap; margin-left:8px; font-size:0.85em;">
-                    <input type="checkbox" ${qrChecked} onchange="${opts.onQuickReadChange || ''}" style="width:auto; vertical-align:middle; margin-right:3px;">☀️
+                    <input type="checkbox" class="wz-qr-cb" ${qrChecked} onchange="${opts.onQuickReadChange || ''}" style="width:auto; vertical-align:middle; margin-right:3px;">☀️
                 </label>`;
     }
     return `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#fef3c7'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#fde2c5'};">
-                <input type="checkbox" value="${u.id}" ${isChecked} onchange="${onChange}" style="width:auto; margin-right:8px; transform:scale(1.1);">
+                <input type="checkbox" class="wz-unit-cb" value="${u.id}" ${isChecked} onchange="${onChange}" style="width:auto; margin-right:8px; transform:scale(1.1);">
                 <label style="cursor:pointer; flex:1;">${instanceTag}${prefix}${u.name}${pageStr}${isScheduled ? ' <span style="color:#f59e0b; font-size:0.8em;">🔁</span>' : ''}</label>
                 ${quickReadHtml}
             </div>`;
@@ -4217,7 +4271,40 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 ws.selectedUnitIds = [];
             }
-            renderWizardSubjects();
+            // v1.5.114: 不重建整個 DOM, 只更新此科目的 unit + master checkbox
+            updateSubjectUnitCheckboxes(subjIdx);
+            updateSubjectMasterUI(subjIdx);
+            debouncedSaveWizardPrefs();
+        }
+
+        // v1.5.114: 只更新某科目的所有 unit checkbox (master checkbox 全選/全不選後用)
+        function updateSubjectUnitCheckboxes(subjIdx) {
+            var ws = wizardSubjects[subjIdx];
+            var subjContainer = el('wz-step2-container').children[subjIdx];
+            if (!subjContainer) return;
+            var unitCbs = subjContainer.querySelectorAll('input.wz-unit-cb');
+            unitCbs.forEach(function(cb) {
+                cb.checked = ws.selectedUnitIds.includes(cb.value);
+            });
+        }
+
+        // v1.5.114: 只更新 master checkbox 的狀態 (label + indeterminate)
+        function updateSubjectMasterUI(subjIdx) {
+            var ws = wizardSubjects[subjIdx];
+            var allSelected = ws.availableUnits.length > 0 && ws.selectedUnitIds.length === ws.availableUnits.length;
+            var someSelected = ws.selectedUnitIds.length > 0 && !allSelected;
+            var selCount = ws.selectedUnitIds.length;
+            var totalCount = ws.availableUnits.length;
+            var masterLabel = allSelected ? '☑ 全選 (取消)' : (someSelected ? '▣ 部分已選 (' + selCount + '/' + totalCount + ')' : '☐ 全部未選 (全選)');
+            var subjContainer = el('wz-step2-container').children[subjIdx];
+            if (!subjContainer) return;
+            var masterCb = subjContainer.querySelector('input.wz-master-cb');
+            if (masterCb) {
+                masterCb.checked = allSelected;
+                masterCb.indeterminate = someSelected;
+            }
+            var masterLabelEl = subjContainer.querySelector('.wz-master-label');
+            if (masterLabelEl) masterLabelEl.textContent = masterLabel;
         }
 
         function toggleWizardUnit(subjIdx, unitId, isChecked) {
@@ -4227,9 +4314,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else if (!isChecked) {
                 ws.selectedUnitIds = ws.selectedUnitIds.filter(id => id !== unitId);
             }
-            // v1.5.113: 記下最近勾選的 unit id, renderWizardSubjects 會 scroll 該 unit into view
-            window._lastToggledUnitId = unitId;
-            renderWizardSubjects();
+            // v1.5.114: 不重建 DOM, 只更新 master (大幅提升效能)
+            updateSubjectMasterUI(subjIdx);
+            debouncedSaveWizardPrefs();
         }
 
         // v1.5.24: 快讀功能
@@ -4237,7 +4324,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var ws = wizardSubjects[subjIdx];
             var unit = ws.availableUnits.find(u => u.id === unitId);
             if (unit) unit.quickRead = isChecked;
-            renderWizardSubjects();
+            // v1.5.114: 不重建 DOM, 只更新該 unit 的快讀 checkbox 狀態
+            updateUnitQuickReadUI(subjIdx, unitId, isChecked);
+            debouncedSaveWizardPrefs();
+        }
+
+        function updateUnitQuickReadUI(subjIdx, unitId, isChecked) {
+            var subjContainer = el('wz-step2-container').children[subjIdx];
+            if (!subjContainer) return;
+            // 找 onclick 含此 unitId 的快讀 checkbox
+            var qrCbs = subjContainer.querySelectorAll('input.wz-qr-cb');
+            qrCbs.forEach(function(cb) {
+                var onchangeAttr = cb.getAttribute('onchange') || '';
+                if (onchangeAttr.indexOf("'" + unitId + "'") !== -1) {
+                    cb.checked = isChecked;
+                }
+            });
         }
 
         function setAllQuickRead(subjIdx, doQuickRead) {
@@ -4245,7 +4347,79 @@ function renderWizardUnitRowHtml(ws, i, u) {
             ws.availableUnits.forEach(u => {
                 if (u.misMaxEnd > 0) u.quickRead = doQuickRead;
             });
+            // v1.5.114: 不重建 DOM, 只批量更新快讀 checkbox
+            var subjContainer = el('wz-step2-container').children[subjIdx];
+            if (!subjContainer) return;
+            var qrCbs = subjContainer.querySelectorAll('input.wz-qr-cb');
+            qrCbs.forEach(function(cb) { cb.checked = doQuickRead; });
+            debouncedSaveWizardPrefs();
+        }
+
+        // v1.5.114: debounce saveWizardPrefs (避免每次點都寫 localStorage)
+        var _savePrefsTimer = null;
+        function debouncedSaveWizardPrefs() {
+            if (_savePrefsTimer) clearTimeout(_savePrefsTimer);
+            _savePrefsTimer = setTimeout(function() {
+                saveWizardPrefs();
+                _savePrefsTimer = null;
+            }, 300);
+        }
+
+        // v1.5.114: 批次快捷勾選按鈕
+        function selectUnscheduledUnits() {
+            var changed = 0;
+            wizardSubjects.forEach(function(ws) {
+                var newSel = [];
+                ws.availableUnits.forEach(function(availU) {
+                    if (availU.misMaxEnd === 0) newSel.push(availU.id);
+                });
+                if (newSel.length !== ws.selectedUnitIds.length) {
+                    ws.selectedUnitIds = newSel;
+                    changed++;
+                }
+            });
+            if (changed > 0) {
+                renderWizardSubjects();
+                saveWizardPrefs();
+            } else {
+                alert('所有 unit 都已排過, 無未排過的 unit 可選。');
+            }
+        }
+
+        function selectScheduledUnits() {
+            var changed = 0;
+            wizardSubjects.forEach(function(ws) {
+                var newSel = [];
+                ws.availableUnits.forEach(function(availU) {
+                    if (availU.misMaxEnd > 0) newSel.push(availU.id);
+                });
+                if (newSel.length !== ws.selectedUnitIds.length) {
+                    ws.selectedUnitIds = newSel;
+                    changed++;
+                }
+            });
+            if (changed > 0) {
+                renderWizardSubjects();
+                saveWizardPrefs();
+            } else {
+                alert('所有 unit 都未排過, 無已排過的 unit 可選。');
+            }
+        }
+
+        function selectAllUnits() {
+            wizardSubjects.forEach(function(ws) {
+                ws.selectedUnitIds = ws.availableUnits.map(function(u) { return u.id; });
+            });
             renderWizardSubjects();
+            saveWizardPrefs();
+        }
+
+        function clearAllUnits() {
+            wizardSubjects.forEach(function(ws) {
+                ws.selectedUnitIds = [];
+            });
+            renderWizardSubjects();
+            saveWizardPrefs();
         }
 
         function generatePlan() { 
