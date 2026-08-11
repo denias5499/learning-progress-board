@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.117]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.118]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -715,18 +715,20 @@
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; width: 100%; }
-            .print-page { width: 297mm; height: 210mm; padding: 10mm 12mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
+            /* v1.5.117: 防止 print-page 被切到下一頁 + 縮小內容塞下 2 週 */
+            .print-page { width: 297mm; height: 210mm; padding: 5mm 6mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; page-break-inside: avoid; overflow: hidden; }
             .print-page:last-child { page-break-after: auto; }
-            .print-title { font-size: 20pt; font-weight: 900; margin-bottom: 4mm; color: #2c3e50; text-align: center; }
+            .print-title { font-size: 14pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
             .print-table { width: 100%; border-collapse: collapse; flex: 1; table-layout: fixed; }
-            .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 3px 4px; text-align: center; overflow: hidden; }
-            .print-table th { background: #e2e8f0; font-size: 11pt; color: #34495e; height: 26px; }
-            .col-subj { width: 10%; } 
-            .week-date-row td { background: #f8fafc; font-weight: bold; font-size: 10pt; height: 22px; color: #475569;}
-            .subj-cell { font-weight: bold; color: #1e293b; background: #fdfefe; font-size: 10.5pt;}
-            .task-cell { vertical-align: top; text-align: left; }
-            .print-task { font-size: 8.5pt; line-height: 1.3; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #ebf5fb; padding: 2px 4px; border-radius: 3px; border-left: 3px solid #3498db; color: #1e293b; display: inline-block; width: 100%; box-sizing: border-box; }
+            .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 1px 2px; text-align: center; overflow: hidden; }
+            .print-table th { background: #e2e8f0; font-size: 9pt; color: #34495e; height: 16px; padding: 1px 2px; }
+            .col-subj { width: 9%; } 
+            .week-date-row td { background: #f8fafc; font-weight: bold; font-size: 8.5pt; height: 14px; color: #475569; padding: 0 2px; }
+            .subj-cell { font-weight: bold; color: #1e293b; background: #fdfefe; font-size: 8.5pt; padding: 1px 3px; line-height: 1.15; }
+            .task-cell { vertical-align: top; text-align: left; padding: 1px 2px; }
+            .print-task { font-size: 7pt; line-height: 1.1; margin-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #ebf5fb; padding: 0 3px; border-radius: 2px; border-left: 2px solid #3498db; color: #1e293b; display: inline-block; width: 100%; box-sizing: border-box; }
             .print-task.done { text-decoration: line-through; opacity: 0.6; background: #eaeded; border-left-color: #bdc3c7; }
+            .print-more { font-size: 6.5pt; color: #c0392b; font-weight: bold; font-style: italic; }
             .print-week-group { page-break-inside: avoid; break-inside: avoid; }
         }
         .theme-toggle:hover { background: var(--card-bg); transform: rotate(20deg) scale(1.05); }
@@ -6163,7 +6165,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<div class="print-page">';
                 html += '<div class="print-title">' + titleText + ' 學習進度計畫表</div>';
                 html += '<table class="print-table">';
-                html += '<thead><tr><th class="col-subj">科目</th><th>週日</th><th>週一</th><th>週二</th><th>週三</th><th>週四</th><th>週五</th><th>週六</th></tr></thead>';
+                html += '<thead><tr><th class="col-subj">科目</th><th>週日</th><th>週一</th><th>週二</th><th>週三</th><th>週四</th><th>週五</th><th>週六</th><th style="font-size:7pt; color:#c0392b;">+多</th></tr></thead>';
                 
                 // 兩週: 每週一行
                 var weekStart = new Date(currStart);
@@ -6178,6 +6180,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         weekDates.push(new Date(d));
                         d.setDate(d.getDate() + 1);
                     }
+                    var overflowIdx = weekDates.length;  // v1.5.117: +N more 的 column index (7)
                     
                     var weekTasks = {};
                     var hasTasks = false;
@@ -6200,12 +6203,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 return true;
                             });
                             
+                            // v1.5.117: 每 cell 最多 3 個 task, 超出計算 overflowCount (列印頁面加上 +N more 標籤)
+                            var MAX_TASKS_PER_CELL = 3;
                             filteredTasks.forEach(function(t) {
                                 var subj = t.subject || '其他';
                                 if (!weekTasks[subj]) weekTasks[subj] = [];
                                 var colIdx = weekDates.indexOf(cellDate);
                                 if (!weekTasks[subj][colIdx]) weekTasks[subj][colIdx] = [];
-                                weekTasks[subj][colIdx].push(t);
+                                if (weekTasks[subj][colIdx].length >= MAX_TASKS_PER_CELL) {
+                                    // 超過的計入 overflowCount, 加到第 8 個 column
+                                    if (!weekTasks[subj][overflowIdx]) weekTasks[subj][overflowIdx] = [];
+                                    var existingOverflow = weekTasks[subj][overflowIdx].find(function(x) { return x.isOverflow; });
+                                    if (existingOverflow) {
+                                        existingOverflow.count++;
+                                    } else {
+                                        weekTasks[subj][overflowIdx].push({ isOverflow: true, count: 1 });
+                                    }
+                                } else {
+                                    weekTasks[subj][colIdx].push(t);
+                                }
                                 hasTasks = true;
                             });
                         });
@@ -6216,8 +6232,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     weekDates.forEach(function(cellDate) {
                         html += '<td>' + cellDate.getDate() + '</td>';
                     });
+                    // v1.5.117: +N more column header
+                    html += '<td style="font-size:6.5pt; color:#c0392b; font-weight:bold;">+多</td>';
                     html += '</tr>';
-                    
+
                     if (hasTasks) {
                         var subjects = Object.keys(weekTasks);
                         subjects.sort(function(a, b) {
@@ -6226,7 +6244,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             if (idxA !== idxB) return idxA - idxB;
                             return a.localeCompare(b);
                         });
-                        
+
                         subjects.forEach(function(subj) {
                             html += '<tr><td class="subj-cell">' + subj + '</td>';
                             weekDates.forEach(function(_, idx) {
@@ -6241,7 +6259,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                     } else {
                                         var match = t.text.match(/P\.\d+(?:~\d+)?/);
                                         if (match) pageText = match[0];
-                                        else pageText = '✔️'; 
+                                        else pageText = '✔️';
                                     }
                                     var box = t.isDone ? '☑ ' : '☐ ';
                                     var doneClass = t.isDone ? 'done' : '';
@@ -6249,11 +6267,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 });
                                 html += '</td>';
                             });
+                            // v1.5.117: +N more column (overflow)
+                            html += '<td class="task-cell">';
+                            var overflowTasks = weekTasks[subj][overflowIdx] || [];
+                            overflowTasks.forEach(function(t) {
+                                if (t.isOverflow) {
+                                    html += '<div class="print-more">+' + t.count + ' more</div>';
+                                }
+                            });
+                            html += '</td>';
                             html += '</tr>';
                         });
                     } else {
                         html += '<tr><td class="subj-cell" style="color:#cbd5e1;">(無排程)</td>';
-                        for (var k = 0; k < weekDates.length; k++) html += '<td></td>';
+                        for (var k = 0; k < weekDates.length; k++) html += '<td></td><td></td>';
                         html += '</tr>';
                     }
                     html += '</tbody>';
