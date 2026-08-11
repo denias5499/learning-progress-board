@@ -3617,6 +3617,22 @@ loadBoardHeader();
             } else {
                 var ovContainer = el('wz-overrides-container');
                 if (ovContainer) ovContainer.innerHTML = '<div style="color:#7f8c8d; font-size:0.85em;">(請先選擇計畫名稱才能設定 override)</div>';
+                // v1.5.113: plan 為 null 時 disable 新增按鈕
+                var addBtn = document.querySelector('button[onclick="addHourOverride()"]');
+                if (addBtn) {
+                    addBtn.disabled = true;
+                    addBtn.style.opacity = '0.5';
+                    addBtn.style.cursor = 'not-allowed';
+                    addBtn.title = '請先選擇計畫';
+                }
+            }
+            // v1.5.113: 有 plan 時啟用按鈕
+            var addBtn2 = document.querySelector('button[onclick="addHourOverride()"]');
+            if (addBtn2 && wizPlan) {
+                addBtn2.disabled = false;
+                addBtn2.style.opacity = '1';
+                addBtn2.style.cursor = 'pointer';
+                addBtn2.title = '';
             }
 
             openModal('modal-wizard');
@@ -3669,6 +3685,12 @@ loadBoardHeader();
 
         // v1.5.112: 新增 override
         function addHourOverride() {
+            // v1.5.113: 防呆 - 如果沒有當前 plan, 不開 modal, 提示選 plan
+            var plan = getCurrentWizardPlan();
+            if (!plan) {
+                alert('請先在上方選擇計畫名稱！\n\n(計畫名稱欄位 = 大分類 + 任務組合)\n選擇後才能設定自訂日期時數。');
+                return;
+            }
             window._editingOverrideIdx = -1;
             el('hov-start').value = '';
             el('hov-end').value = '';
@@ -3707,11 +3729,19 @@ loadBoardHeader();
         // v1.5.112: 儲存 override (新增或編輯)
         function saveHourOverride() {
             var plan = getCurrentWizardPlan();
-            if (!plan) { alert('請先選擇計畫！'); return; }
+            if (!plan) {
+                alert('請先選擇計畫！\n\n(請確認上方「計畫名稱」欄位已有值)\n選擇後才能儲存自訂日期時數。');
+                return;
+            }
+            // v1.5.113: iOS Safari 相容性 - 強制 blur 確保 date picker 同步 .value
+            try { el('hov-start').blur(); el('hov-end').blur(); } catch(e) {}
             ensurePlanHourConfig(plan);
             var start = el('hov-start').value;
             var end = el('hov-end').value;
-            if (!start || !end) { alert('請填寫開始/結束日期！'); return; }
+            if (!start || !end) {
+                alert('請填寫開始與結束日期！\n\n(目前讀到: 開始="' + start + '", 結束="' + end + '")\n如果兩個都有填但還是跳此訊息, 請重新點一下日期欄位讓 iOS picker 同步。');
+                return;
+            }
             if (start > end) { alert('結束日期不能早於開始日期！'); return; }
             var dailyHours = {};
             for (var i = 0; i <= 6; i++) {
@@ -3916,15 +3946,32 @@ loadBoardHeader();
 
                 html += `</div></div></div>`;
             });
+            // v1.5.113: 保留 scroll position (避免勾 unit 後跳回頂部)
+            var prevScrollTop = container.scrollTop;
             container.innerHTML = html;
             // v1.5.112: 設定 indeterminate state (部分已選時)
             container.querySelectorAll('input[data-indet="1"]').forEach(function(cb) {
                 cb.indeterminate = true;
             });
+            // v1.5.113: 恢復 scroll position (兩個機制都試)
+            requestAnimationFrame(function() {
+                container.scrollTop = prevScrollTop;
+                // v1.5.113: 如果有「最近勾選的 unit id」, 額外 scroll 該 unit into view
+                if (window._lastToggledUnitId) {
+                    var targetCb = container.querySelector('input[type="checkbox"][value="' + window._lastToggledUnitId + '"]');
+                    if (targetCb) {
+                        var rowDiv = targetCb.closest('div[style*="display:flex"]') || targetCb.parentElement;
+                        if (rowDiv && rowDiv.scrollIntoView) {
+                            try { rowDiv.scrollIntoView({ block: 'nearest', behavior: 'instant' }); } catch(e) {}
+                        }
+                    }
+                    window._lastToggledUnitId = null;
+                }
+            });
             // v1.5.112: debug log 顯示 selectedUnitIds 統計, 方便追蹤 bug 2
             wizardSubjects.forEach(function(ws, i) {
                 if (ws.availableUnits.length > 0) {
-                    console.log('[wizard ' + ws.name + '] selected: ' + ws.selectedUnitIds.length + '/' + ws.availableUnits.length);
+                    console.log('[wizard ' + ws.name + '] selected: ' + ws.selectedUnitIds.length + '/' + ws.availableUnits.length + ', scrollTop=' + prevScrollTop);
                 }
             });
         }
@@ -4180,6 +4227,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else if (!isChecked) {
                 ws.selectedUnitIds = ws.selectedUnitIds.filter(id => id !== unitId);
             }
+            // v1.5.113: 記下最近勾選的 unit id, renderWizardSubjects 會 scroll 該 unit into view
+            window._lastToggledUnitId = unitId;
             renderWizardSubjects();
         }
 
