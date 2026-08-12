@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.128]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.129]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6284,18 +6284,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         });
                     }
 
-                    // v1.5.128: 計算該週 max task 數, 設 row 高 = max task × task_h
-                    var TASK_HEIGHT_PX = 11;  // 1 task 高 (8pt × 1.33 ≈ 10.6, 加 margin 1)
-                    var SUBJ_PADDING_PX = 4;  // subj-cell padding 上+下
-                    var weekMaxTask = 0;
-                    Object.keys(weekTasks).forEach(function(s) {
-                        for (var d = 0; d < 7; d++) {
-                            if (weekTasks[s][d] && weekTasks[s][d].length > weekMaxTask) {
-                                weekMaxTask = weekTasks[s][d].length;
-                            }
-                        }
-                    });
-                    var weekRowHeight = weekMaxTask * TASK_HEIGHT_PX + SUBJ_PADDING_PX;
+                    // v1.5.129: 撤掉 v1.5.128 的 weekRowHeight + inline height (Denias 要的是 row 高由 task 數決定, 不是整週統一)
 
                     html += '<tbody class="print-week-group">';
                     html += '<tr class="week-date-row"><td>日期</td>';
@@ -6315,7 +6304,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
                         subjects.forEach(function(subj) {
                             // v1.5.128: row 高 = 該週 max task row 高 (統一)
-                            html += '<tr style="height: ' + weekRowHeight + 'px;"><td class="subj-cell">' + subj + '</td>';
+                            html += '<tr><td class="subj-cell">' + subj + '</td>';
                             weekDates.forEach(function(_, idx) {
                                 html += '<td class="task-cell">';
                                 var tasks = weekTasks[subj][idx] || [];
@@ -6360,8 +6349,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             printArea.innerHTML = html;
             closeModal('modal-print-settings');
 
-            // v1.5.126: 自動計算 print-task font-size, 適應不同科目數與任務密度
-            autoShrinkPrintCSS(plan, 2);  // v1.5.122 landscape 固定 2 週/頁
+            // v1.5.129: 撤掉 v1.5.126 autoShrinkPrintCSS (字會被縮), 改用預設 7pt
 
             // v1.5.122: 不再用 scale (scrollHeight 在 display:none 不準), 改靠 CSS 縮小列高
 
@@ -6370,66 +6358,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }, 300);
         }
 
-        // v1.5.126: 自動計算 print-task font-size, 適應不同科目數與任務密度
-        // 不丢任務: 只調整 font-size, 不限制 max-height
-        function autoShrinkPrintCSS(plan, weeksPerPage) {
-            // 1. 計算科目數 (從 plan.grid 動態統計)
-            var subjectsCount = 9; // 預設 9 科 (國文/數學/英文/歷史/地理/公民/理化/生物 + 補)
-            var maxTaskPerCell = 1;
-            
-            if (plan && plan.grid) {
-                var subs = {};
-                for (var dateStr in plan.grid) {
-                    var tasks = plan.grid[dateStr] || [];
-                    if (tasks.length > maxTaskPerCell) maxTaskPerCell = tasks.length;
-                    for (var ti = 0; ti < tasks.length; ti++) {
-                        var t = tasks[ti];
-                        if (t.subject && !subs[t.subject]) subs[t.subject] = true;
-                    }
-                }
-                var actualSubCount = Object.keys(subs).length;
-                if (actualSubCount > 0) subjectsCount = Math.max(9, actualSubCount);
-            }
-            
-            // 2. A4 landscape 可用空間 (px, 1mm = 3.78px)
-            var A4_USABLE_PX = 194 * 3.78; // 733px
-            var TITLE_PX = 33; // print-title 18pt + margin
-            var HEAD_PX = 18; // thead 18px
-            var WEEK_DATE_PX = 16; // week-date-row
-            var PADDING_PX = 60; // 16mm padding × 2 (上下)
-            
-            // 3. 計算每 row 可用空間
-            var totalFixedPx = TITLE_PX + HEAD_PX + (WEEK_DATE_PX * weeksPerPage) + PADDING_PX;
-            var rowBudgetPx = (A4_USABLE_PX - totalFixedPx) / (subjectsCount * weeksPerPage);
-            
-            // 4. 計算每 task 預算
-            var taskBudgetPx = rowBudgetPx / Math.max(1, maxTaskPerCell);
-            
-            // 5. 計算 font-size (1pt = 1.33px, line-height 1.0 = font-size)
-            var fontSize = taskBudgetPx / 1.33;
-            
-            // 6. 限制範圍 (5pt - 7pt)
-            if (fontSize > 7) fontSize = 7;
-            if (fontSize < 5) fontSize = 5; // 不小於 5pt, 否則讀不清
-            
-            // 7. 注入 CSS (覆蓋默認 7pt)
-            var styleId = 'dynamic-print-style';
-            var style = document.getElementById(styleId);
-            if (!style) {
-                style = document.createElement('style');
-                style.id = styleId;
-                document.head.appendChild(style);
-            }
-            style.textContent = '.print-page .print-task { font-size: ' + fontSize.toFixed(1) + 'pt !important; line-height: 1.0 !important; }';
-            
-            // 8. debug log
-            console.log('[v1.5.126 print] 科目=' + subjectsCount + ', max task/cell=' + maxTaskPerCell + ', row 預算=' + rowBudgetPx.toFixed(1) + 'px, font-size=' + fontSize.toFixed(1) + 'pt');
-            
-            // 9. 警告 (不是 alert, 只 console.warn)
-            if (fontSize <= 5 && maxTaskPerCell >= 4) {
-                console.warn('[v1.5.126 print] ⚠️ 任務密度高 (科目=' + subjectsCount + ', max task/cell=' + maxTaskPerCell + '), 已縮到最小 5pt');
-            }
-        }
+        // v1.5.129: 撤掉 autoShrinkPrintCSS (Denias 說字變小, 改用預設 7pt + row 高自然)
 
         function exportPlanJSON() {
             var pid = el('planner-selector').value;
