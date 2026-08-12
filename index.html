@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.130]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.131]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -718,7 +718,7 @@
             /* v1.5.130: 完整還原 v1.5.110 的列印 layout (Denias 滿意的版本) */
             .print-page { width: 297mm; height: 210mm; padding: 10mm 12mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
             .print-page:last-child { page-break-after: auto; }
-            .print-title { font-size: 20pt; font-weight: 900; margin-bottom: 4mm; color: #2c3e50; text-align: center; }
+            .print-title { font-size: 16pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
             .print-table { width: 100%; border-collapse: collapse; flex: 1; table-layout: fixed; }
             .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 3px 4px; text-align: center; overflow: hidden; }
             .print-table th { background: #e2e8f0; font-size: 11pt; color: #34495e; height: 26px; }
@@ -6224,12 +6224,23 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (pageEnd > endDate) pageEnd = new Date(endDate);
                 
                 // 標題: 跨月顯示 "X月Y日 - Z月W日", 同月顯示 "X月Y-W日"
+                // v1.5.131: 標題格式改為 MM/DD~MM/DD (自動根據範圍調整)
                 var titleText;
-                if (currStart.getMonth() === pageEnd.getMonth() && currStart.getFullYear() === pageEnd.getFullYear()) {
-                    titleText = currStart.getFullYear() + '年' + (currStart.getMonth() + 1) + '月' + currStart.getDate() + '-' + pageEnd.getDate() + '日';
+                var sy = currStart.getFullYear();
+                var sm = currStart.getMonth() + 1;
+                var sd = currStart.getDate();
+                var ey = pageEnd.getFullYear();
+                var em = pageEnd.getMonth() + 1;
+                var ed = pageEnd.getDate();
+                var endPart;
+                if (ey !== sy) {
+                    endPart = ey + '/' + em + '/' + ed;
+                } else if (em !== sm) {
+                    endPart = em + '/' + ed;
                 } else {
-                    titleText = currStart.getFullYear() + '年' + (currStart.getMonth() + 1) + '月' + currStart.getDate() + '日 - ' + (pageEnd.getMonth() + 1) + '月' + pageEnd.getDate() + '日';
+                    endPart = ed.toString();
                 }
+                titleText = sm + '/' + sd + '~' + endPart;
                 
                 html += '<div class="print-page">';
                 html += '<div class="print-title">' + titleText + ' 學習進度計畫表</div>';
