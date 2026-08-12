@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.142]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.143]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -734,6 +734,35 @@
             .print-task { font-size: 8.5pt; line-height: 1.3; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #ebf5fb; padding: 1px 3px; border-radius: 3px; border-left: 3px solid #3498db; color: #1e293b; display: block; }
             .print-task.done { text-decoration: line-through; opacity: 0.6; background: #eaeded; border-left-color: #bdc3c7; }
         }
+
+        /* v1.5.143: 列印設定月曆 grid */
+        .print-cal-day {
+            text-align: center;
+            padding: 6px 4px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            cursor: pointer;
+            background: white;
+            transition: background 0.15s;
+        }
+        .print-cal-day:hover {
+            background: #e3f2fd;
+        }
+        .print-cal-other {
+            color: #bbb;
+            background: #fafafa;
+        }
+        .print-cal-sel-edge {
+            background: #a8e6a3 !important;
+            color: #1b5e20 !important;
+            font-weight: bold;
+            border: 2px solid #388e3c;
+        }
+        .print-cal-sel-mid {
+            background: #fff9c4 !important;
+            color: #5d4037 !important;
+        }
+
         .theme-toggle:hover { background: var(--card-bg); transform: rotate(20deg) scale(1.05); }
 
         /* ===== v1.3: Dashboard Tabs ===== */
@@ -1642,22 +1671,35 @@
     </div>
 
     <div id="modal-print-settings" class="modal-bg" style="z-index: 3200;">
-        <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-content" style="max-width: 480px;">
             <div class="modal-header">
                 <h2>🖨️ 列印月曆設定</h2>
                 <button type="button" class="close-btn" onclick="closeModal('modal-print-settings')">&times;</button>
             </div>
-            <div class="form-group" style="background:#f0f8ff; border:1px solid #b3d7ff;">
-                <p style="margin-top:0; font-size:0.95em; color:var(--secondary);">系統將以「每 2 週 1 頁」的 A4 橫式版面列印，內容超出自動縮放。</p>
-                <div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
-                    <div style="flex:1;">
-                        <label>開始月份</label>
-                        <input type="month" id="print-start-month">
-                    </div>
-                    <div style="flex:1;">
-                        <label>結束月份</label>
-                        <input type="month" id="print-end-month">
-                    </div>
+            <div class="form-group" style="background:#f0f8ff; border:1px solid #b3d7ff; padding:10px; border-radius:6px;">
+                <p style="margin-top:0; font-size:0.95em; color:var(--secondary);">點選 2 個日期設定列印範圍。系統以「每 2 週 1 頁」 A4 橫式版面列印。</p>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <button type="button" class="btn-outline" style="padding:4px 10px;" onclick="changePrintMonth(-1)">← 上月</button>
+                    <strong id="print-cal-month-label">2026 年 7 月</strong>
+                    <button type="button" class="btn-outline" style="padding:4px 10px;" onclick="changePrintMonth(1)">下月 →</button>
+                </div>
+                <div id="print-cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr); gap:2px; font-size:0.85em;"></div>
+                <div style="margin-top:8px; font-size:0.8em; color:#666;">
+                    <span style="display:inline-block; width:12px; height:12px; background:#a8e6a3; border-radius:2px; vertical-align:middle;"></span> 開始/結束
+                    <span style="display:inline-block; width:12px; height:12px; background:#fff9c4; border-radius:2px; vertical-align:middle; margin-left:8px;"></span> 中間
+                </div>
+            </div>
+            <div id="print-range-display" style="background:#fef3c7; border:1px solid #fbbf24; border-radius:6px; padding:8px; margin-top:10px; font-size:0.9em; text-align:center;">
+                尚未選擇範圍 — 請點選 2 個日期
+            </div>
+            <div class="form-group" style="display:flex; gap:10px; margin-top:10px;">
+                <div style="flex:1;">
+                    <label>分類</label>
+                    <select id="print-modal-cat-filter" onchange="onPrintModalCatChange()"></select>
+                </div>
+                <div style="flex:1;">
+                    <label>任務</label>
+                    <select id="print-modal-mis-filter"></select>
                 </div>
             </div>
             <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:6px; padding:10px; margin-top:10px; font-size:0.85em; color:#92400e;">
@@ -1667,10 +1709,10 @@
                     <li>📏 邊界: <strong>無邊界 / 最小</strong></li>
                     <li>🖨️ 紙張: A4</li>
                 </ul>
-                <p style="margin:5px 0 0 0; font-size:0.85em;">點選「確認列印」後, 在列印 dialog 選「橫向」即可。Safari 記住下次預設。</p>
             </div>
             <div style="text-align: right; margin-top: 20px;">
                 <button type="button" class="btn-outline" style="margin-right:10px;" onclick="closeModal('modal-print-settings')">取消</button>
+                <button type="button" class="btn-outline" style="margin-right:10px;" onclick="clearPrintSelection()">🗑️ 清除</button>
                 <button type="button" class="btn-primary" onclick="executePrint()">✅ 確認列印</button>
             </div>
         </div>
@@ -6166,28 +6208,189 @@ function renderWizardUnitRowHtml(ws, i, u) {
             checkDailyWorkload(plan, dateStr);
         }
 
+        // v1.5.143: 全域變數用於列印日期範圍
+        var printSelStart = null;  // Date or null
+        var printSelEnd = null;  // Date or null
+        var printSelMonth = null;  // Date (當前顯示月)
+        
         function openPrintModal() {
+            // v1.5.143: 初始化列印設定 (月曆點選)
             var today = new Date();
-            var yyyy = today.getFullYear();
-            var mm = String(today.getMonth() + 1).padStart(2, '0');
-            el('print-start-month').value = `${yyyy}-${mm}`;
-            el('print-end-month').value = `${yyyy}-${mm}`;
+            printSelMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            printSelStart = null;
+            printSelEnd = null;
+            
+            // 複製當前分類/任務篩選到 modal
+            var currentCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
+            var currentMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
+            
+            // populate modal cat filter
+            var modalCat = el('print-modal-cat-filter');
+            if (modalCat && appMissions) {
+                modalCat.innerHTML = '<option value="ALL">全部</option>';
+                Object.keys(appMissions).forEach(function(cat) {
+                    var opt = document.createElement('option');
+                    opt.value = cat;
+                    opt.textContent = cat;
+                    modalCat.appendChild(opt);
+                });
+                modalCat.value = currentCat;
+            }
+            
+            // populate modal mis filter
+            onPrintModalCatChange();
+            var modalMis = el('print-modal-mis-filter');
+            if (modalMis) modalMis.value = currentMis;
+            
+            renderPrintCalendar();
             openModal('modal-print-settings');
         }
+        
+        function onPrintModalCatChange() {
+            var modalCat = el('print-modal-cat-filter');
+            var modalMis = el('print-modal-mis-filter');
+            if (!modalMis || !modalCat) return;
+            var cat = modalCat.value;
+            modalMis.innerHTML = '<option value="ALL">全部</option>';
+            if (cat !== 'ALL' && appMissions[cat]) {
+                Object.keys(appMissions[cat]).forEach(function(mis) {
+                    var opt = document.createElement('option');
+                    opt.value = mis;
+                    opt.textContent = mis;
+                    modalMis.appendChild(opt);
+                });
+            }
+        }
+        
+        function renderPrintCalendar() {
+            var label = el('print-cal-month-label');
+            var grid = el('print-cal-grid');
+            if (!label || !grid || !printSelMonth) return;
+            
+            label.textContent = printSelMonth.getFullYear() + ' 年 ' + (printSelMonth.getMonth() + 1) + ' 月';
+            
+            var year = printSelMonth.getFullYear();
+            var month = printSelMonth.getMonth();
+            var firstDay = new Date(year, month, 1);
+            var lastDay = new Date(year, month + 1, 0);
+            var startWeekday = firstDay.getDay();  // 0 = 日
+            var daysInMonth = lastDay.getDate();
+            
+            // 表頭: 日 一 二 三 四 五 六
+            var html = '';
+            ['日','一','二','三','四','五','六'].forEach(function(d) {
+                html += '<div style="text-align:center; font-weight:bold; padding:4px; color:#475569;">' + d + '</div>';
+            });
+            
+            // 上月月末幾天
+            var prevMonthLastDay = new Date(year, month, 0).getDate();
+            for (var i = startWeekday - 1; i >= 0; i--) {
+                var d = prevMonthLastDay - i;
+                var dateStr = formatYMD(new Date(year, month - 1, d));
+                html += '<div class="print-cal-day print-cal-other" data-date="' + dateStr + '" onclick="clickPrintDate(\'' + dateStr + '\')">' + d + '</div>';
+            }
+            
+            // 本月
+            for (var d = 1; d <= daysInMonth; d++) {
+                var dateStr = formatYMD(new Date(year, month, d));
+                var classes = 'print-cal-day';
+                if (printSelStart && getLocalDateString(printSelStart) === dateStr) classes += ' print-cal-sel-edge';
+                else if (printSelEnd && getLocalDateString(printSelEnd) === dateStr) classes += ' print-cal-sel-edge';
+                else if (printSelStart && printSelEnd) {
+                    var dateObj = new Date(year, month, d);
+                    if (dateObj > printSelStart && dateObj < printSelEnd) classes += ' print-cal-sel-mid';
+                }
+                html += '<div class="' + classes + '" data-date="' + dateStr + '" onclick="clickPrintDate(\'' + dateStr + '\')">' + d + '</div>';
+            }
+            
+            // 下月頭幾天 (填滿 6 週)
+            var totalCells = startWeekday + daysInMonth;
+            var rowsNeeded = Math.ceil(totalCells / 7);
+            var cellsNeeded = rowsNeeded * 7;
+            var nextDays = cellsNeeded - totalCells;
+            for (var d = 1; d <= nextDays; d++) {
+                var dateStr = formatYMD(new Date(year, month + 1, d));
+                html += '<div class="print-cal-day print-cal-other" data-date="' + dateStr + '" onclick="clickPrintDate(\'' + dateStr + '\')">' + d + '</div>';
+            }
+            
+            grid.innerHTML = html;
+            updatePrintRangeDisplay();
+        }
+        
+        function clickPrintDate(dateStr) {
+            var clicked = new Date(dateStr + 'T00:00:00');
+            // 如果點的是其他月日期, 切換到該月
+            if (clicked.getMonth() !== printSelMonth.getMonth() || clicked.getFullYear() !== printSelMonth.getFullYear()) {
+                printSelMonth = new Date(clicked.getFullYear(), clicked.getMonth(), 1);
+            }
+            
+            if (!printSelStart || (printSelStart && printSelEnd)) {
+                // 開始選起, 或重新開始
+                printSelStart = clicked;
+                printSelEnd = null;
+            } else if (clicked.getTime() === printSelStart.getTime()) {
+                // 點同一個日期: 取消
+                printSelStart = null;
+                printSelEnd = null;
+            } else if (clicked < printSelStart) {
+                // 點早於 start: swap, 新的是 start
+                printSelEnd = printSelStart;
+                printSelStart = clicked;
+            } else {
+                // 點晚於 start: 設為 end
+                printSelEnd = clicked;
+            }
+            
+            renderPrintCalendar();
+        }
+        
+        function changePrintMonth(delta) {
+            if (!printSelMonth) return;
+            printSelMonth = new Date(printSelMonth.getFullYear(), printSelMonth.getMonth() + delta, 1);
+            renderPrintCalendar();
+        }
+        
+        function clearPrintSelection() {
+            printSelStart = null;
+            printSelEnd = null;
+            renderPrintCalendar();
+        }
+        
+        function formatYMD(date) {
+            var y = date.getFullYear();
+            var m = String(date.getMonth() + 1).padStart(2, '0');
+            var d = String(date.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + d;
+        }
+        
+        function updatePrintRangeDisplay() {
+            var display = el('print-range-display');
+            if (!display) return;
+            if (!printSelStart && !printSelEnd) {
+                display.innerHTML = '尚未選擇範圍 — 請點選 2 個日期';
+                display.style.background = '#fef3c7';
+            } else if (printSelStart && !printSelEnd) {
+                display.innerHTML = '開始: ' + (printSelStart.getMonth() + 1) + '/' + printSelStart.getDate() + ' (再點一下設結束)';
+                display.style.background = '#e0f7fa';
+            } else {
+                var days = Math.round((printSelEnd - printSelStart) / (1000 * 60 * 60 * 24)) + 1;
+                display.innerHTML = '範圍: ' + (printSelStart.getMonth() + 1) + '/' + printSelStart.getDate() + ' ~ ' + (printSelEnd.getMonth() + 1) + '/' + printSelEnd.getDate() + ' (' + days + ' 天)';
+                display.style.background = '#c8e6c9';
+            }
+        }
 
-        // v1.5.110: 改為每 14 天一頁 (原本一個月一頁)
+        // v1.5.143: 改為每 14 天一頁, 接收使用者選的日期範圍
         function executePrint() {
-            var startVal = el('print-start-month').value;
-            var endVal = el('print-end-month').value;
-            if(!startVal || !endVal) return alert("請選擇開始與結束月份！");
+            if (!printSelStart || !printSelEnd) {
+                return alert('請在月曆上點選 2 個日期設定列印範圍！');
+            }
+            if (printSelEnd < printSelStart) {
+                return alert('結束日期不能早於開始日期！');
+            }
             
-            var startDate = new Date(startVal + "-01");
-            var endDate = new Date(endVal + "-01");
-            // 結束日期設為月底 (該月最後一天)
-            endDate = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0);
+            var startDate = new Date(printSelStart);
+            var endDate = new Date(printSelEnd);
             
-            if(endDate < startDate) return alert("結束月份不能早於開始月份！");
-
             var pid = el('planner-selector').value;
             var plan = null;
             if(pid) {
@@ -6197,8 +6400,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var printArea = el('print-area');
             var html = '';
             
-            let fCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
-            let fMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
+            // v1.5.143: 從 modal 的 select 讀分類/任務
+            let fCat = el('print-modal-cat-filter') ? el('print-modal-cat-filter').value : 'ALL';
+            let fMis = el('print-modal-mis-filter') ? el('print-modal-mis-filter').value : 'ALL';
             let allowedUnitIds = new Set();
             let allowedSubjects = new Set();
             
@@ -6317,7 +6521,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
                     if (hasTasks) {
                         // v1.5.137: 固定 8 subject rows (即使 weekTasks 沒有, 也生成空 row, 避免第二週 row 數不對)
-                        var fixedSubjects = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
+                        var fixedSubjects = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化']; // v1.5.143: 移除 '生物' (Denias 不要)
                         // 取 weekTasks 內有的 + fixedSubjects 內有的
                         var subjectsSet = {};
                         fixedSubjects.forEach(function(s) { subjectsSet[s] = true; });
