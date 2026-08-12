@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.137]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.138]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -715,12 +715,12 @@
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; width: 100%; }
-            /* v1.5.137: print-page 移除固定 height, 改為 min-height (讓內容決定高度, 避免留空白) */
-            .print-page { width: 297mm; min-height: 194mm; padding: 8mm 10mm; box-sizing: border-box; page-break-after: always; }
+            /* v1.5.138: print-page min-height + flex column (內容撐高, 內容少時靠 min-height) */
+            .print-page { width: 297mm; min-height: 194mm; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
             .print-page:last-child { page-break-after: auto; }
             .print-title { font-size: 16pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
-            /* v1.5.137: print-week 不用 flex: 1 (自然高度), row 高由內容決定 */
-            .print-week { display: block; width: 100%; margin-bottom: 4mm; }
+            /* v1.5.138: print-week 自然高度 (flex-shrink 0), 不擠 content */
+            .print-week { display: flex; flex-direction: column; flex: 0 1 auto; width: 100%; margin-bottom: 4mm; }
             .print-row { display: flex; width: 100%; page-break-inside: avoid !important; break-inside: avoid !important; }
             .print-row > .print-cell { border: 1px solid #94a3b8; }
             /* v1.5.136: cell 是 flex item, width 設 + flex-shrink 0 (不被擠) */
@@ -6379,13 +6379,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
             printArea.innerHTML = html;
             closeModal('modal-print-settings');
 
-            // v1.5.129: 撤掉 v1.5.126 autoShrinkPrintCSS (字會被縮), 改用預設 7pt
-
-            // v1.5.122: 不再用 scale (scrollHeight 在 display:none 不準), 改靠 CSS 縮小列高
-
-            // v1.5.136: 撤掉 v1.5.135 的 JS inline height (改用 div+flex 取代 table)
+            // v1.5.138: 加 try/catch, 確保 window.print() 被呼叫 + 錯誤可見
             setTimeout(function() {
-                window.print();
+                try {
+                    window.print();
+                } catch(e) {
+                    alert('列印失敗: ' + e.message + '\n請手動截圖報告');
+                }
             }, 300);
         }
 
