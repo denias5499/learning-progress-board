@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.121]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.122]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -712,23 +712,21 @@
         .print-area, #print-area { display: none; }
         @media print {
             @page { size: A4 landscape; page-orientation: landscape; margin: 0; }
-            /* v1.5.121: 動態 scale (內容超出時自動縮放) */
-            .print-page { transform-origin: top left; }
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; width: 100%; }
-            /* v1.5.120: revert 樣式回 v1.5.110 + 加 page-break-inside: avoid */
-            .print-page { width: 297mm; height: 210mm; padding: 10mm 12mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; page-break-inside: avoid; }
+            /* v1.5.122: 縮小列高 + 緊湊化 CSS 確保 2 週/頁完整 */
+            .print-page { width: 297mm; height: 210mm; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; page-break-inside: avoid; }
             .print-page:last-child { page-break-after: auto; }
-            .print-title { font-size: 20pt; font-weight: 900; margin-bottom: 4mm; color: #2c3e50; text-align: center; }
+            .print-title { font-size: 18pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
             .print-table { width: 100%; border-collapse: collapse; flex: 1; table-layout: fixed; }
-            .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 3px 4px; text-align: center; overflow: hidden; }
-            .print-table th { background: #e2e8f0; font-size: 11pt; color: #34495e; height: 26px; }
+            .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 1px 3px; text-align: center; overflow: hidden; }
+            .print-table th { background: #e2e8f0; font-size: 10pt; color: #34495e; height: 18px; padding: 1px 3px; }
             .col-subj { width: 10%; } 
-            .week-date-row td { background: #f8fafc; font-weight: bold; font-size: 10pt; height: 22px; color: #475569;}
-            .subj-cell { font-weight: bold; color: #1e293b; background: #fdfefe; font-size: 10.5pt;}
-            .task-cell { vertical-align: top; text-align: left; }
-            .print-task { font-size: 8.5pt; line-height: 1.3; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #ebf5fb; padding: 2px 4px; border-radius: 3px; border-left: 3px solid #3498db; color: #1e293b; display: inline-block; width: 100%; box-sizing: border-box; }
+            .week-date-row td { background: #f8fafc; font-weight: bold; font-size: 9pt; height: 16px; color: #475569; padding: 0 3px; }
+            .subj-cell { font-weight: bold; color: #1e293b; background: #fdfefe; font-size: 9pt; padding: 1px 3px; line-height: 1.15; }
+            .task-cell { vertical-align: top; text-align: left; padding: 1px 2px; }
+            .print-task { font-size: 7.5pt; line-height: 1.15; margin-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #ebf5fb; padding: 0 3px; border-radius: 2px; border-left: 2px solid #3498db; color: #1e293b; display: inline-block; width: 100%; box-sizing: border-box; }
             .print-task.done { text-decoration: line-through; opacity: 0.6; background: #eaeded; border-left-color: #bdc3c7; }
             .print-week-group { page-break-inside: avoid; break-inside: avoid; }
         }
@@ -1659,12 +1657,13 @@
                 </div>
             </div>
             <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:6px; padding:10px; margin-top:10px; font-size:0.85em; color:#92400e;">
-                💡 <strong>列印設定提示</strong>:
+                💡 <strong>列印設定提示 (重要!)</strong>:
                 <ul style="margin:5px 0 0 0; padding-left:20px;">
-                    <li>📄 方向: <strong>橫向 (Landscape)</strong></li>
-                    <li>📏 邊界: <strong>無邊界 (設為 0)</strong></li>
+                    <li>📄 <strong>方向: 橫向 (Landscape)</strong> ← iOS Safari 需手動選</li>
+                    <li>📏 邊界: <strong>無邊界 / 最小</strong></li>
                     <li>🖨️ 紙張: A4</li>
                 </ul>
+                <p style="margin:5px 0 0 0; font-size:0.85em;">點選「確認列印」後, 在列印 dialog 選「橫向」即可。Safari 記住下次預設。</p>
             </div>
             <div style="text-align: right; margin-top: 20px;">
                 <button type="button" class="btn-outline" style="margin-right:10px;" onclick="closeModal('modal-print-settings')">取消</button>
@@ -6343,23 +6342,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             printArea.innerHTML = html;
             closeModal('modal-print-settings');
 
-            // v1.5.121: 動態 scale 內容超出自動縮放, 避免 row 被切頁
-            var MAX_HEIGHT_PX = 210 * 3.78;  // A4 landscape 高 (mm × 3.78 = px)
-            var MAX_WIDTH_PX = 297 * 3.78;
-            printArea.querySelectorAll('.print-page').forEach(function(page) {
-                var contentH = page.scrollHeight;
-                var contentW = page.scrollWidth;
-                var scaleH = MAX_HEIGHT_PX / contentH;
-                var scaleW = MAX_WIDTH_PX / contentW;
-                var scale = Math.min(1, Math.min(scaleH, scaleW));  // 不超過 1, 取最小
-                if (scale < 1) {
-                    page.style.transform = 'scale(' + scale + ')';
-                    page.style.transformOrigin = 'top left';
-                    // 補 width/height 以保持頁面位置
-                    page.style.width = (297 / scale) + 'mm';
-                    page.style.height = (210 / scale) + 'mm';
-                }
-            });
+            // v1.5.122: 不再用 scale (scrollHeight 在 display:none 不準), 改靠 CSS 縮小列高
 
             setTimeout(function() {
                 window.print();
