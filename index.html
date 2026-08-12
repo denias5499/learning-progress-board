@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.134]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.135]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -720,10 +720,9 @@
             .print-page { width: 297mm; height: 210mm; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
             .print-page:last-child { page-break-after: auto; }
             .print-title { font-size: 16pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
-            /* v1.5.134: 撤掉 table-layout: fixed + 用 inline style width 雙保險 (colgroup 在 print 環境不可靠) */
+            /* v1.5.135: 確保 tr 完全不被切 - 用 !important + page-break-avoid */
             .print-table { width: 100%; border-collapse: collapse; flex: 1; }
-            /* v1.5.134: 加強防切 - tr 加上 !important 確保不被切 */
-            .print-page tr, .print-page thead tr, .print-page tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .print-page tr { page-break-inside: avoid !important; break-inside: avoid !important; }
             .print-week-group { page-break-inside: auto; break-inside: auto; }
             .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 3px 4px; text-align: center; overflow: hidden; }
             .print-table th { background: #e2e8f0; font-size: 11pt; color: #34495e; height: 26px; }
@@ -6371,7 +6370,41 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
             // v1.5.122: 不再用 scale (scrollHeight 在 display:none 不準), 改靠 CSS 縮小列高
 
+            // v1.5.135: JS 計算每 row 高並設 inline height (避免 CSS table layout 攔高問題)
             setTimeout(function() {
+                var printAreaEl = el('print-area');
+                if (printAreaEl) {
+                    // 暫時顯示 printArea 才能量高度 (但隠藏不可見)
+                    var origDisplay = printAreaEl.style.display;
+                    var origPosition = printAreaEl.style.position;
+                    var origLeft = printAreaEl.style.left;
+                    var origVisibility = printAreaEl.style.visibility;
+                    printAreaEl.style.display = 'block';
+                    printAreaEl.style.position = 'absolute';
+                    printAreaEl.style.left = '-99999px';
+                    printAreaEl.style.visibility = 'hidden';
+                    
+                    var allRows = printAreaEl.querySelectorAll('.print-week-group tr');
+                    allRows.forEach(function(row) {
+                        // 計算 row 內 max cell offsetHeight
+                        var maxH = 0;
+                        for (var i = 0; i < row.cells.length; i++) {
+                            var ch = row.cells[i].offsetHeight;
+                            if (ch > maxH) maxH = ch;
+                        }
+                        if (maxH > 0) {
+                            // 設 inline height (覆蓋 CSS table layout)
+                            row.style.height = maxH + 'px';
+                            row.style.maxHeight = maxH + 'px';
+                        }
+                    });
+                    
+                    // 還原 printArea 樣式
+                    printAreaEl.style.display = origDisplay;
+                    printAreaEl.style.position = origPosition;
+                    printAreaEl.style.left = origLeft;
+                    printAreaEl.style.visibility = origVisibility;
+                }
                 window.print();
             }, 300);
         }
