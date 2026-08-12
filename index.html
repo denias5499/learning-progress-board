@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.120]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.121]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -711,7 +711,9 @@
         /* v1.5.110: print-area 預設隱藏, @media print 才顯示 */
         .print-area, #print-area { display: none; }
         @media print {
-            @page { size: A4 landscape; margin: 0; }
+            @page { size: A4 landscape; page-orientation: landscape; margin: 0; }
+            /* v1.5.121: 動態 scale (內容超出時自動縮放) */
+            .print-page { transform-origin: top left; }
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; width: 100%; }
@@ -1644,7 +1646,7 @@
                 <button type="button" class="close-btn" onclick="closeModal('modal-print-settings')">&times;</button>
             </div>
             <div class="form-group" style="background:#f0f8ff; border:1px solid #b3d7ff;">
-                <p style="margin-top:0; font-size:0.95em; color:var(--secondary);">系統將以「每月一頁」的 A4 橫式版面，列印您所選擇的月份範圍。</p>
+                <p style="margin-top:0; font-size:0.95em; color:var(--secondary);">系統將以「每 2 週 1 頁」的 A4 橫式版面列印，內容超出自動縮放。</p>
                 <div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
                     <div style="flex:1;">
                         <label>開始月份</label>
@@ -1655,6 +1657,14 @@
                         <input type="month" id="print-end-month">
                     </div>
                 </div>
+            </div>
+            <div style="background:#fef3c7; border:1px solid #fbbf24; border-radius:6px; padding:10px; margin-top:10px; font-size:0.85em; color:#92400e;">
+                💡 <strong>列印設定提示</strong>:
+                <ul style="margin:5px 0 0 0; padding-left:20px;">
+                    <li>📄 方向: <strong>橫向 (Landscape)</strong></li>
+                    <li>📏 邊界: <strong>無邊界 (設為 0)</strong></li>
+                    <li>🖨️ 紙張: A4</li>
+                </ul>
             </div>
             <div style="text-align: right; margin-top: 20px;">
                 <button type="button" class="btn-outline" style="margin-right:10px;" onclick="closeModal('modal-print-settings')">取消</button>
@@ -6332,7 +6342,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
             
             printArea.innerHTML = html;
             closeModal('modal-print-settings');
-            
+
+            // v1.5.121: 動態 scale 內容超出自動縮放, 避免 row 被切頁
+            var MAX_HEIGHT_PX = 210 * 3.78;  // A4 landscape 高 (mm × 3.78 = px)
+            var MAX_WIDTH_PX = 297 * 3.78;
+            printArea.querySelectorAll('.print-page').forEach(function(page) {
+                var contentH = page.scrollHeight;
+                var contentW = page.scrollWidth;
+                var scaleH = MAX_HEIGHT_PX / contentH;
+                var scaleW = MAX_WIDTH_PX / contentW;
+                var scale = Math.min(1, Math.min(scaleH, scaleW));  // 不超過 1, 取最小
+                if (scale < 1) {
+                    page.style.transform = 'scale(' + scale + ')';
+                    page.style.transformOrigin = 'top left';
+                    // 補 width/height 以保持頁面位置
+                    page.style.width = (297 / scale) + 'mm';
+                    page.style.height = (210 / scale) + 'mm';
+                }
+            });
+
             setTimeout(function() {
                 window.print();
             }, 300);
