@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.136]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.137]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -715,12 +715,12 @@
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; width: 100%; }
-            /* v1.5.136: 改用 flex + div 取代 table (避免 CSS table layout 撐高問題) */
-            .print-page { width: 297mm; height: 210mm; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
+            /* v1.5.137: print-page 移除固定 height, 改為 min-height (讓內容決定高度, 避免留空白) */
+            .print-page { width: 297mm; min-height: 194mm; padding: 8mm 10mm; box-sizing: border-box; page-break-after: always; }
             .print-page:last-child { page-break-after: auto; }
             .print-title { font-size: 16pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
-            /* v1.5.136: print-week 是 flex column, row 是 flex row (row 高由內容決定, 不被其他 row 撐高) */
-            .print-week { display: flex; flex-direction: column; flex: 1; width: 100%; }
+            /* v1.5.137: print-week 不用 flex: 1 (自然高度), row 高由內容決定 */
+            .print-week { display: block; width: 100%; margin-bottom: 4mm; }
             .print-row { display: flex; width: 100%; page-break-inside: avoid !important; break-inside: avoid !important; }
             .print-row > .print-cell { border: 1px solid #94a3b8; }
             /* v1.5.136: cell 是 flex item, width 設 + flex-shrink 0 (不被擠) */
@@ -6316,7 +6316,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '</div>';
 
                     if (hasTasks) {
-                        var subjects = Object.keys(weekTasks);
+                        // v1.5.137: 固定 8 subject rows (即使 weekTasks 沒有, 也生成空 row, 避免第二週 row 數不對)
+                        var fixedSubjects = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
+                        // 取 weekTasks 內有的 + fixedSubjects 內有的
+                        var subjectsSet = {};
+                        fixedSubjects.forEach(function(s) { subjectsSet[s] = true; });
+                        Object.keys(weekTasks).forEach(function(s) { subjectsSet[s] = true; });
+                        var subjects = Object.keys(subjectsSet);
                         subjects.sort(function(a, b) {
                             var idxA = targetOrder.indexOf(a); if (idxA === -1) idxA = 999;
                             var idxB = targetOrder.indexOf(b); if (idxB === -1) idxB = 999;
