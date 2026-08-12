@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.133]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.134]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -720,12 +720,11 @@
             .print-page { width: 297mm; height: 210mm; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
             .print-page:last-child { page-break-after: auto; }
             .print-title { font-size: 16pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
-            /* v1.5.133: 撤掉 table-layout: fixed (造成空 row 被撐高), 改用 colgroup 保持等寬 + 讓 row 由內容自然撐高 */
+            /* v1.5.134: 撤掉 table-layout: fixed + 用 inline style width 雙保險 (colgroup 在 print 環境不可靠) */
             .print-table { width: 100%; border-collapse: collapse; flex: 1; }
-            .print-table col.col-subj { width: 10%; }
-            .print-table col.col-day { width: 12.857%; }
-            /* v1.5.133: tr 防切 (確保 row 不會被切到下一頁中間) */
-            .print-page tr { page-break-inside: avoid; break-inside: avoid; }
+            /* v1.5.134: 加強防切 - tr 加上 !important 確保不被切 */
+            .print-page tr, .print-page thead tr, .print-page tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .print-week-group { page-break-inside: auto; break-inside: auto; }
             .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 3px 4px; text-align: center; overflow: hidden; }
             .print-table th { background: #e2e8f0; font-size: 11pt; color: #34495e; height: 26px; }
             .col-subj { width: 10%; } 
@@ -6253,8 +6252,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<div class="print-page">';
                 html += '<div class="print-title">' + titleText + ' 學習進度計畫表</div>';
                 html += '<table class="print-table">';
-                html += '<colgroup><col class="col-subj"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"><col class="col-day"></colgroup>';
-                html += '<thead><tr><th class="col-subj">科目</th><th>週日</th><th>週一</th><th>週二</th><th>週三</th><th>週四</th><th>週五</th><th>週六</th></tr></thead>';
+                // v1.5.134: colgroup 在 print 環境可能不可靠, 改用 inline style 在 th/td 上 (雙保險)
+                html += '<colgroup><col style="width:10%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"></colgroup>';
+                html += '<thead><tr><th style="width:10%">科目</th><th style="width:12.857%">週日</th><th style="width:12.857%">週一</th><th style="width:12.857%">週二</th><th style="width:12.857%">週三</th><th style="width:12.857%">週四</th><th style="width:12.857%">週五</th><th style="width:12.857%">週六</th></tr></thead>';
                 
                 // 兩週: 每週一行
                 var weekStart = new Date(currStart);
@@ -6305,9 +6305,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // v1.5.129: 撤掉 v1.5.128 的 weekRowHeight + inline height (Denias 要的是 row 高由 task 數決定, 不是整週統一)
 
                     html += '<tbody class="print-week-group">';
-                    html += '<tr class="week-date-row"><td>日期</td>';
+                    html += '<tr class="week-date-row"><td style="width:10%">日期</td>';
                     weekDates.forEach(function(cellDate) {
-                        html += '<td>' + cellDate.getDate() + '</td>';
+                        html += '<td style="width:12.857%">' + cellDate.getDate() + '</td>';
                     });
                     html += '</tr>';
 
@@ -6322,9 +6322,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
                         subjects.forEach(function(subj) {
                             // v1.5.128: row 高 = 該週 max task row 高 (統一)
-                            html += '<tr><td class="subj-cell">' + subj + '</td>';
+                            html += '<tr><td class="subj-cell" style="width:10%">' + subj + '</td>';
                             weekDates.forEach(function(_, idx) {
-                                html += '<td class="task-cell">';
+                                html += '<td class="task-cell" style="width:12.857%">';
                                 var tasks = weekTasks[subj][idx] || [];
                                 tasks.forEach(function(t) {
                                     var pageText = '';
@@ -6346,7 +6346,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             html += '</tr>';
                         });
                     } else {
-                        html += '<tr><td class="subj-cell" style="color:#cbd5e1;">(無排程)</td>';
+                        html += '<tr><td class="subj-cell" style="width:10%; color:#cbd5e1;">(無排程)</td>';
                         for (var k = 0; k < weekDates.length; k++) html += '<td></td>';
                         html += '</tr>';
                     }
