@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.135]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.136]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -715,28 +715,24 @@
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body > *:not(#print-area) { display: none !important; }
             #print-area { display: block !important; width: 100%; }
-            /* v1.5.130: 完整還原 v1.5.110 的列印 layout (Denias 滿意的版本) */
-            /* v1.5.132: F - 邊界縮小 10mm×12mm → 8mm×10mm */
+            /* v1.5.136: 改用 flex + div 取代 table (避免 CSS table layout 撐高問題) */
             .print-page { width: 297mm; height: 210mm; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
             .print-page:last-child { page-break-after: auto; }
             .print-title { font-size: 16pt; font-weight: 900; margin-bottom: 2mm; color: #2c3e50; text-align: center; }
-            /* v1.5.135: 確保 tr 完全不被切 - 用 !important + page-break-avoid */
-            .print-table { width: 100%; border-collapse: collapse; flex: 1; }
-            .print-page tr { page-break-inside: avoid !important; break-inside: avoid !important; }
-            .print-week-group { page-break-inside: auto; break-inside: auto; }
-            .print-table th, .print-table td { border: 1px solid #94a3b8; padding: 3px 4px; text-align: center; overflow: hidden; }
-            .print-table th { background: #e2e8f0; font-size: 11pt; color: #34495e; height: 26px; }
-            .col-subj { width: 10%; } 
-            /* v1.5.132: D - 日期列縮小 22px → 18px, 10pt → 9pt */
-            .week-date-row td { background: #f8fafc; font-weight: bold; font-size: 9pt; height: 18px; color: #475569;}
-            .subj-cell { font-weight: bold; color: #1e293b; background: #fdfefe; font-size: 10.5pt;}
-            .task-cell { vertical-align: top; text-align: left; }
-            /* v1.5.132: G+B - task 內距縮 padding 2px×4px→1px×3px, margin-bottom 2px→1px */
-            .print-task { font-size: 8.5pt; line-height: 1.3; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #ebf5fb; padding: 1px 3px; border-radius: 3px; border-left: 3px solid #3498db; color: #1e293b; display: inline-block; width: 100%; box-sizing: border-box; }
+            /* v1.5.136: print-week 是 flex column, row 是 flex row (row 高由內容決定, 不被其他 row 撐高) */
+            .print-week { display: flex; flex-direction: column; flex: 1; width: 100%; }
+            .print-row { display: flex; width: 100%; page-break-inside: avoid !important; break-inside: avoid !important; }
+            .print-row > .print-cell { border: 1px solid #94a3b8; }
+            /* v1.5.136: cell 是 flex item, width 設 + flex-shrink 0 (不被擠) */
+            .print-cell { box-sizing: border-box; padding: 3px 4px; flex-shrink: 0; }
+            .print-cell.col-subj { width: 10%; background: #fdfefe; font-weight: bold; color: #1e293b; font-size: 10.5pt; }
+            .print-cell.col-day { width: 12.857%; }
+            .print-cell.header { background: #e2e8f0; font-size: 11pt; color: #34495e; height: 26px; text-align: center; font-weight: bold; }
+            .print-cell.week-date { background: #f8fafc; font-weight: bold; font-size: 9pt; height: 18px; color: #475569; text-align: center; }
+            .print-cell.task { vertical-align: top; text-align: left; }
+            /* v1.5.132: G+B - task 內距縮 */
+            .print-task { font-size: 8.5pt; line-height: 1.3; margin-bottom: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: #ebf5fb; padding: 1px 3px; border-radius: 3px; border-left: 3px solid #3498db; color: #1e293b; display: block; }
             .print-task.done { text-decoration: line-through; opacity: 0.6; background: #eaeded; border-left-color: #bdc3c7; }
-            .print-week-group { page-break-inside: avoid; break-inside: avoid; }
-        }
-            .print-page tr { page-break-inside: avoid; break-inside: avoid; }
         }
         .theme-toggle:hover { background: var(--card-bg); transform: rotate(20deg) scale(1.05); }
 
@@ -6250,10 +6246,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 
                 html += '<div class="print-page">';
                 html += '<div class="print-title">' + titleText + ' 學習進度計畫表</div>';
-                html += '<table class="print-table">';
-                // v1.5.134: colgroup 在 print 環境可能不可靠, 改用 inline style 在 th/td 上 (雙保險)
-                html += '<colgroup><col style="width:10%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"><col style="width:12.857%"></colgroup>';
-                html += '<thead><tr><th style="width:10%">科目</th><th style="width:12.857%">週日</th><th style="width:12.857%">週一</th><th style="width:12.857%">週二</th><th style="width:12.857%">週三</th><th style="width:12.857%">週四</th><th style="width:12.857%">週五</th><th style="width:12.857%">週六</th></tr></thead>';
+                // v1.5.136: 改用 div + flex 取代 table (row 高由內容決定, 分頁在 row 間的框線)
+                html += '<div class="print-week">';
+                // v1.5.136: header row (科目 / 週日~週六)
+                html += '<div class="print-row">';
+                html += '<div class="print-cell col-subj header">科目</div>';
+                html += '<div class="print-cell col-day header">週日</div>';
+                html += '<div class="print-cell col-day header">週一</div>';
+                html += '<div class="print-cell col-day header">週二</div>';
+                html += '<div class="print-cell col-day header">週三</div>';
+                html += '<div class="print-cell col-day header">週四</div>';
+                html += '<div class="print-cell col-day header">週五</div>';
+                html += '<div class="print-cell col-day header">週六</div>';
+                html += '</div>';
                 
                 // 兩週: 每週一行
                 var weekStart = new Date(currStart);
@@ -6303,12 +6308,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
                     // v1.5.129: 撤掉 v1.5.128 的 weekRowHeight + inline height (Denias 要的是 row 高由 task 數決定, 不是整週統一)
 
-                    html += '<tbody class="print-week-group">';
-                    html += '<tr class="week-date-row"><td style="width:10%">日期</td>';
+                    html += '<div class="print-row">';
+                    html += '<div class="print-cell col-subj week-date">日期</div>';
                     weekDates.forEach(function(cellDate) {
-                        html += '<td style="width:12.857%">' + cellDate.getDate() + '</td>';
+                        html += '<div class="print-cell col-day week-date">' + cellDate.getDate() + '</div>';
                     });
-                    html += '</tr>';
+                    html += '</div>';
 
                     if (hasTasks) {
                         var subjects = Object.keys(weekTasks);
@@ -6321,9 +6326,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
                         subjects.forEach(function(subj) {
                             // v1.5.128: row 高 = 該週 max task row 高 (統一)
-                            html += '<tr><td class="subj-cell" style="width:10%">' + subj + '</td>';
+                            html += '<div class="print-row">';
+                            html += '<div class="print-cell col-subj">' + subj + '</div>';
                             weekDates.forEach(function(_, idx) {
-                                html += '<td class="task-cell" style="width:12.857%">';
+                                html += '<div class="print-cell col-day task">';
                                 var tasks = weekTasks[subj][idx] || [];
                                 tasks.forEach(function(t) {
                                     var pageText = '';
@@ -6340,23 +6346,24 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                     var doneClass = t.isDone ? 'done' : '';
                                     html += '<div class="print-task ' + doneClass + '">' + box + pageText + '</div>';
                                 });
-                                html += '</td>';
+                                html += '</div>';
                             });
-                            html += '</tr>';
+                            html += '</div>';
                         });
                     } else {
-                        html += '<tr><td class="subj-cell" style="width:10%; color:#cbd5e1;">(無排程)</td>';
-                        for (var k = 0; k < weekDates.length; k++) html += '<td></td>';
-                        html += '</tr>';
+                        html += '<div class="print-row">';
+                        html += '<div class="print-cell col-subj" style="color:#cbd5e1;">(無排程)</div>';
+                        for (var k = 0; k < weekDates.length; k++) html += '<div class="print-cell col-day"></div>';
+                        html += '</div>';
                     }
-                    html += '</tbody>';
+                    html += '</div>';
                     
                     // 下週從 weekEndDate + 1 開始
                     weekStart = new Date(weekEndDate);
                     weekStart.setDate(weekStart.getDate() + 1);
                 }
                 
-                html += '</table></div>';
+                html += '</div></div>';
                 
                 // 下兩週從 pageEnd + 1 開始
                 currStart = new Date(pageEnd);
@@ -6370,41 +6377,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
             // v1.5.122: 不再用 scale (scrollHeight 在 display:none 不準), 改靠 CSS 縮小列高
 
-            // v1.5.135: JS 計算每 row 高並設 inline height (避免 CSS table layout 攔高問題)
+            // v1.5.136: 撤掉 v1.5.135 的 JS inline height (改用 div+flex 取代 table)
             setTimeout(function() {
-                var printAreaEl = el('print-area');
-                if (printAreaEl) {
-                    // 暫時顯示 printArea 才能量高度 (但隠藏不可見)
-                    var origDisplay = printAreaEl.style.display;
-                    var origPosition = printAreaEl.style.position;
-                    var origLeft = printAreaEl.style.left;
-                    var origVisibility = printAreaEl.style.visibility;
-                    printAreaEl.style.display = 'block';
-                    printAreaEl.style.position = 'absolute';
-                    printAreaEl.style.left = '-99999px';
-                    printAreaEl.style.visibility = 'hidden';
-                    
-                    var allRows = printAreaEl.querySelectorAll('.print-week-group tr');
-                    allRows.forEach(function(row) {
-                        // 計算 row 內 max cell offsetHeight
-                        var maxH = 0;
-                        for (var i = 0; i < row.cells.length; i++) {
-                            var ch = row.cells[i].offsetHeight;
-                            if (ch > maxH) maxH = ch;
-                        }
-                        if (maxH > 0) {
-                            // 設 inline height (覆蓋 CSS table layout)
-                            row.style.height = maxH + 'px';
-                            row.style.maxHeight = maxH + 'px';
-                        }
-                    });
-                    
-                    // 還原 printArea 樣式
-                    printAreaEl.style.display = origDisplay;
-                    printAreaEl.style.position = origPosition;
-                    printAreaEl.style.left = origLeft;
-                    printAreaEl.style.visibility = origVisibility;
-                }
                 window.print();
             }, 300);
         }
