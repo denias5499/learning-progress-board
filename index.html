@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.146]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.147]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7981,10 +7981,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // v1.5.11: 用 typeName + instanceName 當 grouping key, label = 「typeName-instanceName」
                     // v1.5.18: 區分 volume 跟 custom — volume 顯示 冊名 + instance header, custom 顯示 typeName-instanceName
                     var matUnits = _collectSubjectUnits(s);
-                    var byVol = {}; // key = 'typeName|instanceName'
+                    var byVol = {}; // v1.5.147: key = 'typeName|instanceName|vol' (避免不同 type 同 vol name 混亂)
                     matUnits.forEach(function(u) {
-                        var k = u.vol || '_single';
-                        if (!byVol[k]) byVol[k] = { units: [], typeName: u._typeName || '', instanceName: u._instanceName || k };
+                        // v1.5.147: key 加 typeName 區隔 (同 vol name 可能出現在不同 type)
+                        var k = (u._typeName || '_') + '|' + (u.vol || '_single');
+                        if (!byVol[k]) byVol[k] = { units: [], typeName: u._typeName || '', instanceName: u._instanceName || (u.vol || '_single') };
                         byVol[k].units.push(u);
                     });
                     var anyShown = false;
@@ -7994,9 +7995,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         // v1.5.11: 全域 type filter (預設 ALL = 全部顯示)
                         if (globalTypeFilter !== 'ALL' && info.typeName !== globalTypeFilter) return;
                         anyShown = true;
-                        // v1.5.18: 區分 volume (key 不含 '|') 跟 custom (key 含 '|')
+                        // v1.5.18 + v1.5.147: 區分 volume 跟 custom — v1.5.147 key 改為 typeName|volName
+                        var keyParts = key.split('|');
+                        var keyTypeName = keyParts[0];
+                        var keyVolName = keyParts[1] || '_single';
                         var label;
-                        var isVolume = (key !== '_single' && key.indexOf('|') === -1);
+                        var isVolume = (keyVolName !== '_single');
                         if (isVolume) {
                             // volume: label 用 冊名 (跟 教材庫 tab 1 一致)
                             label = key;
