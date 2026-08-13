@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.150]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.152]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7601,9 +7601,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return;
             }
             var s = data.instance;
+            // v1.5.151: 移到 if 之前 (custom 分支的 onclick 模板會用到)
+            var isUB = isUnitBasedType(data.typeObj);
 
             if (s.type === 'custom') {
-                root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\', null, isUnitBasedType(data.typeObj))">➕ 新增單元</button></div>';
+                root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\', null, ' + isUB + ')">➕ 新增單元</button></div>';
                 if (!window._skipLoadUnits) {
                     (s.units || []).forEach(u => addSettingRow('cfg-list-custom', u, isUnitBasedType(data.typeObj)));
                 } else {
@@ -7626,7 +7628,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 </div>
                                 <div id="cfg-list-${vol}"></div>
                                 <div style="margin-top:10px;">
-                                    <button type="button" class="btn-outline" onclick="addSettingRow('cfg-list-${safeVol}', null, isUnitBasedType(data.typeObj))">➕ 新增單元</button>
+                                    <button type="button" class="btn-outline" onclick="addSettingRow('cfg-list-${safeVol}', null, ${isUB})">➕ 新增單元</button>
                                 </div>
                             </div>`;
                 });
@@ -7642,8 +7644,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
                 root.innerHTML = html;
                 setTimeout(() => {
-                    // v1.5.150: 傳 isUnitBased 到 addSettingRow
-                    var isUB = isUnitBasedType(data.typeObj);
                     if (!window._skipLoadUnits) {
                         volsToRender.forEach(vol => { (s.vols[vol] || []).forEach(u => addSettingRow('cfg-list-'+vol, u, isUB)); });
                     } else {
