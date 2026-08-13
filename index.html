@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.152]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.153]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2943,6 +2943,21 @@ loadBoardHeader();
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
             } catch(e) {
                 console.error('v1.5.17 saveToLocal FAILED:', e.message, 'size:', JSON.stringify(multiData).length);
+                // v1.5.153: quota exceeded 時, 自動清理 backups 後重試
+                if (e && e.name && e.name.indexOf('QuotaExceeded') >= 0) {
+                    try {
+                        // 清空最佔空間的 backups
+                        localStorage.removeItem(STORAGE_KEY_SAFETY);
+                        localStorage.removeItem(STORAGE_KEY_UNDO);
+                        localStorage.removeItem(STORAGE_KEY_NAMED);
+                        // 再試一次
+                        localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+                        console.log('v1.5.153: 已清理 backups, 儲存成功');
+                        return;  // 成功, 不顯示錯誤
+                    } catch(e2) {
+                        console.error('v1.5.153: 清理後仍失敗:', e2.message);
+                    }
+                }
                 showSaveErrorToast(e);
             }
         }
