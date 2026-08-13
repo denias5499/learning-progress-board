@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.143]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.144]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1725,6 +1725,50 @@
         function el(id) { return document.getElementById(id); }
         function getLocalDateString(d) { var year = d.getFullYear(); var month = String(d.getMonth() + 1).padStart(2, '0'); var day = String(d.getDate()).padStart(2, '0'); return year + '-' + month + '-' + day; }
 
+        // v1.5.144: Helper functions for unit-based materials
+        function isUnitBasedType(typeObj) {
+            return typeObj && typeObj.unitBased === true;
+        }
+
+        function getInstanceAlias(instance) {
+            if (!instance) return '?';
+            if (instance.alias) return instance.alias;
+            if (instance.name) return instance.name.charAt(0);
+            return '?';
+        }
+
+        function findUnitContext(unitId) {
+            if (!unitId || !appMaster) return null;
+            for (var sub in appMaster) {
+                var subj = appMaster[sub];
+                if (!subj || !subj.materials) continue;
+                for (var typeName in subj.materials) {
+                    var typeObj = subj.materials[typeName];
+                    if (!typeObj || !typeObj.instances) continue;
+                    for (var i = 0; i < typeObj.instances.length; i++) {
+                        var ins = typeObj.instances[i];
+                        if (ins.type === 'volume' && ins.vols) {
+                            for (var vol in ins.vols) {
+                                var units = ins.vols[vol];
+                                for (var j = 0; j < units.length; j++) {
+                                    if (units[j].id === unitId) {
+                                        return { sub: sub, typeName: typeName, typeObj: typeObj, instance: ins, unit: units[j], vol: vol };
+                                    }
+                                }
+                            }
+                        } else if (ins.type === 'custom' && ins.units) {
+                            for (var j = 0; j < ins.units.length; j++) {
+                                if (ins.units[j].id === unitId) {
+                                    return { sub: sub, typeName: typeName, typeObj: typeObj, instance: ins, unit: ins.units[j], vol: null };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         var STORAGE_KEY_FAMILY = 'StudyMap_Family_Data_V20';
         var STORAGE_KEY_CURRENT_USER = 'StudyMap_CurrentUserId_V20';
         var STORAGE_KEY_BOARD_TITLE = 'StudyMap_BoardTitle_V20';
@@ -2477,6 +2521,39 @@
                 console.log('v1.5.34: ✅ 所有教材類型順序皆已統一，無需修正');
             }
         }
+
+        // v1.5.144: Migration - 為現有 material type 加 unitBased flag + 為 instance 加 alias
+        (function migrateUnitBasedAndAlias() {
+            const unitBasedTypes = { '複習卷': true, '數字題本': true, '模擬題本': true, '考古題': true };
+            let fixedType = 0, fixedAlias = 0;
+            if (!multiData || !multiData.students) return;
+            multiData.students.forEach(function(stu) {
+                if (!stu.masters) return;
+                stu.masters.forEach(function(subj) {
+                    if (!subj.materials) return;
+                    Object.keys(subj.materials).forEach(function(typeName) {
+                        const typeObj = subj.materials[typeName];
+                        if (typeof typeObj.unitBased === 'undefined') {
+                            typeObj.unitBased = unitBasedTypes[typeName] || false;
+                            fixedType++;
+                        }
+                        if (!typeObj.instances) return;
+                        typeObj.instances.forEach(function(ins) {
+                            if (typeof ins.alias === 'undefined' && ins.name) {
+                                ins.alias = ins.name.charAt(0);
+                                fixedAlias++;
+                            }
+                        });
+                    });
+                });
+            });
+            if (fixedType > 0 || fixedAlias > 0) {
+                saveToLocal();
+                console.log('v1.5.144: 補上 ' + fixedType + ' 個 type 的 unitBased, ' + fixedAlias + ' 個 instance 的 alias');
+            } else {
+                console.log('v1.5.144: ✅ 所有 type 已有 unitBased, 所有 instance 已有 alias');
+            }
+        })();
 
 loadBoardHeader();
 
@@ -6406,13 +6483,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
             let allowedUnitIds = new Set();
             let allowedSubjects = new Set();
             
-            if (fCat !== 'ALL') {
-                if (fMis !== 'ALL') {
+            if (fCat && fCat !== 'ALL') {
+                if (fMis && fMis !== 'ALL') {
                     (appMissions[fCat][fMis] || []).forEach(id => allowedUnitIds.add(id));
                     let mTree = buildMissionTree(fCat, fMis);
                     Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
                 } else {
-                    Object.keys(appMissions[fCat]).forEach(ms => {
+                    Object.keys(appMissions[fCat] || {}).forEach(ms => {
                         (appMissions[fCat][ms] || []).forEach(id => allowedUnitIds.add(id));
                         let mTree = buildMissionTree(fCat, ms);
                         Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
@@ -6487,15 +6564,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var tasks = plan.grid[dateStr] || [];
 
                             var filteredTasks = tasks.filter(function(t) {
-                                if (fCat === 'ALL') return true;
+                                if (!fCat || fCat === 'ALL') return true;
                                 if (t.unitId) return allowedUnitIds.has(t.unitId);
                                 if (t.cat) {
                                     if (t.cat !== fCat) return false;
-                                    if (fMis !== 'ALL' && t.mis !== fMis) return false;
+                                    if (fMis && fMis !== 'ALL' && t.mis !== fMis) return false;
                                     return true;
                                 }
                                 if (!appMaster[t.subject]) return true;
-                                if (allowedSubjects && !allowedSubjects.has(t.subject)) return false;
+                                if (allowedSubjects && allowedSubjects.size > 0 && !allowedSubjects.has(t.subject)) return false;
                                 return true;
                             });
 
@@ -6543,7 +6620,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 var tasks = (weekTasks[subj] && weekTasks[subj][idx]) || [];
                                 tasks.forEach(function(t) {
                                     var pageText = '';
-                                    if (t.startPage && t.endPage) {
+                                    var ctx = t.unitId ? findUnitContext(t.unitId) : null;
+                                    if (ctx && isUnitBasedType(ctx.typeObj)) {
+                                        // v1.5.144: Unit-based - 簡稱 + unit 名
+                                        pageText = getInstanceAlias(ctx.instance) + ctx.unit.name;
+                                    } else if (t.startPage && t.endPage) {
                                         pageText = t.startPage === t.endPage ? 'P.' + t.startPage : 'P.' + t.startPage + '~' + t.endPage;
                                     } else if (t.startPage) {
                                         pageText = 'P.' + t.startPage;
@@ -7398,6 +7479,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         typeObj.instances.push({
                             id: 'ins_' + genId(),
                             name: name,
+                            alias: name.charAt(0),  // v1.5.144: 預設簡稱 = 第一字
                             type: 'volume',
                             units: null,
                             vols: { '第一冊': [] },
@@ -7412,6 +7494,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         typeObj.instances.push({
                             id: 'ins_' + genId(),
                             name: name,
+                            alias: name.charAt(0),  // v1.5.144: 預設簡稱 = 第一字
                             type: 'custom',
                             units: [],
                             vols: null,
