@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.148]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.149]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9259,11 +9259,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (l.date > logData[l.unitId].lastDate) logData[l.unitId].lastDate = l.date;
                 logData[l.unitId].totalDonePages += l.pages;
             });
-            // v1.5.109: logData 用 overlap 覆蓋 (支援跨單元)
-            Object.keys(overlapData).forEach(function(uid) {
-                if (!logData[uid]) logData[uid] = { dates: new Set(), lastDate: '', totalDonePages: 0 };
-                logData[uid].totalDonePages = overlapData[uid];
-            });
+            // v1.5.149: 不再用 overlap algorithm (task.isDone=true 但實際沒寫過的 unit 會被誤算)
+// 原 v1.5.109 覆蓋逻辑錯誤: 漠南非洲 example 有 task.isDone=true 但 dates=0,
+// 被 overlap 覆盖後 totalDonePages = 全 unit pages, 結果被當 doneUnits (但實際沒寫過)
+// v1.5.149: 只用 log 統計總 pages,不用 overlap
+            // Object.keys(overlapData).forEach(...)  -- 已停用
 
             var targetOrder = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
 
@@ -9298,27 +9298,43 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var todoUnits = [];
                         
                         function processUnit(u) {
-                            // v1.5.148: 改用 helper, 根據 unit-based 或 page-based 計算進度
+                            // v1.5.148 + v1.5.149: 改用 helper, 根據 unit-based 或 page-based 計算進度
                             var ctx = findUnitContext(u.id);
                             var typeObj = ctx ? ctx.typeObj : null;
                             var pTotal = getUnitTotalCount(u, typeObj);
-                            var pDone = getUnitDoneCount(u, typeObj, overlapData);
+                            // v1.5.149: page-based 用 logData.totalDonePages (不用 overlapData 避免誤判)
+                            // unit-based 用 getUnitDoneCount (scan task.isDone)
+                            var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, overlapData) : (logData[u.id] ? logData[u.id].totalDonePages : 0);
                             if (pDone > pTotal) pDone = pTotal;
 
+                            // v1.5.149: 檢查是否實際寫過 (dates.size > 0) 才算 done
+                            // 避免 overlap algorithm 把跨單元 task 誤算進來
+                            var isActuallyDone = false;
+                            if (pDone >= pTotal) {
+                                if (isUnitBasedType(typeObj)) {
+                                    isActuallyDone = pDone === 1;
+                                } else {
+                                    isActuallyDone = (logData[u.id] && logData[u.id].dates.size > 0);
+                                }
+                            }
+
+                            // v1.5.149: donePages + totalPages 始終累加 (partial done 也算)
                             totalPages += pTotal;
                             donePages += pDone;
                             
-                            if (pDone >= pTotal) {
+                            if (isActuallyDone) {
                                 doneUnits.push({
                                     name: u.name,
                                     days: logData[u.id] ? logData[u.id].dates.size : 1,
                                     finishDate: logData[u.id] ? logData[u.id].lastDate : '未知'
                                 });
                             } else {
+                                // v1.5.149: 如果是 unit-based 但 task 實際沒 isDone, 重設 pDone
+                                if (isUnitBasedType(typeObj) && pDone > 0) pDone = 0;
                                 todoUnits.push({
                                     id: u.id,
                                     name: u.name,
-                                    pagesLeft: pTotal - pDone,
+                                    pagesLeft: Math.max(0, pTotal - pDone),
                                     totalPages: pTotal,
                                     range: isUnitBasedType(typeObj) ? u.name : ('P.' + u.start + '~' + u.end),
                                     expected: findUnitScheduledDate(u.id),
@@ -9339,21 +9355,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var pct = totalPages > 0 ? Math.round((donePages / totalPages) * 100) : 0;
                         var pctRemain = 100 - pct;
                         
-                        // v1.5.148: 判斷 subject 是否 unit-based (從 processUnit 的 typeObj)
-                        var subjectIsUnitBased = false;
-                        if (sTree.type === 'custom' && sTree.items['custom'] && sTree.items['custom'].length > 0) {
-                            var firstU = sTree.items['custom'][0];
-                            var ctxFirst = findUnitContext(firstU.id);
-                            subjectIsUnitBased = ctxFirst && isUnitBasedType(ctxFirst.typeObj);
-                        } else {
-                            // volume: 看第一個 vol 第一個 unit
-                            var firstVolKey = Object.keys(sTree.items)[0];
-                            if (firstVolKey && sTree.items[firstVolKey].length > 0) {
-                                var ctxV = findUnitContext(sTree.items[firstVolKey][0].id);
-                                subjectIsUnitBased = ctxV && isUnitBasedType(ctxV.typeObj);
-                            }
-                        }
-                        var unitLabelText = subjectIsUnitBased ? 'units' : '頁';
+                        // v1.5.149: 判斷 subject 為純 unit-based (全部 units 都 unit-based)
+                        // 否則顯示 頁
+                        var allUnitBased = true;
+                        var anyUnit = false;
+                        Object.keys(sTree.items).forEach(function(volKey) {
+                            (sTree.items[volKey] || []).forEach(function(u) {
+                                anyUnit = true;
+                                var ctxCheck = findUnitContext(u.id);
+                                if (!ctxCheck || !isUnitBasedType(ctxCheck.typeObj)) allUnitBased = false;
+                            });
+                        });
+                        if (!anyUnit) allUnitBased = false;
+                        var unitLabelText = allUnitBased ? 'units' : '頁';
                         
                         var dataKey = 'key_' + genId();
                         window._dashDataStore[dataKey] = { done: doneUnits, todo: todoUnits };
