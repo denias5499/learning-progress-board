@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.149]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.150]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7603,11 +7603,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var s = data.instance;
 
             if (s.type === 'custom') {
-                root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\')">➕ 新增單元</button></div>';
+                root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\', null, isUnitBasedType(data.typeObj))">➕ 新增單元</button></div>';
                 if (!window._skipLoadUnits) {
-                    (s.units || []).forEach(u => addSettingRow('cfg-list-custom', u));
+                    (s.units || []).forEach(u => addSettingRow('cfg-list-custom', u, isUnitBasedType(data.typeObj)));
                 } else {
-                    addSettingRow('cfg-list-custom');
+                    addSettingRow('cfg-list-custom', null, isUnitBasedType(data.typeObj));
                 }
             } else {
                 var volsToRender = s.volOrder || Object.keys(s.vols);
@@ -7626,7 +7626,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 </div>
                                 <div id="cfg-list-${vol}"></div>
                                 <div style="margin-top:10px;">
-                                    <button type="button" class="btn-outline" onclick="addSettingRow('cfg-list-${safeVol}')">➕ 新增單元</button>
+                                    <button type="button" class="btn-outline" onclick="addSettingRow('cfg-list-${safeVol}', null, isUnitBasedType(data.typeObj))">➕ 新增單元</button>
                                 </div>
                             </div>`;
                 });
@@ -7642,26 +7642,39 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
                 root.innerHTML = html;
                 setTimeout(() => {
+                    // v1.5.150: 傳 isUnitBased 到 addSettingRow
+                    var isUB = isUnitBasedType(data.typeObj);
                     if (!window._skipLoadUnits) {
-                        volsToRender.forEach(vol => { (s.vols[vol] || []).forEach(u => addSettingRow('cfg-list-'+vol, u)); });
+                        volsToRender.forEach(vol => { (s.vols[vol] || []).forEach(u => addSettingRow('cfg-list-'+vol, u, isUB)); });
                     } else {
-                        volsToRender.forEach(vol => { addSettingRow('cfg-list-'+vol); });
+                        volsToRender.forEach(vol => { addSettingRow('cfg-list-'+vol, null, isUB); });
                     }
                 }, 0);
             }
         }
 
-        function addSettingRow(containerId, u) { 
-            if (!u) { u = { id: genId(), name: '', start: '', end: '' }; window.isMasterDirty = true; } 
+        function addSettingRow(containerId, u, isUnitBased) { 
+            if (!u) { u = { id: genId(), name: '', start: 1, end: 1 }; window.isMasterDirty = true; } 
+            // v1.5.150: unit-based 預設 start/end = 1 (無頁碼)
+            if (isUnitBased && (!u.start || !u.end)) { u.start = 1; u.end = 1; }
             var container = document.getElementById(containerId); 
             if(!container) return; 
             var div = document.createElement('div'); 
             div.className = 'setting-unit-row'; 
             div.dataset.uid = u.id; 
-            div.innerHTML = `✏️ <input type="text" class="cfg-name" placeholder="單元名" value="${u.name}" oninput="window.isMasterDirty=true;">
+            // v1.5.150: unit-based 隱藏起註頁碼輸入, 用 hidden input 保存預設值
+            if (isUnitBased) {
+                div.innerHTML = `✏️ <input type="text" class="cfg-name" placeholder="單元名 (例如 第1回)" value="${u.name}" oninput="window.isMasterDirty=true;">
+                            <input type="hidden" class="cfg-start" value="1">
+                            <input type="hidden" class="cfg-end" value="1">
+                            <small style="color:#888; font-size:0.85em; margin-left:5px;">(unit-based 無頁碼)</small>
+                            <button type="button" class="btn-danger" onclick="this.parentElement.remove(); window.isMasterDirty=true;">🗑️</button>`; 
+            } else {
+                div.innerHTML = `✏️ <input type="text" class="cfg-name" placeholder="單元名" value="${u.name}" oninput="window.isMasterDirty=true;">
                             <span>起</span><input type="number" class="cfg-start" placeholder="頁碼" value="${u.start||''}" min="1" oninput="window.isMasterDirty=true;">
                             <span>迄</span><input type="number" class="cfg-end" placeholder="頁碼" value="${u.end||''}" min="1" oninput="window.isMasterDirty=true;">
                             <button type="button" class="btn-danger" onclick="this.parentElement.remove(); window.isMasterDirty=true;">🗑️</button>`; 
+            }
             container.appendChild(div); 
         }
 
