@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.147]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.148]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8018,12 +8018,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             }
                         }
                         html += instanceHeader;
-                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(key)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(key)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(label)} (全冊)</b></label>`;
+                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(keyVolName)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(keyVolName)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(label)} (全冊)</b></label>`;
                         html += `<div style="padding-left:15px;">`;
                         info.units.forEach(function(u) {
                             var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
                             var pRange = (u.start || u.end) ? ' (P.' + (u.start||'?') + '~' + (u.end||'?') + ')' : '';
-                            html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${escapeHtml(key)}" style="width:auto; margin-right:5px;"> ${escapeHtml(u.name)}${pRange}</label>`;
+                            html += `<label style="display:block; margin-bottom:8px; font-size:0.95em; cursor:pointer;"><input type="checkbox" value="${u.id}" ${isChecked} onchange="toggleMisUnit('${u.id}', this.checked, this)" data-vol="${escapeHtml(keyVolName)}" style="width:auto; margin-right:5px;"> ${escapeHtml(u.name)}${pRange}</label>`;
                         });
                         html += `</div>`;
                     });
@@ -9298,11 +9298,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var todoUnits = [];
                         
                         function processUnit(u) {
-                            var pTotal = (u.end - u.start + 1) || 0;
-                            if (pTotal <= 0) pTotal = 1; 
-                            var pDone = logData[u.id] ? logData[u.id].totalDonePages : 0;
+                            // v1.5.148: 改用 helper, 根據 unit-based 或 page-based 計算進度
+                            var ctx = findUnitContext(u.id);
+                            var typeObj = ctx ? ctx.typeObj : null;
+                            var pTotal = getUnitTotalCount(u, typeObj);
+                            var pDone = getUnitDoneCount(u, typeObj, overlapData);
                             if (pDone > pTotal) pDone = pTotal;
-                            
+
                             totalPages += pTotal;
                             donePages += pDone;
                             
@@ -9318,7 +9320,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                     name: u.name,
                                     pagesLeft: pTotal - pDone,
                                     totalPages: pTotal,
-                                    range: 'P.' + u.start + '~' + u.end,
+                                    range: isUnitBasedType(typeObj) ? u.name : ('P.' + u.start + '~' + u.end),
                                     expected: findUnitScheduledDate(u.id),
                                     openTaskCount: getUnitOpenTaskCount(u.id)
                                 });
@@ -9337,12 +9339,28 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var pct = totalPages > 0 ? Math.round((donePages / totalPages) * 100) : 0;
                         var pctRemain = 100 - pct;
                         
+                        // v1.5.148: 判斷 subject 是否 unit-based (從 processUnit 的 typeObj)
+                        var subjectIsUnitBased = false;
+                        if (sTree.type === 'custom' && sTree.items['custom'] && sTree.items['custom'].length > 0) {
+                            var firstU = sTree.items['custom'][0];
+                            var ctxFirst = findUnitContext(firstU.id);
+                            subjectIsUnitBased = ctxFirst && isUnitBasedType(ctxFirst.typeObj);
+                        } else {
+                            // volume: 看第一個 vol 第一個 unit
+                            var firstVolKey = Object.keys(sTree.items)[0];
+                            if (firstVolKey && sTree.items[firstVolKey].length > 0) {
+                                var ctxV = findUnitContext(sTree.items[firstVolKey][0].id);
+                                subjectIsUnitBased = ctxV && isUnitBasedType(ctxV.typeObj);
+                            }
+                        }
+                        var unitLabelText = subjectIsUnitBased ? 'units' : '頁';
+                        
                         var dataKey = 'key_' + genId();
                         window._dashDataStore[dataKey] = { done: doneUnits, todo: todoUnits };
 
                         var barHtml = `
                             <div class="card" style="padding: 15px;">
-                                <div class="subject-name" style="margin-bottom: 10px; border:none; padding:0;">📌 ${sub} <span style="font-size:0.8em; color:#7f8c8d; font-weight:normal;">(${donePages}/${totalPages} 頁)</span></div>
+                                <div class="subject-name" style="margin-bottom: 10px; border:none; padding:0;">📌 ${sub} <span style="font-size:0.8em; color:#7f8c8d; font-weight:normal;">(${donePages}/${totalPages} ${unitLabelText})</span></div>
                                 <div style="display: flex; height: 35px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
                                     <div style="width: ${pct}%; background: repeating-linear-gradient(45deg, #a7f3d0, #a7f3d0 10px, #34d399 10px, #34d399 20px); display: flex; align-items: center; justify-content: center; color: #064e3b; font-weight: bold; cursor: pointer; font-size: 1.1em; text-shadow: 0 0 3px rgba(255,255,255,0.8);" title="點擊查看已完成詳細資訊" onclick="showDashDetail('done', '${sub}', '${dataKey}')">
                                         ${pct > 4 ? pct + '%' : ''}
