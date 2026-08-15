@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.155]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.157]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1747,14 +1747,15 @@
                     }
                 }
             }
-            // 找不到 instance 對象, fallback 用 instanceName 第一字
-            return u.instanceName.charAt(0);
+            // v1.5.157: 找不到 instance 對象, fallback 用完整 instanceName
+            return u.instanceName;
         }
 
         function getInstanceAlias(instance) {
             if (!instance) return '?';
             if (instance.alias) return instance.alias;
-            if (instance.name) return instance.name.charAt(0);
+            // v1.5.157: fallback 到完整名稱
+            if (instance.name) return instance.name;
             return '?';
         }
 
@@ -7560,7 +7561,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         typeObj.instances.push({
                             id: 'ins_' + genId(),
                             name: name,
-                            alias: name.charAt(0),  // v1.5.144: 預設簡稱 = 第一字
+                            alias: name,  // v1.5.157: 預設簡稱 = 完整名
                             type: 'volume',
                             units: null,
                             vols: { '第一冊': [] },
@@ -7575,7 +7576,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         typeObj.instances.push({
                             id: 'ins_' + genId(),
                             name: name,
-                            alias: name.charAt(0),  // v1.5.144: 預設簡稱 = 第一字
+                            alias: name,  // v1.5.157: 預設簡稱 = 完整名
                             type: 'custom',
                             units: [],
                             vols: null,
@@ -7616,8 +7617,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     '</div>' +
                     '<div class="form-group" style="margin-top:12px;">' +
                         '<label>簡稱 (用於月曆顯示及列印格式)</label>' +
-                        '<input type="text" id="inst-edit-alias" value="' + escapeHtml(inst.alias || (inst.name ? inst.name.charAt(0) : '')) + '" placeholder="例：麻、114" style="width:100%; padding:8px; font-size:1.05em;">' +
-                        '<small style="color:#7f8c8d;">留空則自動取名稱第一字</small>' +
+                        '<input type="text" id="inst-edit-alias" value="' + escapeHtml(inst.alias || inst.name || '') + '" placeholder="預設=教材名稱" style="width:100%; padding:8px; font-size:1.05em;">' +
+                        '<small style="color:#7f8c8d;">預設=教材名稱完整名 (可改短如「麻」「114」)</small>' +
                     '</div>' +
                 '</div>' +
                 '<div style="text-align: right; margin-top: 20px;">' +
@@ -7640,8 +7641,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return alert('已存在同名教材！');
             }
             data.instance.name = newName;
-            // v1.5.155: alias 改用戶輸入 (空字串 = fallback 到 name 第一字)
-            data.instance.alias = newAlias || (newName ? newName.charAt(0) : '');
+            // v1.5.157: alias 改用戶輸入 (空字串 = fallback 到完整名稱)
+            data.instance.alias = newAlias || newName;
             el('modal-instance-edit').remove();
             saveToLocal();
             populateMasterInstanceDropdown(typeName);
