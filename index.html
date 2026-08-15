@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.157]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.158]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -319,6 +319,26 @@
 }
 .stats-view { display: none; }
 .stats-view.active { display: block; }
+
+/* v1.5.158: 答對率統計 */
+.accuracy-form { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.accuracy-form .form-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.accuracy-form .form-row label { font-weight: bold; color: var(--secondary); white-space: nowrap; min-width: 70px; }
+.accuracy-form select, .accuracy-form input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; }
+.accuracy-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
+.accuracy-table th, .accuracy-table td { border: 1px solid var(--border); padding: 8px 10px; text-align: center; }
+.accuracy-table th { background: #e2e8f0; color: var(--primary); font-weight: bold; }
+.accuracy-table tr:nth-child(even) { background: #f8fafc; }
+.accuracy-bar { display: inline-block; width: 80px; height: 18px; background: #e5e7eb; border-radius: 9px; overflow: hidden; vertical-align: middle; position: relative; }
+.accuracy-bar-fill { height: 100%; border-radius: 9px; }
+.accuracy-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: bold; }
+.accuracy-filter { background: #fffbea; border: 1px solid #fde047; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.accuracy-filter .form-row { display: flex; gap: 10px; align-items: center; }
+.accuracy-wrong-chip { display: inline-block; background: #fee2e2; color: #991b1b; padding: 3px 10px; border-radius: 10px; font-size: 0.85em; margin: 2px; }
+.accuracy-wrong-chip .x { cursor: pointer; margin-left: 4px; font-weight: bold; }
+[data-theme="dark"] .accuracy-form { background: #1e293b; }
+[data-theme="dark"] .accuracy-filter { background: #3f3f1d; }
+[data-theme="dark"] .accuracy-table tr:nth-child(even) { background: #1e293b; }
 .stats-card-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 20px;
@@ -1288,6 +1308,7 @@
                 <div class="stats-tabs">
                     <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">🌳 樹狀圖</button>
                     <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">📅 月份分析</button>
+                    <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">🎯 答對率統計</button>
                 </div>
                 <div id="stats-tree" class="stats-view active">
                     <!-- v1.5.8: 樹狀圖獨立 Category dropdown (不跟 mission filter 連動) -->
@@ -1300,6 +1321,9 @@
                 </div>
                 <div id="stats-monthly" class="stats-view">
                     <div id="monthly-root"></div>
+                </div>
+                <div id="stats-accuracy" class="stats-view">
+                    <div id="accuracy-root"></div>
                 </div>
             </div>
         </div>
@@ -7005,8 +7029,388 @@ function renderWizardUnitRowHtml(ws, i, u) {
             });
             if (view === 'tree') renderTreeView();
             else if (view === 'monthly') renderMonthlyAnalysis();
+            else if (view === 'accuracy') renderAccuracyStats();
         }
         
+        // v1.5.158: 答對率統計 (per-user storage, 改下拉立即重渲染)
+        var STORAGE_KEY_ACCURACY_BASE = 'StudyMap_AccuracyRecords_V158';
+        if (!window._accWrongUnits) window._accWrongUnits = [];
+        if (!window._accFilters) window._accFilters = { subject: '__ALL__', unit: '__ALL__', typeName: '__ALL__' };
+
+        function accStorageKey() {
+            var uid = (typeof currentUserId !== 'undefined') ? currentUserId : 'default';
+            return STORAGE_KEY_ACCURACY_BASE + '_' + uid;
+        }
+
+        function loadAccuracyRecords() {
+            try { return JSON.parse(localStorage.getItem(accStorageKey()) || '[]'); }
+            catch(e) { return []; }
+        }
+
+        function saveAccuracyRecords(records) {
+            try { localStorage.setItem(accStorageKey(), JSON.stringify(records)); }
+            catch(e) { showSaveErrorToast(e); }
+        }
+
+        function getAccuracySubjects() {
+            var subs = Object.keys(appMaster || {});
+            return subs.filter(function(s) { return appMaster[s] && appMaster[s].materials; });
+        }
+
+        function getAccuracyMaterialTypes(subject) {
+            var s = appMaster[subject];
+            if (!s || !s.materials) return [];
+            return Object.keys(s.materials).filter(function(t) {
+                return s.materials[t] && Array.isArray(s.materials[t].instances);
+            });
+        }
+
+        function getAccuracyInstances(subject, typeName) {
+            var s = appMaster[subject];
+            if (!s || !s.materials || !s.materials[typeName]) return [];
+            return s.materials[typeName].instances || [];
+        }
+
+        function getAccuracyUnits(subject, typeName, instanceId) {
+            var s = appMaster[subject];
+            if (!s || !s.materials || !s.materials[typeName]) return [];
+            var typeObj = s.materials[typeName];
+            var inst = typeObj.instances.find(function(i) { return i.id === instanceId; });
+            if (!inst) return [];
+            var units = [];
+            if (inst.vols) {
+                (inst.volOrder || Object.keys(inst.vols)).forEach(function(vol) {
+                    (inst.vols[vol] || []).forEach(function(u) { units.push(u.name || u.id); });
+                });
+            }
+            if (Array.isArray(inst.units)) {
+                inst.units.forEach(function(u) { units.push(u.name || u.id); });
+            }
+            return units;
+        }
+
+        // v1.5.158: 取教材庫所有 unit + 記錄中出現過的 unit (合併去重)
+        function getAllUnitsForFilter() {
+            var set = new Set();
+            // 教材庫的 unit
+            Object.keys(appMaster || {}).forEach(function(sub) {
+                var s = appMaster[sub];
+                if (!s || !s.materials) return;
+                Object.keys(s.materials).forEach(function(tName) {
+                    var t = s.materials[tName];
+                    if (!t || !Array.isArray(t.instances)) return;
+                    t.instances.forEach(function(inst) {
+                        if (inst.vols) {
+                            (inst.volOrder || Object.keys(inst.vols)).forEach(function(vol) {
+                                (inst.vols[vol] || []).forEach(function(u) {
+                                    if (u.name) set.add(u.name);
+                                });
+                            });
+                        }
+                        if (Array.isArray(inst.units)) {
+                            inst.units.forEach(function(u) { if (u.name) set.add(u.name); });
+                        }
+                    });
+                });
+            });
+            // 記錄中出現過的 unit
+            var records = loadAccuracyRecords();
+            records.forEach(function(r) {
+                (r.wrongUnits || []).forEach(function(u) { set.add(u); });
+            });
+            return Array.from(set);
+        }
+
+        function renderAccuracyStats() {
+            var container = el('accuracy-root');
+            if (!container) return;
+            var records = loadAccuracyRecords();
+            var subjects = getAccuracySubjects();
+
+            var html = '';
+            // ===== 輸入表單 =====
+            html += '<div class="accuracy-form">';
+            html += '<h3 style="margin-top:0; color:var(--primary);">📝 新增答對率記錄</h3>';
+            html += '<div class="form-row">';
+            html += '<label>科目</label>';
+            html += '<select id="acc-subject" onchange="accOnSubjectChange()"><option value="">--選擇--</option>';
+            subjects.forEach(function(s) { html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; });
+            html += '</select>';
+            html += '<label>教材類型</label>';
+            html += '<select id="acc-type" onchange="accOnTypeChange()" disabled><option value="">--先選科目--</option></select>';
+            html += '<label>教材版本</label>';
+            html += '<select id="acc-instance" onchange="accOnInstanceChange()" disabled><option value="">--先選類型--</option></select>';
+            html += '</div>';
+            html += '<div class="form-row">';
+            html += '<label>總題數</label>';
+            html += '<input type="number" id="acc-total" min="1" style="width:80px;" placeholder="例:50">';
+            html += '<label>答對題數</label>';
+            html += '<input type="number" id="acc-correct" min="0" style="width:80px;" placeholder="例:42">';
+            html += '<label>考試日期</label>';
+            html += '<input type="date" id="acc-date" style="width:140px;">';
+            html += '</div>';
+            html += '<div class="form-row">';
+            html += '<label>錯題單元</label>';
+            html += '<select id="acc-unit" disabled><option value="">--先選教材版本--</option></select>';
+            html += '<button type="button" class="btn-outline" style="font-size:0.8em; padding:4px 10px;" onclick="accAddWrongUnit()">＋ 加入</button>';
+            html += '<span style="color:#7f8c8d; font-size:0.85em;">或手動:</span>';
+            html += '<input type="text" id="acc-unit-manual" placeholder="例:字音、段考全範圍" style="width:200px;">';
+            html += '<button type="button" class="btn-outline" style="font-size:0.8em; padding:4px 10px;" onclick="accAddManualWrongUnit()">＋ 新增</button>';
+            html += '</div>';
+            html += '<div id="acc-wrong-units" style="margin-bottom:10px;"></div>';
+            html += '<div style="text-align:right;">';
+            html += '<button type="button" class="btn-primary" onclick="accSaveRecord()">💾 儲存記錄</button>';
+            html += '</div>';
+            html += '</div>';
+
+            // ===== 篩選器 =====
+            html += '<div class="accuracy-filter">';
+            html += '<div class="form-row">';
+            html += '<label style="font-weight:bold; color:var(--secondary); min-width:auto;">🔍 篩選</label>';
+            // 科目
+            html += '<label>科目</label>';
+            html += '<select id="acc-filter-subject" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
+            subjects.forEach(function(s) { html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; });
+            html += '</select>';
+            // 教材類型</select>
+            html += '<label>教材類型</label>';
+            html += '<select id="acc-filter-type" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
+            var allTypes = new Set();
+            subjects.forEach(function(sub) {
+                Object.keys((appMaster[sub] || {}).materials || {}).forEach(function(t) { allTypes.add(t); });
+            });
+            Array.from(allTypes).forEach(function(t) { html += '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; });
+            html += '</select>';
+            // 單元
+            html += '<label>單元</label>';
+            html += '<select id="acc-filter-unit" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
+            var allUnits = getAllUnitsForFilter();
+            allUnits.forEach(function(u) { html += '<option value="' + escapeHtml(u) + '">' + escapeHtml(u) + '</option>'; });
+            html += '</select>';
+            html += '<span style="color:#7f8c8d; font-size:0.85em; margin-left:auto;">改任一 → 立即重渲染</span>';
+            html += '</div>';
+            html += '</div>';
+
+            // ===== 篩選 + 排序 + 總表 =====
+            var fSub = window._accFilters.subject;
+            var fType = window._accFilters.typeName;
+            var fUnit = window._accFilters.unit;
+            var filtered = records.filter(function(r) {
+                if (fSub !== '__ALL__' && r.subject !== fSub) return false;
+                if (fType !== '__ALL__' && r.typeName !== fType) return false;
+                if (fUnit !== '__ALL__') {
+                    if (!r.wrongUnits || r.wrongUnits.indexOf(fUnit) === -1) return false;
+                }
+                return true;
+            });
+            // 按答對率 DESC
+            filtered.sort(function(a, b) {
+                var ra = a.total > 0 ? (a.correct / a.total) : 0;
+                var rb = b.total > 0 ? (b.correct / b.total) : 0;
+                return rb - ra;
+            });
+
+            if (filtered.length === 0) {
+                html += '<div style="text-align:center; color:var(--secondary); padding:20px;">';
+                html += records.length === 0 ? '尚無答對率記錄' : '目前篩選無記錄';
+                html += '</div>';
+            } else {
+                html += '<h3 style="color:var(--primary); margin-bottom:10px;">📊 答對率總表 (共 ' + filtered.length + ' 筆)</h3>';
+                html += '<table class="accuracy-table"><thead><tr>';
+                html += '<th>日期</th><th>科目</th><th>教材類型</th><th>教材版本</th><th>總題數</th><th>答對</th><th>答對率</th><th>錯題單元</th><th>操作</th>';
+                html += '</tr></thead><tbody>';
+                filtered.forEach(function(r) {
+                    // idx 用原 records 索引, 刪除用
+                    var origIdx = records.indexOf(r);
+                    var rate = r.total > 0 ? (r.correct / r.total * 100) : 0;
+                    var rateColor = rate >= 96 ? '#27ae60' : (rate >= 90 ? '#f59e0b' : '#ef4444');
+                    var barColor = rateColor;
+                    html += '<tr>';
+                    html += '<td>' + (r.date || '-') + '</td>';
+                    html += '<td>' + escapeHtml(r.subject || '') + '</td>';
+                    html += '<td>' + escapeHtml(r.typeName || '') + '</td>';
+                    html += '<td>' + escapeHtml(r.instanceName || '') + '</td>';
+                    html += '<td>' + r.total + '</td>';
+                    html += '<td>' + r.correct + '</td>';
+                    html += '<td>';
+                    html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; background:' + barColor + ';"></div></div> ';
+                    html += '<span class="accuracy-chip" style="background:' + rateColor + '20; color:' + rateColor + ';">' + rate.toFixed(1) + '%</span>';
+                    html += '</td>';
+                    html += '<td>' + (r.wrongUnits && r.wrongUnits.length > 0 ? r.wrongUnits.map(escapeHtml).join(', ') : '-') + '</td>';
+                    html += '<td><button type="button" onclick="accDeleteRecord(' + origIdx + ')" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em;">🗑</button></td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                // 統計摘要
+                var totalCorrect = filtered.reduce(function(s, r) { return s + (r.correct || 0); }, 0);
+                var totalQuestions = filtered.reduce(function(s, r) { return s + (r.total || 0); }, 0);
+                var overallRate = totalQuestions > 0 ? (totalCorrect / totalQuestions * 100) : 0;
+                var overallColor = overallRate >= 96 ? '#27ae60' : (overallRate >= 90 ? '#f59e0b' : '#ef4444');
+                var summaryLabel = (fSub !== '__ALL__' || fType !== '__ALL__' || fUnit !== '__ALL__') ? '(篩選後)' : '(全部)';
+                html += '<div style="margin-top:16px; padding:12px; background:#f0f8ff; border-radius:8px; border:1px solid var(--border);">';
+                html += '<strong>📈 總答對率 ' + summaryLabel + ': ' + totalCorrect + '/' + totalQuestions + ' = <span style="color:' + overallColor + '; font-size:1.2em;">' + overallRate.toFixed(1) + '%</span></strong>';
+                html += '</div>';
+            }
+            container.innerHTML = html;
+
+            // 設定今天日期
+            var dateInput = el('acc-date');
+            if (dateInput) dateInput.value = new Date().toISOString().slice(0, 10);
+
+            // 套用 filter dropdown 狀態
+            setTimeout(function() {
+                if (el('acc-filter-subject')) el('acc-filter-subject').value = window._accFilters.subject;
+                if (el('acc-filter-type')) el('acc-filter-type').value = window._accFilters.typeName;
+                if (el('acc-filter-unit')) el('acc-filter-unit').value = window._accFilters.unit;
+            }, 0);
+
+            accRenderWrongUnits();
+        }
+
+        function accOnSubjectChange() {
+            var sub = el('acc-subject').value;
+            var typeSel = el('acc-type');
+            var instSel = el('acc-instance');
+            var unitSel = el('acc-unit');
+            if (!sub) {
+                typeSel.innerHTML = '<option value="">--先選科目--</option>';
+                typeSel.disabled = true;
+                instSel.innerHTML = '<option value="">--先選類型--</option>';
+                instSel.disabled = true;
+                unitSel.innerHTML = '<option value="">--先選教材版本--</option>';
+                unitSel.disabled = true;
+                return;
+            }
+            var types = getAccuracyMaterialTypes(sub);
+            typeSel.innerHTML = '<option value="">--選擇--</option>' + types.map(function(t) { return '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; }).join('');
+            typeSel.disabled = false;
+            instSel.innerHTML = '<option value="">--先選類型--</option>';
+            instSel.disabled = true;
+            unitSel.innerHTML = '<option value="">--先選教材版本--</option>';
+            unitSel.disabled = true;
+        }
+
+        function accOnTypeChange() {
+            var sub = el('acc-subject').value;
+            var typeName = el('acc-type').value;
+            var instSel = el('acc-instance');
+            var unitSel = el('acc-unit');
+            if (!sub || !typeName) {
+                instSel.innerHTML = '<option value="">--先選類型--</option>';
+                instSel.disabled = true;
+                unitSel.innerHTML = '<option value="">--先選教材版本--</option>';
+                unitSel.disabled = true;
+                return;
+            }
+            var insts = getAccuracyInstances(sub, typeName);
+            instSel.innerHTML = '<option value="">--選擇--</option>' + insts.map(function(i) { return '<option value="' + i.id + '">' + escapeHtml(i.name) + '</option>'; }).join('');
+            instSel.disabled = false;
+            unitSel.innerHTML = '<option value="">--先選教材版本--</option>';
+            unitSel.disabled = true;
+        }
+
+        function accOnInstanceChange() {
+            var sub = el('acc-subject').value;
+            var typeName = el('acc-type').value;
+            var instId = el('acc-instance').value;
+            var unitSel = el('acc-unit');
+            if (!sub || !typeName || !instId) {
+                unitSel.innerHTML = '<option value="">--先選教材版本--</option>';
+                unitSel.disabled = true;
+                return;
+            }
+            var units = getAccuracyUnits(sub, typeName, instId);
+            unitSel.innerHTML = '<option value="">--選擇--</option>' + units.map(function(u) { return '<option value="' + escapeHtml(u) + '">' + escapeHtml(u) + '</option>'; }).join('');
+            unitSel.disabled = false;
+        }
+
+        function accAddWrongUnit() {
+            var unitName = el('acc-unit').value;
+            if (!unitName) return alert('請先選擇錯題單元!');
+            if (window._accWrongUnits.indexOf(unitName) >= 0) return alert('已加入過此單元!');
+            window._accWrongUnits.push(unitName);
+            accRenderWrongUnits();
+        }
+
+        function accAddManualWrongUnit() {
+            var input = el('acc-unit-manual');
+            var unitName = (input.value || '').trim();
+            if (!unitName) return alert('請輸入單元名稱!');
+            if (window._accWrongUnits.indexOf(unitName) >= 0) return alert('已加入過此單元!');
+            window._accWrongUnits.push(unitName);
+            input.value = '';
+            accRenderWrongUnits();
+        }
+
+        function accRemoveWrongUnit(idx) {
+            window._accWrongUnits.splice(idx, 1);
+            accRenderWrongUnits();
+        }
+
+        function accRenderWrongUnits() {
+            var container = el('acc-wrong-units');
+            if (!container) return;
+            if (window._accWrongUnits.length === 0) {
+                container.innerHTML = '<span style="color:#94a3b8; font-size:0.85em;">(尚無錯題單元)</span>';
+                return;
+            }
+            container.innerHTML = window._accWrongUnits.map(function(u, idx) {
+                return '<span class="accuracy-wrong-chip">' + escapeHtml(u) + '<span class="x" onclick="accRemoveWrongUnit(' + idx + ')" title="移除">×</span></span>';
+            }).join('');
+        }
+
+        function accSaveRecord() {
+            var sub = el('acc-subject').value;
+            var typeName = el('acc-type').value;
+            var instSel = el('acc-instance');
+            var instId = instSel.value;
+            var instName = instId ? (instSel.options[instSel.selectedIndex] || {}).text : '';
+            var total = parseInt(el('acc-total').value, 10);
+            var correct = parseInt(el('acc-correct').value, 10);
+            var date = el('acc-date').value;
+
+            if (!sub) return alert('請選擇科目!');
+            if (!typeName) return alert('請選擇教材類型!');
+            if (!instId) return alert('請選擇教材版本!');
+            if (!total || total < 1) return alert('請填入總題數!');
+            if (isNaN(correct) || correct < 0) return alert('請填入答對題數!');
+            if (correct > total) return alert('答對題數不能大於總題數!');
+            if (!date) return alert('請選擇日期!');
+
+            var record = {
+                id: 'acc_' + genId(),
+                date: date,
+                subject: sub,
+                typeName: typeName,
+                instanceId: instId,
+                instanceName: instName,
+                total: total,
+                correct: correct,
+                wrongUnits: (window._accWrongUnits || []).slice()
+            };
+            var records = loadAccuracyRecords();
+            records.push(record);
+            saveAccuracyRecords(records);
+            window._accWrongUnits = [];
+            renderAccuracyStats();
+        }
+
+        function accDeleteRecord(idx) {
+            var records = loadAccuracyRecords();
+            if (idx >= 0 && idx < records.length) {
+                records.splice(idx, 1);
+                saveAccuracyRecords(records);
+                renderAccuracyStats();
+            }
+        }
+
+        function accOnFilterChange() {
+            window._accFilters.subject = el('acc-filter-subject').value;
+            window._accFilters.typeName = el('acc-filter-type').value;
+            window._accFilters.unit = el('acc-filter-unit').value;
+            renderAccuracyStats();
+        }
+
         function renderHistoryTable() {
             var todayStr = getLocalDateString(new Date());
             var sortedLogs = [...appLogs].sort((a, b) => new Date(b.date) - new Date(a.date));
