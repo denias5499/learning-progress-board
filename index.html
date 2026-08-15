@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.159]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.160]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4600,7 +4600,16 @@ function getUnitDonePagesByOverlap() {
                     var s = t.startPage > u.start ? t.startPage : u.start;
                     var e = t.endPage < u.end ? t.endPage : u.end;
                     if (e >= s) {
-                        result[uid] = (result[uid] || 0) + (e - s + 1);
+                        // v1.5.160: 用 Set 去重, 避免重複 plan (順延/重建) 重複計算同一頁
+                        if (!result[uid + '_pages']) result[uid + '_pages'] = new Set();
+                        var pageSet = result[uid + '_pages'];
+                        var added = 0;
+                        for (var p = s; p <= e; p++) {
+                            if (!pageSet.has(p)) { pageSet.add(p); added++; }
+                        }
+                        if (added > 0) {
+                            result[uid] = (result[uid] || 0) + added;
+                        }
                     }
                 });
             });
