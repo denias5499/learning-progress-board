@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.162]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.163]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4544,6 +4544,27 @@ function isUnitScheduledAnywhere(u) {
 }
 
 // v1.5.107: 用 task 重疊頁數算每個 unit 的 donePages (用全部 cat, 不只 appMaster)
+// v1.5.163: 簡單對應算法 - 對每個 mission 內 unit, 算 task.unitId === this unit.id 的 done pages
+// 不用 overlap 跨單元分布 (避免跨單元任務的 pages 算到別 unit)
+function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
+    var result = {};
+    if (!appPlans) return result;
+    appPlans.forEach(function(plan) {
+        if (!plan.grid) return;
+        Object.keys(plan.grid).forEach(function(dStr) {
+            (plan.grid[dStr] || []).forEach(function(t) {
+                if (!t || !t.isDone || !t.unitId) return;
+                // v1.5.161: 按 mission filter 過濾
+                if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) return;
+                if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) return;
+                var pages = (t.endPage && t.startPage && t.endPage >= t.startPage) ? (t.endPage - t.startPage + 1) : 1;
+                result[t.unitId] = (result[t.unitId] || 0) + pages;
+            });
+        });
+    });
+    return result;
+}
+
 function getUnitDonePagesByOverlap(filterCat, filterMis) {
     var result = {};
     if (!appPlans || appPlans.length === 0) return result;
@@ -9762,8 +9783,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var totalRendered = 0; 
             window._dashDataStore = {}; 
             
-            // v1.5.161: 改用 task 重疊頁數算法 (跟樹狀圖一致) + 過濾 mission (避免跨 mission 混算)
-            var overlapData = getUnitDonePagesByOverlap(filterCat, filterMis);
+            // v1.5.163: 簡單對應算法 (task.unitId 對應 unit), 不用 overlap 跨單元分布
+            var simpleDone = getUnitDonePagesByUnitIdMatch(filterCat, filterMis);
             var logData = {};
             appLogs.forEach(l => {
                 if(l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
@@ -9817,7 +9838,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var pTotal = getUnitTotalCount(u, typeObj);
                             // v1.5.159: page-based 改用 overlapData 算 done pages (跨單元任務會按 overlap 分布到每個 unit)
                             // unit-based 用 getUnitDoneCount (scan task.isDone)
-                            var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, overlapData) : (overlapData[u.id] || 0);
+                            var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, overlapData) : (simpleDone[u.id] || 0);
                             if (pDone > pTotal) pDone = pTotal;
 
                             // v1.5.162: page-based 改用 overlapData 判斷 done (v1.5.159 後 overlapData 已是權威來源)
