@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.160]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.161]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4544,7 +4544,7 @@ function isUnitScheduledAnywhere(u) {
 }
 
 // v1.5.107: 用 task 重疊頁數算每個 unit 的 donePages (用全部 cat, 不只 appMaster)
-function getUnitDonePagesByOverlap() {
+function getUnitDonePagesByOverlap(filterCat, filterMis) {
     var result = {};
     if (!appPlans || appPlans.length === 0) return result;
     var allUnits = {};
@@ -4595,6 +4595,9 @@ function getUnitDonePagesByOverlap() {
         Object.keys(plan.grid).forEach(function(dStr) {
             (plan.grid[dStr] || []).forEach(function(t) {
                 if (!t || !t.isDone || !t.startPage || !t.endPage) return;
+                // v1.5.161: 按 mission filter 過濾 (防止跨 mission 混算)
+                if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) return;
+                if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) return;
                 Object.keys(allUnits).forEach(function(uid) {
                     var u = allUnits[uid];
                     var s = t.startPage > u.start ? t.startPage : u.start;
@@ -9759,8 +9762,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var totalRendered = 0; 
             window._dashDataStore = {}; 
             
-            // v1.5.109: 改用 task 重疊頁數算法 (跟樹狀圖一致)
-            var overlapData = getUnitDonePagesByOverlap();
+            // v1.5.161: 改用 task 重疊頁數算法 (跟樹狀圖一致) + 過濾 mission (避免跨 mission 混算)
+            var overlapData = getUnitDonePagesByOverlap(filterCat, filterMis);
             var logData = {};
             appLogs.forEach(l => {
                 if(l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
