@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.161]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.162]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9820,14 +9820,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, overlapData) : (overlapData[u.id] || 0);
                             if (pDone > pTotal) pDone = pTotal;
 
-                            // v1.5.149: 檢查是否實際寫過 (dates.size > 0) 才算 done
-                            // 避免 overlap algorithm 把跨單元 task 誤算進來
+                            // v1.5.162: page-based 改用 overlapData 判斷 done (v1.5.159 後 overlapData 已是權威來源)
+                            // 不再用 logData dates (跨單元任務的 log 只記到 1 個 unit, 其他 unit dates=0 但其實已 done)
                             var isActuallyDone = false;
                             if (pDone >= pTotal) {
                                 if (isUnitBasedType(typeObj)) {
                                     isActuallyDone = pDone === 1;
                                 } else {
-                                    isActuallyDone = (logData[u.id] && logData[u.id].dates.size > 0);
+                                    isActuallyDone = true;  // 信任 overlapData 算出的 pDone
                                 }
                             }
 
@@ -9932,7 +9932,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var totalLeftSum = data.reduce((s, d) => s + d.pagesLeft, 0);
                 var totalDoneSum = totalPagesSum - totalLeftSum;
                 var summaryLine = (totalPagesSum > 0)
-                    ? ' <span style="font-size:0.75em;color:var(--secondary);font-weight:normal;">(教材庫 ' + totalPagesSum + ' 頁 / 已完成 ' + totalDoneSum + ' / 剩餘 ' + totalLeftSum + ')</span>'
+                    ? ' <span style="font-size:0.75em;color:var(--secondary);font-weight:normal;">(未完成單元 ' + totalPagesSum + ' 頁 / 已完成部分 ' + totalDoneSum + ' / 剩餘 ' + totalLeftSum + ')</span>'
                     : '';
                 el('dd-title').innerHTML = '⏳ ' + subject + ' - 未完成單元' + summaryLine;
                 if(data.length === 0) html = '<div style="color:#7f8c8d;">🎉 太棒了！所有單元均已完成。</div>';
