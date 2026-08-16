@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.165]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.166]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3606,7 +3606,7 @@ loadBoardHeader();
         };
 
         function renderCalendar() {
-            autoMigrateLogsToCalendar();
+            // v1.5.166: autoMigrateLogsToCalendar 改在 saveToLocal 內跑 (不再每次 renderCalendar 都跑)
             var pid = el('planner-selector').value;
             if(!pid) { el('calendar-grid').innerHTML = ''; return; }
             var plan = appPlans.find(p => p.id === pid); if(!plan) return;
@@ -3640,6 +3640,23 @@ loadBoardHeader();
             var year = currentViewDate.getFullYear();
             var month = currentViewDate.getMonth();
             el('current-month-display').innerText = `${year}年 ${month + 1}月`;
+
+            // v1.5.166: 預建 lookup Map (避免每 task 跑 nested loop + array.find)
+            var logByTaskId = {};
+            for (var li = 0; li < appLogs.length; li++) {
+                if (appLogs[li] && appLogs[li].id && appLogs[li].id.indexOf('cal_') === 0) {
+                    logByTaskId[appLogs[li].id] = appLogs[li];
+                }
+            }
+            var missionByUnitId = {};
+            for (var mc in appMissions) {
+                for (var mm in appMissions[mc]) {
+                    var units = appMissions[mc][mm] || [];
+                    for (var ui = 0; ui < units.length; ui++) {
+                        if (!missionByUnitId[units[ui]]) missionByUnitId[units[ui]] = { cat: mc, mis: mm };
+                    }
+                }
+            }
 
             var firstDay = new Date(year, month, 1);
             var startDate = new Date(firstDay);
@@ -3720,17 +3737,13 @@ loadBoardHeader();
                         var cmCat = task.cat || '';
                         var cmMis = task.mis || '';
                         if (!cmCat || !cmMis) {
-                            if (task.unitId) {
-                                for(let c in appMissions) {
-                                    for(let m in appMissions[c]) {
-                                        if(appMissions[c][m].includes(task.unitId)) { cmCat = c; cmMis = m; break; }
-                                    }
-                                    if (cmCat) break;
-                                }
+                            if (task.unitId && missionByUnitId[task.unitId]) {
+                                cmCat = missionByUnitId[task.unitId].cat;
+                                cmMis = missionByUnitId[task.unitId].mis;
                             }
                         }
 
-                        var linkedLog = appLogs.find(l => l.id === 'cal_' + task.id);
+                        var linkedLog = logByTaskId['cal_' + task.id];
                         var prefixCat = cmCat;
                         var prefixMis = cmMis;
                         
