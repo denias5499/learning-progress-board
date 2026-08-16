@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.171]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.172]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4602,6 +4602,7 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
     // 不區分 task.unitId (簡單對應) vs 跨單元: 統一按 overlap 算
     var pageSet = {};
 
+    // 記錄每個 unit 的 sub 信息 (跨 sub 過濾用)
     var missionUnitMap = {};
     var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
     var allCats = (filterCat && filterCat !== 'ALL') ? [filterCat] : (masters ? Object.keys(masters) : []);
@@ -4612,7 +4613,7 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
             var s = catMaster[sub];
             if (!s) return;
             _collectSubjectUnits(s).forEach(function(u) {
-                if (u && u.id) missionUnitMap[u.id] = { start: u.start, end: u.end };
+                if (u && u.id) missionUnitMap[u.id] = { start: u.start, end: u.end, sub: sub };
             });
         });
     });
@@ -4636,10 +4637,14 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
                     return;
                 }
                 var s = t.startPage, e = t.endPage;
-                // 對 mission 內每個 unit (含 task.unitId), 算 overlap range
+                // 找 task.unitId 所屬 sub (v1.5.172: 跨 sub 不算)
+                var taskUnitInfo = missionUnitMap[t.unitId];
+                var taskSub = taskUnitInfo ? taskUnitInfo.sub : null;
+                // 對**同 sub**的 unit 算 overlap range (含 task.unitId 本身)
                 Object.keys(missionUnitMap).forEach(function(uid) {
                     var u = missionUnitMap[uid];
                     if (!u || u.start === undefined || u.end === undefined) return;
+                    if (u.sub !== taskSub) return;  // v1.5.172: 跨 sub 不算
                     var us = Math.max(s, u.start);
                     var ue = Math.min(e, u.end);
                     if (ue >= us) {
