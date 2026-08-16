@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.164]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.165]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1818,11 +1818,26 @@
                 }
                 return found ? 1 : 0;
             }
-            // Page-based: 用 overlap 算出 done pages
-            if (overlapDoneMap && overlapDoneMap[unit.id]) {
-                return overlapDoneMap[unit.id];
+            // v1.5.165: page-based 改用簡單對應 (task.unitId === this unit.id, sum pages)
+            // 不用 overlap 跨單元分布 (避免跨單元任務的 pages 算到別 unit)
+            if (!appPlans || !unit) return 0;
+            var totalPages = 0;
+            for (var i = 0; i < appPlans.length; i++) {
+                var plan = appPlans[i];
+                if (!plan.grid) continue;
+                var dStrs = Object.keys(plan.grid);
+                for (var j = 0; j < dStrs.length; j++) {
+                    var tasks = plan.grid[dStrs[j]] || [];
+                    for (var k = 0; k < tasks.length; k++) {
+                        var t = tasks[k];
+                        if (t && t.unitId === unit.id && t.isDone) {
+                            var pages = (t.endPage && t.startPage && t.endPage >= t.startPage) ? (t.endPage - t.startPage + 1) : 1;
+                            totalPages += pages;
+                        }
+                    }
+                }
             }
-            return 0;
+            return totalPages;
         }
 
         function findUnitContext(unitId) {
