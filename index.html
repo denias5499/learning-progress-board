@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.167]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.168]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3470,12 +3470,12 @@ loadBoardHeader();
         }
 
         function changeMonth(delta) {
-            console.log('[changeMonth] 啟動, delta=' + delta);
+            console.log('[changeMonth] 啟動, delta=' + delta + ', appPlans.length=' + (appPlans ? appPlans.length : 'NULL') + ', planner-selector.value=' + (el('planner-selector') ? el('planner-selector').value : 'NULL'));
             currentViewDate.setMonth(currentViewDate.getMonth() + delta);
             console.log('[changeMonth] currentViewDate=' + currentViewDate.toISOString());
             try {
                 renderCalendar();
-                console.log('[changeMonth] renderCalendar 完成');
+                console.log('[changeMonth] renderCalendar 完成, grid.length=' + (el('calendar-grid') ? el('calendar-grid').innerHTML.length : 0));
             } catch(e) {
                 console.error('[changeMonth] ERROR:', e.message, e.stack);
             }
@@ -3602,8 +3602,18 @@ loadBoardHeader();
         function renderCalendar() {
             autoMigrateLogsToCalendar();
             var pid = el('planner-selector').value;
-            if(!pid) { el('calendar-grid').innerHTML = ''; return; }
-            var plan = appPlans.find(p => p.id === pid); if(!plan) return;
+            console.log('[renderCalendar] pid=' + JSON.stringify(pid) + ', appPlans.length=' + (appPlans ? appPlans.length : 'NULL'));
+            // v1.5.168: planner-selector 空時 fallback 用 last plan (避免從其他頁面跳入月曆後 changeMonth 看起來沒動作)
+            if (!pid && appPlans && appPlans.length > 0) {
+                var lastPlan = appPlans[appPlans.length - 1];
+                el('planner-selector').value = lastPlan.id;
+                pid = lastPlan.id;
+                console.log('[renderCalendar] fallback to last plan: ' + pid);
+            }
+            if(!pid) { console.log('[renderCalendar] pid 空, return'); el('calendar-grid').innerHTML = ''; return; }
+            var plan = appPlans.find(p => p.id === pid); 
+            console.log('[renderCalendar] plan=' + (plan ? plan.name : 'NULL'));
+            if(!plan) return;
             
             let fCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
             let fMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
