@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.169]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.171]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4597,7 +4597,11 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
     var result = {};
     if (!appPlans) return result;
 
-    // v1.5.169: build mission 內所有 unit 的 range map (for 跨單元任務 overlap)
+    // v1.5.171: 跨單元任務 overlap + Set 去重 (mission 內 unit, 一致算法)
+    // 對每 isDone task: 對 mission 內每個 unit 算 overlap range, Set 去重防重複
+    // 不區分 task.unitId (簡單對應) vs 跨單元: 統一按 overlap 算
+    var pageSet = {};
+
     var missionUnitMap = {};
     var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
     var allCats = (filterCat && filterCat !== 'ALL') ? [filterCat] : (masters ? Object.keys(masters) : []);
@@ -4613,36 +4617,41 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
         });
     });
 
-    // 對每 isDone task:
+    function addPageSet(uid, s, e) {
+        if (!pageSet[uid]) pageSet[uid] = new Set();
+        for (var p = s; p <= e; p++) {
+            pageSet[uid].add(p);
+        }
+    }
+
     appPlans.forEach(function(plan) {
         if (!plan.grid) return;
         Object.keys(plan.grid).forEach(function(dStr) {
             (plan.grid[dStr] || []).forEach(function(t) {
                 if (!t || !t.isDone || !t.unitId) return;
-                // v1.5.167: mission filter
                 if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) return;
                 if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) return;
                 if (!t.startPage || !t.endPage || t.endPage < t.startPage) {
-                    // 無 page 範圍: 算 1 頁 (binary)
-                    result[t.unitId] = (result[t.unitId] || 0) + 1;
+                    addPageSet(t.unitId, 1, 1);
                     return;
                 }
-                var taskPages = t.endPage - t.startPage + 1;
-                // 1. 簡單對應: task.pages 全算到 task.unitId
-                result[t.unitId] = (result[t.unitId] || 0) + taskPages;
-                // 2. 跨單元任務: 對 mission 內每個其他 unit, 算 overlap pages
+                var s = t.startPage, e = t.endPage;
+                // 對 mission 內每個 unit (含 task.unitId), 算 overlap range
                 Object.keys(missionUnitMap).forEach(function(uid) {
-                    if (uid === t.unitId) return;
                     var u = missionUnitMap[uid];
                     if (!u || u.start === undefined || u.end === undefined) return;
-                    var s = Math.max(t.startPage, u.start);
-                    var e = Math.min(t.endPage, u.end);
-                    if (e >= s) {
-                        result[uid] = (result[uid] || 0) + (e - s + 1);
+                    var us = Math.max(s, u.start);
+                    var ue = Math.min(e, u.end);
+                    if (ue >= us) {
+                        addPageSet(uid, us, ue);
                     }
                 });
             });
         });
+    });
+
+    Object.keys(pageSet).forEach(function(uid) {
+        result[uid] = pageSet[uid].size;
     });
     return result;
 }
