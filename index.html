@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.165]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.167]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1797,31 +1797,13 @@
             return 1;
         }
 
-        function getUnitDoneCount(unit, typeObj, overlapDoneMap) {
-            if (isUnitBasedType(typeObj)) {
-                // Unit-based: 有完成任務 (task.isDone) 就算 1 (binary)
-                if (!appPlans || !unit) return 0;
-                var found = false;
-                for (var i = 0; i < appPlans.length; i++) {
-                    var plan = appPlans[i];
-                    if (!plan.grid) continue;
-                    var dStrs = Object.keys(plan.grid);
-                    for (var j = 0; j < dStrs.length; j++) {
-                        var tasks = plan.grid[dStrs[j]] || [];
-                        for (var k = 0; k < tasks.length; k++) {
-                            var t = tasks[k];
-                            if (t && t.unitId === unit.id && t.isDone) { found = true; break; }
-                        }
-                        if (found) break;
-                    }
-                    if (found) break;
-                }
-                return found ? 1 : 0;
-            }
-            // v1.5.165: page-based 改用簡單對應 (task.unitId === this unit.id, sum pages)
-            // 不用 overlap 跨單元分布 (避免跨單元任務的 pages 算到別 unit)
+        function getUnitDoneCount(unit, typeObj, filterCat, filterMis) {
             if (!appPlans || !unit) return 0;
+            // v1.5.167: 過濾 mission filter (防止跨 mission 混算)
+            if (filterCat && filterCat !== 'ALL' && !filterCat) return 0;
+            // 計算 task 算進此 unit 的 pages
             var totalPages = 0;
+            var isUnitBased = isUnitBasedType(typeObj);
             for (var i = 0; i < appPlans.length; i++) {
                 var plan = appPlans[i];
                 if (!plan.grid) continue;
@@ -1830,10 +1812,15 @@
                     var tasks = plan.grid[dStrs[j]] || [];
                     for (var k = 0; k < tasks.length; k++) {
                         var t = tasks[k];
-                        if (t && t.unitId === unit.id && t.isDone) {
-                            var pages = (t.endPage && t.startPage && t.endPage >= t.startPage) ? (t.endPage - t.startPage + 1) : 1;
-                            totalPages += pages;
+                        if (!t || !t.isDone || t.unitId !== unit.id) continue;
+                        // v1.5.167: 按 mission filter 過濾
+                        if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) continue;
+                        if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) continue;
+                        var pages = (t.endPage && t.startPage && t.endPage >= t.startPage) ? (t.endPage - t.startPage + 1) : 1;
+                        if (isUnitBased) {
+                            return 1;  // unit-based: 1 task done = 整個 unit done
                         }
+                        totalPages += pages;
                     }
                 }
             }
@@ -3483,8 +3470,15 @@ loadBoardHeader();
         }
 
         function changeMonth(delta) {
+            console.log('[changeMonth] 啟動, delta=' + delta);
             currentViewDate.setMonth(currentViewDate.getMonth() + delta);
-            renderCalendar();
+            console.log('[changeMonth] currentViewDate=' + currentViewDate.toISOString());
+            try {
+                renderCalendar();
+                console.log('[changeMonth] renderCalendar 完成');
+            } catch(e) {
+                console.error('[changeMonth] ERROR:', e.message, e.stack);
+            }
         }
 
         window.toggleTaskDone = function(e, pid, dateStr, taskId) {
@@ -9156,7 +9150,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var ctx = findUnitContext(u.id);
                             var typeObj = ctx ? ctx.typeObj : null;
                             var total = getUnitTotalCount(u, typeObj);
-                            var done = getUnitDoneCount(u, typeObj, overlapDonePages);
+                            var done = getUnitDoneCount(u, typeObj, null, null);
                             if (total > done) total = done + (total > done ? (total - done) : 0);
                             totalUnits += total;
                             doneUnits += done;
@@ -9418,7 +9412,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var ctx = findUnitContext(u.id);
                         var typeObj = ctx ? ctx.typeObj : null;
                         var total = getUnitTotalCount(u, typeObj);
-                        var done = getUnitDoneCount(u, typeObj, overlapDone);
+                        var done = getUnitDoneCount(u, typeObj, null, null);
                         totalCount += total;
                         doneCount += done;
                         if (typeObj && isUnitBasedType(typeObj)) isUnitBasedTree = true;
@@ -9477,7 +9471,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var typeObj = ctx ? ctx.typeObj : null;
                             var isUnitBased = isUnitBasedType(typeObj);
                             var totalU = getUnitTotalCount(u, typeObj);
-                            var doneU = getUnitDoneCount(u, typeObj, overlapDone);
+                            var doneU = getUnitDoneCount(u, typeObj, null, null);
                             var pct = totalU > 0 ? Math.min(100, Math.round(doneU / totalU * 100)) : 0;
                             var unitLabel2 = isUnitBased ? 'units' : '頁';
                             var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
@@ -10021,7 +10015,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var pTotal = getUnitTotalCount(u, typeObj);
                             // v1.5.159: page-based 改用 overlapData 算 done pages (跨單元任務會按 overlap 分布到每個 unit)
                             // unit-based 用 getUnitDoneCount (scan task.isDone)
-                            var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, overlapData) : (simpleDone[u.id] || 0);
+                            var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, filterCat, filterMis) : (simpleDone[u.id] || 0);
                             if (pDone > pTotal) pDone = pTotal;
 
                             // v1.5.162: page-based 改用 overlapData 判斷 done (v1.5.159 後 overlapData 已是權威來源)
