@@ -1,3 +1,16 @@
+## v1.5.176 (2026-08-17) — 樹狀圖 dropdowns 精修
+
+### 改動
+- 拿掉「教材分類」dropdown (跟看板篩選重複)
+- 科目/教材類別/冊別 dropdowns 同一排 (CSS flex-nowrap, no-wrap)
+- dropdowns 只顯示選到的範圍:
+  - 沒選 (ALL): 預設依科目別收起 (summary cards)
+  - 選科目: 只 render 該科目的樹
+  - 選教材類別: 進一步 filter 到該 type
+  - 選冊別: 進一步 filter 到該 vol
+- 修剩下 7 個 treeCat 引用 (init block + catLabel + mis4jump)
+- 加 type/vol filter 邏輯 (v1.5.176, 在 singleSubject 邏輯後)
+
 ## v1.5.175 (2026-08-17) — 學習統計分析 tab 樣式 + 樹狀圖 dropdowns + 教材庫頁面加速
 
 ### 改動
