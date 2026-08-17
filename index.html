@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.174]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.176]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -648,11 +648,13 @@
         .pane-history-title { color: var(--primary); margin-top: 0; }
 
         /* v1.5.175: 樹狀圖 filter bar */
-        .tree-filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; font-size: 0.9em; }
-        .tree-filter-bar select { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); min-width: 100px; }
+        /* v1.5.176: dropdowns 同一排 (no-wrap), 更緊湊 */
+        .tree-filter-bar { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; font-size: 0.9em; overflow-x: auto; }
+        .tree-filter-bar > * { flex-shrink: 0; }
+        .tree-filter-bar select { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); min-width: 110px; max-width: 180px; }
         .tree-filter-bar select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
-        .tree-filter-label { font-weight: bold; color: var(--secondary); }
-        .tree-filter-hint { font-size: 0.8em; color: #94a3b8; margin-left: auto; }
+        .tree-filter-label { font-weight: bold; color: var(--secondary); white-space: nowrap; }
+        .tree-filter-hint { font-size: 0.8em; color: #94a3b8; margin-left: auto; white-space: nowrap; }
         .tree-collapse-btn { background: #64748b; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
         .tree-collapse-btn:hover { background: #475569; }
         /* 樹狀圖 collapse state */
@@ -1361,18 +1363,16 @@
                     <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">🎯 3. 答對率統計</button>
                 </div>
                 <div id="stats-tree" class="stats-view active">
-                    <!-- v1.5.175: 樹狀圖 dropdowns (教材分類/科目/教材類別/冊別) -->
+                    <!-- v1.5.176: 樹狀圖 dropdowns (科目/教材類別/冊別) - 教材分類已刪除 (跟看板篩選重複) -->
                     <div class="tree-filter-bar">
-                        <span class="tree-filter-label">📂 教材分類:</span>
-                        <select id="tree-cat-filter" onchange="renderTreeView()"></select>
                         <span class="tree-filter-label">📘 科目:</span>
                         <select id="tree-subject-filter" onchange="renderTreeView()"></select>
                         <span class="tree-filter-label">📑 教材類別:</span>
                         <select id="tree-type-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
-                        <span class="tree-filter-label">📖 冊別:</span>
+                        <span class="tree-filter-label">📖 冊別 (單元):</span>
                         <select id="tree-vol-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
                         <button type="button" class="tree-collapse-btn" onclick="resetTreeFilter()">↻ 重設</button>
-                        <span class="tree-filter-hint">(default: 依科目別收起)</span>
+                        <span class="tree-filter-hint">(只顯示選到的範圍)</span>
                     </div>
                     <div id="starmap-root"></div>
                 </div>
@@ -9463,46 +9463,24 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!root) return;
             root.innerHTML = '';
 
-            // v1.5.8: 獨立 Category dropdown - 樹狀圖不跟 mission filter 連動
+            // v1.5.176: 拿掉 tree-cat-filter (跟看板篩選重複), 只剩 科目/教材類別/冊別 dropdowns
             var user = multiData[currentUserId];
-            var treeCatSel = el('tree-cat-filter');
-            if (treeCatSel && user && user.masters) {
-                var prevVal = treeCatSel.value;
-                var opts = '<option value="ALL">🌟 全部分類</option>';
-                Object.keys(user.masters).forEach(function(cat) {
-                    var cnt = Object.keys(user.masters[cat] || {}).length;
-                    opts += '<option value="' + cat + '">' + cat + ' (' + cnt + ' 科)</option>';
+            // 收集所有 subjects (不限 cat — 用戶已從看板選好 cat)
+            var treeSubjects = {};
+            if (user && user.masters) {
+                Object.keys(user.masters).forEach(function(c) {
+                    Object.keys(user.masters[c] || {}).forEach(function(sub) {
+                        treeSubjects[sub + '|||' + c] = { name: sub, cat: c, subj: user.masters[c][sub] };
+                    });
                 });
-                treeCatSel.innerHTML = opts;
-                if (prevVal && (prevVal === 'ALL' || user.masters[prevVal])) {
-                    treeCatSel.value = prevVal;
-                } else {
-                    treeCatSel.value = 'ALL';
-                }
             }
-            var treeCat = treeCatSel ? treeCatSel.value : 'ALL';
 
             // v1.5.175: 樹狀圖 3 個 dropdowns (科目/教材類別/冊別) — default 依科目別收起
             var treeSubjectSel = el('tree-subject-filter');
             var treeTypeSel = el('tree-type-filter');
             var treeVolSel = el('tree-vol-filter');
 
-            // 收集選定 cat 範圍的 subjects (iterate 用, 不影響 appMaster)
-            var treeSubjects = {};
-            if (user && user.masters) {
-                if (treeCat === 'ALL') {
-                    Object.keys(user.masters).forEach(function(c) {
-                        Object.keys(user.masters[c] || {}).forEach(function(sub) {
-                            // 跨 cat 的 subject 可能同名, 加 cat prefix 避免重複
-                            treeSubjects[sub + '|||' + c] = { name: sub, cat: c, subj: user.masters[c][sub] };
-                        });
-                    });
-                } else if (user.masters[treeCat]) {
-                    Object.keys(user.masters[treeCat]).forEach(function(sub) {
-                        treeSubjects[sub + '|||' + treeCat] = { name: sub, cat: treeCat, subj: user.masters[treeCat][sub] };
-                    });
-                }
-            }
+            // treeSubjects 已在 init 時收集 (不限 cat)
             if (Object.keys(treeSubjects).length === 0) {
                 root.innerHTML = '<div class="tree-empty">🌳 尚未建立教材庫<br><br><span style="font-size:0.85em;">先去「教材庫與備份」建立科目與單元,樹狀圖就會長出來 ✨</span></div>';
                 if (treeTypeSel) treeTypeSel.innerHTML = '<option value="ALL">全部</option>';
@@ -9510,7 +9488,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return;
             }
 
-            // v1.5.175: populate 科目 dropdown (依目前 treeCat 範圍)
+            // v1.5.175: populate 科目 dropdown (所有科目, 不限 cat)
             if (treeSubjectSel) {
                 var prevSubj = treeSubjectSel.value;
                 var subjectOpts = '<option value="ALL">🌟 全部科目 (' + Object.keys(treeSubjects).length + ')</option>';
@@ -9578,10 +9556,45 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             var treeVol = treeVolSel ? treeVolSel.value : 'ALL';
 
-            // v1.5.175: default 依科目別收起 — 沒選科目時, 只顯示科目 summary cards
+            // v1.5.176: filter 邏輯 — 依 dropdown 選擇只顯示對應範圍
+            // - 沒選科目 (ALL): 顯示科目 summary cards (default 收起)
+            // - 選了科目: 只渲染該科目的樹, 教材類別/冊別進一步 filter
             if (treeSubjectKey === 'ALL') {
                 renderTreeSubjectSummary(root, treeSubjects);
                 return;
+            }
+            // 選了科目 → 把 treeSubjects 縮成單一科目 (後續 render 邏輯只 render 這個)
+            var singleSubject = {};
+            var singleEntry = Object.assign({}, treeSubjects[treeSubjectKey]);
+            singleSubject[treeSubjectKey] = singleEntry;
+            treeSubjects = singleSubject;
+
+            // v1.5.176: 套用 教材類別/冊別 filter — 修改 entry.subj 讓 render 只 iterate 選到的範圍
+            if (singleEntry && singleEntry.subj) {
+                if (treeType !== 'ALL' && singleEntry.subj.materials && singleEntry.subj.materials[treeType]) {
+                    var filteredMaterials = {};
+                    var typeObjOrig = singleEntry.subj.materials[treeType];
+                    if (treeVol !== 'ALL') {
+                        // 冊別也選了 — 只留該 instance 的該冊
+                        var filteredInstances = (typeObjOrig.instances || []).map(function(inst) {
+                            if (inst.vols && inst.vols[treeVol]) {
+                                return Object.assign({}, inst, { vols: (function() {
+                                    var v = {};
+                                    v[treeVol] = inst.vols[treeVol];
+                                    return v;
+                                })() });
+                            }
+                            return null;
+                        }).filter(Boolean);
+                        filteredMaterials[treeType] = Object.assign({}, typeObjOrig, { instances: filteredInstances });
+                    } else {
+                        filteredMaterials[treeType] = typeObjOrig;
+                    }
+                    singleEntry.subj = Object.assign({}, singleEntry.subj, { materials: filteredMaterials });
+                } else if (treeType !== 'ALL' && (!singleEntry.subj.materials || !singleEntry.subj.materials[treeType])) {
+                    // 選了 type 但該科目沒有 — 顯示空
+                    singleEntry.subj = Object.assign({}, singleEntry.subj, { materials: {} });
+                }
             }
 
             // v1.4.8: 套用看板篩選 — 不論 cat 是否 ALL, 只要 mis 不是 ALL 就用 mis 的 unitIds
@@ -9681,7 +9694,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             Object.keys(treeSubjects).forEach(function(key) {
                 var entry = treeSubjects[key];
                 var sub = entry.name;
-                var catLabel = (treeCat === 'ALL') ? ' <small style="color:var(--secondary);font-size:0.7em;">[' + entry.cat + ']</small>' : '';
+                var catLabel = ' <small style="color:var(--secondary);font-size:0.7em;">[' + entry.cat + ']</small>';
                 var s = entry.subj;
                 if (!s) return;
 
@@ -9763,7 +9776,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
                             var suInfo = window._treeScheduledUnits[u.id];
                             var cat4jump = suInfo ? suInfo.firstCat : '';
-                            var mis4jump = suInfo ? suInfo.firstMis : (treeCat !== 'ALL' ? treeCat : '');
+                            var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
                             html += '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')" style="cursor:pointer;" title="點擊跳到月曆檢視">';
                             html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
                             html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
@@ -9810,7 +9823,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var barEmpty = 10 - barFilled;
                             var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
                             var cat4jump = suInfo ? suInfo.firstCat : '';
-                            var mis4jump = suInfo ? suInfo.firstMis : (treeCat !== 'ALL' ? treeCat : '');
+                            var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
                             html += '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')" style="cursor:pointer;" title="點擊跳到月曆檢視">';
                             html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
                             html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
