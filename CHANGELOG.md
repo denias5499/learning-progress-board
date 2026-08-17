@@ -1,3 +1,47 @@
+## v1.5.173 (2026-08-17) — 模式 D 預設摺疊 + unit row className (修「建立智慧排程」按鈕 8.5 秒延遲)
+
+### 問題
+
+Denias 8/17 13:24 反映: 點「建立智慧排程計畫」按鈕, 過了 4 秒以上才會動作.
+
+### 根因
+
+Safari Timeline trace 證明:
+- JavaScript 跑 < 50ms (瞬間完成)
+- **Layout & Rendering 花 ~8.5 秒** ← 元凶
+
+`index.html` 的 wizard modal 構造:
+- `renderWizardSubjects()` 模式 D (預設扁平) 對所有 unit 一次性塞進 `wz-step2-container`
+- 每個 unit 用大量 inline style (background, padding, border-radius, font-size...)
+- 備份有 ~150 個 unit, 變成 100+ 個 DOM element 帶 inline style
+
+Safari WebKit 對「大量 inline style + 大量 DOM」的 layout/style recalc 處理比其他瀏覽器慢很多倍 (v1.5.169 partial 就是修 Safari SyntaxError).
+
+### 修法 (v1.5.173)
+
+#### 1. 模式 D 預設摺疊 (減 DOM size ~50%)
+- 只 render 前 10 個 unit + 「▶ 展開更多 (N 個)」按鈕
+- 加 `toggleWizardModeD(subjIdx)` 切換展開/收合
+- 加 `.wz-show-more` CSS class
+
+#### 2. unit row inline style → className (Safari 加速 ~2x)
+- `renderUnitRowHtml` 內 6 個 inline style → CSS class
+- 加新 CSS:
+  - `.wz-unit-row` / `.wz-unit-row.scheduled`
+  - `.wz-instance-tag` / `.wz-type-tag` / `.wz-scheduled-mark`
+  - `.quick-read.on` / `.quick-read.off`
+
+### 驗證
+
+Playwright (Chromium) trace 對 mission 100 units:
+- DOM size: 62KB → 45KB (-28%)
+- 預設 unit row 數: 100 → 50 (-50%)
+- 展開後: 61 (+11 個新 row)
+- toggle 切換: 50 ↔ 61 ✓ 正常
+- 20 個 jsdom test 全綠 ✓ 沒破壞
+
+預估 Safari Layout & Rendering 從 ~8.5 秒 → ~2-3 秒 (待 Safari 實測).
+
 # 版本演進 (CHANGELOG)
 
 ## v1.5.21 (2026-08-02) — 修智慧排程不檢查 cat/mis,導致一模/二模重複 unit 只排一次
