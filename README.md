@@ -51,3 +51,27 @@
 ---
 
 _Made with ❤️ by Denias_
+
+## 開發者
+
+### 跑測試
+
+```bash
+npm install --no-bin-links   # fs 不支援 symlink 的環境要加
+npm test                       # 跑 17 個 test (jsdom + node:test)
+```
+
+### 測試結構
+
+- `test/helpers.js` — jsdom loader + fixture builder + `_v153_BACKUP_PLANS_STR` parser
+- `test/progress.test.js` — mock unit test (12 個) + 邊界測試
+- `test/integration.test.js` — 用 `index.html` 內 `_v153_BACKUP_PLANS_STR` 真實備份跑 (4 個)
+
+### 開發流程
+
+進度條算法相關改動 (`getUnitDonePagesByUnitIdMatch`, `getUnitDonePagesByOverlap`):
+1. 開 GitHub Issue 描述預期行為
+2. 先寫 red test (`test/progress.test.js` 加 case, 跑 `npm test` 確認 fail)
+3. 修 `index.html`
+4. `npm test` 全綠才 push
+5. push → 瀏覽器實測 → close issue
