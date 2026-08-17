@@ -1206,6 +1206,7 @@
                             <input type="file" id="import-file" class="file-input-hidden" accept=".json">
                         </div>
                     </div>
+                    <button type="button" class="btn-warning" onclick="dedupeAndSave()" style="margin-right:8px;">🧹 清理重複教材</button>
                     <button type="button" class="btn-success btn-save-settings" onclick="saveSettingsAndAlert()">💾 儲存教材庫變更</button>
                 </div>
             </div>
@@ -2463,6 +2464,43 @@
             closeModal('modal-board-settings');
         }
 
+        // v1.5.178: 清理教材庫重複 unit (防止之前手動新增造成同 unit 出現多次)
+        function deduplicateMasterUnits(uid) {
+            if (!multiData[uid] || !multiData[uid].masters) return 0;
+            var removed = 0;
+            Object.keys(multiData[uid].masters).forEach(function(cat) {
+                var catMaster = multiData[uid].masters[cat];
+                if (!catMaster) return;
+                Object.keys(catMaster).forEach(function(sub) {
+                    var s = catMaster[sub];
+                    if (!s || !s.materials) return;
+                    Object.keys(s.materials).forEach(function(typeName) {
+                        var typeObj = s.materials[typeName];
+                        if (!typeObj || !Array.isArray(typeObj.instances)) return;
+                        typeObj.instances.forEach(function(ins) {
+                            if (!ins || !ins.vols) return;
+                            Object.keys(ins.vols).forEach(function(volName) {
+                                var arr = ins.vols[volName];
+                                if (!Array.isArray(arr) || arr.length < 2) return;
+                                var seen = {};
+                                var deduped = [];
+                                arr.forEach(function(u) {
+                                    if (!u || !u.id) { deduped.push(u); return; }
+                                    if (seen[u.id]) { removed++; return; }
+                                    seen[u.id] = true;
+                                    deduped.push(u);
+                                });
+                                if (deduped.length !== arr.length) {
+                                    ins.vols[volName] = deduped;
+                                }
+                            });
+                        });
+                    });
+                });
+            });
+            return removed;
+        }
+
         function initUsers() {
 
         // ============================================================
@@ -2693,7 +2731,7 @@
         }
 
         // v1.5.34: 統一教材類型順序為 defaultTypes 順序 (複習講義 → 複習卷 → 數字題本 → 模擬題本 → 考古題)
-        function _v1534Migrate(uid) {
+function _v1534Migrate(uid) {
             var user = multiData[uid];
             if (!user) return;
             if (user._v1534_type_order_fixed) return;
@@ -2933,6 +2971,15 @@ loadBoardHeader();
                 }
                 window._v152Migrated = 0;
                 
+                // v1.5.178: 自動清理教材庫重複 unit (手動新增時可能重複)
+                var dedupCount = 0;
+                Object.keys(multiData).forEach(function(uid) {
+                    dedupCount += deduplicateMasterUnits(uid);
+                });
+                if (dedupCount > 0) {
+                    console.log('v1.5.178: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                }
+
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
                 currentUserId = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
                 if (!currentUserId || !multiData[currentUserId]) currentUserId = Object.keys(multiData)[0];
@@ -3073,6 +3120,15 @@ loadBoardHeader();
             }
             if (repairedCount > 0) {
                 console.log('v1.5.16: 自動補上會考複習 ' + repairedCount + ' 個 missing 預設教材類型');
+                // v1.5.178: 自動清理教材庫重複 unit (手動新增時可能重複)
+                var dedupCount = 0;
+                Object.keys(multiData).forEach(function(uid) {
+                    dedupCount += deduplicateMasterUnits(uid);
+                });
+                if (dedupCount > 0) {
+                    console.log('v1.5.178: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                }
+
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
             }
 
@@ -3086,6 +3142,15 @@ loadBoardHeader();
             var cleanedOnSwitch = cleanDuplicateSameDayTasks();
             if (cleanedOnSwitch > 0) {
                 console.log('🧹 v1.5.99 切換使用者時清理 ' + cleanedOnSwitch + ' 筆同一天同單元重複任務');
+                // v1.5.178: 自動清理教材庫重複 unit (手動新增時可能重複)
+                var dedupCount = 0;
+                Object.keys(multiData).forEach(function(uid) {
+                    dedupCount += deduplicateMasterUnits(uid);
+                });
+                if (dedupCount > 0) {
+                    console.log('v1.5.178: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                }
+
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
             }
             
@@ -3110,6 +3175,15 @@ loadBoardHeader();
                 pushSafetyBackup('saveToLocal');
                 // v1.5.102: 儲存前 snapshot 到 undoStack (最多 5 步)
                 pushUndoSnapshot();
+                // v1.5.178: 自動清理教材庫重複 unit (手動新增時可能重複)
+                var dedupCount = 0;
+                Object.keys(multiData).forEach(function(uid) {
+                    dedupCount += deduplicateMasterUnits(uid);
+                });
+                if (dedupCount > 0) {
+                    console.log('v1.5.178: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                }
+
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
             } catch(e) {
                 console.error('v1.5.17 saveToLocal FAILED:', e.message, 'size:', JSON.stringify(multiData).length);
@@ -3121,7 +3195,16 @@ loadBoardHeader();
                         localStorage.removeItem(STORAGE_KEY_UNDO);
                         localStorage.removeItem(STORAGE_KEY_NAMED);
                         // 再試一次
-                        localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+                        // v1.5.178: 自動清理教材庫重複 unit (手動新增時可能重複)
+                var dedupCount = 0;
+                Object.keys(multiData).forEach(function(uid) {
+                    dedupCount += deduplicateMasterUnits(uid);
+                });
+                if (dedupCount > 0) {
+                    console.log('v1.5.178: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                }
+
+                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
                         console.log('v1.5.153: 已清理 backups, 儲存成功');
                         return;  // 成功, 不顯示錯誤
                     } catch(e2) {
@@ -9032,7 +9115,23 @@ function renderWizardUnitRowHtml(ws, i, u) {
             saveToLocal();
         }
         
-        async function saveSettingsAndAlert(returnHome = false) {
+        // v1.5.178: 手動清理重複教材
+        function dedupeAndSave() {
+            var total = 0;
+            Object.keys(multiData).forEach(function(uid) {
+                total += deduplicateMasterUnits(uid);
+            });
+            if (total > 0) {
+                saveToLocal();
+                alert('✅ 已清理 ' + total + ' 筆重複教材');
+                // 重新渲染
+                if (typeof renderMasterEditor === 'function') renderMasterEditor();
+            } else {
+                alert('✅ 沒有發現重複教材');
+            }
+        }
+
+                async function saveSettingsAndAlert(returnHome = false) {
             if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
             saveToLocal();
             updateFilters();
