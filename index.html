@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.173]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.174]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -635,6 +635,26 @@
         table.history-tb { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
         table.history-tb th, table.history-tb td { border: 1px solid var(--border); padding: 12px; text-align: center; }
         table.history-tb th { background: #e2e8f0; color: var(--primary); font-weight: bold; }
+        /* v1.5.174: history row/cell 用 className 取代 inline style (Safari layout 加速) */
+        tr.history-row-today { background-color: #fff9c4; }
+        td.history-category { font-weight: bold; }
+        td.history-category-sys { color: var(--danger); }
+        td.history-category-mgmt { color: var(--purple); }
+        td.history-category-default { color: var(--accent); }
+        td.history-detail { text-align: left; color: #8B4513; font-weight: bold; }
+        /* v1.5.174: page-daily form-group 用 className 取代 inline style */
+        .form-group-warm { background: #fdf2e9; border: 1px solid #fad7a1; border-left: 5px solid var(--warning); }
+        .label-warm { color: #d35400; }
+        .hint-warm { font-size: 0.85em; color: #e67e22; margin: 5px 0 0 0; }
+        .page-range-row { display: flex; gap: 10px; align-items: center; }
+        .page-range-sep { font-weight: bold; color: var(--secondary); }
+        .save-row { text-align: right; margin-top: 25px; }
+        /* v1.5.174: pane-history inline styles */
+        .pane-history-title { color: var(--primary); margin-top: 0; }
+        .history-status-bar { margin-top: 10px; color: #7f8c8d; font-size: 0.9em; text-align: center; }
+        .history-hr { border: 0; border-top: 2px solid var(--border); margin: 30px 0 20px 0; }
+        .backup-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: #fdf2e9; padding: 15px; border-radius: 8px; }
+        .backup-label { color: #d35400; }
         /* v1.5.19: 歷史紀錄固定大小 console + scroll */
         .history-console {
             max-height: 70vh;
@@ -1124,44 +1144,44 @@
                     <div class="form-group" style="background: transparent; border:none; padding:0;">
                         <label>日期</label><input type="date" id="daily-date" onchange="updateDailyPlanTasks()">
                     </div>
-                    <div class="form-group" style="background: #fdf2e9; border: 1px solid #fad7a1; border-left: 5px solid var(--warning);">
-                        <label style="color: #d35400;">🔗 關聯今日月曆計畫任務 (落後將自動順延)</label>
+                    <div class="form-group form-group-warm">
+                        <label class="label-warm">🔗 關聯今日月曆計畫任務 (落後將自動順延)</label>
                         <select id="daily-plan-task" onchange="onDailyPlanTaskSelect()"></select>
-                        <p style="font-size:0.85em; color:#e67e22; margin: 5px 0 0 0;">(任務列表將根據下方所選擇的分類與任務自動過濾。選擇後會自動帶入應完成的頁碼，若實際完成頁數不足，將自動把未完成進度順延至明日)</p>
+                        <p class="hint-warm">(任務列表將根據下方所選擇的分類與任務自動過濾。選擇後會自動帶入應完成的頁碼，若實際完成頁數不足，將自動把未完成進度順延至明日)</p>
                     </div>
                     <div class="form-group"><label>1️⃣ 進度分類</label><select id="daily-category" onchange="onDailyCategoryChange()"></select></div>
                     <div class="form-group"><label>2️⃣ 任務名稱</label><select id="daily-mission" onchange="onDailyMissionChange()"></select></div>
                     <div class="form-group"><label>3️⃣ 選擇單元</label><select id="daily-unit"></select></div>
                     <div class="form-group">
                         <label>本次實際完成範圍 (頁碼)</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
+                        <div class="page-range-row">
                             <input type="number" id="daily-start" placeholder="起" min="1">
-                            <span style="font-weight: bold; color: var(--secondary);">～</span>
+                            <span class="page-range-sep">～</span>
                             <input type="number" id="daily-end" placeholder="迄" min="1">
                         </div>
                     </div>
-                    <div style="text-align: right; margin-top: 25px;"><button type="button" class="btn-primary" onclick="saveDailyLog()">💾 儲存回報</button></div>
+                    <div class="save-row"><button type="button" class="btn-primary" onclick="saveDailyLog()">💾 儲存回報</button></div>
                 </div>
 
                 <!-- v1.5.58: tab 4 - 歷史紀錄 (放在 page-settings 內) -->
                 <div id="pane-history" class="tab-pane">
-                    <h3 style="color:var(--primary); margin-top:0;">📝 歷史紀錄與系統 Log</h3>
+                    <h3 class="pane-history-title">📝 歷史紀錄與系統 Log</h3>
                     <div class="history-console" id="history-console">
                         <table class="history-tb">
                             <thead><tr><th>日期</th><th>類型/任務</th><th>科目</th><th>單元/說明</th><th>起迭</th><th>頁數</th><th>操作</th></tr></thead>
                             <tbody id="history-tbody"></tbody>
                         </table>
                     </div>
-                    <div id="history-status" style="margin-top:10px; color:#7f8c8d; font-size:0.9em; text-align:center;">
+                    <div id="history-status" class="history-status-bar">
                         載入中…
                     </div>
                 </div>
 
-                <hr style="border: 0; border-top: 2px solid var(--border); margin: 30px 0 20px 0;">
+                <hr class="history-hr">
                 
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: #fdf2e9; padding: 15px; border-radius: 8px;">
+                <div class="backup-row">
                     <div style="display: flex; gap: 10px; flex-direction: column;">
-                        <label style="color: #d35400;">⚠️ 全機資料備份與還原</label>
+                        <label class="backup-label">⚠️ 全機資料備份與還原</label>
                         <div style="display: flex; gap: 10px;">
                             <button type="button" class="btn-primary" onclick="exportDataToFile()">📥 匯出 JSON 備份</button>
                             <button type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
@@ -4749,8 +4769,14 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                 // v1.5.161: 按 mission filter 過濾 (防止跨 mission 混算)
                 if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) return;
                 if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) return;
+                // v1.5.174: 找 task.unitId 的 sub, 只對**同 sub** 的 unit 算 overlap
+                // (修樹狀圖進度條錯誤: 跨 sub 任務不該污染其他 sub 的 unit)
+                var taskUnitInfo = allUnits[t.unitId];
+                var taskSub = taskUnitInfo ? taskUnitInfo.subj : null;
                 Object.keys(allUnits).forEach(function(uid) {
                     var u = allUnits[uid];
+                    // v1.5.174: 同 sub 才算 (沒對應 sub 的任務, 不污染任何 unit)
+                    if (taskSub && u.subj !== taskSub) return;
                     var s = t.startPage > u.start ? t.startPage : u.start;
                     var e = t.endPage < u.end ? t.endPage : u.end;
                     if (e >= s) {
@@ -7735,16 +7761,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var idx = 0;
 
             function renderRow(log) {
-                var bgStyle = (log.date === todayStr) ? 'background-color: #fff9c4;' : '';
+                var isToday = log.date === todayStr;
                 var detailText = log.detail || log.unitName || '';
                 var pageStr = (log.start && log.end && log.start !== log.end) ? 'P.' + log.start + '~' + log.end : (log.start ? 'P.' + log.start : '-');
-                var color = log.category === '🔄 系統重排' ? 'var(--danger)' : (log.category === '🗓️ 計畫管理' ? 'var(--purple)' : 'var(--accent)');
+                var colorClass = log.category === '🔄 系統重排' ? 'history-category-sys' : (log.category === '🗓️ 計畫管理' ? 'history-category-mgmt' : 'history-category-default');
                 var tr = document.createElement('tr');
-                tr.style.cssText = bgStyle;
+                // v1.5.174: className 取代 inline style (Safari layout 加速)
+                if (isToday) tr.className = 'history-row-today';
                 tr.innerHTML = '<td>' + log.date + '</td>' +
-                    '<td style="font-weight:bold; color:' + color + ';">' + log.category + '</td>' +
+                    '<td class="history-category ' + colorClass + '">' + log.category + '</td>' +
                     '<td>' + (log.subject || '') + '</td>' +
-                    '<td style="text-align:left; color:#8B4513; font-weight:bold;">' + detailText + '</td>' +
+                    '<td class="history-detail">' + detailText + '</td>' +
                     '<td>' + pageStr + '</td>' +
                     '<td>' + (log.pages || 0) + ' 頁</td>' +
                     '<td>' +
