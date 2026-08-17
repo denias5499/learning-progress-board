@@ -9742,10 +9742,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<h2>' + escapeHtml(sub) + catLabel + '<span class="tree-progress">' + doneCount + ' / ' + totalCount + (isUnitBasedTree ? ' units' : ' 頁') + '</span></h2>';
 
                 if (s.type === 'custom' && Array.isArray(s.units)) {
-                    // v1.5.177: 拿掉 mission filter - 樹狀圖顯示所有教材庫 units, 不是只有 mission 內的
+                    // v1.5.177: 拿掉 mission filter - 樹狀圖顯示所有教材庫 units
                     html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
                     html += '<ul class="tree-units">';
-                    filteredUnits.forEach(u => {
+                    s.units.forEach(u => {
                         var t = totalOf(u);
                         var st = getStatus(u.id, t);
                         var dotClass = 'dot-' + st;
@@ -9763,7 +9763,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var arr = s.vols[volName];
                         if (!Array.isArray(arr) || arr.length === 0) return;
                         // v1.5.177: 拿掉 mission filter
-                    });
                         html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + escapeHtml(volName) + '</li>';
                         html += '<ul class="tree-units">';
                         arr.forEach(u => {
