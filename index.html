@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.181]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.182]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2540,6 +2540,60 @@
             return removed;
         }
 
+
+        // v1.5.182: 診斷教材庫結構 (auto-dedup 沒效時 trace 用)
+        function dedupTrace(uid) {
+            if (!multiData[uid]) { console.log('v1.5.182: multiData[' + uid + '] 不存在'); return; }
+            var u = multiData[uid];
+            console.log('v1.5.182: 教材庫結構 trace for uid=' + uid);
+            console.log('  - has masters (new):', !!u.masters, 'type=' + typeof u.masters);
+            if (u.masters) {
+                Object.keys(u.masters).forEach(function(cat) {
+                    Object.keys(u.masters[cat]).forEach(function(sub) {
+                        var s = u.masters[cat][sub];
+                        if (!s || !s.materials) return;
+                        Object.keys(s.materials).forEach(function(typeName) {
+                            var typeObj = s.materials[typeName];
+                            if (!typeObj || !Array.isArray(typeObj.instances)) return;
+                            typeObj.instances.forEach(function(ins) {
+                                if (!ins || !ins.vols) return;
+                                Object.keys(ins.vols).forEach(function(volName) {
+                                    var arr = ins.vols[volName];
+                                    if (!Array.isArray(arr) || arr.length < 2) return;
+                                    console.log('  - ' + cat + ' / ' + sub + ' / ' + typeName + ' / ' + ins.name + ' / ' + volName + ': ' + arr.length + ' units');
+                                    arr.forEach(function(u, i) {
+                                        var k = u.id ? 'id:' + u.id : 'ns:' + (u.name||'') + ':' + (u.start||'') + ':' + (u.end||'');
+                                        console.log('      [' + i + '] key=' + k + ', name=' + u.name);
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+            console.log('  - has master (old):', !!u.master, 'type=' + typeof u.master);
+            if (u.master) {
+                Object.keys(u.master).forEach(function(sub) {
+                    var s = u.master[sub];
+                    if (!s) return;
+                    if (s.materials) {
+                        Object.keys(s.materials).forEach(function(typeName) {
+                            var typeObj = s.materials[typeName];
+                            if (!typeObj || !Array.isArray(typeObj.instances)) return;
+                            typeObj.instances.forEach(function(ins) {
+                                if (!ins || !ins.vols) return;
+                                Object.keys(ins.vols).forEach(function(volName) {
+                                    var arr = ins.vols[volName];
+                                    if (!Array.isArray(arr) || arr.length < 2) return;
+                                    console.log('  - (old master) ' + sub + ' / ' + typeName + ' / ' + ins.name + ' / ' + volName + ': ' + arr.length + ' units');
+                                });
+                            });
+                        });
+                    }
+                });
+            }
+        }
+
         // v1.5.181: 同時清理舊的 multiData[uid].master 結構 (v1.5.2 遷移前)
         function deduplicateLegacyMaster(uid) {
             if (!multiData[uid] || !multiData[uid].master) return 0;
@@ -3074,16 +3128,20 @@ loadBoardHeader();
                 }
                 window._v152Migrated = 0;
                 
-                // v1.5.181: 自動清理教材庫重複 unit (新架構 masters + 舊架構 master)
-                var dedupCount = 0;
-                Object.keys(multiData).forEach(function(uid) {
-                    dedupCount += deduplicateMasterUnits(uid);
-                    dedupCount += deduplicateLegacyMaster(uid);
-                });
-                if (dedupCount > 0) {
-                    console.log('v1.5.181: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
-                } else {
-                    console.log('v1.5.181: 教材庫沒有重複 unit (auto-dedup 完成)');
+                // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
+                try {
+                    var dedupCount = 0;
+                    Object.keys(multiData).forEach(function(uid) {
+                        dedupCount += deduplicateMasterUnits(uid);
+                        dedupCount += deduplicateLegacyMaster(uid);
+                    });
+                    if (dedupCount > 0) {
+                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                    } else {
+                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
+                    }
+                } catch (e) {
+                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
@@ -3226,16 +3284,20 @@ loadBoardHeader();
             }
             if (repairedCount > 0) {
                 console.log('v1.5.16: 自動補上會考複習 ' + repairedCount + ' 個 missing 預設教材類型');
-                // v1.5.181: 自動清理教材庫重複 unit (新架構 masters + 舊架構 master)
-                var dedupCount = 0;
-                Object.keys(multiData).forEach(function(uid) {
-                    dedupCount += deduplicateMasterUnits(uid);
-                    dedupCount += deduplicateLegacyMaster(uid);
-                });
-                if (dedupCount > 0) {
-                    console.log('v1.5.181: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
-                } else {
-                    console.log('v1.5.181: 教材庫沒有重複 unit (auto-dedup 完成)');
+                // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
+                try {
+                    var dedupCount = 0;
+                    Object.keys(multiData).forEach(function(uid) {
+                        dedupCount += deduplicateMasterUnits(uid);
+                        dedupCount += deduplicateLegacyMaster(uid);
+                    });
+                    if (dedupCount > 0) {
+                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                    } else {
+                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
+                    }
+                } catch (e) {
+                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
@@ -3251,16 +3313,20 @@ loadBoardHeader();
             var cleanedOnSwitch = cleanDuplicateSameDayTasks();
             if (cleanedOnSwitch > 0) {
                 console.log('🧹 v1.5.99 切換使用者時清理 ' + cleanedOnSwitch + ' 筆同一天同單元重複任務');
-                // v1.5.181: 自動清理教材庫重複 unit (新架構 masters + 舊架構 master)
-                var dedupCount = 0;
-                Object.keys(multiData).forEach(function(uid) {
-                    dedupCount += deduplicateMasterUnits(uid);
-                    dedupCount += deduplicateLegacyMaster(uid);
-                });
-                if (dedupCount > 0) {
-                    console.log('v1.5.181: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
-                } else {
-                    console.log('v1.5.181: 教材庫沒有重複 unit (auto-dedup 完成)');
+                // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
+                try {
+                    var dedupCount = 0;
+                    Object.keys(multiData).forEach(function(uid) {
+                        dedupCount += deduplicateMasterUnits(uid);
+                        dedupCount += deduplicateLegacyMaster(uid);
+                    });
+                    if (dedupCount > 0) {
+                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                    } else {
+                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
+                    }
+                } catch (e) {
+                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
@@ -3287,16 +3353,20 @@ loadBoardHeader();
                 pushSafetyBackup('saveToLocal');
                 // v1.5.102: 儲存前 snapshot 到 undoStack (最多 5 步)
                 pushUndoSnapshot();
-                // v1.5.181: 自動清理教材庫重複 unit (新架構 masters + 舊架構 master)
-                var dedupCount = 0;
-                Object.keys(multiData).forEach(function(uid) {
-                    dedupCount += deduplicateMasterUnits(uid);
-                    dedupCount += deduplicateLegacyMaster(uid);
-                });
-                if (dedupCount > 0) {
-                    console.log('v1.5.181: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
-                } else {
-                    console.log('v1.5.181: 教材庫沒有重複 unit (auto-dedup 完成)');
+                // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
+                try {
+                    var dedupCount = 0;
+                    Object.keys(multiData).forEach(function(uid) {
+                        dedupCount += deduplicateMasterUnits(uid);
+                        dedupCount += deduplicateLegacyMaster(uid);
+                    });
+                    if (dedupCount > 0) {
+                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                    } else {
+                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
+                    }
+                } catch (e) {
+                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
@@ -3310,16 +3380,20 @@ loadBoardHeader();
                         localStorage.removeItem(STORAGE_KEY_UNDO);
                         localStorage.removeItem(STORAGE_KEY_NAMED);
                         // 再試一次
-                        // v1.5.181: 自動清理教材庫重複 unit (新架構 masters + 舊架構 master)
-                var dedupCount = 0;
-                Object.keys(multiData).forEach(function(uid) {
-                    dedupCount += deduplicateMasterUnits(uid);
-                    dedupCount += deduplicateLegacyMaster(uid);
-                });
-                if (dedupCount > 0) {
-                    console.log('v1.5.181: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
-                } else {
-                    console.log('v1.5.181: 教材庫沒有重複 unit (auto-dedup 完成)');
+                        // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
+                try {
+                    var dedupCount = 0;
+                    Object.keys(multiData).forEach(function(uid) {
+                        dedupCount += deduplicateMasterUnits(uid);
+                        dedupCount += deduplicateLegacyMaster(uid);
+                    });
+                    if (dedupCount > 0) {
+                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                    } else {
+                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
+                    }
+                } catch (e) {
+                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
