@@ -1206,6 +1206,7 @@
                             <input type="file" id="import-file" class="file-input-hidden" accept=".json">
                         </div>
                     </div>
+                    <button type="button" class="btn-info" onclick="dedupTraceAndShow()" style="margin-right:8px;">🔍 診斷教材庫</button>
                     <button type="button" class="btn-warning" onclick="dedupeAndSave()" style="margin-right:8px;">🧹 清理重複教材</button>
                     <button type="button" class="btn-success btn-save-settings" onclick="saveSettingsAndAlert()">💾 儲存教材庫變更</button>
                 </div>
@@ -9307,6 +9308,38 @@ function renderWizardUnitRowHtml(ws, i, u) {
             saveToLocal();
         }
         
+        // v1.5.182: 診斷教材庫結構 (彈出 alert 顯示 trace)
+        function dedupTraceAndShow() {
+            var uid = currentUserId || Object.keys(multiData)[0];
+            if (!uid) return alert('❌ 找不到用戶');
+            // 暫存 console.log
+            var logs = [];
+            var origLog = console.log;
+            var origError = console.error;
+            console.log = function() {
+                logs.push(Array.from(arguments).join(' '));
+                origLog.apply(console, arguments);
+            };
+            console.error = function() {
+                logs.push('[ERROR] ' + Array.from(arguments).join(' '));
+                origError.apply(console, arguments);
+            };
+            try {
+                dedupTrace(uid);
+            } catch (e) {
+                logs.push('[THROW] ' + e.message);
+            }
+            console.log = origLog;
+            console.error = origError;
+            // 彈出結果
+            var msg = logs.length > 0 ? logs.join('\n') : '✅ 沒有找到重複 unit (auto-dedup 應該跑過了)';
+            if (msg.length > 1500) msg = msg.substring(0, 1500) + '\n...(太長已截斷, 完整 log 請看 DevTools console)';
+            alert(msg);
+            // 同時 console.log 完整版本
+            origLog('=== v1.5.182 dedupTrace 完整結果 ===');
+            logs.forEach(function(l) { origLog(l); });
+        }
+
         // v1.5.181: 手動清理重複教材 (新架構 + 舊架構都掃)
         function dedupeAndSave() {
             var total = 0;
