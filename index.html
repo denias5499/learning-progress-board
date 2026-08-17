@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.176]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.177]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -311,7 +311,8 @@
     cursor: pointer; font-weight: bold; transition: 0.2s;
 }
 .stats-tab:hover:not(.active) { background: #cbd5e1; color: var(--primary); }
-.stats-tab.active { background: #f3d6ce; color: #2c3e50; }
+/* v1.5.177: Pantone 14-4320 (Bali Blue) tab 顏色 */
+.stats-tab.active { background: #A0C8D6; color: #2c3e50; }
 .stats-view { display: none; }
 .stats-view.active { display: block; }
 
@@ -352,8 +353,9 @@
     grid-template-columns: 1fr;  /* v1.5.81: 單欄,整頁寬顯示 */
     gap: 24px;
 }
+/* v1.5.177: Pantone 13-4306 (Balmy Blue) 底色 */
 .tree-subject {
-    background: var(--bg);
+    background: #B5CFD3;
     border-radius: 12px;
     padding: 22px 26px;
     border-left: 5px solid var(--accent);
@@ -3492,26 +3494,36 @@ loadBoardHeader();
             // v1.5.2+: materials[*].instances[*]
             else if (s.materials && typeof s.materials === 'object') {
                 var out2 = [];
+                var seenIds = {};  // v1.5.177: dedup by (type|inst|vol|id) — 防止手動重複新增造成重複 render
                 Object.keys(s.materials).forEach(function(typeName) {
                     var typeObj = s.materials[typeName];
                     if (!typeObj || !Array.isArray(typeObj.instances)) return;
                     typeObj.instances.forEach(function(ins) {
                         if (!ins) return;
-                        // v1.5.107: 支援 inst.vols (不管 ins.type 是否有)
                         if (ins.vols && typeof ins.vols === 'object') {
                             (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
                                 (ins.vols[volName] || []).forEach(function(u) {
-                                    out2.push(Object.assign({}, u, { vol: volName, _typeName: typeName, _instanceName: ins.name }));
+                                    if (u && u.id) {
+                                        var k = typeName + '|' + ins.name + '|' + volName + '|' + u.id;
+                                        if (seenIds[k]) return;
+                                        seenIds[k] = true;
+                                        out2.push(Object.assign({}, u, { vol: volName, _typeName: typeName, _instanceName: ins.name }));
+                                    }
                                 });
                             });
                         }
                         if (Array.isArray(ins.units)) {
                             ins.units.forEach(function(u) {
-                                out2.push(Object.assign({}, u, {
-                                    vol: ins.type === 'volume' ? (u.vol || 'custom') : typeName + '|' + ins.name,
-                                    _instanceName: ins.name,
-                                    _typeName: typeName
-                                }));
+                                if (u && u.id) {
+                                    var k2 = typeName + '|' + ins.name + '|legacy|' + u.id;
+                                    if (seenIds[k2]) return;
+                                    seenIds[k2] = true;
+                                    out2.push(Object.assign({}, u, {
+                                        vol: ins.type === 'volume' ? (u.vol || 'custom') : typeName + '|' + ins.name,
+                                        _instanceName: ins.name,
+                                        _typeName: typeName
+                                    }));
+                                }
                             });
                         }
                     });
@@ -9730,9 +9742,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<h2>' + escapeHtml(sub) + catLabel + '<span class="tree-progress">' + doneCount + ' / ' + totalCount + (isUnitBasedTree ? ' units' : ' 頁') + '</span></h2>';
 
                 if (s.type === 'custom' && Array.isArray(s.units)) {
-                    // v1.4.6: 套用 filter - 只列在 mission 內的 units
-                    var filteredUnits = s.units.filter(function(u) { return !allowedUnitIds || allowedUnitIds.has(u.id); });
-                    if (filteredUnits.length === 0) return;
+                    // v1.5.177: 拿掉 mission filter - 樹狀圖顯示所有教材庫 units, 不是只有 mission 內的
                     html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
                     html += '<ul class="tree-units">';
                     filteredUnits.forEach(u => {
@@ -9752,9 +9762,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     volOrder.forEach(volName => {
                         var arr = s.vols[volName];
                         if (!Array.isArray(arr) || arr.length === 0) return;
-                        // v1.4.6: 套用 filter
-                        arr = arr.filter(function(u) { return !allowedUnitIds || allowedUnitIds.has(u.id); });
-                        if (arr.length === 0) return;
+                        // v1.5.177: 拿掉 mission filter
+                    });
                         html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + escapeHtml(volName) + '</li>';
                         html += '<ul class="tree-units">';
                         arr.forEach(u => {
@@ -9795,13 +9804,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 } else if (s.materials) {
                     // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
                     var allUnits = _collectSubjectUnits(s);
-                    // 按 vol 分組顯示
+                    // v1.5.177: 拿掉 mission filter - 顯示所有教材庫 units
                     var byVol = {};
                     allUnits.forEach(function(u) {
-                        if (!allowedUnitIds || allowedUnitIds.has(u.id)) {
-                            if (!byVol[u.vol || 'custom']) byVol[u.vol || 'custom'] = [];
-                            byVol[u.vol || 'custom'].push(u);
-                        }
+                        if (!byVol[u.vol || 'custom']) byVol[u.vol || 'custom'] = [];
+                        byVol[u.vol || 'custom'].push(u);
                     });
                     Object.keys(byVol).forEach(function(volName) {
                         var arr = byVol[volName];
