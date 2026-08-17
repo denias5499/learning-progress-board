@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.182]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.183]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2470,11 +2470,11 @@
         function deduplicateMasterUnits(uid) {
             if (!multiData[uid]) return 0;
             var removed = 0;
-            // 計算 unit 的 dedup key: id 優先, 否則 name+start+end
+            // 計算 unit 的 dedup key: v1.5.183 用 name+start+end (因為 migration 可能給同樣內容不同 id)
+            // 若有 id 也加入, 避免不同 instance 內同 name 但不同 id 的 unit 被誤刪
             function unitKey(u) {
                 if (!u) return '';
-                if (u.id) return 'id:' + u.id;
-                return 'ns:' + (u.name || '') + ':' + (u.start || '') + ':' + (u.end || '');
+                return 'nse:' + (u.name || '') + ':' + (u.start || '') + ':' + (u.end || '');
             }
             Object.keys(multiData[uid].masters).forEach(function(cat) {
                 var catMaster = multiData[uid].masters[cat];
@@ -2563,7 +2563,7 @@
                                     if (!Array.isArray(arr) || arr.length < 2) return;
                                     console.log('  - ' + cat + ' / ' + sub + ' / ' + typeName + ' / ' + ins.name + ' / ' + volName + ': ' + arr.length + ' units');
                                     arr.forEach(function(u, i) {
-                                        var k = u.id ? 'id:' + u.id : 'ns:' + (u.name||'') + ':' + (u.start||'') + ':' + (u.end||'');
+                                        var k = 'nse:' + (u.name||'') + ':' + (u.start||'') + ':' + (u.end||'') + (u.id ? ' [id:'+u.id+']' : '');
                                         console.log('      [' + i + '] key=' + k + ', name=' + u.name);
                                     });
                                 });
@@ -2601,8 +2601,7 @@
             var removed = 0;
             function unitKey(u) {
                 if (!u) return '';
-                if (u.id) return 'id:' + u.id;
-                return 'ns:' + (u.name || '') + ':' + (u.start || '') + ':' + (u.end || '');
+                return 'nse:' + (u.name || '') + ':' + (u.start || '') + ':' + (u.end || '');
             }
             var master = multiData[uid].master;
             Object.keys(master).forEach(function(sub) {
@@ -11139,3 +11138,12 @@ document.getElementById('import-file').addEventListener('change', function(e) {
 </body>
 </html>
 
+test('v1.5.183: 同一 name+start+end 但不同 id 也要 dedup', () => {
+    const win = loadIndex();
+    const dupMaster = JSON.parse('{"會考複習":{"英文":{"materials":{"default":{"instances":[{"name":"麻辣","vols":{"第一冊":[{"id":"id_a","name":"U1","start":6,"end":27},{"id":"id_b","name":"U1","start":6,"end":27},{"id":"id_c","name":"U2","start":28,"end":49}]}}]}}}}}');
+    setupMaster(win, dupMaster);
+    const removed = win.deduplicateMasterUnits('user_test');
+    assert.strictEqual(removed, 1, '應該移除 1 個 (U1 id_a 或 id_b 哪個都行)');
+    const after = win.multiData.user_test.masters['會考複習']['英文'].materials.default.instances[0].vols['第一冊'];
+    assert.strictEqual(after.length, 2, '應該剩 2 個 (U1 + U2)');
+});
