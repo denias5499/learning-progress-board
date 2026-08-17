@@ -2464,10 +2464,17 @@
             closeModal('modal-board-settings');
         }
 
-        // v1.5.178: 清理教材庫重複 unit (防止之前手動新增造成同 unit 出現多次)
+        // v1.5.180: 清理教材庫重複 unit (id 優先, name+start+end 備用, 跨 instance 也 dedup)
+        // 之前 v1.5.179 只用 id 去重, 但很多 unit 沒有 id 欄位, 導致 dedup 沒生效
         function deduplicateMasterUnits(uid) {
             if (!multiData[uid] || !multiData[uid].masters) return 0;
             var removed = 0;
+            // 計算 unit 的 dedup key: id 優先, 否則 name+start+end
+            function unitKey(u) {
+                if (!u) return '';
+                if (u.id) return 'id:' + u.id;
+                return 'ns:' + (u.name || '') + ':' + (u.start || '') + ':' + (u.end || '');
+            }
             Object.keys(multiData[uid].masters).forEach(function(cat) {
                 var catMaster = multiData[uid].masters[cat];
                 if (!catMaster) return;
@@ -2477,6 +2484,7 @@
                     Object.keys(s.materials).forEach(function(typeName) {
                         var typeObj = s.materials[typeName];
                         if (!typeObj || !Array.isArray(typeObj.instances)) return;
+                        // 1. 同一 instance + vol 內 dedup
                         typeObj.instances.forEach(function(ins) {
                             if (!ins || !ins.vols) return;
                             Object.keys(ins.vols).forEach(function(volName) {
@@ -2485,13 +2493,44 @@
                                 var seen = {};
                                 var deduped = [];
                                 arr.forEach(function(u) {
-                                    if (!u || !u.id) { deduped.push(u); return; }
-                                    if (seen[u.id]) { removed++; return; }
-                                    seen[u.id] = true;
+                                    var key = unitKey(u);
+                                    if (!key) { deduped.push(u); return; }
+                                    if (seen[key]) { removed++; return; }
+                                    seen[key] = true;
                                     deduped.push(u);
                                 });
                                 if (deduped.length !== arr.length) {
                                     ins.vols[volName] = deduped;
+                                }
+                            });
+                        });
+                        // 2. 跨 instance dedup: 整體只保留「第一個出現的 instance」內的 unit
+                        //    找出每個 key 的 first instance index, 只在該 instance 保留
+                        var firstInstanceForKey = {};
+                        typeObj.instances.forEach(function(ins, idx) {
+                            if (!ins || !ins.vols) return;
+                            Object.keys(ins.vols).forEach(function(volName) {
+                                (ins.vols[volName] || []).forEach(function(u) {
+                                    var key = unitKey(u);
+                                    if (key && firstInstanceForKey[key] === undefined) {
+                                        firstInstanceForKey[key] = idx;
+                                    }
+                                });
+                            });
+                        });
+                        typeObj.instances.forEach(function(ins, idx) {
+                            if (!ins || !ins.vols) return;
+                            Object.keys(ins.vols).forEach(function(volName) {
+                                var arr = ins.vols[volName];
+                                if (!Array.isArray(arr)) return;
+                                var filtered = arr.filter(function(u) {
+                                    var key = unitKey(u);
+                                    if (!key) return true;  // 無 key 保留
+                                    return firstInstanceForKey[key] === idx;  // 只在 first instance 保留
+                                });
+                                if (filtered.length !== arr.length) {
+                                    removed += (arr.length - filtered.length);
+                                    ins.vols[volName] = filtered;
                                 }
                             });
                         });
