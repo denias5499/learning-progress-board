@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.172]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.173]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -712,7 +712,24 @@
 
         .wizard-section { background: #f8fafc; border: 1px solid var(--border); border-radius: 8px; padding: 15px; margin-bottom: 15px; }
         .wizard-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap;}
+
         .wizard-row > * { flex: 1; min-width: 200px; }
+        
+        /* v1.5.173: wizard unit row 用 className 取代 inline style (Safari layout 加速) */
+        .wz-unit-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.95em; padding: 6px 8px; border-radius: 5px; border: 1px solid #fde2c5; background: #fef3c7; }
+        .wz-unit-row.scheduled { background: #fffbeb; border-color: #fde68a; }
+        .wz-unit-row .label-main { cursor: pointer; flex: 1; }
+        .wz-unit-row .quick-read { cursor: pointer; white-space: nowrap; margin-left: 8px; font-size: 0.85em; }
+        .wz-unit-row .quick-read.on { color: #d97706; font-weight: bold; }
+        .wz-unit-row .quick-read.off { color: #9ca3af; }
+        .wz-unit-row .unit-cb { width: auto; margin-right: 8px; transform: scale(1.1); }
+        .wz-unit-row .qr-cb { width: auto; vertical-align: middle; margin-right: 3px; }
+        .wz-instance-tag { background: #dbeafe; color: #1e40af; font-size: 0.7em; padding: 1px 5px; border-radius: 8px; margin-right: 4px; }
+        .wz-type-tag { background: #fef3c7; color: #92400e; font-size: 0.7em; padding: 1px 5px; border-radius: 8px; margin-right: 4px; }
+        .wz-scheduled-mark { color: #f59e0b; font-size: 0.8em; }
+        .wz-show-more { text-align: center; padding: 8px; background: #f1f5f9; border-radius: 5px; cursor: pointer; margin-top: 8px; font-size: 0.85em; color: var(--secondary); border: 1px solid var(--border); }
+        .wz-show-more:hover { background: #e2e8f0; }
+
         
         .horizontal-scroll::-webkit-scrollbar { height: 8px; }
         .horizontal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -4411,10 +4428,19 @@ function wzUpdateSubjects() {
                 var mode = ws.displayMode || 'D';
                 if (mode === 'D' || mode === 'A' || mode === 'B' || mode === 'C' || mode === 'E') {
                     if (mode === 'D') {
-                        // 模式 D：扁平 (按頁數排序) + 帶 type/instance 標籤
-                        ws.availableUnits.forEach(u => {
+                        // v1.5.173: 模式 D 預設摺疊 (只顯示前 10 個 unit, 避免 Safari 一次 layout 太多 DOM)
+                        // 解決「建立智慧排程」按鈕在 Safari 4-8 秒延遲 (root cause: Layout & Rendering, JS 瞬間)
+                        var COLLAPSE_THRESHOLD = 10;
+                        var isCollapsed = ws._modeDCollapsed !== false;  // 預設 collapsed
+                        var visibleUnits = isCollapsed ? ws.availableUnits.slice(0, COLLAPSE_THRESHOLD) : ws.availableUnits;
+                        visibleUnits.forEach(u => {
                             html += renderWizardUnitRowHtml(ws, i, u);
                         });
+                        if (ws.availableUnits.length > COLLAPSE_THRESHOLD) {
+                            var hidden = ws.availableUnits.length - COLLAPSE_THRESHOLD;
+                            var subjKey = 'd_' + i;
+                            html += `<div class="wz-show-more" onclick="toggleWizardModeD(${i})">${isCollapsed ? '▶ 展開更多 (' + hidden + ' 個)' : '▼ 收合'}</div>`;
+                        }
                     } else {
                         // 模式 A/B/C/E：分組渲染
                         var groups = {};
@@ -4459,6 +4485,14 @@ function wzUpdateSubjects() {
                     console.log('[wizard ' + ws.name + '] selected: ' + ws.selectedUnitIds.length + '/' + ws.availableUnits.length);
                 }
             });
+        }
+
+        // v1.5.173: 模式 D 展開/收合
+        function toggleWizardModeD(subjIdx) {
+            var ws = wizardSubjects[subjIdx];
+            // 預設 collapsed (true), click 後變 false (展開), 再 click 變 true (收合)
+            ws._modeDCollapsed = ws._modeDCollapsed === false;
+            renderWizardSubjects();
         }
 
         // v1.5.33: 切換科目的顯示方式 (A/B/C/D/E)
@@ -4805,25 +4839,28 @@ function renderUnitRowHtml(u, opts) {
     var pageStr = (u.start && u.end && u.start !== u.end) ? ` (P.${u.start}~${u.end})` : ((u.start && u.start === u.end) ? ` (P.${u.start})` : '');
     var isScheduled = isUnitScheduledAnywhere(u);
     var qrChecked = u.quickRead ? 'checked' : '';
-    var qrStyle = u.quickRead ? 'color:#d97706; font-weight:bold;' : 'color:#9ca3af;';
+    var qrClass = u.quickRead ? 'on' : 'off';
     var instanceTag = '';
     if (displayMode === 'D' || displayMode === 'E') {
-        if (u.typeName) instanceTag += '<span style="background:#fef3c7; color:#92400e; font-size:0.7em; padding:1px 5px; border-radius:8px; margin-right:4px;">📖' + u.typeName + '</span>';
+        if (u.typeName) instanceTag += '<span class="wz-type-tag">📖' + u.typeName + '</span>';
         // v1.5.155: 改用 alias (簡稱) 而不是 full name
         if (u.instanceName) {
             var instAlias = getInstanceAliasFromUnit(u);
-            instanceTag += '<span style="background:#dbeafe; color:#1e40af; font-size:0.7em; padding:1px 5px; border-radius:8px; margin-right:4px;" title="' + escapeHtml(u.instanceName) + '">📘' + instAlias + '</span>';
+            instanceTag += '<span class="wz-instance-tag" title="' + escapeHtml(u.instanceName) + '">📘' + instAlias + '</span>';
         }
     }
     var quickReadHtml = '';
     if (showQuickRead) {
-        quickReadHtml = `<label title="快讀（時數打折）" style="cursor:pointer; ${qrStyle}; white-space:nowrap; margin-left:8px; font-size:0.85em;">
-                    <input type="checkbox" class="wz-qr-cb" ${qrChecked} onchange="${opts.onQuickReadChange || ''}" style="width:auto; vertical-align:middle; margin-right:3px;">☀️
+        // v1.5.173: 用 className 取代 inline style (Safari layout 加速)
+        quickReadHtml = `<label title="快讀（時數打折）" class="quick-read ${qrClass}">
+                    <input type="checkbox" class="wz-qr-cb qr-cb" ${qrChecked} onchange="${opts.onQuickReadChange || ''}">☀️
                 </label>`;
     }
-    return `<div style="display:flex; align-items:center; margin-bottom:8px; font-size:0.95em; background:${isScheduled ? '#fffbeb' : '#fef3c7'}; padding:6px 8px; border-radius:5px; border:1px solid ${isScheduled ? '#fde68a' : '#fde2c5'};">
-                <input type="checkbox" class="wz-unit-cb" value="${u.id}" ${isChecked} onchange="${onChange}" style="width:auto; margin-right:8px; transform:scale(1.1);">
-                <label style="cursor:pointer; flex:1;">${instanceTag}${prefix}${u.name}${pageStr}${isScheduled ? ' <span style="color:#f59e0b; font-size:0.8em;">🔁</span>' : ''}</label>
+    var schedMark = isScheduled ? ' <span class="wz-scheduled-mark">🔁</span>' : '';
+    // v1.5.173: 用 className 取代 inline style (Safari layout 加速)
+    return `<div class="wz-unit-row${isScheduled ? ' scheduled' : ''}">
+                <input type="checkbox" class="wz-unit-cb unit-cb" value="${u.id}" ${isChecked} onchange="${onChange}">
+                <label class="label-main">${instanceTag}${prefix}${u.name}${pageStr}${schedMark}</label>
                 ${quickReadHtml}
             </div>`;
 }
