@@ -1,3 +1,26 @@
+## v1.5.175 (2026-08-17) — 學習統計分析 tab 樣式 + 樹狀圖 dropdowns + 教材庫頁面加速
+
+### 改動
+
+#### 1. 學習統計分析 tab 樣式改成跟教材庫設定一樣
+- .stats-tab CSS: 藍色底線 → orange/peach 背景 (跟 .tab-btn 一致)
+- tab label 加編號: 1.樹狀圖 / 2.月份分析 / 3.答對率統計
+
+#### 2. 樹狀圖加 3 個 dropdowns
+- 科目 (subject): 國文/數學/英文/...
+- 教材類別 (material type): default/複習講義/...
+- 冊別 (volume): 第一冊/第二冊/...
+- default 依科目別收起 — 只顯示科目 summary cards (類別/冊/單元統計)
+- 點擊 summary card 或選 dropdown → 展開詳細樹
+- 加 ↻ 重設 按鈕
+
+#### 3. 教材庫頁面歷史紀錄 tab 加速
+- renderHistoryTable batchSize 50→10 (初次 render 更快, 之後續批補上)
+- 修剩下的 inline style in backup-row 子元素 (.backup-col, .backup-buttons, .file-input-hidden, .btn-save-settings)
+
+### 驗證
+- 17 tests 仍綠
+- Safari 預期改善: 點歷史紀錄 tab 應該明顯變快
 ## v1.5.173 (2026-08-17) — 模式 D 預設摺疊 + unit row className (修「建立智慧排程」按鈕 8.5 秒延遲)
 
 ### 問題
