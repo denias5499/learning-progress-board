@@ -301,22 +301,17 @@
 .nav-btn-5 { background-color: #c4e0f9 !important; }
 
 /* v1.4.0/v1.4.1: 學習統計分析頁面 */
+/* v1.5.175: 學習統計分析 tabs 改成教材庫 tab 樣式 (orange/peach active) */
 .stats-tabs {
-    display: flex; gap: 8px; margin-bottom: 20px;
-    border-bottom: 2px solid var(--border); padding-bottom: 0;
+    display: flex; gap: 4px; margin-bottom: 0;
 }
 .stats-tab {
-    background: transparent; border: none;
-    padding: 10px 18px; cursor: pointer;
-    font-size: 1.05em; font-weight: bold;
-    color: var(--secondary); border-bottom: 3px solid transparent;
-    margin-bottom: -2px; transition: 0.2s;
+    background: #e2e8f0; color: var(--secondary); font-size: 1.05em;
+    padding: 10px 20px; border: none; border-radius: 8px 8px 0 0;
+    cursor: pointer; font-weight: bold; transition: 0.2s;
 }
-.stats-tab:hover { color: var(--primary); }
-.stats-tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-}
+.stats-tab:hover:not(.active) { background: #cbd5e1; color: var(--primary); }
+.stats-tab.active { background: #f3d6ce; color: #2c3e50; }
 .stats-view { display: none; }
 .stats-view.active { display: block; }
 
@@ -651,10 +646,28 @@
         .save-row { text-align: right; margin-top: 25px; }
         /* v1.5.174: pane-history inline styles */
         .pane-history-title { color: var(--primary); margin-top: 0; }
+
+        /* v1.5.175: 樹狀圖 filter bar */
+        .tree-filter-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; font-size: 0.9em; }
+        .tree-filter-bar select { padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border); min-width: 100px; }
+        .tree-filter-bar select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+        .tree-filter-label { font-weight: bold; color: var(--secondary); }
+        .tree-filter-hint { font-size: 0.8em; color: #94a3b8; margin-left: auto; }
+        .tree-collapse-btn { background: #64748b; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
+        .tree-collapse-btn:hover { background: #475569; }
+        /* 樹狀圖 collapse state */
+        .tree-subject-summary { display: flex; align-items: center; padding: 12px 16px; background: white; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.2s; }
+        .tree-subject-summary:hover { background: #f8fafc; }
+        .tree-subject-summary-name { font-weight: bold; font-size: 1.05em; flex: 1; }
+        .tree-subject-summary-stats { color: var(--secondary); font-size: 0.9em; }
         .history-status-bar { margin-top: 10px; color: #7f8c8d; font-size: 0.9em; text-align: center; }
         .history-hr { border: 0; border-top: 2px solid var(--border); margin: 30px 0 20px 0; }
         .backup-row { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; background: #fdf2e9; padding: 15px; border-radius: 8px; }
         .backup-label { color: #d35400; }
+        .backup-col { display: flex; gap: 10px; flex-direction: column; }
+        .backup-buttons { display: flex; gap: 10px; }
+        .file-input-hidden { display: none; }
+        .btn-save-settings { padding: 10px 30px; font-size: 1.2em; }
         /* v1.5.19: 歷史紀錄固定大小 console + scroll */
         .history-console {
             max-height: 70vh;
@@ -1180,16 +1193,16 @@
                 <hr class="history-hr">
                 
                 <div class="backup-row">
-                    <div style="display: flex; gap: 10px; flex-direction: column;">
+                    <div class="backup-col">
                         <label class="backup-label">⚠️ 全機資料備份與還原</label>
-                        <div style="display: flex; gap: 10px;">
+                        <div class="backup-buttons">
                             <button type="button" class="btn-primary" onclick="exportDataToFile()">📥 匯出 JSON 備份</button>
                             <button type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
 
-                            <input type="file" id="import-file" style="display: none;" accept=".json">
+                            <input type="file" id="import-file" class="file-input-hidden" accept=".json">
                         </div>
                     </div>
-                    <button type="button" class="btn-success" style="padding: 10px 30px; font-size: 1.2em;" onclick="saveSettingsAndAlert()">💾 儲存教材庫變更</button>
+                    <button type="button" class="btn-success btn-save-settings" onclick="saveSettingsAndAlert()">💾 儲存教材庫變更</button>
                 </div>
             </div>
         </div>
@@ -1343,16 +1356,23 @@
                     </div>
                 </div>
                 <div class="stats-tabs">
-                    <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">🌳 樹狀圖</button>
-                    <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">📅 月份分析</button>
-                    <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">🎯 答對率統計</button>
+                    <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">🌳 1. 樹狀圖</button>
+                    <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">📅 2. 月份分析</button>
+                    <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">🎯 3. 答對率統計</button>
                 </div>
                 <div id="stats-tree" class="stats-view active">
-                    <!-- v1.5.8: 樹狀圖獨立 Category dropdown (不跟 mission filter 連動) -->
-                    <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border);">
-                        <span style="font-weight: bold; color: var(--secondary);">📂 教材分類：</span>
+                    <!-- v1.5.175: 樹狀圖 dropdowns (教材分類/科目/教材類別/冊別) -->
+                    <div class="tree-filter-bar">
+                        <span class="tree-filter-label">📂 教材分類:</span>
                         <select id="tree-cat-filter" onchange="renderTreeView()"></select>
-                        <span style="font-size: 0.85em; color: var(--secondary);">(不跟任務篩選連動)</span>
+                        <span class="tree-filter-label">📘 科目:</span>
+                        <select id="tree-subject-filter" onchange="renderTreeView()"></select>
+                        <span class="tree-filter-label">📑 教材類別:</span>
+                        <select id="tree-type-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
+                        <span class="tree-filter-label">📖 冊別:</span>
+                        <select id="tree-vol-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
+                        <button type="button" class="tree-collapse-btn" onclick="resetTreeFilter()">↻ 重設</button>
+                        <span class="tree-filter-hint">(default: 依科目別收起)</span>
                     </div>
                     <div id="starmap-root"></div>
                 </div>
@@ -1964,6 +1984,59 @@
                 // v1.5.57: page-daily no longer has a top nav button
                 if (pageId === 'page-stats' && el('nav-btn-stats')) el('nav-btn-stats').classList.add('active-nav');
             }
+        }
+
+        // v1.5.175: 樹狀圖 default 模式 — 顯示科目 summary cards
+        function renderTreeSubjectSummary(root, treeSubjects) {
+            var html = '';
+            Object.keys(treeSubjects).forEach(function(key) {
+                var info = treeSubjects[key];
+                // 計算該科目的 unit / vol 統計
+                var unitCount = 0, volCount = 0, typeCount = 0;
+                if (info.subj && info.subj.materials) {
+                    typeCount = Object.keys(info.subj.materials).length;
+                    Object.values(info.subj.materials).forEach(function(t) {
+                        if (t && t.instances) {
+                            t.instances.forEach(function(inst) {
+                                if (inst.vols) {
+                                    Object.keys(inst.vols).forEach(function(v) {
+                                        volCount++;
+                                        unitCount += (inst.vols[v] || []).length;
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+                html += '<div class="tree-subject-summary" onclick="selectTreeSubject(\'' + key + '\')">' +
+                    '<span class="tree-subject-summary-name">📘 ' + escapeHtml(info.name) + '</span>' +
+                    '<span class="tree-subject-summary-stats">' + typeCount + ' 類別 · ' + volCount + ' 冊 · ' + unitCount + ' 單元</span>' +
+                    '<span style="color: var(--secondary);">▶ 展開</span>' +
+                    '</div>';
+            });
+            html += '<div style="text-align: center; padding: 15px; color: var(--secondary); font-size: 0.9em;">↑ 點擊科目展開詳細樹狀圖，或從上方 dropdowns 選擇</div>';
+            root.innerHTML = html;
+        }
+
+        // v1.5.175: 點擊科目 summary card → 設成 selected 並重 render
+        function selectTreeSubject(key) {
+            var sel = el('tree-subject-filter');
+            if (sel) {
+                sel.value = key;
+                renderTreeView();
+            }
+        }
+
+        // v1.5.175: 重設所有樹狀圖 filter
+        function resetTreeFilter() {
+            var sels = ['tree-cat-filter', 'tree-subject-filter', 'tree-type-filter', 'tree-vol-filter'];
+            sels.forEach(function(id) {
+                var sel = el(id);
+                if (sel) {
+                    sel.value = (id === 'tree-cat-filter') ? 'ALL' : 'ALL';
+                }
+            });
+            renderTreeView();
         }
 
         function returnToHome() {
@@ -7756,8 +7829,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             tbody.innerHTML = '';
             if (status) status.textContent = '載入中… 共 ' + sortedLogs.length + ' 筆';
 
-            // v1.5.19: 分批 render, 避免大量 logs 衝到 UI thread
-            var batchSize = 50;
+            // v1.5.175: batchSize 50→10, 初次 render 更快, 之後續批補上
+            var batchSize = 10;
             var idx = 0;
 
             function renderRow(log) {
@@ -9408,6 +9481,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
             }
             var treeCat = treeCatSel ? treeCatSel.value : 'ALL';
+
+            // v1.5.175: 樹狀圖 3 個 dropdowns (科目/教材類別/冊別) — default 依科目別收起
+            var treeSubjectSel = el('tree-subject-filter');
+            var treeTypeSel = el('tree-type-filter');
+            var treeVolSel = el('tree-vol-filter');
+
             // 收集選定 cat 範圍的 subjects (iterate 用, 不影響 appMaster)
             var treeSubjects = {};
             if (user && user.masters) {
@@ -9426,6 +9505,82 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             if (Object.keys(treeSubjects).length === 0) {
                 root.innerHTML = '<div class="tree-empty">🌳 尚未建立教材庫<br><br><span style="font-size:0.85em;">先去「教材庫與備份」建立科目與單元,樹狀圖就會長出來 ✨</span></div>';
+                if (treeTypeSel) treeTypeSel.innerHTML = '<option value="ALL">全部</option>';
+                if (treeVolSel) treeVolSel.innerHTML = '<option value="ALL">全部</option>';
+                return;
+            }
+
+            // v1.5.175: populate 科目 dropdown (依目前 treeCat 範圍)
+            if (treeSubjectSel) {
+                var prevSubj = treeSubjectSel.value;
+                var subjectOpts = '<option value="ALL">🌟 全部科目 (' + Object.keys(treeSubjects).length + ')</option>';
+                Object.keys(treeSubjects).forEach(function(key) {
+                    var subjName = treeSubjects[key].name;
+                    subjectOpts += '<option value="' + key + '">' + subjName + '</option>';
+                });
+                treeSubjectSel.innerHTML = subjectOpts;
+                if (prevSubj && treeSubjects[prevSubj]) {
+                    treeSubjectSel.value = prevSubj;
+                } else {
+                    treeSubjectSel.value = 'ALL';  // default 依科目別收起
+                }
+            }
+            var treeSubjectKey = treeSubjectSel ? treeSubjectSel.value : 'ALL';
+
+            // v1.5.175: populate 教材類別 dropdown (依選定科目)
+            if (treeTypeSel) {
+                var prevType = treeTypeSel.value;
+                var typeOpts = '<option value="ALL">全部</option>';
+                var selectedSubj = treeSubjectKey !== 'ALL' ? treeSubjects[treeSubjectKey] : null;
+                if (selectedSubj) {
+                    var types = selectedSubj.subj.materials ? Object.keys(selectedSubj.subj.materials) : [];
+                    types.forEach(function(t) {
+                        var cnt = selectedSubj.subj.materials[t] && selectedSubj.subj.materials[t].instances ? selectedSubj.subj.materials[t].instances.length : 0;
+                        typeOpts += '<option value="' + t + '">' + t + ' (' + cnt + ')</option>';
+                    });
+                    treeTypeSel.disabled = false;
+                } else {
+                    treeTypeSel.disabled = true;
+                }
+                treeTypeSel.innerHTML = typeOpts;
+                if (prevType && typeOpts.indexOf('value="' + prevType + '"') > -1) {
+                    treeTypeSel.value = prevType;
+                } else {
+                    treeTypeSel.value = 'ALL';
+                }
+            }
+            var treeType = treeTypeSel ? treeTypeSel.value : 'ALL';
+
+            // v1.5.175: populate 冊別 dropdown (依選定教材類別)
+            if (treeVolSel) {
+                var prevVol = treeVolSel.value;
+                var volOpts = '<option value="ALL">全部</option>';
+                var typeObjForVol = (selectedSubj && treeType !== 'ALL') ? selectedSubj.subj.materials[treeType] : null;
+                if (typeObjForVol && typeObjForVol.instances) {
+                    typeObjForVol.instances.forEach(function(inst) {
+                        if (inst.vols) {
+                            Object.keys(inst.vols).forEach(function(volName) {
+                                var cnt = (inst.vols[volName] || []).length;
+                                volOpts += '<option value="' + inst.name + '|||' + volName + '">' + inst.name + ' / ' + volName + ' (' + cnt + ' 單元)</option>';
+                            });
+                        }
+                    });
+                    treeVolSel.disabled = false;
+                } else {
+                    treeVolSel.disabled = true;
+                }
+                treeVolSel.innerHTML = volOpts;
+                if (prevVol && volOpts.indexOf('value="' + prevVol + '"') > -1) {
+                    treeVolSel.value = prevVol;
+                } else {
+                    treeVolSel.value = 'ALL';
+                }
+            }
+            var treeVol = treeVolSel ? treeVolSel.value : 'ALL';
+
+            // v1.5.175: default 依科目別收起 — 沒選科目時, 只顯示科目 summary cards
+            if (treeSubjectKey === 'ALL') {
+                renderTreeSubjectSummary(root, treeSubjects);
                 return;
             }
 
