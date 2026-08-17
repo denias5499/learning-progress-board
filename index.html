@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.183]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.184]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9339,19 +9339,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
             logs.forEach(function(l) { origLog(l); });
         }
 
-        // v1.5.181: 手動清理重複教材 (新架構 + 舊架構都掃)
+        // v1.5.184: 手動清理重複教材 + 自動重整頁面 (讓使用者立刻看到清乾淨的結果)
         function dedupeAndSave() {
             var total = 0;
             Object.keys(multiData).forEach(function(uid) {
                 total += deduplicateMasterUnits(uid);
                 total += deduplicateLegacyMaster(uid);
             });
+            saveToLocal();  // 不論有沒有都先存
             if (total > 0) {
-                saveToLocal();
-                alert('✅ 已清理 ' + total + ' 筆重複教材');
-                if (typeof renderMasterEditor === 'function') renderMasterEditor();
+                alert('✅ 已清理 ' + total + ' 筆重複教材, 自動重整頁面');
+                setTimeout(function() { location.reload(); }, 500);
             } else {
-                alert('✅ 沒有發現重複教材');
+                alert('✅ 沒有發現重複教材 (但已 save + reload 確保顯示最新)');
+                setTimeout(function() { location.reload(); }, 500);
             }
         }
 
