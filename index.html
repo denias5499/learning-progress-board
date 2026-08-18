@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.194]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.195]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -325,6 +325,10 @@
 @media (max-width: 768px) { .accuracy-row-4col { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 480px) { .accuracy-row-4col { grid-template-columns: 1fr; } }
 .accuracy-form .form-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
+.accuracy-filter-row { flex-wrap: nowrap; overflow-x: auto; gap: 6px; align-items: center; }
+.accuracy-filter-row label { font-size: 0.85em; color: var(--secondary); white-space: nowrap; }
+.accuracy-filter-row select.accuracy-filter-sel { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85em; min-width: 90px; max-width: 140px; }
+@media (max-width: 768px) { .accuracy-filter-row { flex-wrap: wrap; } }
 .accuracy-form .form-row label { font-weight: bold; color: var(--secondary); white-space: nowrap; min-width: 70px; }
 .accuracy-form select, .accuracy-form input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; }
 .accuracy-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
@@ -7600,7 +7604,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v1.5.158: 答對率統計 (per-user storage, 改下拉立即重渲染)
         var STORAGE_KEY_ACCURACY_BASE = 'StudyMap_AccuracyRecords_V158';
         if (!window._accWrongUnits) window._accWrongUnits = [];
-        if (!window._accFilters) window._accFilters = { subject: '__ALL__', unit: '__ALL__', typeName: '__ALL__' };
+        if (!window._accFilters) window._accFilters = { subject: '__ALL__', unit: '__ALL__', typeName: '__ALL__', sort: 'rate' };
 
         function accStorageKey() {
             var uid = (typeof currentUserId !== 'undefined') ? currentUserId : 'default';
@@ -7779,31 +7783,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
             html += '</div>';
             html += '</div>';
 
-            // ===== 篩選器 =====
+            // ===== 篩選器 (v1.5.195: 1 行, 加排序 dropdown, 縮短寬度, 刪「改任...」) =====
             html += '<div class="accuracy-filter">';
-            html += '<div class="form-row">';
-            html += '<label style="font-weight:bold; color:var(--secondary); min-width:auto;">🔍 篩選</label>';
-            // 科目
+            html += '<div class="form-row accuracy-filter-row">';
             html += '<label>科目</label>';
-            html += '<select id="acc-filter-subject" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
+            html += '<select id="acc-filter-subject" class="accuracy-filter-sel" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
             subjects.forEach(function(s) { html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; });
             html += '</select>';
-            // 教材類型</select>
             html += '<label>教材類型</label>';
-            html += '<select id="acc-filter-type" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
+            html += '<select id="acc-filter-type" class="accuracy-filter-sel" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
             var allTypes = new Set();
             subjects.forEach(function(sub) {
                 Object.keys((appMaster[sub] || {}).materials || {}).forEach(function(t) { allTypes.add(t); });
             });
             Array.from(allTypes).forEach(function(t) { html += '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; });
             html += '</select>';
-            // 單元
             html += '<label>單元</label>';
-            html += '<select id="acc-filter-unit" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
+            html += '<select id="acc-filter-unit" class="accuracy-filter-sel" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
             var allUnits = getAllUnitsForFilter();
             allUnits.forEach(function(u) { html += '<option value="' + escapeHtml(u) + '">' + escapeHtml(u) + '</option>'; });
             html += '</select>';
-            html += '<span style="color:#7f8c8d; font-size:0.85em; margin-left:auto;">改任一 → 立即重渲染</span>';
+            html += '<label>排序</label>';
+            html += '<select id="acc-filter-sort" class="accuracy-filter-sel" onchange="accOnFilterChange()">';
+            html += '<option value="rate">依正確率高低</option>';
+            html += '<option value="date">依日期新舊</option>';
+            html += '</select>';
             html += '</div>';
             html += '</div>';
 
@@ -7819,12 +7823,24 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
                 return true;
             });
-            // 按答對率 DESC
-            filtered.sort(function(a, b) {
-                var ra = a.total > 0 ? (a.correct / a.total) : 0;
-                var rb = b.total > 0 ? (b.correct / b.total) : 0;
-                return rb - ra;
-            });
+            // v1.5.195: 排序依 acc-filter-sort 選項 (依正確率高低 / 依日期新舊)
+            var sortMode = (window._accFilters.sort || 'rate');
+            if (sortMode === 'date') {
+                // 日期 DESC (新→舊), 同日期按答對率 DESC
+                filtered.sort(function(a, b) {
+                    if (a.date !== b.date) return (b.date || '').localeCompare(a.date || '');
+                    var ra = a.total > 0 ? (a.correct / a.total) : 0;
+                    var rb = b.total > 0 ? (b.correct / b.total) : 0;
+                    return rb - ra;
+                });
+            } else {
+                // 預設依正確率 DESC
+                filtered.sort(function(a, b) {
+                    var ra = a.total > 0 ? (a.correct / a.total) : 0;
+                    var rb = b.total > 0 ? (b.correct / b.total) : 0;
+                    return rb - ra;
+                });
+            }
 
             if (filtered.length === 0) {
                 html += '<div style="text-align:center; color:var(--secondary); padding:20px;">';
@@ -7853,7 +7869,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<span class="accuracy-chip" style="background:' + rateColor + '20; color:' + rateColor + ';">' + rate.toFixed(1) + '%</span>';
                     html += '</td>';
                     html += '<td>' + (r.wrongUnits && r.wrongUnits.length > 0 ? r.wrongUnits.map(escapeHtml).join(', ') : '-') + '</td>';
-                    html += '<td><button type="button" onclick="accDeleteRecord(' + origIdx + ')" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em;">🗑</button></td>';
+                    html += '<td style="white-space:nowrap;">';
+                    html += '<button type="button" onclick="accEditRecord(' + origIdx + ')" title="編輯" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em; margin-right:4px;">✏️</button>';
+                    html += '<button type="button" onclick="accDeleteRecord(' + origIdx + ')" title="刪除" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em;">🗑</button>';
+                    html += '</td>';
                     html += '</tr>';
                 });
                 html += '</tbody></table>';
@@ -7999,21 +8018,104 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (correct > total) return alert('答對題數不能大於總題數!');
             if (!date) return alert('請選擇日期!');
 
-            var record = {
-                id: 'acc_' + genId(),
-                date: date,
-                subject: sub,
-                typeName: typeName,
-                instanceId: instId,
-                instanceName: instName,
-                total: total,
-                correct: correct,
-                wrongUnits: (window._accWrongUnits || []).slice()
-            };
             var records = loadAccuracyRecords();
-            records.push(record);
+            var record;
+            if (window._editingRecordId) {
+                // 編輯模式: 覆蓋原 record (保留原本 id)
+                record = {
+                    id: window._editingRecordId,
+                    date: date,
+                    subject: sub,
+                    typeName: typeName,
+                    instanceId: instId,
+                    instanceName: instName,
+                    total: total,
+                    correct: correct,
+                    wrongUnits: (window._accWrongUnits || []).slice()
+                };
+                records[window._editingRecordIdx] = record;
+            } else {
+                // 新增模式
+                record = {
+                    id: 'acc_' + genId(),
+                    date: date,
+                    subject: sub,
+                    typeName: typeName,
+                    instanceId: instId,
+                    instanceName: instName,
+                    total: total,
+                    correct: correct,
+                    wrongUnits: (window._accWrongUnits || []).slice()
+                };
+                records.push(record);
+            }
             saveAccuracyRecords(records);
+            // 重置編輯狀態
+            window._editingRecordId = null;
+            window._editingRecordIdx = null;
             window._accWrongUnits = [];
+            renderAccuracyStats();
+        }
+
+        // v1.5.195: 編輯模式 — 把 record 載入 form, 儲存時覆蓋原 record
+        function accEditRecord(idx) {
+            var records = loadAccuracyRecords();
+            if (idx < 0 || idx >= records.length) return;
+            var r = records[idx];
+            window._editingRecordId = r.id;
+            window._editingRecordIdx = idx;
+            window._accWrongUnits = (r.wrongUnits || []).slice();
+            // 設 dropdowns (trigger cascade)
+            var subSel = el('acc-subject');
+            subSel.value = r.subject || '';
+            accOnSubjectChange();
+            var typeSel = el('acc-type');
+            if (r.typeName) typeSel.value = r.typeName;
+            accOnTypeChange();
+            var instSel = el('acc-instance');
+            if (r.instanceId) instSel.value = r.instanceId;
+            accOnInstanceChange();
+            var unitSel = el('acc-unit');
+            // 不設定 unit dropdown, 因為已預填 _accWrongUnits
+            // 設值
+            el('acc-total').value = r.total || '';
+            el('acc-correct').value = r.correct || '';
+            el('acc-date').value = r.date || '';
+            // 改儲存按鈕為「更新」+ 顯示「取消編輯」
+            var saveBtn = document.querySelector('.accuracy-form .btn-primary');
+            if (saveBtn) saveBtn.innerHTML = '💾 更新';
+            // 加取消按鈕
+            if (!document.getElementById('acc-cancel-edit')) {
+                var cancelBtn = document.createElement('button');
+                cancelBtn.id = 'acc-cancel-edit';
+                cancelBtn.type = 'button';
+                cancelBtn.className = 'btn-outline';
+                cancelBtn.style.cssText = 'font-size:0.8em; padding:4px 10px; margin-right:8px;';
+                cancelBtn.textContent = '❌ 取消編輯';
+                cancelBtn.onclick = accCancelEdit;
+                saveBtn.parentNode.insertBefore(cancelBtn, saveBtn);
+            }
+            accRenderWrongUnits();
+            // 滾動到表單
+            var form = document.querySelector('.accuracy-form');
+            if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function accCancelEdit() {
+            window._editingRecordId = null;
+            window._editingRecordIdx = null;
+            window._accWrongUnits = [];
+            el('acc-subject').value = '';
+            accOnSubjectChange();
+            el('acc-total').value = '';
+            el('acc-correct').value = '';
+            el('acc-date').value = '';
+            // 還原儲存按鈕
+            var saveBtn = document.querySelector('.accuracy-form .btn-primary');
+            if (saveBtn) saveBtn.innerHTML = '💾 儲存記錄';
+            var cancelBtn = document.getElementById('acc-cancel-edit');
+            if (cancelBtn) cancelBtn.remove();
+            accRenderWrongUnits();
             renderAccuracyStats();
         }
 
@@ -8030,6 +8132,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             window._accFilters.subject = el('acc-filter-subject').value;
             window._accFilters.typeName = el('acc-filter-type').value;
             window._accFilters.unit = el('acc-filter-unit').value;
+            window._accFilters.sort = el('acc-filter-sort') ? el('acc-filter-sort').value : 'rate';
             renderAccuracyStats();
         }
 
