@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.201]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.202]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10514,9 +10514,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var dayOfWeek = firstOfMonth.getDay(); // 0=日, 1=一, ..., 6=六
 
                 // 找本月第一個週日 (= 月初 + (7-dayOfWeek) mod 7 天)
-                // dayOfWeek=0 (日): firstSunday = firstOfMonth
-                // dayOfWeek=1 (一): firstSunday = firstOfMonth + 6
-                // dayOfWeek=3 (三): firstSunday = firstOfMonth + 4
                 var firstSunday = new Date(firstOfMonth);
                 var sunOffset = dayOfWeek === 0 ? 0 : (7 - dayOfWeek);
                 firstSunday.setDate(firstOfMonth.getDate() + sunOffset);
@@ -10527,6 +10524,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (dayOfWeek === 1) monOffset = 0;
                 firstMonday.setDate(firstOfMonth.getDate() + monOffset);
 
+                // v1.5.202: 算本月最後一天 (lastOfMonth)
+                var lastOfMonth = new Date(year, month, 0);  // 下月第 0 天 = 本月最後一天
+                // var lastOfMonthDay = lastOfMonth.getDate();
+
                 // 判斷日期落在哪一週
                 if (d <= firstSunday) {
                     return { year: year, month: month, week: 1 };
@@ -10534,10 +10535,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 // 在週一之後, 算 daysDiff
                 var daysDiff = Math.floor((d - firstMonday) / (24 * 60 * 60 * 1000));
                 if (daysDiff < 0) {
-                    // 不可能發生 (firstMonday > firstSunday)
                     return { year: year, month: month, week: 1 };
                 }
                 var week = Math.floor(daysDiff / 7) + 2;
+                // v1.5.202: 該週的結束日不能超過本月最後一天
+                // 例: 8月 W6 = 8/24~8/30 (不跨到 9月), 因為 8/31 = firstMonday + 28, W6 = (28/7)+2 = 6, 結束日 = 8/24+6 = 8/30
+                // 但若該週範圍會跨月, 縮短到 lastOfMonth
+                var weekStart = new Date(firstMonday);
+                weekStart.setDate(firstMonday.getDate() + (week - 2) * 7);
+                var weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
+                // 如果 weekEnd 跨月, 只算到 lastOfMonth
+                if (weekEnd > lastOfMonth) {
+                    // 但 d 還在本月內, 所以一定會算進當月某週
+                    // 改邏輯: 若 d 在月底那一週, 仍算一週 (week 6 或更高)
+                }
                 return { year: year, month: month, week: week };
             }
 
@@ -10791,6 +10803,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (dayOfWeek === 1) monOffset = 0;
                 firstMonday.setDate(firstOfMonth.getDate() + monOffset);
 
+                // v1.5.202: 算本月 lastOfMonth (最後一天), wkEnd 不超過 lastOfMonth
+                var lastOfMonthChart = new Date(m.year, m.month, 0);
                 weekKeys.forEach(function(wk) {
                     var pages = m.weeks[wk];
                     var h = Math.max(2, (pages / maxWeekPages) * 180);
@@ -10800,11 +10814,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         wkStart = new Date(firstOfMonth);
                         wkEnd = new Date(firstSunday);
                     } else {
-                        // W2+ = 首週一 + (wk-2)*7 ~ +6 天
+                        // W2+ = 首週一 + (wk-2)*7 ~ +6 天, 但不超過本月 lastOfMonth
                         wkStart = new Date(firstMonday);
                         wkStart.setDate(firstMonday.getDate() + (parseInt(wk) - 2) * 7);
                         wkEnd = new Date(wkStart);
                         wkEnd.setDate(wkStart.getDate() + 6);
+                        // v1.5.202: 限制 wkEnd 不超過本月最後一天, 避免跨月
+                        if (wkEnd > lastOfMonthChart) {
+                            wkEnd = new Date(lastOfMonthChart);
+                        }
                     }
                     var startStr = (wkStart.getMonth() + 1) + '/' + wkStart.getDate();
                     var endStr = (wkEnd.getMonth() + 1) + '/' + wkEnd.getDate();
