@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.192]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.193]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -318,6 +318,11 @@
 
 /* v1.5.158: 答對率統計 */
 .accuracy-form { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+.accuracy-row-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: end; }
+.accuracy-row-3col .accuracy-cell { display: flex; flex-direction: column; }
+.accuracy-row-3col .accuracy-cell label { font-size: 0.85em; color: var(--secondary); margin-bottom: 4px; font-weight: bold; }
+.accuracy-row-3col .accuracy-cell select { width: 100%; }
+@media (max-width: 768px) { .accuracy-row-3col { grid-template-columns: 1fr; } }
 .accuracy-form .form-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
 .accuracy-form .form-row label { font-weight: bold; color: var(--secondary); white-space: nowrap; min-width: 70px; }
 .accuracy-form select, .accuracy-form input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; }
@@ -7648,6 +7653,57 @@ function renderWizardUnitRowHtml(ws, i, u) {
             return units;
         }
 
+        // v1.5.193: 從 unitId 找最後完成日期 (跨 plan 找 isDone task 的最新 dStr)
+        function getUnitLastDoneDate(unitId) {
+            if (!unitId || !Array.isArray(appPlans)) return null;
+            var latest = null;
+            appPlans.forEach(function(plan) {
+                if (!plan.grid) return;
+                Object.keys(plan.grid).forEach(function(dStr) {
+                    (plan.grid[dStr] || []).forEach(function(t) {
+                        if (!t || !t.isDone || t.unitId !== unitId) return;
+                        if (!latest || dStr > latest) latest = dStr;
+                    });
+                });
+            });
+            return latest;
+        }
+
+        // v1.5.193: 從 unitId 跳到答對率頁, 自動帶 sub/type/instance/日期/錯題單元
+        function jumpToAccuracyForUnit(unitId) {
+            if (!unitId) return;
+            var ctx = findUnitContext(unitId);
+            if (!ctx) { alert('找不到此單元的所屬教材, 無法跳轉'); return; }
+            // 1. 切到答對率頁
+            openStats();
+            switchStatsView('accuracy');
+            // 2. 設 acc-subject (觸發 onchange cascade)
+            var subSel = el('acc-subject');
+            subSel.value = ctx.sub;
+            accOnSubjectChange();
+            // 3. 設 acc-type
+            var typeSel = el('acc-type');
+            typeSel.value = ctx.typeName;
+            accOnTypeChange();
+            // 4. 設 acc-instance
+            var instSel = el('acc-instance');
+            instSel.value = ctx.instance.id;
+            accOnInstanceChange();
+            // 5. 預設考試日期 = 最後完成日期, 沒則今天
+            var lastDate = getUnitLastDoneDate(unitId);
+            if (!lastDate) {
+                var d = new Date();
+                lastDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            }
+            el('acc-date').value = lastDate;
+            // 6. 重置錯題單元清單 (D: 覆蓋前一次), 預填該 unit
+            window._accWrongUnits = [ctx.unit.name];
+            accRenderWrongUnits();
+            // 7. 滾動到表單
+            var form = document.querySelector('.accuracy-form');
+            if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         // v1.5.158: 取教材庫所有 unit + 記錄中出現過的 unit (合併去重)
         function getAllUnitsForFilter() {
             var set = new Set();
@@ -7690,15 +7746,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // ===== 輸入表單 =====
             html += '<div class="accuracy-form">';
             html += '<h3 style="margin-top:0; color:var(--primary);">📝 新增答對率記錄</h3>';
-            html += '<div class="form-row">';
-            html += '<label>科目</label>';
-            html += '<select id="acc-subject" onchange="accOnSubjectChange()"><option value="">--選擇--</option>';
+            // v1.5.193: 三個下拉選單 grid 3 欄同一排 (科目 / 教材類型 / 教材版本)
+            html += '<div class="form-row accuracy-row-3col">';
+            html += '<div class="accuracy-cell"><label>科目</label><select id="acc-subject" onchange="accOnSubjectChange()"><option value="">--選擇--</option>';
             subjects.forEach(function(s) { html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; });
-            html += '</select>';
-            html += '<label>教材類型</label>';
-            html += '<select id="acc-type" onchange="accOnTypeChange()" disabled><option value="">--先選科目--</option></select>';
-            html += '<label>教材版本</label>';
-            html += '<select id="acc-instance" onchange="accOnInstanceChange()" disabled><option value="">--先選類型--</option></select>';
+            html += '</select></div>';
+            html += '<div class="accuracy-cell"><label>教材類型</label><select id="acc-type" onchange="accOnTypeChange()" disabled><option value="">--先選科目--</option></select></div>';
+            html += '<div class="accuracy-cell"><label>教材版本</label><select id="acc-instance" onchange="accOnInstanceChange()" disabled><option value="">--先選類型--</option></select></div>';
             html += '</div>';
             html += '<div class="form-row">';
             html += '<label>總題數</label>';
@@ -10185,11 +10239,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var cat4jump = suInfo ? suInfo.firstCat : '';
                         var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
                         // 用 \x27 代替 \' (避免 JS parser 衝突)
-                        var rowHtml = '<li class="tree-unit" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="cursor:pointer;" title="點擊跳到月曆檢視">';
+                        // v1.5.193: 進度條跳月曆 (既有), 單元名稱跳答對率
+                        var rowHtml = '<li class="tree-unit" style="cursor:pointer;">';
                         rowHtml += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
-                        rowHtml += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
+                        rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
+                        rowHtml += escapeHtml(u.name);
+                        rowHtml += '</span>';
                         if (range) rowHtml += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
-                        rowHtml += '<span class="tree-unit-progress" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; margin-left:8px; white-space:nowrap;">';
+                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; margin-left:8px; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">';
                         rowHtml += barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)';
                         rowHtml += '</span>';
                         if (suInfo && suInfo.totalTasks > 0) {
