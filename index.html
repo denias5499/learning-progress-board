@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.198]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.199]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -303,16 +303,27 @@
 /* v1.4.0/v1.4.1: 學習統計分析頁面 */
 /* v1.5.175: 學習統計分析 tabs 改成教材庫 tab 樣式 (orange/peach active) */
 .stats-tabs {
-    display: flex; gap: 4px; margin-bottom: 0;
+    display: flex; gap: 6px; margin-bottom: 0; padding: 4px;
 }
 .stats-tab {
-    background: #e2e8f0; color: var(--secondary); font-size: 1.05em;
-    padding: 10px 20px; border: none; border-radius: 8px 8px 0 0;
-    cursor: pointer; font-weight: bold; transition: 0.2s;
+    background: linear-gradient(to bottom, #f5d4ad 0%, #F3D2AC 100%); color: #5c3d1e; font-size: 1.05em;
+    padding: 10px 22px; border: 1px solid #d4a373; border-radius: 8px 8px 0 0;
+    cursor: pointer; font-weight: bold; transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
 }
-.stats-tab:hover:not(.active) { background: #cbd5e1; color: var(--primary); }
-/* v1.5.177: Pantone 14-4320 (Bali Blue) tab 顏色 */
-.stats-tab.active { background: #A0C8D6; color: #2c3e50; }
+.stats-tab:hover:not(.active) {
+    background: linear-gradient(to bottom, #f8dcc1 0%, #f5c89e 100%);
+    color: var(--primary);
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.stats-tab.active {
+    background: linear-gradient(to bottom, #f8dcc1 0%, #f5c89e 100%);
+    color: #2c3e50;
+    transform: translateY(-3px) scale(1.08);
+    box-shadow: 0 8px 16px rgba(0,0,0,0.25), inset 0 2px 0 rgba(255,255,255,0.7);
+    border-color: #b67c52;
+}
 .stats-view { display: none; }
 .stats-view.active { display: block; }
 
@@ -1384,9 +1395,9 @@
                     </div>
                 </div>
                 <div class="stats-tabs">
-                    <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">🌳 1. 樹狀圖</button>
-                    <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">📅 2. 月份分析</button>
-                    <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">🎯 3. 答對率統計</button>
+                    <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">1. 樹狀圖</button>
+                    <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">2. 月份分析</button>
+                    <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">3. 答對率統計</button>
                 </div>
                 <div id="stats-tree" class="stats-view active">
                     <!-- v1.5.176: 樹狀圖 dropdowns (科目/教材類別/冊別) - 教材分類已刪除 (跟看板篩選重複) -->
