@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.202]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.203]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7894,12 +7894,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<th>日期</th><th>科目</th><th>教材類型</th><th>教材版本</th><th>總題數</th><th>答對</th><th>答對率</th><th>單元名稱</th><th>操作</th>';
                 html += '</tr></thead><tbody>';
                 filtered.forEach(function(r) {
-                    // idx 用原 records 索引, 刪除用
                     var origIdx = records.indexOf(r);
                     var rate = r.total > 0 ? (r.correct / r.total * 100) : 0;
                     var rateColor = rate >= 96 ? '#27ae60' : (rate >= 90 ? '#f59e0b' : '#ef4444');
                     var barColor = rateColor;
-                    html += '<tr>';
+                    // v1.5.203: 高亮該 unit (#F3B8B1 醒目提示)
+                    var isHighlighted = window._highlightedUnitName && r.wrongUnits && r.wrongUnits.indexOf(window._highlightedUnitName) >= 0;
+                    var rowStyle = isHighlighted ? ' style="background:#F3B8B1;"' : '';
+                    html += '<tr' + rowStyle + '>';
                     html += '<td>' + (r.date || '-') + '</td>';
                     html += '<td>' + escapeHtml(r.subject || '') + '</td>';
                     html += '<td>' + escapeHtml(r.typeName || '') + '</td>';
@@ -10427,14 +10429,26 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
                         var cat4jump = suInfo ? suInfo.firstCat : '';
                         var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
-                        // 用 \x27 代替 \' (避免 JS parser 衝突)
-                        // v1.5.193: 進度條跳月曆 (既有), 單元名稱跳答對率
+                        // v1.5.203: 答對率 bar (用 getUnitAccuracyRate 算此 unit 平均答對率)
+                        var accuracyRate = getUnitAccuracyRate(u.name);
+                        var accuracyBarHtml = '';
+                        if (accuracyRate !== null) {
+                            var accPct = Math.round(accuracyRate * 100);
+                            var accColor = accPct >= 96 ? '#27ae60' : (accPct >= 90 ? '#f59e0b' : '#ef4444');
+                            var accFilled = Math.round(accPct / 10);
+                            var accEmpty = 10 - accFilled;
+                            var accStr = '█'.repeat(accFilled) + '░'.repeat(accEmpty);
+                            // 點擊跳答對率 + 高亮該 unit (#F3B8B1)
+                            accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; margin-right:8px; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + accStr + ' ' + accPct + '%</span>';
+                        }
                         var rowHtml = '<li class="tree-unit" style="cursor:pointer;">';
                         rowHtml += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
                         rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
                         rowHtml += escapeHtml(u.name);
                         rowHtml += '</span>';
                         if (range) rowHtml += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
+                        // v1.5.203: 答對率 bar 在頁碼起訖前面
+                        rowHtml += accuracyBarHtml;
                         rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; margin-left:8px; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">';
                         rowHtml += barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)';
                         rowHtml += '</span>';
@@ -10722,16 +10736,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     }
                 });
                 var filterLabel = 'Filter: cat=' + filterCatM + ' / mis=' + filterMisM + ' / allowedUnitIds=' + (allowedUnitIdsM ? allowedUnitIdsM.size + ' 個' : 'ALL');
-                // v1.5.201: 預設隱藏詳細記錄, 點按鈕才展開
-                html += '<div class="monthly-debug-panel monthly-detail-panel" data-mkey="' + mkey + '" style="display:none; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:500px; overflow-y:auto; font-size:0.75em;">';
-                html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>Debug Dump</b><br>' + filterLabel + '<br>本月所有 logs (含 system): <b>' + allMonthLogs.length + '</b> 筆<br>當前 byMonth (filter+dedup): <b>' + totalPages + '</b> 頁';
-                // v1.5.201: 右上角加「展開/折疊詳細記錄」按鈕
-                html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">';
+                // v1.5.203: 按鈕移到 panel 外面 (按鈕始終可見, 點按鈕展開 panel)
+                html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding:8px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px;">';
+                html += '<div style="font-size:0.85em; color:var(--secondary);"><b>Debug</b>: ' + filterLabel + ' | 本月logs <b>' + allMonthLogs.length + '</b> 筆 | byMonth <b>' + totalPages + '</b> 頁</div>';
+                html += '<div style="display:flex; gap:6px;">';
                 html += '<button onclick="window.dumpMonthLogs(this.dataset.mkey)" data-mkey="' + mkey + '" style="padding:6px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; font-weight:bold;">📋 Dump All Logs</button>';
                 html += '<button onclick="toggleMonthlyDetail(\x27' + mkey + '\x27)" data-mkey="' + mkey + '" style="padding:6px 14px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; font-weight:bold;">📂 展開詳細記錄</button>';
                 html += '</div>';
-                html += '<textarea id="dump-textarea-' + mkey + '" style="display:none; width:100%; height:200px; margin-top:8px; font-family:monospace; font-size:0.75em; padding:6px; border:1px solid #ccc; border-radius:4px;" readonly></textarea>';
                 html += '</div>';
+                // panel 預設隱藏, 點按鈕展開
+                html += '<div class="monthly-debug-panel monthly-detail-panel" data-mkey="' + mkey + '" style="display:none; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:500px; overflow-y:auto; font-size:0.75em;">';
+                html += '<textarea id="dump-textarea-' + mkey + '" style="display:none; width:100%; height:200px; margin-top:8px; font-family:monospace; font-size:0.75em; padding:6px; border:1px solid #ccc; border-radius:4px;" readonly></textarea>';
 
                 var dumpWeekGrouped = {};
                 allMonthLogs.forEach(function(l) {
