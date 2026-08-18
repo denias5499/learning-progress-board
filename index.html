@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.189]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.190]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10135,57 +10135,84 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
                     var allUnits = _collectSubjectUnits(s);
                     // v1.5.177: 拿掉 mission filter - 顯示所有教材庫 units
-                    // v1.5.186: byVol 用 typeName|instanceName|vol 當 key, 避免不同 instance 同 volName 混亂 (例: 國文/複習講義/勝經 vs 國文/複習講義/大滿貫, 兩者都有「第一冊」)
-                    var byVol = {};
+                    // v1.5.190: 改用 byInstance 三層分組 (instance → vol → unit), 避免同 instance 多 vol 重複顯示教材名稱
+                    var byInstance = {};
                     allUnits.forEach(function(u) {
-                        var k = (u._typeName || '') + '|' + (u._instanceName || '') + '|' + (u.vol || 'custom');
-                        if (!byVol[k]) byVol[k] = { volName: u.vol || 'custom', typeName: u._typeName || '', instanceName: u._instanceName || '', units: [] };
-                        byVol[k].units.push(u);
+                        var typeName = u._typeName || '';
+                        var instanceName = u._instanceName || '';
+                        var volName = u.vol || 'custom';
+                        // v1.5.190: volName 是「typeName|ins.name」這種 legacy 格式 (來自 ins.units 分支), 不算真正 vol, 標記成空
+                        var realVolName = volName;
+                        if (volName === typeName + '|' + instanceName) {
+                            realVolName = '';
+                        }
+                        var ik = typeName + '|' + instanceName;
+                        if (!byInstance[ik]) byInstance[ik] = { typeName: typeName, instanceName: instanceName, vols: {} };
+                        var vk = realVolName || '__no_vol__';
+                        if (!byInstance[ik].vols[vk]) byInstance[ik].vols[vk] = { volName: realVolName, units: [] };
+                        byInstance[ik].vols[vk].units.push(u);
                     });
-                    Object.keys(byVol).forEach(function(k) {
-                        var group = byVol[k];
-                        var arr = group.units;
-                        if (arr.length === 0) return;
-                        // v1.5.186: label 顯示 instanceName (讓用戶辨識是哪一份教材), 沒 instanceName 時 fallback 到 typeName
-                        var labelParts = [];
-                        var instName = group.instanceName;
-                        // fallback: 「(原主教材)」這種 migration 預設名, 跟 typeName 重複就只顯示一個
-                        if (instName && instName === '(原主教材)') instName = '';
-                        if (group.typeName && group.typeName !== instName) labelParts.push(escapeHtml(group.typeName));
-                        if (instName) labelParts.push('<span style="color:var(--accent);">📘 ' + escapeHtml(instName) + '</span>');
-                        if (group.volName && group.volName !== '(未分類)') labelParts.push('<span style="color:var(--primary);">' + escapeHtml(group.volName) + '</span>');
-                        var labelHtml = labelParts.length > 0 ? labelParts.join('｜') : '(未分類)';
-                        html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + labelHtml + '</li>';
-                        html += '<ul class="tree-units">';
-                        arr.forEach(function(u) {
-                            var t = totalOf(u);
-                            var st = getStatus(u.id, t);
-                            var dotClass = 'dot-' + st;
-                            var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
-                            var totalPages = u.end - u.start + 1;
-                            var suInfo = window._treeScheduledUnits[u.id];
-                            // v1.5.87: 改用 donePages (checkbox 勾選的頁數) 而非 covered (所有排入)
-                            var coveredPages = suInfo ? suInfo.donePages : 0;
-                            var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
-                            var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
-                            var barFilled = Math.round(pct / 10);
-                            var barEmpty = 10 - barFilled;
-                            var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
-                            var cat4jump = suInfo ? suInfo.firstCat : '';
-                            var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
-                            html += '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')" style="cursor:pointer;" title="點擊跳到月曆檢視">';
-                            html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
-                            html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
-                            if (range) html += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
-                            html += '<span class="tree-unit-progress" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; margin-left:8px; white-space:nowrap;">';
-                            html += barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)';
-                            html += '</span>';
-                            if (suInfo && suInfo.totalTasks > 0) {
-                                html += '<span class="tree-unit-clock" title="已排 ' + suInfo.totalTasks + ' 個任務">⏰×' + suInfo.totalTasks + '</span>';
-                            }
-                            html += '</li>';
+                    function makeInstanceLabel(typeName, instanceName) {
+                        var parts = [];
+                        var instName = instanceName;
+                        if (instName === '(原主教材)') instName = '';
+                        if (typeName && typeName !== instName) parts.push(escapeHtml(typeName));
+                        if (instName) parts.push('<span style="color:var(--accent);">📘 ' + escapeHtml(instName) + '</span>');
+                        return parts.length > 0 ? parts.join(' ') : '(未命名教材)';
+                    }
+                    function makeVolLabel(volName) {
+                        if (!volName) return '📖 自訂範圍';
+                        return '📖 ' + escapeHtml(volName);
+                    }
+                    function renderUnitRow(u) {
+                        var t = totalOf(u);
+                        var st = getStatus(u.id, t);
+                        var dotClass = 'dot-' + st;
+                        var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
+                        var totalPages = u.end - u.start + 1;
+                        var suInfo = window._treeScheduledUnits[u.id];
+                        var coveredPages = suInfo ? suInfo.donePages : 0;
+                        var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
+                        var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
+                        var barFilled = Math.round(pct / 10);
+                        var barEmpty = 10 - barFilled;
+                        var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
+                        var cat4jump = suInfo ? suInfo.firstCat : '';
+                        var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
+                        // 用 \x27 代替 \' (避免 JS parser 衝突)
+                        var rowHtml = '<li class="tree-unit" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="cursor:pointer;" title="點擊跳到月曆檢視">';
+                        rowHtml += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
+                        rowHtml += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
+                        if (range) rowHtml += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
+                        rowHtml += '<span class="tree-unit-progress" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; margin-left:8px; white-space:nowrap;">';
+                        rowHtml += barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)';
+                        rowHtml += '</span>';
+                        if (suInfo && suInfo.totalTasks > 0) {
+                            rowHtml += '<span class="tree-unit-clock" title="已排 ' + suInfo.totalTasks + ' 個任務">⏰×' + suInfo.totalTasks + '</span>';
+                        }
+                        rowHtml += '</li>';
+                        return rowHtml;
+                    }
+                    Object.keys(byInstance).forEach(function(ik) {
+                        var inst = byInstance[ik];
+                        var volKeys = Object.keys(inst.vols);
+                        if (volKeys.length === 0) return;
+                        var hasNoVol = volKeys.length === 1 && volKeys[0] === '__no_vol__';
+                        if (!hasNoVol) {
+                            var instLabel = makeInstanceLabel(inst.typeName, inst.instanceName);
+                            html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📚 ' + instLabel + '</li>';
+                        }
+                        volKeys.forEach(function(vk) {
+                            var vol = inst.vols[vk];
+                            if (vol.units.length === 0) return;
+                            html += '<ul class="tree-vol"><li class="tree-vol-label">' + makeVolLabel(vol.volName) + '</li>';
+                            html += '<ul class="tree-units">';
+                            vol.units.forEach(function(u) {
+                                html += renderUnitRow(u);
+                            });
+                            html += '</ul></ul>';
                         });
-                        html += '</ul></ul>';
+                        if (!hasNoVol) html += '</ul>';
                     });
                 }
 
