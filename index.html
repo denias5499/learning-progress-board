@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.187]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.188]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5121,18 +5121,8 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
             collectUnits(appMaster[subj], subj);
         });
     }
-    // v1.5.187 fix: 保留 v1.5.174 跨單元任務邏輯 (cross-unit overlap, 跨 sub 過濾),
-    // 同時修 bug3 「未排程 unit 顯示 N/M 進度」 — 對「沒任何 task 直接 cover」的 unit, 不算 cross-unit overlap
-    var scheduledUids = {};    // 有 task.unitId 直接對應 (排進去) 的 uid
-    appPlans.forEach(function(plan) {
-        if (!plan.grid) return;
-        Object.keys(plan.grid).forEach(function(dStr) {
-            (plan.grid[dStr] || []).forEach(function(t) {
-                if (!t || !t.unitId) return;
-                scheduledUids[t.unitId] = true;
-            });
-        });
-    });
+    // v1.5.187 fix: 完全還原 v1.5.174 跨單元任務邏輯 (cross-unit overlap + 跨 sub 過濾 + Set 去重)
+    // 保留 v1.5.186 樹狀圖 byVol 加 instanceName (獨立 patch)
     appPlans.forEach(function(plan) {
         if (!plan.grid) return;
         Object.keys(plan.grid).forEach(function(dStr) {
@@ -5146,9 +5136,8 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                 var taskUnitInfo = allUnits[t.unitId];
                 var taskSub = taskUnitInfo ? taskUnitInfo.subj : null;
                 Object.keys(allUnits).forEach(function(uid) {
-                    // v1.5.187: 「沒排程」的 unit (沒 task.unitId 直接 cover) 不算 cross-unit overlap
-                    if (!scheduledUids[uid]) return;
                     var u = allUnits[uid];
+                    // v1.5.174: 同 sub 才算 (沒對應 sub 的任務, 不污染任何 unit)
                     if (taskSub && u.subj !== taskSub) return;
                     var s = t.startPage > u.start ? t.startPage : u.start;
                     var e = t.endPage < u.end ? t.endPage : u.end;
