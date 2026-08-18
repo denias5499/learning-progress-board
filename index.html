@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.200]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.201]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -306,7 +306,7 @@
     display: flex; gap: 6px; margin-bottom: 0; padding: 4px;
 }
 .stats-tab {
-    background: linear-gradient(to bottom, #f5d4ad 0%, #F3D2AC 100%); color: #5c3d1e; font-size: 1.05em;
+    background: linear-gradient(to bottom, #f5d4ad 0%, #F3D2AC 100%); color: #5c3d1e; font-size: 0.95em;
     padding: 10px 22px; border: 1px solid #d4a373; border-radius: 8px 8px 0 0;
     cursor: pointer; font-weight: bold; transition: all 0.2s ease;
     box-shadow: 0 2px 4px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.5);
@@ -10647,6 +10647,23 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<div class="monthly-total">總計 <b>' + totalPages + '</b> 頁</div>';
                 html += '</div>';
                 // v1.4.24: dump 到 console 給 user 用 F12 查
+        // v1.5.201: 展開/折疊月份分析的詳細記錄
+        window.toggleMonthlyDetail = function(mkey) {
+            var panel = document.querySelector('.monthly-detail-panel[data-mkey="' + mkey + '"]');
+            var btn = document.querySelector('button[data-mkey="' + mkey + '"][onclick*="toggleMonthlyDetail"]');
+            if (panel && btn) {
+                if (panel.style.display === 'none') {
+                    panel.style.display = 'block';
+                    btn.innerHTML = '📂 折疊詳細記錄';
+                    btn.style.background = '#10b981';
+                } else {
+                    panel.style.display = 'none';
+                    btn.innerHTML = '📂 展開詳細記錄';
+                    btn.style.background = '#3b82f6';
+                }
+            }
+        };
+
         window.dumpMonthLogs = function(mkey) {
             // v1.4.26: 也顯示到頁面 textarea, 不只 console
             try {
@@ -10693,9 +10710,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     }
                 });
                 var filterLabel = 'Filter: cat=' + filterCatM + ' / mis=' + filterMisM + ' / allowedUnitIds=' + (allowedUnitIdsM ? allowedUnitIdsM.size + ' 個' : 'ALL');
-                html += '<div class="monthly-debug-panel" style="display:block; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:500px; overflow-y:auto; font-size:0.75em;">';
+                // v1.5.201: 預設隱藏詳細記錄, 點按鈕才展開
+                html += '<div class="monthly-debug-panel monthly-detail-panel" data-mkey="' + mkey + '" style="display:none; padding:10px; background:#fef9e7; border:1px solid #f39c12; border-radius:6px; margin-bottom:10px; max-height:500px; overflow-y:auto; font-size:0.75em;">';
                 html += '<div style="background:#fff3cd; padding:6px; margin-bottom:8px; border-radius:4px;"><b>Debug Dump</b><br>' + filterLabel + '<br>本月所有 logs (含 system): <b>' + allMonthLogs.length + '</b> 筆<br>當前 byMonth (filter+dedup): <b>' + totalPages + '</b> 頁';
-                html += '<br><button onclick="window.dumpMonthLogs(this.dataset.mkey)" data-mkey="' + mkey + '" style="margin-top:6px; padding:6px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; font-weight:bold;">📋 Dump All Logs (顯示到下方)</button>';
+                // v1.5.201: 右上角加「展開/折疊詳細記錄」按鈕
+                html += '<div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">';
+                html += '<button onclick="window.dumpMonthLogs(this.dataset.mkey)" data-mkey="' + mkey + '" style="padding:6px 14px; background:#e74c3c; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; font-weight:bold;">📋 Dump All Logs</button>';
+                html += '<button onclick="toggleMonthlyDetail(\x27' + mkey + '\x27)" data-mkey="' + mkey + '" style="padding:6px 14px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.9em; font-weight:bold;">📂 展開詳細記錄</button>';
+                html += '</div>';
                 html += '<textarea id="dump-textarea-' + mkey + '" style="display:none; width:100%; height:200px; margin-top:8px; font-family:monospace; font-size:0.75em; padding:6px; border:1px solid #ccc; border-radius:4px;" readonly></textarea>';
                 html += '</div>';
 
