@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.184]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.185]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3769,7 +3769,7 @@ loadBoardHeader();
             // v1.5.2+: materials[*].instances[*]
             else if (s.materials && typeof s.materials === 'object') {
                 var out2 = [];
-                var seenIds = {};  // v1.5.177: dedup by (type|inst|vol|id) — 防止手動重複新增造成重複 render
+                var seenIds = {};  // v1.5.177: dedup by (type|inst|vol|id); v1.5.185: 簡化為 (type|inst|id) — ins.vols 與 ins.units 兩個分支會放同一個 u.id, 必須跨分支去重
                 Object.keys(s.materials).forEach(function(typeName) {
                     var typeObj = s.materials[typeName];
                     if (!typeObj || !Array.isArray(typeObj.instances)) return;
@@ -3779,7 +3779,7 @@ loadBoardHeader();
                             (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
                                 (ins.vols[volName] || []).forEach(function(u) {
                                     if (u && u.id) {
-                                        var k = typeName + '|' + ins.name + '|' + volName + '|' + u.id;
+                                        var k = typeName + '|' + ins.name + '|' + u.id;
                                         if (seenIds[k]) return;
                                         seenIds[k] = true;
                                         out2.push(Object.assign({}, u, { vol: volName, _typeName: typeName, _instanceName: ins.name }));
@@ -3790,7 +3790,7 @@ loadBoardHeader();
                         if (Array.isArray(ins.units)) {
                             ins.units.forEach(function(u) {
                                 if (u && u.id) {
-                                    var k2 = typeName + '|' + ins.name + '|legacy|' + u.id;
+                                    var k2 = typeName + '|' + ins.name + '|' + u.id;
                                     if (seenIds[k2]) return;
                                     seenIds[k2] = true;
                                     out2.push(Object.assign({}, u, {
