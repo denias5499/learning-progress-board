@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.195]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.196]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -329,6 +329,17 @@
 .accuracy-filter-row label { font-size: 0.85em; color: var(--secondary); white-space: nowrap; }
 .accuracy-filter-row select.accuracy-filter-sel { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85em; min-width: 90px; max-width: 140px; }
 @media (max-width: 768px) { .accuracy-filter-row { flex-wrap: wrap; } }
+.accuracy-exams-section { margin-top: 12px; padding: 10px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 6px; }
+.accuracy-exam-input-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.accuracy-exam-input-row input, .accuracy-exam-input-row select { padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85em; }
+.accuracy-extra-exam-chip { display: flex; gap: 8px; align-items: center; padding: 6px 10px; margin-bottom: 4px; background: white; border: 1px solid #fcd34d; border-radius: 4px; font-size: 0.85em; }
+.accuracy-extra-exam-chip .exam-subject { color: var(--secondary); font-weight: bold; min-width: 60px; }
+.accuracy-extra-exam-chip .exam-name { color: var(--primary); font-weight: bold; min-width: 80px; }
+.accuracy-extra-exam-chip .exam-range { color: var(--secondary); min-width: 80px; }
+.accuracy-extra-exam-chip .exam-rate { color: #059669; font-weight: bold; min-width: 80px; }
+.accuracy-extra-exam-chip .exam-date { color: var(--secondary); min-width: 100px; }
+.accuracy-extra-exam-chip .exam-remove { background: #ef4444; color: white; border: none; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 0.85em; margin-left: auto; }
+.accuracy-extra-exam-chip .exam-remove:hover { background: #dc2626; }
 .accuracy-form .form-row label { font-weight: bold; color: var(--secondary); white-space: nowrap; min-width: 70px; }
 .accuracy-form select, .accuracy-form input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; }
 .accuracy-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
@@ -7603,7 +7614,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         
         // v1.5.158: 答對率統計 (per-user storage, 改下拉立即重渲染)
         var STORAGE_KEY_ACCURACY_BASE = 'StudyMap_AccuracyRecords_V158';
-        if (!window._accWrongUnits) window._accWrongUnits = [];
+        if (!window._accExtraExams) window._accExtraExams = [];
         if (!window._accFilters) window._accFilters = { subject: '__ALL__', unit: '__ALL__', typeName: '__ALL__', sort: 'rate' };
 
         function accStorageKey() {
@@ -7701,9 +7712,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 lastDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
             }
             el('acc-date').value = lastDate;
-            // 6. 重置錯題單元清單 (D: 覆蓋前一次), 預填該 unit
-            window._accWrongUnits = [ctx.unit.name];
-            accRenderWrongUnits();
+            // 6. v1.5.196: 重置額外考卷清單 (D: 覆蓋前一次), 不預設任何考卷 (用戶可自行新增)
+            window._accWrongUnits = [ctx.unit.name];  // 向後相容舊資料
+            window._accExtraExams = [];
+            accRenderExtraExams();
             // 7. 滾動到表單
             var form = document.querySelector('.accuracy-form');
             if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -7769,15 +7781,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
             html += '<label>完成日期</label>';
             html += '<input type="date" id="acc-date" style="width:140px;">';
             html += '</div>';
-            // v1.5.194: 「單元名稱」chip 區 (從 dropdown 選/或樹狀圖帶入), 保留手動輸入
-            html += '<div class="form-row">';
-            html += '<label>單元名稱</label>';
-            html += '<span style="color:#7f8c8d; font-size:0.85em;">或手動:</span>';
-            html += '<input type="text" id="acc-unit-manual" placeholder="例:字音、段考全範圍" style="width:200px;">';
-            html += '<button type="button" class="btn-outline" style="font-size:0.8em; padding:4px 10px;" onclick="accAddManualWrongUnit()">＋ 新增</button>';
+            // v1.5.196: 「額外考卷清單」(學校隨堂考、複習考等不在教材庫的考卷), grid 6 欄
+            html += '<div class="accuracy-exams-section">';
+            html += '<label style="font-weight:bold; color:var(--secondary); margin-bottom:6px;">額外考卷 (學校隨堂考、複習考等不在教材庫):</label>';
+            html += '<div class="form-row accuracy-exam-input-row">';
+            html += '<select id="acc-exam-subject" class="accuracy-exam-sel"><option value="">(跟主考卷)</option>';
+            subjects.forEach(function(s) { html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; });
+            html += '</select>';
+            html += '<input type="text" id="acc-exam-name" placeholder="考卷名稱 (例:隨堂考)" style="width:130px;">';
+            html += '<input type="text" id="acc-exam-range" placeholder="範圍 (例:P.5-10)" style="width:130px;">';
+            html += '<input type="number" id="acc-exam-total" min="1" placeholder="總題數" style="width:80px;">';
+            html += '<input type="number" id="acc-exam-correct" min="0" placeholder="答對題數" style="width:80px;">';
+            html += '<input type="date" id="acc-exam-date" style="width:140px;">';
+            html += '<button type="button" class="btn-outline" style="font-size:0.8em; padding:4px 10px; white-space:nowrap;" onclick="accAddExtraExam()">＋ 加入</button>';
             html += '</div>';
-            // v1.5.194: 「單元名稱」chip 區 (取代原本「錯題單元」label)
-            html += '<div id="acc-wrong-units" style="margin-bottom:10px;"></div>';
+            html += '<div id="acc-extra-exams" style="margin:8px 0 10px 0;"></div>';
+            html += '</div>';
             html += '<div style="text-align:right;">';
             html += '<button type="button" class="btn-primary" onclick="accSaveRecord()">💾 儲存記錄</button>';
             html += '</div>';
@@ -7899,7 +7918,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (el('acc-filter-unit')) el('acc-filter-unit').value = window._accFilters.unit;
             }, 0);
 
-            accRenderWrongUnits();
+            accRenderExtraExams();
         }
 
         function accOnSubjectChange() {
@@ -7969,34 +7988,70 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return;
             }
             window._accWrongUnits.push(unitName);
-            accRenderWrongUnits();
+            accRenderExtraExams();
             unitSel.value = '';  // reset 準備下次選
         }
 
-        function accAddManualWrongUnit() {
-            var input = el('acc-unit-manual');
-            var unitName = (input.value || '').trim();
-            if (!unitName) return alert('請輸入單元名稱!');
-            if (window._accWrongUnits.indexOf(unitName) >= 0) return alert('已加入過此單元!');
-            window._accWrongUnits.push(unitName);
-            input.value = '';
-            accRenderWrongUnits();
+        // v1.5.196: 加入額外考卷 (grid 6 欄)
+        function accAddExtraExam() {
+            var name = (el('acc-exam-name').value || '').trim();
+            var range = (el('acc-exam-range').value || '').trim();
+            var total = parseInt(el('acc-exam-total').value, 10);
+            var correct = parseInt(el('acc-exam-correct').value, 10);
+            var date = el('acc-exam-date').value;
+            var subjSel = el('acc-exam-subject');
+            var subject = subjSel ? subjSel.value : '';
+            if (!name) return alert('請輸入考卷名稱!');
+            if (isNaN(total) || total < 1) return alert('請輸入總題數!');
+            if (isNaN(correct) || correct < 0) return alert('請輸入答對題數!');
+            if (correct > total) return alert('答對題數不能大於總題數!');
+            if (!date) return alert('請選擇完成日期!');
+            // 自動帶入主考卷的科目/教材類型/教材版本/單元名稱 (從 dropdown), 考卷科目如果沒選就從 Row 1 acc-subject 帶
+            var mainSubject = el('acc-subject').value;
+            if (!subject && mainSubject) subject = mainSubject;
+            var mainType = el('acc-type').value;
+            var mainInst = el('acc-instance').value;
+            window._accExtraExams.push({
+                subject: subject,
+                name: name,
+                range: range,
+                total: total,
+                correct: correct,
+                date: date
+            });
+            // 清空輸入
+            el('acc-exam-name').value = '';
+            el('acc-exam-range').value = '';
+            el('acc-exam-total').value = '';
+            el('acc-exam-correct').value = '';
+            el('acc-exam-date').value = '';
+            accRenderExtraExams();
         }
 
-        function accRemoveWrongUnit(idx) {
-            window._accWrongUnits.splice(idx, 1);
-            accRenderWrongUnits();
+        function accRemoveExtraExam(idx) {
+            window._accExtraExams.splice(idx, 1);
+            accRenderExtraExams();
         }
 
-        function accRenderWrongUnits() {
-            var container = el('acc-wrong-units');
+        // v1.5.196: 改顯示考卷清單 (顯示科目/考卷名稱/範圍/總題數/答對/完成日期)
+        function accRenderExtraExams() {
+            var container = el('acc-extra-exams');
             if (!container) return;
-            if (window._accWrongUnits.length === 0) {
-                container.innerHTML = '<span style="color:#94a3b8; font-size:0.85em;">(尚無單元名稱)</span>';
+            if (!window._accExtraExams || window._accExtraExams.length === 0) {
+                container.innerHTML = '<span style="color:#94a3b8; font-size:0.85em;">(尚無額外考卷)</span>';
                 return;
             }
-            container.innerHTML = window._accWrongUnits.map(function(u, idx) {
-                return '<span class="accuracy-wrong-chip">' + escapeHtml(u) + '<span class="x" onclick="accRemoveWrongUnit(' + idx + ')" title="移除">×</span></span>';
+            container.innerHTML = window._accExtraExams.map(function(e, idx) {
+                var rate = e.total > 0 ? (e.correct / e.total * 100).toFixed(1) : '-';
+                var subj = e.subject ? e.subject + ' / ' : '';
+                return '<div class="accuracy-extra-exam-chip">'
+                    + '<span class="exam-subject">' + escapeHtml(subj) + '</span>'
+                    + '<span class="exam-name">' + escapeHtml(e.name || '-') + '</span>'
+                    + '<span class="exam-range">' + escapeHtml(e.range || '-') + '</span>'
+                    + '<span class="exam-rate">' + e.correct + '/' + e.total + ' (' + rate + '%)</span>'
+                    + '<span class="exam-date">' + escapeHtml(e.date || '-') + '</span>'
+                    + '<button type="button" class="exam-remove" onclick="accRemoveExtraExam(' + idx + ')" title="移除此考卷">移除</button>'
+                    + '</div>';
             }).join('');
         }
 
@@ -8020,6 +8075,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
             var records = loadAccuracyRecords();
             var record;
+            var extraExams = (window._accExtraExams || []).slice();
             if (window._editingRecordId) {
                 // 編輯模式: 覆蓋原 record (保留原本 id)
                 record = {
@@ -8031,7 +8087,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     instanceName: instName,
                     total: total,
                     correct: correct,
-                    wrongUnits: (window._accWrongUnits || []).slice()
+                    wrongUnits: (window._accWrongUnits || []).slice(),  // 向後相容舊 records
+                    extraExams: extraExams
                 };
                 records[window._editingRecordIdx] = record;
             } else {
@@ -8045,7 +8102,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     instanceName: instName,
                     total: total,
                     correct: correct,
-                    wrongUnits: (window._accWrongUnits || []).slice()
+                    wrongUnits: (window._accWrongUnits || []).slice(),  // 向後相容
+                    extraExams: extraExams
                 };
                 records.push(record);
             }
@@ -8054,6 +8112,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             window._editingRecordId = null;
             window._editingRecordIdx = null;
             window._accWrongUnits = [];
+            window._accExtraExams = [];
             renderAccuracyStats();
         }
 
@@ -8065,6 +8124,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             window._editingRecordId = r.id;
             window._editingRecordIdx = idx;
             window._accWrongUnits = (r.wrongUnits || []).slice();
+            window._accExtraExams = (r.extraExams || []).slice();
             // 設 dropdowns (trigger cascade)
             var subSel = el('acc-subject');
             subSel.value = r.subject || '';
@@ -8075,8 +8135,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var instSel = el('acc-instance');
             if (r.instanceId) instSel.value = r.instanceId;
             accOnInstanceChange();
-            var unitSel = el('acc-unit');
-            // 不設定 unit dropdown, 因為已預填 _accWrongUnits
             // 設值
             el('acc-total').value = r.total || '';
             el('acc-correct').value = r.correct || '';
@@ -8084,7 +8142,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 改儲存按鈕為「更新」+ 顯示「取消編輯」
             var saveBtn = document.querySelector('.accuracy-form .btn-primary');
             if (saveBtn) saveBtn.innerHTML = '💾 更新';
-            // 加取消按鈕
             if (!document.getElementById('acc-cancel-edit')) {
                 var cancelBtn = document.createElement('button');
                 cancelBtn.id = 'acc-cancel-edit';
@@ -8095,7 +8152,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 cancelBtn.onclick = accCancelEdit;
                 saveBtn.parentNode.insertBefore(cancelBtn, saveBtn);
             }
-            accRenderWrongUnits();
+            accRenderExtraExams();
             // 滾動到表單
             var form = document.querySelector('.accuracy-form');
             if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -8105,17 +8162,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
             window._editingRecordId = null;
             window._editingRecordIdx = null;
             window._accWrongUnits = [];
+            window._accExtraExams = [];
             el('acc-subject').value = '';
             accOnSubjectChange();
             el('acc-total').value = '';
             el('acc-correct').value = '';
             el('acc-date').value = '';
-            // 還原儲存按鈕
             var saveBtn = document.querySelector('.accuracy-form .btn-primary');
             if (saveBtn) saveBtn.innerHTML = '💾 儲存記錄';
             var cancelBtn = document.getElementById('acc-cancel-edit');
             if (cancelBtn) cancelBtn.remove();
-            accRenderWrongUnits();
+            accRenderExtraExams();
             renderAccuracyStats();
         }
 
@@ -11371,13 +11428,3 @@ document.getElementById('import-file').addEventListener('change', function(e) {
     </script>
 </body>
 </html>
-
-test('v1.5.183: 同一 name+start+end 但不同 id 也要 dedup', () => {
-    const win = loadIndex();
-    const dupMaster = JSON.parse('{"會考複習":{"英文":{"materials":{"default":{"instances":[{"name":"麻辣","vols":{"第一冊":[{"id":"id_a","name":"U1","start":6,"end":27},{"id":"id_b","name":"U1","start":6,"end":27},{"id":"id_c","name":"U2","start":28,"end":49}]}}]}}}}}');
-    setupMaster(win, dupMaster);
-    const removed = win.deduplicateMasterUnits('user_test');
-    assert.strictEqual(removed, 1, '應該移除 1 個 (U1 id_a 或 id_b 哪個都行)');
-    const after = win.multiData.user_test.masters['會考複習']['英文'].materials.default.instances[0].vols['第一冊'];
-    assert.strictEqual(after.length, 2, '應該剩 2 個 (U1 + U2)');
-});
