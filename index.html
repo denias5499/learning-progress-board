@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.193]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.194]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -318,11 +318,12 @@
 
 /* v1.5.158: 答對率統計 */
 .accuracy-form { background: #f8fafc; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
-.accuracy-row-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; align-items: end; }
-.accuracy-row-3col .accuracy-cell { display: flex; flex-direction: column; }
-.accuracy-row-3col .accuracy-cell label { font-size: 0.85em; color: var(--secondary); margin-bottom: 4px; font-weight: bold; }
-.accuracy-row-3col .accuracy-cell select { width: 100%; }
-@media (max-width: 768px) { .accuracy-row-3col { grid-template-columns: 1fr; } }
+.accuracy-row-4col { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; align-items: end; }
+.accuracy-row-4col .accuracy-cell { display: flex; flex-direction: column; }
+.accuracy-row-4col .accuracy-cell label { font-size: 0.85em; color: var(--secondary); margin-bottom: 4px; font-weight: bold; }
+.accuracy-row-4col .accuracy-cell select { width: 100%; }
+@media (max-width: 768px) { .accuracy-row-4col { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .accuracy-row-4col { grid-template-columns: 1fr; } }
 .accuracy-form .form-row { display: flex; gap: 10px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
 .accuracy-form .form-row label { font-weight: bold; color: var(--secondary); white-space: nowrap; min-width: 70px; }
 .accuracy-form select, .accuracy-form input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; }
@@ -7746,30 +7747,32 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // ===== 輸入表單 =====
             html += '<div class="accuracy-form">';
             html += '<h3 style="margin-top:0; color:var(--primary);">📝 新增答對率記錄</h3>';
-            // v1.5.193: 三個下拉選單 grid 3 欄同一排 (科目 / 教材類型 / 教材版本)
-            html += '<div class="form-row accuracy-row-3col">';
+            // v1.5.194: 四個下拉選單 grid 4 欄同一排 (科目 / 教材類型 / 教材版本 / 單元名稱)
+            html += '<div class="form-row accuracy-row-4col">';
             html += '<div class="accuracy-cell"><label>科目</label><select id="acc-subject" onchange="accOnSubjectChange()"><option value="">--選擇--</option>';
             subjects.forEach(function(s) { html += '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; });
             html += '</select></div>';
             html += '<div class="accuracy-cell"><label>教材類型</label><select id="acc-type" onchange="accOnTypeChange()" disabled><option value="">--先選科目--</option></select></div>';
             html += '<div class="accuracy-cell"><label>教材版本</label><select id="acc-instance" onchange="accOnInstanceChange()" disabled><option value="">--先選類型--</option></select></div>';
+            html += '<div class="accuracy-cell"><label>單元名稱</label><select id="acc-unit" onchange="accOnUnitChange()" disabled><option value="">--先選教材版本--</option></select></div>';
             html += '</div>';
+            // v1.5.194: 第二行 [總題數] [答對題數] [完成日期]
             html += '<div class="form-row">';
             html += '<label>總題數</label>';
             html += '<input type="number" id="acc-total" min="1" style="width:80px;" placeholder="例:50">';
             html += '<label>答對題數</label>';
             html += '<input type="number" id="acc-correct" min="0" style="width:80px;" placeholder="例:42">';
-            html += '<label>考試日期</label>';
+            html += '<label>完成日期</label>';
             html += '<input type="date" id="acc-date" style="width:140px;">';
             html += '</div>';
+            // v1.5.194: 「單元名稱」chip 區 (從 dropdown 選/或樹狀圖帶入), 保留手動輸入
             html += '<div class="form-row">';
-            html += '<label>錯題單元</label>';
-            html += '<select id="acc-unit" disabled><option value="">--先選教材版本--</option></select>';
-            html += '<button type="button" class="btn-outline" style="font-size:0.8em; padding:4px 10px;" onclick="accAddWrongUnit()">＋ 加入</button>';
+            html += '<label>單元名稱</label>';
             html += '<span style="color:#7f8c8d; font-size:0.85em;">或手動:</span>';
             html += '<input type="text" id="acc-unit-manual" placeholder="例:字音、段考全範圍" style="width:200px;">';
             html += '<button type="button" class="btn-outline" style="font-size:0.8em; padding:4px 10px;" onclick="accAddManualWrongUnit()">＋ 新增</button>';
             html += '</div>';
+            // v1.5.194: 「單元名稱」chip 區 (取代原本「錯題單元」label)
             html += '<div id="acc-wrong-units" style="margin-bottom:10px;"></div>';
             html += '<div style="text-align:right;">';
             html += '<button type="button" class="btn-primary" onclick="accSaveRecord()">💾 儲存記錄</button>';
@@ -7830,7 +7833,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 html += '<h3 style="color:var(--primary); margin-bottom:10px;">📊 答對率總表 (共 ' + filtered.length + ' 筆)</h3>';
                 html += '<table class="accuracy-table"><thead><tr>';
-                html += '<th>日期</th><th>科目</th><th>教材類型</th><th>教材版本</th><th>總題數</th><th>答對</th><th>答對率</th><th>錯題單元</th><th>操作</th>';
+                html += '<th>日期</th><th>科目</th><th>教材類型</th><th>教材版本</th><th>總題數</th><th>答對</th><th>答對率</th><th>單元名稱</th><th>操作</th>';
                 html += '</tr></thead><tbody>';
                 filtered.forEach(function(r) {
                     // idx 用原 records 索引, 刪除用
@@ -7937,12 +7940,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
             unitSel.disabled = false;
         }
 
-        function accAddWrongUnit() {
-            var unitName = el('acc-unit').value;
-            if (!unitName) return alert('請先選擇錯題單元!');
-            if (window._accWrongUnits.indexOf(unitName) >= 0) return alert('已加入過此單元!');
+        function accOnUnitChange() {
+            // v1.5.194: dropdown 選了直接加 chip (取代原本「+加入」按鈕)
+            var unitSel = el('acc-unit');
+            var unitName = unitSel.value;
+            if (!unitName) return;
+            if (window._accWrongUnits.indexOf(unitName) >= 0) {
+                unitSel.value = '';
+                return;
+            }
             window._accWrongUnits.push(unitName);
             accRenderWrongUnits();
+            unitSel.value = '';  // reset 準備下次選
         }
 
         function accAddManualWrongUnit() {
@@ -7964,7 +7973,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var container = el('acc-wrong-units');
             if (!container) return;
             if (window._accWrongUnits.length === 0) {
-                container.innerHTML = '<span style="color:#94a3b8; font-size:0.85em;">(尚無錯題單元)</span>';
+                container.innerHTML = '<span style="color:#94a3b8; font-size:0.85em;">(尚無單元名稱)</span>';
                 return;
             }
             container.innerHTML = window._accWrongUnits.map(function(u, idx) {
