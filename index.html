@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.199]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.200]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1042,7 +1042,7 @@
         </div>
 
         <div class="filter-bar" id="global-filter-bar">
-            <!-- 增加 id 以便在特定頁面隱藏 -->
+            <!-- v1.5.200: 樹狀圖頁面隱藏看板篩選 (切 tab 時由 switchStatsView 控制 visibility) -->
             <div id="global-filter-selectors" style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
                 <div style="font-weight: bold; color: var(--primary); font-size: 1.1em;">🔍 看板篩選：</div>
                 <select id="filter-category" onchange="onFilterCategoryChange()"></select>
@@ -1396,8 +1396,8 @@
                 </div>
                 <div class="stats-tabs">
                     <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">1. 樹狀圖</button>
-                    <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">2. 月份分析</button>
-                    <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">3. 答對率統計</button>
+                    <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">2. 答對率分析</button>
+                    <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">3. 月份分析</button>
                 </div>
                 <div id="stats-tree" class="stats-view active">
                     <!-- v1.5.176: 樹狀圖 dropdowns (科目/教材類別/冊別) - 教材分類已刪除 (跟看板篩選重複) -->
@@ -7614,6 +7614,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function switchStatsView(view) {
             document.querySelectorAll('.stats-view').forEach(function(v) { v.classList.remove('active'); });
             document.querySelectorAll('.stats-tab').forEach(function(b) { b.classList.remove('active'); });
+            // v1.5.200: 樹狀圖頁面隱藏看板篩選, 其他頁面照舊
+            var filterBar = el('global-filter-bar');
+            if (filterBar) filterBar.style.display = (view === 'tree') ? 'none' : '';
             var targetId = view === 'tree' ? 'stats-tree' : (view === 'monthly' ? 'stats-monthly' : 'stats-accuracy');
             el(targetId).classList.add('active');
             document.querySelectorAll('.stats-tab').forEach(function(b) {
