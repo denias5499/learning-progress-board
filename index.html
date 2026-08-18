@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.190]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.191]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10142,8 +10142,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var instanceName = u._instanceName || '';
                         var volName = u.vol || 'custom';
                         // v1.5.190: volName 是「typeName|ins.name」這種 legacy 格式 (來自 ins.units 分支), 不算真正 vol, 標記成空
+                        // v1.5.191: volName = 'custom' 也視為 noVol (代表 instance 沒明確分冊)
                         var realVolName = volName;
-                        if (volName === typeName + '|' + instanceName) {
+                        if (volName === typeName + '|' + instanceName || volName === 'custom') {
                             realVolName = '';
                         }
                         var ik = typeName + '|' + instanceName;
@@ -10161,7 +10162,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         return parts.length > 0 ? parts.join(' ') : '(未命名教材)';
                     }
                     function makeVolLabel(volName) {
-                        if (!volName) return '📖 自訂範圍';
+                        if (!volName) return null;
                         return '📖 ' + escapeHtml(volName);
                     }
                     function renderUnitRow(u) {
@@ -10197,22 +10198,29 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var inst = byInstance[ik];
                         var volKeys = Object.keys(inst.vols);
                         if (volKeys.length === 0) return;
+                        // v1.5.191: 永遠輸出 instance header (讓教材名稱清楚顯示)
                         var hasNoVol = volKeys.length === 1 && volKeys[0] === '__no_vol__';
-                        if (!hasNoVol) {
-                            var instLabel = makeInstanceLabel(inst.typeName, inst.instanceName);
-                            html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📚 ' + instLabel + '</li>';
+                        var instLabel = makeInstanceLabel(inst.typeName, inst.instanceName);
+                        html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📚 ' + instLabel + '</li>';
+                        // v1.5.191: 沒 vol 時, units 直接列在 instance 內 (不縮排 vol)
+                        if (hasNoVol) {
+                            html += '<ul class="tree-units">';
                         }
                         volKeys.forEach(function(vk) {
                             var vol = inst.vols[vk];
                             if (vol.units.length === 0) return;
-                            html += '<ul class="tree-vol"><li class="tree-vol-label">' + makeVolLabel(vol.volName) + '</li>';
-                            html += '<ul class="tree-units">';
+                            var volLabel = makeVolLabel(vol.volName);
+                            if (volLabel) {
+                                html += '<ul class="tree-vol"><li class="tree-vol-label">' + volLabel + '</li>';
+                                html += '<ul class="tree-units">';
+                            }
                             vol.units.forEach(function(u) {
                                 html += renderUnitRow(u);
                             });
-                            html += '</ul></ul>';
+                            if (volLabel) html += '</ul></ul>';
                         });
-                        if (!hasNoVol) html += '</ul>';
+                        if (hasNoVol) html += '</ul>';
+                        html += '</ul>';
                     });
                 }
 
