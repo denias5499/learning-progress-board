@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.185]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.186]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5129,29 +5129,22 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                 // v1.5.161: 按 mission filter 過濾 (防止跨 mission 混算)
                 if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) return;
                 if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) return;
-                // v1.5.174: 找 task.unitId 的 sub, 只對**同 sub** 的 unit 算 overlap
-                // (修樹狀圖進度條錯誤: 跨 sub 任務不該污染其他 sub 的 unit)
-                var taskUnitInfo = allUnits[t.unitId];
-                var taskSub = taskUnitInfo ? taskUnitInfo.subj : null;
-                Object.keys(allUnits).forEach(function(uid) {
-                    var u = allUnits[uid];
-                    // v1.5.174: 同 sub 才算 (沒對應 sub 的任務, 不污染任何 unit)
-                    if (taskSub && u.subj !== taskSub) return;
-                    var s = t.startPage > u.start ? t.startPage : u.start;
-                    var e = t.endPage < u.end ? t.endPage : u.end;
-                    if (e >= s) {
-                        // v1.5.160: 用 Set 去重, 避免重複 plan (順延/重建) 重複計算同一頁
-                        if (!result[uid + '_pages']) result[uid + '_pages'] = new Set();
-                        var pageSet = result[uid + '_pages'];
-                        var added = 0;
-                        for (var p = s; p <= e; p++) {
-                            if (!pageSet.has(p)) { pageSet.add(p); added++; }
-                        }
-                        if (added > 0) {
-                            result[uid] = (result[uid] || 0) + added;
-                        }
+                // v1.5.186: 只算直接 task.unitId 對應 unit 的 pages (不 cross-unit overlap)
+                // 修樹狀圖「未排 unit 顯示 N/M 進度」錯誤: 跨 unit overlap 會把任務頁數污染到其他 unit
+                var taskUid = t.unitId;
+                if (!taskUid) return;
+                var pagesDone = t.endPage - t.startPage + 1;
+                if (pagesDone > 0) {
+                    if (!result[taskUid + '_pages']) result[taskUid + '_pages'] = new Set();
+                    var pageSet = result[taskUid + '_pages'];
+                    var added = 0;
+                    for (var p = t.startPage; p <= t.endPage; p++) {
+                        if (!pageSet.has(p)) { pageSet.add(p); added++; }
                     }
-                });
+                    if (added > 0) {
+                        result[taskUid] = (result[taskUid] || 0) + added;
+                    }
+                }
             });
         });
     });
@@ -10128,15 +10121,27 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // v1.5.5 fix: 新架構 — 從 materials[*].instances[*] 收集 units
                     var allUnits = _collectSubjectUnits(s);
                     // v1.5.177: 拿掉 mission filter - 顯示所有教材庫 units
+                    // v1.5.186: byVol 用 typeName|instanceName|vol 當 key, 避免不同 instance 同 volName 混亂 (例: 國文/複習講義/勝經 vs 國文/複習講義/大滿貫, 兩者都有「第一冊」)
                     var byVol = {};
                     allUnits.forEach(function(u) {
-                        if (!byVol[u.vol || 'custom']) byVol[u.vol || 'custom'] = [];
-                        byVol[u.vol || 'custom'].push(u);
+                        var k = (u._typeName || '') + '|' + (u._instanceName || '') + '|' + (u.vol || 'custom');
+                        if (!byVol[k]) byVol[k] = { volName: u.vol || 'custom', typeName: u._typeName || '', instanceName: u._instanceName || '', units: [] };
+                        byVol[k].units.push(u);
                     });
-                    Object.keys(byVol).forEach(function(volName) {
-                        var arr = byVol[volName];
+                    Object.keys(byVol).forEach(function(k) {
+                        var group = byVol[k];
+                        var arr = group.units;
                         if (arr.length === 0) return;
-                        html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + escapeHtml(volName) + '</li>';
+                        // v1.5.186: label 顯示 instanceName (讓用戶辨識是哪一份教材), 沒 instanceName 時 fallback 到 typeName
+                        var labelParts = [];
+                        var instName = group.instanceName;
+                        // fallback: 「(原主教材)」這種 migration 預設名, 跟 typeName 重複就只顯示一個
+                        if (instName && instName === '(原主教材)') instName = '';
+                        if (group.typeName && group.typeName !== instName) labelParts.push(escapeHtml(group.typeName));
+                        if (instName) labelParts.push('<span style="color:var(--accent);">📘 ' + escapeHtml(instName) + '</span>');
+                        if (group.volName && group.volName !== '(未分類)') labelParts.push('<span style="color:var(--primary);">' + escapeHtml(group.volName) + '</span>');
+                        var labelHtml = labelParts.length > 0 ? labelParts.join('｜') : '(未分類)';
+                        html += '<ul class="tree-vol"><li class="tree-vol-label">📖 ' + labelHtml + '</li>';
                         html += '<ul class="tree-units">';
                         arr.forEach(function(u) {
                             var t = totalOf(u);
@@ -10507,6 +10512,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function jumpToUnitCalendar(unitId, cat, mis) {
             // v1.5.86: 簡化 - 點單元 → 切月曆 + 設 highlight (不清掉其他任務)
             var suInfo = window._treeScheduledUnits && window._treeScheduledUnits[unitId];
+            
+            // v1.5.186: 若此單元沒有任何排程任務, 提示「進度待安排」, 不跳月曆
+            if (!suInfo || !suInfo.totalTasks || suInfo.totalTasks === 0) {
+                alert('📌 此單元尚未排程\n請先到「🪄 建立智慧排程」新增任務');
+                return;
+            }
             
             // 1. 找 plan
             var targetPlanId = null;
