@@ -8131,9 +8131,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<td>' + r.total + '</td>';
                     html += '<td>' + r.correct + '</td>';
                     html += '<td>';
-                    html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; background:' + barColor + ';"></div></div> ';
-                    // v1.5.209: 答對率數字 #00814A + 字體加粗 (border 對比加深)
-                html += '<span style="position:absolute; right:6px; top:50%; transform:translateY(-50%); color:#00814A; font-weight:bold; font-size:0.85em; pointer-events:none;">' + rate.toFixed(1) + '%</span>';
+                    html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; background:' + barColor + ';"></div><span class="accuracy-bar-text" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#00814A; font-weight:bold; font-size:0.9em; pointer-events:none; white-space:nowrap;">' + rate.toFixed(1) + '%</span></div>';
                     html += '</td>';
                     html += '<td>' + (r.wrongUnits && r.wrongUnits.length > 0 ? r.wrongUnits.map(escapeHtml).join(', ') : '-') + '</td>';
                     html += '<td style="white-space:nowrap;">';
