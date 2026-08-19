@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.208]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.209]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -637,7 +637,12 @@
         .mission-title { font-size: 1.3em; font-weight: bold; color: #1a5276; margin-bottom: 20px; display: inline-block; background: #d6eaf8; padding: 8px 20px; border-radius: 25px; border: 1px solid #a9cce3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
         .card { background: var(--card-bg); padding: 20px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
         
-        .page-card { background: #c7eefb; padding: 25px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .page-card { background: var(--card-bg, #ffffff); padding: 25px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 20px; }
+#dashboard-root .page-card { background: #c4e0f9; }  /* v1.5.209: 學習進度看板 (首頁) */
+#page-stats .page-card { background: #c7eefb; }   /* v1.5.209: 學習統計分析 */
+#page-settings .page-card { background: #c7eefb; } /* v1.5.209: 教材庫設定與備份 */
+#page-planner .page-card { background: #c7eefb; }  /* v1.5.209: 月計畫排程 */
+#page-add-event .page-card { background: #c7eefb; }
         .page-view { display: none; width: 100%; }
         .page-view.active { display: block; }
         
@@ -699,7 +704,7 @@
         .tree-collapse-btn { background: #64748b; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; }
         .tree-collapse-btn:hover { background: #475569; }
         /* 樹狀圖 collapse state */
-        .tree-subject-summary { display: flex; align-items: center; padding: 12px 16px; background: white; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.2s; }
+        .tree-subject-summary { display: flex; align-items: center; padding: 12px 16px; background: #EFF7F6; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background 0.2s; }
         .tree-subject-summary:hover { background: #f8fafc; }
         .tree-subject-summary-name { font-weight: bold; font-size: 1.05em; flex: 1; }
         .tree-subject-summary-stats { color: var(--secondary); font-size: 0.9em; }
@@ -944,6 +949,7 @@
             margin-bottom: 14px;
             max-height: 75vh;
             overflow-y: auto;
+            position: relative;
         }
         .tree-vol::-webkit-scrollbar { width: 8px; }
         .tree-vol::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -7763,21 +7769,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }, 100);
         }
 
-        // v1.5.204: 跳到答對率頁 + 高亮指定 unit (#F3B8B1 醒目提示) + 滾動到 row
+        // v1.5.209: 答對率 bar 點擊 → 直接呼叫 jumpToAccuracyForUnit (它已有填 dropdowns + highlight 邏輯)
         function jumpToAccuracyForUnitHighlight(unitId, unitName) {
-            window._highlightedUnitName = unitName;
-            openStats();
-            switchStatsView('accuracy');
-            setTimeout(function() {
-                renderAccuracyStats();
-                var rows = document.querySelectorAll('.accuracy-table tbody tr');
-                for (var i = 0; i < rows.length; i++) {
-                    if (rows[i].textContent.indexOf(unitName) >= 0) {
-                        rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        break;
-                    }
-                }
-            }, 100);
+            jumpToAccuracyForUnit(unitId);
         }
 
         // v1.5.205: 計算某 unit 的最近答對率 (從 records 找含此 unit name 的考試, 取平均)
@@ -7997,12 +7991,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<td>' + r.correct + '</td>';
                     html += '<td>';
                     html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; background:' + barColor + ';"></div></div> ';
-                    html += '<span class="accuracy-percentage" style="background:' + rateColor + '20; color:' + rateColor + ';">' + rate.toFixed(1) + '%</span>';
+                    // v1.5.209: 答對率數字 #00814A + 字體加粗 (border 對比加深)
+                html += '<span class="accuracy-percentage" style="background:#00814A; color:#ffffff; font-weight:bold; padding:2px 8px; border:1px solid #00814A; border-radius:4px; min-width:60px; display:inline-block;">' + rate.toFixed(1) + '%</span>';
                     html += '</td>';
                     html += '<td>' + (r.wrongUnits && r.wrongUnits.length > 0 ? r.wrongUnits.map(escapeHtml).join(', ') : '-') + '</td>';
                     html += '<td style="white-space:nowrap;">';
-                    html += '<button type="button" onclick="accEditRecord(' + origIdx + ')" title="編輯" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em; margin-right:4px;">✏️</button>';
-                    html += '<button type="button" onclick="accDeleteRecord(' + origIdx + ')" title="刪除" style="background:#ef4444; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em;">🗑</button>';
+                    // v1.5.209: 編輯按鈕 #99D6EA, 刪除按鈕 #A4303F
+                    html += '<button type="button" onclick="accEditRecord(' + origIdx + ')" title="編輯" style="background:#99D6EA; color:#333; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em; margin-right:4px;">✏️</button>';
+                    // v1.5.209: 刪除按鈕 #A4303F
+                    html += '<button type="button" onclick="accDeleteRecord(' + origIdx + ')" title="刪除" style="background:#A4303F; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em;">🗑</button>';
                     html += '</td>';
                     html += '</tr>';
                 });
