@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.204]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.205]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7739,6 +7739,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 7. 滾動到表單
             var form = document.querySelector('.accuracy-form');
             if (form) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // v1.5.205: 樹狀圖點 unit name 跳過來也要高亮該 unit row (#F3B8B1)
+            window._highlightedUnitName = ctx.unit.name;
+            setTimeout(function() {
+                renderAccuracyStats();
+                var rows = document.querySelectorAll('.accuracy-table tbody tr');
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows[i].textContent.indexOf(ctx.unit.name) >= 0) {
+                        rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        break;
+                    }
+                }
+            }, 100);
         }
 
         // v1.5.204: 跳到答對率頁 + 高亮指定 unit (#F3B8B1 醒目提示) + 滾動到 row
@@ -7758,17 +7770,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }, 100);
         }
 
-        // v1.5.203: 計算某 unit 的最近答對率 (從 records 找含此 unit name 的考試, 取平均)
+        // v1.5.205: 計算某 unit 的最近答對率 (從 records 找含此 unit name 的考試, 取平均)
+        // 用 loose match (雙向 substring): 處理 unit name 不完全相同的情況 (例: 樹狀圖「字音」 vs records.wrongUnits「國字注音」)
         function getUnitAccuracyRate(unitName) {
             var records = loadAccuracyRecords();
             var rates = [];
+            function looseMatch(a, b) {
+                if (!a || !b) return false;
+                return a.indexOf(b) >= 0 || b.indexOf(a) >= 0;
+            }
             records.forEach(function(r) {
-                if (r.wrongUnits && r.wrongUnits.indexOf(unitName) >= 0) {
-                    if (r.total > 0) rates.push(r.correct / r.total);
+                // 主考試 (Row 2 metadata) - 用 wrongUnits 雙向 match
+                if (r.wrongUnits && Array.isArray(r.wrongUnits)) {
+                    var mainMatched = r.wrongUnits.some(function(wu) { return looseMatch(wu, unitName); });
+                    if (mainMatched && r.total > 0) rates.push(r.correct / r.total);
                 }
+                // 額外考卷 (chip 區)
                 if (r.extraExams && Array.isArray(r.extraExams)) {
                     r.extraExams.forEach(function(e) {
-                        if (e.name && e.name.indexOf(unitName) >= 0 && e.total > 0) {
+                        if (e.name && looseMatch(e.name, unitName) && e.total > 0) {
                             rates.push(e.correct / e.total);
                         }
                     });
