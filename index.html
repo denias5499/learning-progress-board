@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.222]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.226]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -363,7 +363,7 @@
 .accuracy-table tr.highlighted-row { background: #F3B8B1 !important; }
 .accuracy-table .accuracy-percentage { font-weight: bold; min-width: 60px; display: inline-block; }
 .accuracy-bar { display: inline-block; width: 200px; height: 20px; background: #e5e7eb; border-radius: 9px; overflow: hidden; vertical-align: middle; position: relative; border: 2px solid #999; }
-.accuracy-bar-fill { height: 100%; border-radius: 7px; background: #C1E0D8 !important; }
+.accuracy-bar-fill { height: 100%; border-radius: 7px; background: var(--bar-color, #C1E0D8); transition: width 0.3s ease, background 0.2s ease; }
 .accuracy-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: bold; }
 .accuracy-filter { background: #fffbea; border: 1px solid #fde047; border-radius: 8px; padding: 12px; margin-bottom: 12px; }
 .accuracy-filter .form-row { display: flex; gap: 10px; align-items: center; }
@@ -1041,14 +1041,61 @@
         .tree-legend-dot.done { background: #10b981; box-shadow: 0 0 6px #10b981; }
         .tree-legend-dot.progress { background: #60a5fa; }
         .tree-legend-dot.todo { background: transparent; border: 2px solid #94a3b8; }
+
+        /* v1.5.226: 全機備份狀態列 + 未匯出提醒橫幅 */
+        .backup-status-bar {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 4px 12px; border-radius: 999px;
+            font-size: 0.85em; cursor: default;
+            background: #e2e8f0; color: var(--secondary);
+            border: 1px solid var(--border);
+        }
+        .backup-status-bar.ok { background: #dcfce7; color: #166534; border-color: #86efac; }
+        .backup-status-bar.warn { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+        .backup-status-bar.never { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+        .backup-status-bar .bk-btn {
+            background: transparent; border: 1px solid currentColor;
+            color: inherit; padding: 2px 8px; border-radius: 6px;
+            font-size: 0.95em; cursor: pointer; font-weight: bold;
+        }
+        .backup-status-bar .bk-btn:hover { background: rgba(255,255,255,0.5); }
+        .dirty-banner {
+            display: none;
+            background: linear-gradient(90deg, #fef3c7, #fde68a);
+            color: #78350f;
+            padding: 10px 16px;
+            border-bottom: 2px solid #f59e0b;
+            text-align: center;
+            font-size: 0.95em;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .dirty-banner.show { display: block; }
+        .dirty-banner a { color: #b45309; font-weight: bold; text-decoration: underline; cursor: pointer; }
+        .dirty-banner .dismiss {
+            float: right; background: none; border: none; cursor: pointer;
+            color: #78350f; font-size: 1.2em; padding: 0 6px;
+        }
         </style>
 </head>
 <body>
+
+    <!-- v1.5.226: 未匯出備份橫幅（預設隱藏） -->
+    <div id="dirty-banner" class="dirty-banner" role="alert">
+        <button class="dismiss" onclick="dismissDirtyBanner()" title="暫時關閉 (下次有變動又會出現)">✕</button>
+        📦 你有 <strong>未匯出</strong> 的資料異動 (最早自 <span id="dirty-since-time">--:--</span>)，建議
+        <a href="#" onclick="exportDataToFile(); return false;">立即匯出備份</a> 以免本地資料意外遺失
+    </div>
 
     <div class="container">
         <div class="header">
             <h1 id="main-app-title" title="🏠 點擊回到首頁" onclick="returnToHome()" style="cursor: pointer; user-select: none;"></h1>
             <div class="header-controls">
+                <!-- v1.5.226: 全機備份狀態指示 (B1, 3 天閾值) -->
+                <span id="backup-status-bar" class="backup-status-bar" title="點這顆按鈕立即匯出全機備份">
+                    <span id="backup-status-icon">⏳</span>
+                    <span id="backup-status-text">備份狀態檢查中…</span>
+                    <button class="bk-btn" type="button" onclick="exportDataToFile()" title="立即匯出全機備份 .json">📥 備份</button>
+                </span>
                 <div class="user-selector-container">
                     <img id="current-user-avatar" class="user-avatar-small" src="" style="display:none;" title="使用者頭貼">
                     <select id="user-selector" onchange="switchUser()"></select>
@@ -8131,7 +8178,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<td>' + r.total + '</td>';
                     html += '<td>' + r.correct + '</td>';
                     html += '<td>';
-                    html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; background:' + barColor + ';"></div><span class="accuracy-bar-text" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#00814A; font-weight:bold; font-size:0.9em; pointer-events:none; white-space:nowrap;">' + rate.toFixed(1) + '%</span></div>';
+                    html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; --bar-color:' + barColor + ';"></div><span class="accuracy-bar-text" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#00814A; font-weight:bold; font-size:0.9em; pointer-events:none; white-space:nowrap;">' + rate.toFixed(1) + '%</span></div>';
                     html += '</td>';
                     html += '<td>' + (r.wrongUnits && r.wrongUnits.length > 0 ? r.wrongUnits.map(escapeHtml).join(', ') : '-') + '</td>';
                     html += '<td style="white-space:nowrap;">';
@@ -11481,13 +11528,39 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function renameUser(uid) { openInputModal('✏️ 修改學生名稱', multiData[uid].name, function(newName) { if (newName !== multiData[uid].name) { multiData[uid].name = newName; saveToLocal(); initUsers(); renderUserManageList(); } }); }
         function deleteUser(uid) { if (Object.keys(multiData).length <= 1) return; if (confirm('確定刪除此學生的所有資料？')) { delete multiData[uid]; if (currentUserId === uid) currentUserId = Object.keys(multiData)[0]; saveToLocal(); initUsers(); renderUserManageList(); } }
 
-        async function exportDataToFile() { 
-            if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData(); 
-            saveToLocal(); 
-            
-            var dataStr = JSON.stringify(multiData, null, 2); 
-            var defaultFilename = "StudyMap_Backup_" + getLocalDateString(new Date()) + ".json"; 
-            
+        async function exportDataToFile() {
+            // v1.5.226: 全機備份改寫 — 抓所有 StudyMap_ 前綴的 localStorage 資料
+            if (el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
+            try { saveToLocal(); } catch(e) { console.warn('saveToLocal 失敗:', e); }
+
+            var snapshot = {
+                _meta: {
+                    app: 'StudyMap',
+                    schema: 'full-v1',  // v1.5.226 之後的備份格式
+                    exportedAt: new Date().toISOString(),
+                    note: '全機備份: 教材庫 + 答對率 + PlanEvents + 看板 + 主題 + 偏好 + 安全備份/快照'
+                },
+                keys: {}
+            };
+
+            // 抓所有 StudyMap_ 前綴的 key (含 dynamic 命名的 PlanEvents)
+            for (var i = 0; i < localStorage.length; i++) {
+                var key = localStorage.key(i);
+                if (key && key.indexOf('StudyMap_') === 0 && key !== STORAGE_KEY_LAST_EXPORT) {
+                    var raw = localStorage.getItem(key);
+                    try {
+                        snapshot.keys[key] = JSON.parse(raw);
+                    } catch(e) {
+                        // 非 JSON (理論上不會, 但保險存字串)
+                        snapshot.keys[key] = raw;
+                    }
+                }
+            }
+            snapshot._meta.keyCount = Object.keys(snapshot.keys).length;
+
+            var dataStr = JSON.stringify(snapshot, null, 2);
+            var defaultFilename = "StudyMap_Backup_" + getLocalDateString(new Date()) + ".json";
+
             try {
                 if (window.showSaveFilePicker) {
                     const opts = {
@@ -11498,23 +11571,33 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     const writable = await handle.createWritable();
                     await writable.write(dataStr);
                     await writable.close();
-                    
-                    if (confirm("✅ JSON 備份匯出成功！\n\n請問是否要關閉教材庫設定與系統備份畫面？")) {
+
+                    // 標記已備份
+                    try { localStorage.setItem(STORAGE_KEY_LAST_EXPORT, new Date().toISOString()); } catch(e) {}
+                    clearDirty('export-success');
+                    updateBackupIndicator();
+
+                    if (confirm("✅ JSON 備份匯出成功！\n\n(已備份 " + snapshot._meta.keyCount + " 個資料區段)\n\n請問是否要關閉教材庫設定與系統備份畫面？")) {
                         returnToHome();
                     }
                 } else {
-                    var blob = new Blob([dataStr], { type: "application/json" }); 
-                    var url = URL.createObjectURL(blob); 
-                    var link = document.createElement("a"); 
-                    link.href = url; 
-                    link.download = defaultFilename; 
-                    document.body.appendChild(link); 
-                    link.click(); 
-                    document.body.removeChild(link); 
-                    URL.revokeObjectURL(url); 
+                    var blob = new Blob([dataStr], { type: "application/json" });
+                    var url = URL.createObjectURL(blob);
+                    var link = document.createElement("a");
+                    link.href = url;
+                    link.download = defaultFilename;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
 
-                    setTimeout(() => {
-                        if (confirm("✅ JSON 備份匯出成功！\n\n請問是否要關閉設定畫面？")) {
+                    setTimeout(function() {
+                        // 標記已備份 (在下載視窗跑完後更新)
+                        try { localStorage.setItem(STORAGE_KEY_LAST_EXPORT, new Date().toISOString()); } catch(e) {}
+                        clearDirty('export-success');
+                        updateBackupIndicator();
+
+                        if (confirm("✅ JSON 備份匯出成功！\n\n(已備份 " + snapshot._meta.keyCount + " 個資料區段)\n\n請問是否要關閉設定畫面？")) {
                             returnToHome();
                         }
                     }, 500);
@@ -11522,7 +11605,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } catch(err) {
                 if (err.name !== 'AbortError') {
                     console.error(err);
-                    alert("檔案儲存失敗！");
+                    alert("檔案儲存失敗！" + (err.message || ''));
                 }
             }
         }
@@ -11714,30 +11797,199 @@ function renderWizardUnitRowHtml(ws, i, u) {
             });
         }
 
+// v1.5.226: import handler 改寫 — 接受全機備份新格式 + 舊單 key 格式向後相容
 document.getElementById('import-file').addEventListener('change', function(e) {
-            var file = e.target.files[0]; 
-            if (!file) return; 
-            var reader = new FileReader(); 
-            reader.onload = function(e) { 
-                try { 
-                    var imported = JSON.parse(e.target.result); 
-                    if (confirm("⚠️ 確定要還原此備份嗎？這將覆蓋目前設定！")) { 
-                        localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(imported)); 
-                        if (confirm("🎉 JSON 備份還原成功！\n\n系統必須重新載入以套用新設定，請問是否立即重新載入系統？")) {
-                            window.location.reload(); 
-                        } else {
-                            window.location.reload();
-                        }
-                    } 
-                } catch(err) { 
-                    alert("匯入失敗：檔案格式錯誤。"); 
-                } 
-            }; 
-            reader.readAsText(file); 
-            e.target.value = ''; 
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+        try {
+            var data = JSON.parse(ev.target.result);
+            if (!data || typeof data !== 'object') throw new Error('頂層不是 object');
+
+            var keysToWrite = {};
+
+            // 偵測新格式 (v1.5.226 全機備份): 有 _meta.app === 'StudyMap' + keys 物件
+            if (data._meta && data._meta.app === 'StudyMap' && data.keys && typeof data.keys === 'object') {
+                keysToWrite = data.keys;
+                var keyCount = Object.keys(keysToWrite).length;
+                var backupTime = data._meta.exportedAt || '未知時間';
+                if (!confirm('⚠️ 偵測到「全機備份」格式\n\n' +
+                        '備份時間: ' + backupTime + '\n' +
+                        '資料區段數: ' + keyCount + '\n\n' +
+                        '即將覆蓋目前瀏覽器內所有 StudyMap 資料！\n' +
+                        '(強烈建議先做一次匯出, 保留現有版本再還原)\n\n' +
+                        '確定要還原嗎?')) return;
+            }
+            // 舊格式向後相容 (只備份 STORAGE_KEY_FAMILY): 一個大 object 直接當 multiData 用
+            else if (Object.keys(data).length > 0 && data[Object.keys(data)[0]] &&
+                     typeof data[Object.keys(data)[0]].masters !== 'undefined') {
+                keysToWrite[STORAGE_KEY_FAMILY] = data;
+                if (!confirm('⚠️ 偵測到「舊版單一備份」格式 (只含教材庫資料)\n\n' +
+                        '注意: 此格式不包含 答對率 / PlanEvents / 看板外觀 等資料\n' +
+                        '建議改用 v1.5.226 之後的「全機備份」重做一次\n\n' +
+                        '確定要還原嗎?')) return;
+            }
+            else {
+                throw new Error('無法辨識的備份檔格式 (既非全機備份也非舊版教材庫備份)');
+            }
+
+            var written = 0, failed = 0;
+            var kArr = Object.keys(keysToWrite);
+            for (var i = 0; i < kArr.length; i++) {
+                var k = kArr[i];
+                if (typeof k !== 'string' || k.indexOf('StudyMap_') !== 0) continue;  // 安全過濾
+                try {
+                    localStorage.setItem(k, JSON.stringify(keysToWrite[k]));
+                    written++;
+                } catch(e2) {
+                    console.error('匯入失敗 ' + k + ':', e2);
+                    failed++;
+                }
+            }
+
+            if (failed > 0) {
+                alert('匯入部分完成: ' + written + ' 成功, ' + failed + ' 失敗\n' +
+                      '請檢查 console 查看失敗的 key');
+            }
+            alert('🎉 還原完成! (' + written + ' 個資料區段)\n系統即將重新載入。');
+            window.location.reload();
+        } catch(err) {
+            alert('匯入失敗: ' + (err.message || '檔案格式錯誤或無法解析'));
+        }
+    };
+    reader.onerror = function() { alert('讀檔失敗'); };
+    reader.readAsText(file);
+    e.target.value = '';
+});
+
+        // ============================================================
+        // v1.5.226: 全機備份 / 離開提醒模組
+        // ============================================================
+        var STORAGE_KEY_LAST_EXPORT = 'StudyMap_LastExportAt_V226';
+        var STORAGE_KEY_DISMISS_AT = 'StudyMap_DirtyDismissAt_V226';
+        var BACKUP_WARN_DAYS = 3;  // B3: 3 天閾值 (Denias 指定)
+
+        var _dirtyState = { active: false, since: null, dismissedAt: null };
+        try { _dirtyState.dismissedAt = localStorage.getItem(STORAGE_KEY_DISMISS_AT); } catch(e) {}
+
+        function markDirty() {
+            if (_dirtyState.active) return;  // 已經標記過了
+            _dirtyState.active = true;
+            _dirtyState.since = new Date();
+            renderDirtyBanner();
+        }
+
+        function clearDirty(reason) {
+            _dirtyState.active = false;
+            _dirtyState.since = null;
+            _dirtyState.dismissedAt = null;
+            try { localStorage.removeItem(STORAGE_KEY_DISMISS_AT); } catch(e) {}
+            renderDirtyBanner();
+        }
+
+        function dismissDirtyBanner() {
+            _dirtyState.dismissedAt = new Date().toISOString();
+            try { localStorage.setItem(STORAGE_KEY_DISMISS_AT, _dirtyState.dismissedAt); } catch(e) {}
+            renderDirtyBanner();
+        }
+
+        function renderDirtyBanner() {
+            var banner = el('dirty-banner');
+            if (!banner) return;
+            // 若使用者明確 dismiss 過，且沒新變動，就維持關閉
+            if (!_dirtyState.active) { banner.classList.remove('show'); return; }
+            var t = _dirtyState.since;
+            var hh = t ? String(t.getHours()).padStart(2, '0') : '--';
+            var mm = t ? String(t.getMinutes()).padStart(2, '0') : '--';
+            var tsEl = el('dirty-since-time');
+            if (tsEl) tsEl.textContent = hh + ':' + mm;
+            banner.classList.add('show');
+        }
+
+        // 攔截 localStorage.setItem, 任何 StudyMap_ 寫入都視為 dirty
+        // 注意: STORAGE_KEY_LAST_EXPORT 本身不算 dirty (它記錄的是「已備份過」)
+        (function() {
+            var KEEP_OUT = [STORAGE_KEY_LAST_EXPORT, STORAGE_KEY_DISMISS_AT];
+            try {
+                var origSet = Storage.prototype.setItem;
+                Storage.prototype.setItem = function(key, value) {
+                    origSet.call(this, key, value);
+                    if (typeof key === 'string' && key.indexOf('StudyMap_') === 0 &&
+                        KEEP_OUT.indexOf(key) === -1) {
+                        try { if (typeof window.markDirty === 'function') window.markDirty(); }
+                        catch(e) { console.error('markDirty 失敗:', e); }
+                    }
+                };
+            } catch(e) {
+                console.warn('v1.5.226: setItem 攔截失敗 (Safari 私有模式?) — dirty 追蹤會少幾個', e);
+            }
+        })();
+
+        // B2: 離開頁面提醒
+        window.addEventListener('beforeunload', function(e) {
+            if (_dirtyState.active) {
+                e.preventDefault();
+                e.returnValue = '你有未匯出的資料異動, 真的要離開嗎?';
+                return '你有未匯出的資料異動, 真的要離開嗎?';
+            }
+        });
+        // iOS Safari 用 pagehide
+        window.addEventListener('pagehide', function() {
+            if (_dirtyState.active) {
+                // 不能彈 modal, 留 console 提示 + dirty flag 留待下次進入時 banner 仍在
+                console.warn('v1.5.226: 離開時有 dirty 資料未匯出');
+            }
         });
 
+        // B1: 備份狀態指示 (3 天閾值)
+        function getLastExportTime() {
+            try {
+                var t = localStorage.getItem(STORAGE_KEY_LAST_EXPORT);
+                if (!t) return null;
+                var d = new Date(t);
+                if (isNaN(d.getTime())) return null;
+                return d;
+            } catch(e) { return null; }
+        }
+
+        function getBackupStatusInfo() {
+            var last = getLastExportTime();
+            if (!last) return { cls: 'never', label: '⚠️ 從未備份過', lastIso: null, days: null };
+            var days = Math.floor((Date.now() - last.getTime()) / 86400000);
+            if (days >= BACKUP_WARN_DAYS) {
+                return { cls: 'warn', label: '⚠️ ' + days + ' 天沒備份', lastIso: last.toISOString(), days: days };
+            }
+            var dayLabel = days === 0 ? '今天' : days + ' 天前';
+            return { cls: 'ok', label: '✅ ' + dayLabel + '已備份', lastIso: last.toISOString(), days: days };
+        }
+
+        function updateBackupIndicator() {
+            var bar = el('backup-status-bar');
+            if (!bar) return;
+            var info = getBackupStatusInfo();
+            bar.classList.remove('ok', 'warn', 'never');
+            bar.classList.add(info.cls);
+            var iconEl = el('backup-status-icon');
+            var textEl = el('backup-status-text');
+            if (iconEl) iconEl.textContent = info.cls === 'ok' ? '✅' : (info.cls === 'warn' ? '⚠️' : '⚠️');
+            if (textEl) textEl.textContent = info.label;
+            if (info.lastIso) {
+                bar.title = '上次匯出: ' + info.lastIso + '\n閾值: ' + BACKUP_WARN_DAYS + ' 天';
+            } else {
+                bar.title = '本研究目前尚未匯出過備份, 建議點「📥 備份」立即做第一次';
+            }
+        }
+
+        // 每分鐘重新計算備份狀態 (跨日或時間流逝時刷新指示器)
+        setInterval(updateBackupIndicator, 60000);
+
+        // ============================================================
+        // v1.5.226: end of module
+        // ============================================================
+
         initUsers();
+        updateBackupIndicator();  // v1.5.226: 啟動時更新備份狀態
         loadTheme();
         renderAppPrefsCatHours();  // v1.5.112: 初始化任務預設時數 UI
     </script>
