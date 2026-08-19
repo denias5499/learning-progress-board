@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.213]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.214]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -431,7 +431,7 @@
     padding-left: 10px;
     border-left: 4px solid var(--border);
 }
-.tree-units { padding-left: 24px; }
+.tree-units { padding-left: 24px; background: #EFF7F6; }
 .tree-unit {
     display: flex;
     align-items: center;
@@ -951,7 +951,11 @@
             max-height: 75vh;
             overflow-y: auto;
             position: relative;
+            background: #EFF7F6;
         }
+        /* v1.5.214: 樹狀圖統一底色 #EFF7F6 */
+        .tree-container { background: #EFF7F6; }
+        .tree-instance { background: #EFF7F6; padding: 8px; border-radius: 8px; margin-bottom: 8px; }
         .tree-vol::-webkit-scrollbar { width: 8px; }
         .tree-vol::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .tree-vol-label {
@@ -10408,7 +10412,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📖 ' + instLabel + '</li>';
                     html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
                     // v1.5.207: sticky 標題列 (用 display:flex)
-                    html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 80px 90px 130px 80px; gap:12px; align-items:center; padding:6px 24px 6px 48px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
+                    html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px 6px 48px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
                     html += '<span style="flex:2; min-width:0;">單元名稱</span>';
                     html += '<span style="flex:1; min-width:60px;">頁碼</span>';
                     html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
@@ -10534,7 +10538,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + accStr + ' ' + accPct + '%</span>';
                         }
                         // v1.5.212: grid 5 欄對齊 header
-                        var rowHtml = '<li class="tree-unit" style="display:grid; grid-template-columns: 1fr 80px 90px 130px 80px; gap:12px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;">';
+                        var rowHtml = '<li class="tree-unit" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;">';
                         rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
                         rowHtml += '<span class="tree-dot ' + dotClass + '" style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; background:' + (st === 'done' ? '#27ae60' : (st === 'progress' ? '#f39c12' : '#e5e7eb')) + ';"></span>';
                         rowHtml += escapeHtml(u.name);
@@ -10569,7 +10573,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             if (volLabel) {
                                 html += '<ul class="tree-vol"><li class="tree-vol-label">' + volLabel + '</li>';
                                 // v1.5.207: sticky 標題列 (用 display:flex 而非 grid, sticky 更穩)
-                                html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 80px 90px 130px 80px; gap:12px; align-items:center; padding:6px 24px 6px 48px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
+                                html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px 6px 48px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
                                 html += '<span style="flex:2; min-width:0;">單元名稱</span>';
                                 html += '<span style="flex:1; min-width:60px;">頁碼</span>';
                                 html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
