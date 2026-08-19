@@ -1976,6 +1976,54 @@
             return null;
         }
 
+        // v1.5.219: 跨所有 category + 跨 current user 找 unit (處理 tree view 跨 category 但 appMaster 只有 current cat 的問題)
+        function findUnitContextAnywhere(unitId, unitName) {
+            // 先試 current appMaster
+            var ctx = findUnitContext(unitId);
+            if (ctx) return ctx;
+            // 試其他 categories (multiData[currentUserId].masters)
+            if (typeof multiData !== 'undefined' && multiData[currentUserId] && multiData[currentUserId].masters) {
+                Object.keys(multiData[currentUserId].masters).forEach(function(cat) {
+                    if (ctx) return;
+                    var catMaster = multiData[currentUserId].masters[cat];
+                    if (!catMaster) return;
+                    Object.keys(catMaster).forEach(function(sub) {
+                        if (ctx) return;
+                        var subj = catMaster[sub];
+                        if (!subj || !subj.materials) return;
+                        Object.keys(subj.materials).forEach(function(typeName) {
+                            if (ctx) return;
+                            var typeObj = subj.materials[typeName];
+                            if (!typeObj || !typeObj.instances) return;
+                            typeObj.instances.forEach(function(ins) {
+                                if (ctx) return;
+                                if (ins.type === 'volume' && ins.vols) {
+                                    Object.keys(ins.vols).forEach(function(vol) {
+                                        if (ctx) return;
+                                        (ins.vols[vol] || []).forEach(function(u) {
+                                            if (!ctx && u.id === unitId) {
+                                                ctx = { sub: sub, typeName: typeName, typeObj: typeObj, instance: ins, unit: u, vol: vol, fromCat: cat };
+                                            }
+                                        });
+                                    });
+                                } else if (ins.type === 'custom' && ins.units) {
+                                    ins.units.forEach(function(u) {
+                                        if (!ctx && u.id === unitId) {
+                                            ctx = { sub: sub, typeName: typeName, typeObj: typeObj, instance: ins, unit: u, vol: null, fromCat: cat };
+                                        }
+                                    });
+                                }
+                            });
+                        });
+                    });
+                });
+            }
+            if (ctx) return ctx;
+            // fallback by name
+            if (unitName) ctx = findUnitContextByName(unitName);
+            return ctx;
+        }
+
         function findUnitContext(unitId) {
             if (!unitId || !appMaster) return null;
             for (var sub in appMaster) {
@@ -7758,39 +7806,70 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v1.5.193: 從 unitId 跳到答對率頁, 自動帶 sub/type/instance/日期/錯題單元
         function jumpToAccuracyForUnit(unitId, unitName) {
             if (!unitId) return;
-            var ctx = findUnitContext(unitId);
-            if (!ctx && unitName) {
-                console.warn('jumpToAccuracyForUnit: 找不到 unitId=' + unitId + ', 改用 unitName=' + unitName + ' fuzzy match');
-                ctx = findUnitContextByName(unitName);
-            }
+            // v1.5.219: 找 unit 跨所有 category
+            var ctx = findUnitContextAnywhere(unitId, unitName);
             if (!ctx) {
                 console.error('jumpToAccuracyForUnit: 找不到 unitId=' + unitId + (unitName ? ' / unitName=' + unitName : ''));
-                console.error('  appMaster subjects:', Object.keys(appMaster).join(','));
                 return;
             }
             // 1. 切到答對率頁
             openStats();
             switchStatsView('accuracy');
-            // v1.5.216: 用 setTimeout(0) 確保 form render 完成後再設 dropdowns
-            // (真實瀏覽器中 switchStatsView 後 form 可能還沒 render 完, 直接取 element 會拿到 stale reference)
-            setTimeout(function() {
-                // 2. 設 acc-subject (觸發 onchange cascade)
+            // v1.5.220: 輪詢策略 — 確保 dropdowns 真的有 options 才設值
+            // (真實瀏覽器 form render 可能 0~200ms 才完成)
+            var attempt = 0;
+            var maxAttempts = 30;  // 30 * 30ms = 900ms max
+            var tryFill = function() {
+                attempt++;
                 var subSel = el('acc-subject');
-                if (!subSel) { console.log('jumpToAccuracyForUnit: acc-subject not found'); return; }
+                if (!subSel) {
+                    if (attempt < maxAttempts) { setTimeout(tryFill, 30); return; }
+                    console.error('jumpToAccuracyForUnit: 嘗試 ' + attempt + ' 次後 acc-subject 仍找不到');
+                    return;
+                }
+                // 檢查 options 是否 ready (subject 應該在 options)
+                var subOptions = Array.from(subSel.options).map(function(o) { return o.value; });
+                if (subOptions.indexOf(ctx.sub) < 0) {
+                    console.warn('jumpToAccuracyForUnit: subject ' + ctx.sub + ' 不在 options, 等待 render... (attempt ' + attempt + ')');
+                    if (attempt < maxAttempts) { setTimeout(tryFill, 30); return; }
+                    console.error('jumpToAccuracyForUnit: 嘗試 ' + attempt + ' 次後 acc-subject options 仍沒 ' + ctx.sub);
+                    return;
+                }
+                console.log('jumpToAccuracyForUnit: form ready (attempt ' + attempt + '), 開始填 dropdowns');
+                // 2. 設 acc-subject (觸發 onchange cascade)
                 subSel.value = ctx.sub;
                 accOnSubjectChange();
                 // 3. 設 acc-type
                 var typeSel = el('acc-type');
-                if (typeSel) { typeSel.value = ctx.typeName; }
+                if (typeSel) {
+                    var typeOptions = Array.from(typeSel.options).map(function(o) { return o.value; });
+                    if (typeOptions.indexOf(ctx.typeName) >= 0) {
+                        typeSel.value = ctx.typeName;
+                    } else {
+                        console.error('jumpToAccuracyForUnit: typeName=' + ctx.typeName + ' 不在 options [' + typeOptions.join(',') + ']');
+                    }
+                }
                 accOnTypeChange();
                 // 4. 設 acc-instance
                 var instSel = el('acc-instance');
-                if (instSel) { instSel.value = ctx.instance.id; }
+                if (instSel) {
+                    var instOptions = Array.from(instSel.options).map(function(o) { return o.value; });
+                    if (instOptions.indexOf(ctx.instance.id) >= 0) {
+                        instSel.value = ctx.instance.id;
+                    } else {
+                        console.error('jumpToAccuracyForUnit: instance.id=' + ctx.instance.id + ' 不在 options [' + instOptions.join(',') + ']');
+                    }
+                }
                 accOnInstanceChange();
                 // 4.5. 設 acc-unit
                 var unitSel = el('acc-unit');
                 if (unitSel && ctx.unit && ctx.unit.name) {
-                    unitSel.value = ctx.unit.name;
+                    var unitOptions = Array.from(unitSel.options).map(function(o) { return o.value; });
+                    if (unitOptions.indexOf(ctx.unit.name) >= 0) {
+                        unitSel.value = ctx.unit.name;
+                    } else {
+                        console.error('jumpToAccuracyForUnit: unit.name=' + ctx.unit.name + ' 不在 options [' + unitOptions.slice(0, 10).join(',') + '...]');
+                    }
                 }
                 // 5. 預設考試日期 = 最後完成日期, 沒則今天
                 var lastDate = getUnitLastDoneDate(unitId);
@@ -7808,18 +7887,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var form = document.querySelector('.accuracy-form');
                 if (form && form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 // 8. 高亮該 unit row
+                // v1.5.221: 不要 renderAccuracyStats() (會 rebuild form 蓋掉 dropdowns)
+                // 只更新 _highlightedUnitName 變數, 然後只更新 table 部分 (或下次 switchStatsView 才生效)
                 window._highlightedUnitName = ctx.unit.name;
-                setTimeout(function() {
-                    renderAccuracyStats();
-                    var rows = document.querySelectorAll('.accuracy-table tbody tr');
-                    for (var i = 0; i < rows.length; i++) {
-                        if (rows[i].textContent.indexOf(ctx.unit.name) >= 0) {
-                            rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            break;
-                        }
+                // 找現有 table row 高亮 (如果有)
+                var rows = document.querySelectorAll('.accuracy-table tbody tr');
+                for (var i = 0; i < rows.length; i++) {
+                    if (rows[i].textContent.indexOf(ctx.unit.name) >= 0) {
+                        rows[i].style.background = '#F3B8B1';
+                        if (rows[i].scrollIntoView) rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        break;
                     }
-                }, 100);
-            }, 50);  // 50ms 確保 form 真的 render 完
+                }
+                console.log('jumpToAccuracyForUnit: dropdowns 設定完成');
+            };
+            setTimeout(tryFill, 50);
         }
 
         // v1.5.216: jumpToAccuracyForUnitHighlight 廢棄, 統一用 jumpToAccuracyForUnit
