@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.221]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.222]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10549,12 +10549,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
                     // v1.5.207: sticky 標題列 (用 display:flex)
                     html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
-                    html += '<span style="flex:2; min-width:0;">單元名稱</span>';
-                    html += '<span style="flex:1; min-width:60px;">頁碼</span>';
-                    html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
-                    html += '<span style="flex:1.5; min-width:90px;">完成度</span>';
-                    html += '<span style="flex:1; min-width:60px;">排程天數</span>';
-                    html += '</div>';
+                    html += '<span>單元名稱</span>';
+                    html += '<span style="text-align:center;">頁碼</span>';
+                    html += '<span style="text-align:center;">答對率</span>';
+                    html += '<span style="text-align:center;">完成度</span>';
+                    html += '<span style="text-align:center;">排程天數</span>';
+                    html += '</li>';
                     html += '<ul class="tree-units">';
                     s.units.forEach(u => {
                         var t = totalOf(u);
@@ -10700,6 +10700,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📖 ' + instLabel + '</li>';
                         // v1.5.191: 沒 vol 時, units 直接列在 instance 內 (不縮排 vol)
                         if (hasNoVol) {
+                            // v1.5.222: 沒 vol 也加 tree-units-header (統一每個 instance 都有 header)
+                            html += '<ul class="tree-units-header-wrapper" style="list-style:none; padding:0;"><li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; list-style:none;">';
+                            html += '<span>單元名稱</span>';
+                            html += '<span style="text-align:center;">頁碼</span>';
+                            html += '<span style="text-align:center;">答對率</span>';
+                            html += '<span style="text-align:center;">完成度</span>';
+                            html += '<span style="text-align:center;">排程天數</span>';
+                            html += '</li>';
                             html += '<ul class="tree-units">';
                         }
                         volKeys.forEach(function(vk) {
@@ -10710,12 +10718,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 html += '<ul class="tree-vol"><li class="tree-vol-label">' + volLabel + '</li>';
                                 // v1.5.207: sticky 標題列 (用 display:flex 而非 grid, sticky 更穩)
                                 html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
-                                html += '<span style="flex:2; min-width:0;">單元名稱</span>';
-                                html += '<span style="flex:1; min-width:60px;">頁碼</span>';
-                                html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
-                                html += '<span style="flex:1.5; min-width:90px;">完成度</span>';
-                                html += '<span style="flex:1; min-width:60px;">排程天數</span>';
-                                html += '</div>';
+                                html += '<span>單元名稱</span>';
+                                html += '<span style="text-align:center;">頁碼</span>';
+                                html += '<span style="text-align:center;">答對率</span>';
+                                html += '<span style="text-align:center;">完成度</span>';
+                                html += '<span style="text-align:center;">排程天數</span>';
+                                html += '</li>';
                                 html += '<ul class="tree-units">';
                             }
                             vol.units.forEach(function(u) {
@@ -10723,7 +10731,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             });
                             if (volLabel) html += '</ul></ul>';
                         });
-                        if (hasNoVol) html += '</ul>';
+                        if (hasNoVol) html += '</ul></ul>';
                         html += '</ul>';
                     });
                 }
