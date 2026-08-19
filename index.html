@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.217]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.218]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1942,6 +1942,38 @@
                 }
             }
             return totalPages;
+        }
+
+        function findUnitContextByName(unitName) {
+            if (!unitName || !appMaster) return null;
+            for (var sub in appMaster) {
+                var subj = appMaster[sub];
+                if (!subj || !subj.materials) continue;
+                for (var typeName in subj.materials) {
+                    var typeObj = subj.materials[typeName];
+                    if (!typeObj || !typeObj.instances) continue;
+                    for (var i = 0; i < typeObj.instances.length; i++) {
+                        var ins = typeObj.instances[i];
+                        if (ins.type === 'volume' && ins.vols) {
+                            for (var vol in ins.vols) {
+                                var units = ins.vols[vol];
+                                for (var j = 0; j < units.length; j++) {
+                                    if (units[j].name === unitName) {
+                                        return { sub: sub, typeName: typeName, typeObj: typeObj, instance: ins, unit: units[j], vol: vol };
+                                    }
+                                }
+                            }
+                        } else if (ins.type === 'custom' && ins.units) {
+                            for (var j = 0; j < ins.units.length; j++) {
+                                if (ins.units[j].name === unitName) {
+                                    return { sub: sub, typeName: typeName, typeObj: typeObj, instance: ins, unit: ins.units[j], vol: null };
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
         }
 
         function findUnitContext(unitId) {
@@ -7724,10 +7756,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v1.5.193: 從 unitId 跳到答對率頁, 自動帶 sub/type/instance/日期/錯題單元
-        function jumpToAccuracyForUnit(unitId) {
+        function jumpToAccuracyForUnit(unitId, unitName) {
             if (!unitId) return;
             var ctx = findUnitContext(unitId);
-            if (!ctx) { alert('找不到此單元的所屬教材, 無法跳轉'); return; }
+            if (!ctx && unitName) {
+                console.warn('jumpToAccuracyForUnit: 找不到 unitId=' + unitId + ', 改用 unitName=' + unitName + ' fuzzy match');
+                ctx = findUnitContextByName(unitName);
+            }
+            if (!ctx) {
+                console.error('jumpToAccuracyForUnit: 找不到 unitId=' + unitId + (unitName ? ' / unitName=' + unitName : ''));
+                console.error('  appMaster subjects:', Object.keys(appMaster).join(','));
+                return;
+            }
             // 1. 切到答對率頁
             openStats();
             switchStatsView('accuracy');
@@ -10553,7 +10593,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         }
                         // v1.5.212: grid 5 欄對齊 header
                         var rowHtml = '<li class="tree-unit" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;">';
-                        rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
+                        rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
                         rowHtml += '<span class="tree-dot ' + dotClass + '" style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; background:' + (st === 'done' ? '#27ae60' : (st === 'progress' ? '#f39c12' : '#e5e7eb')) + ';"></span>';
                         rowHtml += escapeHtml(u.name);
                         rowHtml += '</span>';
