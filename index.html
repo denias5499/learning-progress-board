@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.211]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.212]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10408,7 +10408,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📖 ' + instLabel + '</li>';
                     html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
                     // v1.5.207: sticky 標題列 (用 display:flex)
-                    html += '<li class="tree-units-header" style="display:flex; gap:8px; padding:6px 24px; background:#ffffff; font-weight:bold; color:var(--primary); font-size:0.85em; border-bottom:2px solid var(--accent); position:sticky; top:0; z-index:20; box-shadow:0 2px 4px rgba(0,0,0,0.1); list-style:none;">';
+                    html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 80px 90px 130px 80px; gap:12px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
                     html += '<span style="flex:2; min-width:0;">單元名稱</span>';
                     html += '<span style="flex:1; min-width:60px;">頁碼</span>';
                     html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
@@ -10522,9 +10522,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
                         var cat4jump = suInfo ? suInfo.firstCat : '';
                         var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
-                        // v1.5.206: 排程天數 (從 plan.grid 算此 unit 不同日期數)
                         var scheduledDays = getUnitScheduledDays(u.id);
-                        // v1.5.206: 答對率 bar
                         var accuracyRate = getUnitAccuracyRate(u.name);
                         var accuracyBarHtml = '';
                         if (accuracyRate !== null) {
@@ -10533,24 +10531,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var accFilled = Math.round(accPct / 10);
                             var accEmpty = 10 - accFilled;
                             var accStr = '█'.repeat(accFilled) + '░'.repeat(accEmpty);
-                            // 點擊跳答對率 + 高亮
-                            accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; margin-right:8px; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + accStr + ' ' + accPct + '%</span>';
+                            accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + accStr + ' ' + accPct + '%</span>';
                         }
-                        var rowHtml = '<li class="tree-unit" style="cursor:pointer;">';
-                        rowHtml += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
+                        // v1.5.212: grid 5 欄對齊 header
+                        var rowHtml = '<li class="tree-unit" style="display:grid; grid-template-columns: 1fr 80px 90px 130px 80px; gap:12px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;">';
                         rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
+                        rowHtml += '<span class="tree-dot ' + dotClass + '" style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; background:' + (st === 'done' ? '#27ae60' : (st === 'progress' ? '#f39c12' : '#e5e7eb')) + ';"></span>';
                         rowHtml += escapeHtml(u.name);
                         rowHtml += '</span>';
-                        if (range) rowHtml += '<span class="tree-unit-range">' + escapeHtml(range) + '</span>';
-                        // v1.5.206: 答對率 bar 在頁碼起訖前面
-                        rowHtml += accuracyBarHtml;
-                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; margin-left:8px; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">';
-                        rowHtml += barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)';
-                        rowHtml += '</span>';
-                        // v1.5.206: ⏰ 改為「排程天數」 + 點擊跳月曆
+                        rowHtml += '<span class="tree-unit-range" style="font-family:monospace; font-size:0.85em; color:var(--secondary);">' + escapeHtml(range || '-') + '</span>';
+                        rowHtml += '<span style="font-size:0.85em;">' + accuracyBarHtml + '</span>';
+                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">' + barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)</span>';
+                        rowHtml += '<span style="font-size:0.85em;">';
                         if (scheduledDays > 0) {
-                            rowHtml += '<span class="tree-unit-clock" onclick="event.stopPropagation(); jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="cursor:pointer; font-size:0.75em; margin-left:8px; white-space:nowrap;" title="已排 ' + scheduledDays + ' 天, 點擊跳到月曆">📅 ' + scheduledDays + '天</span>';
+                            rowHtml += '<span class="tree-unit-clock" onclick="event.stopPropagation(); jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="cursor:pointer; font-size:0.85em; white-space:nowrap;" title="已排 ' + scheduledDays + ' 天, 點擊跳到月曆">📅 ' + scheduledDays + '天</span>';
                         }
+                        rowHtml += '</span>';
                         rowHtml += '</li>';
                         return rowHtml;
                     }
@@ -10573,7 +10569,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             if (volLabel) {
                                 html += '<ul class="tree-vol"><li class="tree-vol-label">' + volLabel + '</li>';
                                 // v1.5.207: sticky 標題列 (用 display:flex 而非 grid, sticky 更穩)
-                                html += '<li class="tree-units-header" style="display:flex; gap:8px; padding:6px 24px; background:#ffffff; font-weight:bold; color:var(--primary); font-size:0.85em; border-bottom:2px solid var(--accent); position:sticky; top:0; z-index:20; box-shadow:0 2px 4px rgba(0,0,0,0.1); list-style:none;">';
+                                html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 80px 90px 130px 80px; gap:12px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
                                 html += '<span style="flex:2; min-width:0;">單元名稱</span>';
                                 html += '<span style="flex:1; min-width:60px;">頁碼</span>';
                                 html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
