@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.214]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.215]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -454,8 +454,9 @@
 .tree-unit-name {
     flex: 1;
     font-weight: 600;
-    color: var(--primary);
+    color: var(--accent);
     font-size: 1.05em;
+    text-decoration: underline;
 }
 .tree-unit-range {
     font-size: 0.9em;
@@ -1000,8 +1001,9 @@
         .tree-unit-name {
             flex: 1;
             font-weight: 600;
-            color: var(--primary);
+            color: var(--accent);
             font-size: 1.05em;
+            text-decoration: underline;
         }
         .tree-unit-range {
             font-size: 0.9em;
@@ -10412,7 +10414,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📖 ' + instLabel + '</li>';
                     html += '<ul class="tree-vol"><li class="tree-vol-label">📖 自訂範圍</li>';
                     // v1.5.207: sticky 標題列 (用 display:flex)
-                    html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px 6px 48px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
+                    html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
                     html += '<span style="flex:2; min-width:0;">單元名稱</span>';
                     html += '<span style="flex:1; min-width:60px;">頁碼</span>';
                     html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
@@ -10573,7 +10575,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             if (volLabel) {
                                 html += '<ul class="tree-vol"><li class="tree-vol-label">' + volLabel + '</li>';
                                 // v1.5.207: sticky 標題列 (用 display:flex 而非 grid, sticky 更穩)
-                                html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px 6px 48px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
+                                html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
                                 html += '<span style="flex:2; min-width:0;">單元名稱</span>';
                                 html += '<span style="flex:1; min-width:60px;">頁碼</span>';
                                 html += '<span style="flex:1.5; min-width:90px;">答對率</span>';
