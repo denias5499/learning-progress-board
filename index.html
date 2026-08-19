@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.207]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.208]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -355,6 +355,7 @@
 .accuracy-form .form-row label { font-weight: bold; color: var(--secondary); white-space: nowrap; min-width: 70px; }
 .accuracy-form select, .accuracy-form input { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; }
 .accuracy-table { width: 100%; border-collapse: collapse; font-size: 0.9em; margin-top: 10px; }
+.accuracy-table-wrapper { max-height: 70vh; overflow-y: auto; }
 .accuracy-table th, .accuracy-table td { border: 1px solid var(--border); padding: 8px 10px; text-align: center; }
 .accuracy-table th { background: #e2e8f0; color: var(--primary); font-weight: bold; }
 .accuracy-table tr:nth-child(odd) { background: #F8EDE8; }
@@ -941,7 +942,11 @@
         }
         .tree-vol {
             margin-bottom: 14px;
+            max-height: 75vh;
+            overflow-y: auto;
         }
+        .tree-vol::-webkit-scrollbar { width: 8px; }
+        .tree-vol::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .tree-vol-label {
             font-weight: bold;
             color: var(--secondary);
@@ -7970,7 +7975,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 html += '<h3 style="color:var(--primary); margin-bottom:10px;">📊 答對率總表 (共 ' + filtered.length + ' 筆)</h3>';
                 // v1.5.206: colgroup 設寬度, 答對率欄加大 (18%), 操作欄縮窄 (6%)
-                html += '<table class="accuracy-table"><colgroup>';
+                html += '<div class="accuracy-table-wrapper"><table class="accuracy-table"><colgroup>';
                 html += '<col style="width:10%"><col style="width:8%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:18%"><col style="width:14%"><col style="width:6%">';
                 html += '</colgroup><thead><tr>';
                 html += '<th>日期</th><th>科目</th><th>教材類型</th><th>教材版本</th><th>總題數</th><th>答對</th><th>答對率</th><th>單元名稱</th><th>操作</th>';
@@ -8001,7 +8006,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '</td>';
                     html += '</tr>';
                 });
-                html += '</tbody></table>';
+                html += '</tbody></table></div>';
                 // 統計摘要
                 var totalCorrect = filtered.reduce(function(s, r) { return s + (r.correct || 0); }, 0);
                 var totalQuestions = filtered.reduce(function(s, r) { return s + (r.total || 0); }, 0);
