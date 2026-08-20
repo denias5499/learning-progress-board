@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.237]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.240]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1487,6 +1487,7 @@
                     <button class="stats-tab active" data-view="tree" onclick="switchStatsView('tree')">1. 樹狀圖</button>
                     <button class="stats-tab" data-view="accuracy" onclick="switchStatsView('accuracy')">2. 答對率分析</button>
                     <button class="stats-tab" data-view="monthly" onclick="switchStatsView('monthly')">3. 月份分析</button>
+                    <button class="stats-tab" data-view="wrongnotes" onclick="switchStatsView('wrongnotes')">4. 錯題資料庫</button>
                 </div>
                 <div id="stats-tree" class="stats-view active">
                     <!-- v1.5.176: 樹狀圖 dropdowns (科目/教材類別/冊別) - 教材分類已刪除 (跟看板篩選重複) -->
@@ -1507,6 +1508,16 @@
                 </div>
                 <div id="stats-accuracy" class="stats-view">
                     <div id="accuracy-root"></div>
+                </div>
+                <div id="stats-wrongnotes" class="stats-view">
+                    <div id="wrongnotes-root">
+                        <!-- 錯題資料庫內容將在 Phase 2-4 逐步加入 -->
+                        <div style="text-align:center; padding:60px 20px; color:var(--secondary);">
+                            <div style="font-size:3em; margin-bottom:15px;">📝</div>
+                            <div style="font-size:1.2em; font-weight:bold;">錯題資料庫</div>
+                            <div style="margin-top:10px; color:#95a5a6;">整合中，敬請期待...</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -7776,7 +7787,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v1.5.200: 樹狀圖頁面隱藏看板篩選, 其他頁面照舊
             var filterBar = el('global-filter-bar');
             if (filterBar) filterBar.style.display = (view === 'tree') ? 'none' : '';
-            var targetId = view === 'tree' ? 'stats-tree' : (view === 'monthly' ? 'stats-monthly' : 'stats-accuracy');
+            var targetId = view === 'tree' ? 'stats-tree' : (view === 'monthly' ? 'stats-monthly' : (view === 'wrongnotes' ? 'stats-wrongnotes' : 'stats-accuracy'));
             el(targetId).classList.add('active');
             document.querySelectorAll('.stats-tab').forEach(function(b) {
                 if (b.getAttribute('data-view') === view) b.classList.add('active');
@@ -7784,6 +7795,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (view === 'tree') renderTreeView();
             else if (view === 'monthly') renderMonthlyAnalysis();
             else if (view === 'accuracy') renderAccuracyStats();
+            else if (view === 'wrongnotes') renderWrongNotesView && renderWrongNotesView();
         }
         
         // v1.5.158: 答對率統計 (per-user storage, 改下拉立即重渲染)
