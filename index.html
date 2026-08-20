@@ -638,7 +638,7 @@
         .mission-title { font-size: 1.3em; font-weight: bold; color: #1a5276; margin-bottom: 20px; display: inline-block; background: #d6eaf8; padding: 8px 20px; border-radius: 25px; border: 1px solid #a9cce3; box-shadow: 0 2px 4px rgba(0,0,0,0.05);}
         .card { background: var(--card-bg); padding: 20px; border-radius: 10px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
         
-        .page-card { background: var(--card-bg, #ffffff); padding: 25px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .page-card { background: var(--card-bg, #ffffff); padding: 25px 30px; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); border: 2px solid #b0c4d8; margin-bottom: 20px; }
 #dashboard-root { background: #c7eefb; padding: 12px; border-radius: 12px; }  /* v1.5.236: 看板底色 → #c7eefb */
 #dashboard-root .card { background: #EFF7F6; }  /* v1.5.210: 首頁各科目 card */
 #page-stats .page-card { background: #c7eefb; }   /* v1.5.209: 學習統計分析 */
@@ -9870,6 +9870,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     if (topMaster) topMaster.checked = topAllChecked;
                 }
                 saveToLocal();
+                // v1.5.237 DEBUG
+                console.log('[DEBUG toggleVolCheck] vol='+vol+' isChecked='+isChecked+' unitCount='+checkboxes.length+' allChecked='+allChecked);
+                var dbg = rootContainer ? rootContainer.querySelectorAll('.vol-master-chk') : [];
+                console.log('[DEBUG] totalVolMasters='+dbg.length+' allVolsChecked='+topAllChecked);
             }
         }
 
