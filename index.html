@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.230]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.231]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1143,6 +1143,7 @@
                     <button class="tab-btn" id="btn-tab-mission" onclick="switchTab('mission')">📋 2. 勾選任務範圍</button>
                     <button class="tab-btn" id="btn-tab-daily" onclick="switchTab('daily')">✅ 3. 每日輸入</button>
                     <button class="tab-btn" id="btn-tab-history" onclick="switchTab('history')">📝 4. 歷史紀錄</button>
+                    <button class="tab-btn" id="btn-tab-audit" onclick="switchTab('audit')">🔍 5. 資料健檢</button>
                 </div>
                 
                 <div id="pane-master" class="tab-pane active">
@@ -1299,6 +1300,18 @@
                     <div id="history-status" class="history-status-bar">
                         載入中…
                     </div>
+                </div>
+
+                <div id="pane-audit" class="tab-pane">
+                    <h3 class="pane-history-title">🔍 資料健檢 — 找出幽靈單元</h3>
+                    <p style="color:#7f8c8d; font-size:0.9em; margin-bottom:15px;">
+                        檢查每個單元是否出現在：① 任务但无有效记录 ② 已完单元名单但实际未完成 ③ appLog 有记录但 unitId 已不在教材庫
+                    </p>
+                    <div style="margin-bottom:12px;">
+                        <button type="button" class="btn-info" onclick="runAudit()">🔍 執行健檢</button>
+                        <button type="button" class="btn-danger" id="btn-audit-remove" onclick="auditRemoveSelected()" disabled>🗑 移除選中的幽靈單元</button>
+                    </div>
+                    <div id="audit-result"></div>
                 </div>
 
                 <hr class="history-hr">
@@ -9913,6 +9926,119 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 setTimeout(function() { location.reload(); }, 500);
             }
         }
+
+        // v1.5.231: 資料健檢 — 找出幽靈單元
+        // 幽靈單元 = 在 mission 清單內但沒有任何有效任務記錄（無 isDone task、無 appLog）
+        window._auditSelectedUnits = [];
+
+        window.runAudit = function() {
+            var user = multiData[currentUserId];
+            if (!user || !user.masters) {
+                el('audit-result').innerHTML = '<div style="color:var(--danger);">⚠️ 找不到使用者資料</div>';
+                return;
+            }
+            var ghosts = [];
+            var allUnitIds = new Set();
+
+            // 收集所有出現在 missions 裡的 unitId
+            Object.values(user.masters).forEach(function(subjects) {
+                Object.values(subjects || {}).forEach(function(s) {
+                    if (!s || !s.missions) return;
+                    Object.values(s.missions).forEach(function(arr) {
+                        (arr || []).forEach(function(uid) { allUnitIds.add(uid); });
+                    });
+                });
+            });
+
+            // 對每個 mission unit，檢查是否有任何有效記錄
+            Object.entries(user.masters).forEach(function([cat, subjects]) {
+                Object.entries(subjects || {}).forEach(function([sub, s]) {
+                    if (!s || !s.missions) return;
+                    Object.entries(s.missions).forEach(function([mis, arr]) {
+                        (arr || []).forEach(function(uid) {
+                            var info = findUnitContext(uid);
+                            var unitName = info ? info.unit.name : uid;
+                            // 檢查 isDone tasks
+                            var hasDoneTask = false;
+                            (user.plans || []).forEach(function(plan) {
+                                if (!plan.grid) return;
+                                Object.values(plan.grid).forEach(function(tasks) {
+                                    (tasks || []).forEach(function(t) {
+                                        if (t && t.unitId === uid && t.isDone) hasDoneTask = true;
+                                    });
+                                });
+                            });
+                            // 檢查 appLog
+                            var hasLog = (user.logs || []).some(function(l) { return l.unitId === uid; });
+                            if (!hasDoneTask && !hasLog) {
+                                ghosts.push({ uid: uid, name: unitName, cat: cat, sub: sub, mis: mis, info: info });
+                            }
+                        });
+                    });
+                });
+            });
+
+            // 渲染結果
+            if (ghosts.length === 0) {
+                el('audit-result').innerHTML = '<div style="color:var(--success); padding:15px;">✅ 沒有發現幽靈單元！所有任務內的單元都有有效記錄。</div>';
+                el('btn-audit-remove').disabled = true;
+                window._auditSelectedUnits = [];
+                return;
+            }
+
+            var html = '<table style="width:100%; border-collapse:collapse;"><thead><tr><th style="border-bottom:2px solid var(--accent); padding:8px; text-align:left;"><input type="checkbox" id="audit-sel-all" onchange="auditToggleAll(this.checked)"></th><th style="border-bottom:2px solid var(--accent); padding:8px;">科目</th><th style="border-bottom:2px solid var(--accent); padding:8px;">單元</th><th style="border-bottom:2px solid var(--accent); padding:8px;">任務</th><th style="border-bottom:2px solid var(--accent); padding:8px;">說明</th></tr></thead><tbody>';
+            ghosts.forEach(function(g, i) {
+                html += '<tr>' +
+                    '<td style="padding:6px;"><input type="checkbox" class="audit-cb" value="' + g.uid + '" onchange="auditUpdateSel()"></td>' +
+                    '<td style="padding:6px;">' + g.sub + '</td>' +
+                    '<td style="padding:6px; font-weight:bold;">' + g.name + '</td>' +
+                    '<td style="padding:6px; color:var(--secondary); font-size:0.85em;">' + g.cat + ' / ' + g.mis + '</td>' +
+                    '<td style="padding:6px; color:var(--danger); font-size:0.85em;">⚠ 無任務記錄</td>' +
+                    '</tr>';
+            });
+            html += '</tbody></table>';
+            html += '<div style="margin-top:10px; color:#7f8c8d; font-size:0.85em;">找到 <strong style="color:var(--danger);">' + ghosts.length + '</strong> 個幽靈單元（已選 0 個）</div>';
+            el('audit-result').innerHTML = html;
+            el('btn-audit-remove').disabled = true;
+            window._auditSelectedUnits = [];
+        };
+
+        window.auditToggleAll = function(checked) {
+            document.querySelectorAll('.audit-cb').forEach(function(cb) { cb.checked = checked; });
+            window._auditSelectedUnits = checked ? window._auditAllUids || [] : [];
+            el('btn-audit-remove').disabled = !checked;
+        };
+
+        window.auditUpdateSel = function() {
+            var cbs = document.querySelectorAll('.audit-cb:checked');
+            window._auditSelectedUnits = Array.from(cbs).map(function(cb) { return cb.value; });
+            var total = document.querySelectorAll('.audit-cb').length;
+            el('btn-audit-remove').disabled = window._auditSelectedUnits.length === 0;
+            var countEl = el('audit-result').querySelector('div[style*="margin-top"]');
+            if (countEl) countEl.innerHTML = '找到 <strong style="color:var(--danger);">' + total + '</strong> 個幽靈單元（已選 <strong>' + window._auditSelectedUnits.length + '</strong> 個）';
+        };
+
+        window.auditRemoveSelected = function() {
+            var selected = window._auditSelectedUnits || [];
+            if (selected.length === 0) return alert('請先勾選要移除的單元');
+            if (!confirm('確定要移除選中的 ' + selected.length + ' 個幽靈單元嗎？\n從所有任務中移除後，進度將重新計算。')) return;
+            var user = multiData[currentUserId];
+            var removed = 0;
+            selected.forEach(function(uid) {
+                Object.values(user.masters).forEach(function(subjects) {
+                    Object.values(subjects || {}).forEach(function(s) {
+                        if (!s || !s.missions) return;
+                        Object.values(s.missions).forEach(function(arr) {
+                            var idx = arr.indexOf(uid);
+                            if (idx !== -1) { arr.splice(idx, 1); removed++; }
+                        });
+                    });
+                });
+            });
+            saveMultiData();
+            alert('已移除 ' + removed + ' 個幽靈單元。請重新整理頁面。');
+            setTimeout(function() { location.reload(); }, 500);
+        };
 
                 async function saveSettingsAndAlert(returnHome = false) {
             if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
