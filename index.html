@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.238]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.237]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9855,11 +9855,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     }
                 }
 
-                // v1.5.238: vol-master is inside card (parent of .vertical-scroll), not inside .vertical-scroll
+                // v1.5.237: 統一 sync vol-master（所有 units 已更新）
                 var allUnits = container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
                 var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
-                var card = container.parentElement;
-                var masterChk = card ? card.querySelector('.vol-master-chk[data-vol="'+vol+'"]') : null;
+                var masterChk = container.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
                 if (masterChk) masterChk.checked = allChecked;
 
                 // v1.5.237: sync top-level select-all
@@ -9907,16 +9906,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             }
 
-            // v1.5.238: vol-master sync — vol-master is sibling BEFORE .vertical-scroll
-            // Fix: container.parentElement = card div, then find .vol-master-chk inside it
+            // v1.5.235: vol-master sync — use mission-checkbox-root directly (not .vertical-scroll)
             if (elem) {
                 var vol = elem.dataset.vol;
-                var container = elem.closest('.vertical-scroll');
-                var card = container ? container.parentElement : null;
-                if (card) {
-                    var allUnits = container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
+                var root2 = el('mission-checkbox-root');
+                if (root2) {
+                    var allUnits = root2.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
                     var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
-                    var masterChk = card.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
+                    var masterChk = root2.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
                     if (masterChk) masterChk.checked = allChecked;
                 }
             }
