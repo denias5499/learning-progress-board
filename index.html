@@ -11,7 +11,7 @@
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
             --success: #27ae60; --warning: #b18b73; --danger: #f0abba;
-            --purple: #8e44ad; --bg: #d5e5e6; --card-bg: #ffffff; 
+            --purple: #8e44ad; --bg: #c7eefb; --card-bg: #ffffff; 
             --border: #cbd5e1; --mission-bg: #f0f8ff; 
             --btn-peach-dust: #f0d8d6; --btn-peach-fuzz: #ffbe98; 
             --btn-cerulean: #9bb7d4; --btn-veiled-vista: #e8dfd8; 
@@ -1132,7 +1132,7 @@
         <div id="dashboard-root" class="dash-view active"></div>
 
         <!-- 教材庫與備份設定 -->
-        <div id="page-settings" class="page-view">
+        <div id="page-settings" class="page-view" style="background:#CAF0F8;">
             <div class="page-card">
                 <div class="modal-header">
                     <h2>⚙️ 教材庫設定與系統備份</h2>
@@ -1336,7 +1336,7 @@
         </div>
 
         <!-- 📅 月曆排程 -->
-        <div id="page-planner" class="page-view">
+        <div id="page-planner" class="page-view" style="background:#CAF0F8;">
             <div class="page-card">
                 <div class="modal-header">
                     <h2>📅 月計畫排程</h2>
@@ -1397,7 +1397,7 @@
         </div>
 
         <!-- v1.5.46: 手動新增頁 (非 modal，全替換模式) -->
-        <div id="page-add-event" class="page-view">
+        <div id="page-add-event" class="page-view" style="background:#CAF0F8;">
             <div class="page-card">
                 <div class="modal-header">
                     <h2>📅 手動新增進度 / 自訂行程</h2>
@@ -1476,7 +1476,7 @@
                 
 
         <!-- v1.4.0: 學習統計分析 -->
-        <div id="page-stats" class="page-view">
+        <div id="page-stats" class="page-view" style="background:#CAF0F8;">
             <div class="page-card">
                 <div class="modal-header">
                     <div class="stats-card-header" style="width: 100%;">
@@ -9883,14 +9883,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             }
 
-            // v1.5.232: 同步更新該 vol 的 master checkbox（在 toggleVolCheck 迴圈結束後統一處理）
+            // v1.5.235: vol-master sync — use mission-checkbox-root directly (not .vertical-scroll)
             if (elem) {
                 var vol = elem.dataset.vol;
-                var container = elem.closest('.vertical-scroll');
-                if (container) {
-                    var allUnits = container.querySelectorAll(`input[type="checkbox"][data-vol="${vol}"]:not(.vol-master-chk)`);
-                    var allChecked = Array.from(allUnits).every(function(u){return u.checked;});
-                    var masterChk = container.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
+                var root2 = el('mission-checkbox-root');
+                if (root2) {
+                    var allUnits = root2.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
+                    var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
+                    var masterChk = root2.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
                     if (masterChk) masterChk.checked = allChecked;
                 }
             }
