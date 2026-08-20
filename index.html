@@ -1100,17 +1100,17 @@
                     <span id="backup-status-text">備份狀態檢查中…</span>
                     <button class="bk-btn" type="button" onclick="exportDataToFile()" title="立即匯出全機備份 .json">📥 備份</button>
                 </span>
-                <div class="user-selector-container">
-                    <img id="current-user-avatar" class="user-avatar-small" src="" style="display:none;" title="使用者頭貼">
-                    <select id="user-selector" onchange="switchUser()"></select>
-                    <button class="btn-outline" style="padding: 2px 8px; font-size: 0.85em;" onclick="openModal('modal-users'); renderUserManageList();">⚙️</button>
-                </div>
-                <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="切換深色 / 淺色模式">🌙</button>
-                <div class="btn-group">
+                <div class="btn-group" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                    <div class="user-selector-container" style="display:flex;align-items:center;gap:4px;">
+                        <img id="current-user-avatar" class="user-avatar-small" src="" style="display:none;" title="使用者頭貼">
+                        <select id="user-selector" onchange="switchUser()"></select>
+                        <button class="btn-outline" style="padding:2px 8px;font-size:0.85em;" onclick="openModal('modal-users'); renderUserManageList();">⚙️</button>
+                    </div>
+                    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="切換深色 / 淺色模式" style="padding:4px 6px;">🌙</button>
                     <button id="nav-btn-settings" class="nav-btn nav-btn-1" onclick="openSettings()">⚙️ 教材庫與備份</button>
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
-                    <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color: #c4e0f9 !important; margin-right: 8px;">📊 學習統計分析</button>
-                    <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color: #FFE17A !important;">🏠 回首頁</button>
+                    <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;">📊 學習統計分析</button>
+                    <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
                 </div>
             </div>
         </div>
@@ -3861,7 +3861,7 @@ loadBoardHeader();
                     html += '<div style="display:flex; align-items:center; gap:8px; padding:6px 8px; margin-bottom:4px; background:#fff; border:1px solid #e2e8f0; border-radius:4px;">' +
                         '<span style="flex:1; font-size:0.85em;">📸 <strong>' + escapeHtml(snap.name) + '</strong> <span style="color:#7f8c8d; font-size:0.8em;">(' + timeStr + ')</span></span>' +
                         '<button type="button" class="btn-primary" style="padding:3px 8px; font-size:0.8em;" onclick="restoreNamedSnapshot(' + idx + ')">↶ 還原</button>' +
-                        '<button type="button" class="btn-danger" style="padding:3px 8px; font-size:0.8em;" onclick="deleteNamedSnapshot(' + idx + ')">🗑️</button>' +
+                        '<button type="button" class="btn-danger" style="padding:3px 8px; font-size:0.8em;" onclick="deleteNamedSnapshot(' + idx + ')"></button>' +
                         '</div>';
                 });
                 container.innerHTML = html;
@@ -4643,7 +4643,7 @@ loadBoardHeader();
                 // 右: edit/delete 按鈕
                 html += '<div style="display:flex; gap:4px; flex-shrink:0;">';
                 html += '<button type="button" title="編輯" style="padding:4px 8px; background:#f59e0b; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="editHourOverride(' + idx + ')">✏️</button>';
-                html += '<button type="button" title="刪除" style="padding:4px 8px; background:#ef4444; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="deleteHourOverride(' + idx + ')">🗑️</button>';
+                html += '<button type="button" title="刪除" style="padding:4px 8px; background:#ef4444; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="deleteHourOverride(' + idx + ')"></button>';
                 html += '</div>';
                 html += '</div>';
                 // 中: 7 天時數條 + 總時數 (僅連續範圍)
@@ -8693,7 +8693,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     '<td>' + (log.pages || 0) + ' 頁</td>' +
                     '<td>' +
                         '<button class="btn-warning" style="padding:4px 8px; margin-bottom:4px;" title="編輯" onclick="openEditLog(\'' + log.id + '\')">✏️</button>' +
-                        '<button class="btn-danger" style="padding:4px 8px;" title="刪除" onclick="deleteLog(\'' + log.id + '\')">🗑️</button>' +
+                        '<button class="btn-danger" style="padding:4px 8px;" title="刪除" onclick="deleteLog(\'' + log.id + '\')"></button>' +
                     '</td>';
                 return tr;
             }
@@ -9366,7 +9366,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                     <div style="display:flex; gap:5px; flex-wrap:wrap;">
                                         <button type="button" class="btn-outline" style="padding:4px 8px; font-size:0.85em;" onclick="addMasterVolume('${safeVol}')">➕ 往後新增</button>
                                         <button type="button" class="btn-warning" style="padding:4px 8px; font-size:0.85em;" onclick="renameMasterVolume('${safeVol}')">✏️ 編輯</button>
-                                        <button type="button" class="btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="deleteMasterVolume('${safeVol}')">🗑️</button>
+                                        <button type="button" class="btn-danger" style="padding:4px 8px; font-size:0.85em;" onclick="deleteMasterVolume('${safeVol}')"></button>
                                     </div>
                                 </div>
                                 <div id="cfg-list-${vol}"></div>
@@ -9411,12 +9411,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             <input type="hidden" class="cfg-start" value="1">
                             <input type="hidden" class="cfg-end" value="1">
                             <small style="color:#888; font-size:0.85em; margin-left:5px;">(unit-based 無頁碼)</small>
-                            <button type="button" class="btn-danger" onclick="this.parentElement.remove(); window.isMasterDirty=true;">🗑️</button>`; 
+                            <button type="button" class="btn-danger" onclick="this.parentElement.remove(); window.isMasterDirty=true;"></button>`; 
             } else {
                 div.innerHTML = `✏️ <input type="text" class="cfg-name" placeholder="單元名" value="${u.name}" oninput="window.isMasterDirty=true;">
                             <span>起</span><input type="number" class="cfg-start" placeholder="頁碼" value="${u.start||''}" min="1" oninput="window.isMasterDirty=true;">
                             <span>迄</span><input type="number" class="cfg-end" placeholder="頁碼" value="${u.end||''}" min="1" oninput="window.isMasterDirty=true;">
-                            <button type="button" class="btn-danger" onclick="this.parentElement.remove(); window.isMasterDirty=true;">🗑️</button>`; 
+                            <button type="button" class="btn-danger" onclick="this.parentElement.remove(); window.isMasterDirty=true;"></button>`; 
             }
             container.appendChild(div); 
         }
@@ -9892,14 +9892,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
             }
 
-            // v1.5.232: also sync the top-level select-all when children change
+            // v1.5.232: sync top-level select-all when any child changes
             var rootContainer = el('mission-checkbox-root');
             if (rootContainer) {
                 var allVolChks = rootContainer.querySelectorAll('.vol-master-chk');
-                var topAllChecked = true;
-                for (var vi = 0; vi < allVolChks.length; vi++) {
-                    if (!allVolChks[vi].checked) { topAllChecked = false; break; }
-                }
+                var topAllChecked = allVolChks.length > 0 && Array.from(allVolChks).every(function(c){return c.checked;});
                 var topMaster = rootContainer.querySelector('.select-all-chk');
                 if (topMaster) topMaster.checked = topAllChecked;
             }
@@ -11717,7 +11714,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     </div>
                     <div>
                         <button class="btn-warning" style="padding:4px 8px;" onclick="renameUser('${uid}')">✏️ 名稱</button>
-                        <button class="btn-danger" style="padding:4px 8px;" onclick="deleteUser('${uid}')" ${Object.keys(multiData).length===1?'disabled':''}>🗑️</button>
+                        <button class="btn-danger" style="padding:4px 8px;" onclick="deleteUser('${uid}')" ${Object.keys(multiData).length===1?'disabled':''}></button>
                     </div>
                 </div>
                 `;
