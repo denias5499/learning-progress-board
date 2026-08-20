@@ -9913,11 +9913,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var vol = elem.dataset.vol;
                 var container = elem.closest('.vertical-scroll');
                 var card = container ? container.parentElement : null;
+                var masterChk = null;
                 if (card) {
-                    var allUnits = container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
-                    var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
-                    var masterChk = card.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
-                    if (masterChk) masterChk.checked = allChecked;
+                    masterChk = card.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
+                }
+                // DEBUG
+                var allUnits = container ? container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)') : [];
+                var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
+                console.log('[vol-master sync] vol='+vol+' container='+(container?'found':'NULL')+' card='+(card?'found':'NULL')+' masterChk='+(masterChk?'found':'NULL')+' allUnits='+allUnits.length+' allChecked='+allChecked+' elem.dataset.vol='+elem.dataset.vol);
+                if (card && masterChk) {
+                    masterChk.checked = allChecked;
                 }
             }
 
