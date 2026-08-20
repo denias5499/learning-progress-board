@@ -1132,7 +1132,7 @@
         <div id="dashboard-root" class="dash-view active"></div>
 
         <!-- 教材庫與備份設定 -->
-        <div id="page-settings" class="page-view" style="background:#e8f8fd;">
+        <div id="page-settings" class="page-view" style="background:#d4f1f9;">
             <div class="page-card">
                 <div class="modal-header">
                     <h2>⚙️ 教材庫設定與系統備份</h2>
@@ -1336,7 +1336,7 @@
         </div>
 
         <!-- 📅 月曆排程 -->
-        <div id="page-planner" class="page-view" style="background:#e8f8fd;">
+        <div id="page-planner" class="page-view" style="background:#d4f1f9;">
             <div class="page-card">
                 <div class="modal-header">
                     <h2>📅 月計畫排程</h2>
@@ -1397,7 +1397,7 @@
         </div>
 
         <!-- v1.5.46: 手動新增頁 (非 modal，全替換模式) -->
-        <div id="page-add-event" class="page-view" style="background:#e8f8fd;">
+        <div id="page-add-event" class="page-view" style="background:#d4f1f9;">
             <div class="page-card">
                 <div class="modal-header">
                     <h2>📅 手動新增進度 / 自訂行程</h2>
@@ -1476,7 +1476,7 @@
                 
 
         <!-- v1.4.0: 學習統計分析 -->
-        <div id="page-stats" class="page-view" style="background:#e8f8fd;">
+        <div id="page-stats" class="page-view" style="background:#d4f1f9;">
             <div class="page-card">
                 <div class="modal-header">
                     <div class="stats-card-header" style="width: 100%;">
@@ -9840,20 +9840,39 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var isChecked = elem.checked;
             var container = elem.closest('.vertical-scroll');
             if (container) {
-                var checkboxes = container.querySelectorAll(`input[type="checkbox"][data-vol="${vol}"]:not(.vol-master-chk)`);
-                checkboxes.forEach(cb => {
-                    if (cb.checked !== isChecked) {
-                        cb.checked = isChecked;
-                        toggleMisUnit(cb.value, isChecked, cb);
+                var checkboxes = container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
+                checkboxes.forEach(cb => { cb.checked = isChecked; });
+
+                // v1.5.237: 直接更新 missions array，不透過 toggleMisUnit（避免 cascade）
+                var cat2 = el('set-cat').value;
+                var mis2 = el('set-mis').value;
+                if(cat2 && mis2 && appMissions[cat2] && appMissions[cat2][mis2]) {
+                    var arr = appMissions[cat2][mis2];
+                    if (isChecked) {
+                        checkboxes.forEach(cb => { if(!arr.includes(cb.value)) arr.push(cb.value); });
+                    } else {
+                        checkboxes.forEach(cb => { var i = arr.indexOf(cb.value); if(i > -1) arr.splice(i, 1); });
                     }
-                });
-                // v1.5.233: 迴圈結束後統一 sync vol-master（避免迴圈中反覆觸發 toggleMisUnit 造成 vol-master 被錯誤更新）
+                }
+
+                // v1.5.237: 統一 sync vol-master（所有 units 已更新）
                 var allUnits = container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
                 var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
                 var masterChk = container.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
                 if (masterChk) masterChk.checked = allChecked;
+
+                // v1.5.237: sync top-level select-all
+                var rootContainer = el('mission-checkbox-root');
+                if (rootContainer) {
+                    var allVolChks = rootContainer.querySelectorAll('.vol-master-chk');
+                    var topAllChecked = allVolChks.length > 0 && Array.from(allVolChks).every(function(c){return c.checked;});
+                    var topMaster = rootContainer.querySelector('.select-all-chk');
+                    if (topMaster) topMaster.checked = topAllChecked;
+                }
+                saveToLocal();
             }
         }
+
 
         function toggleMisUnit(unitId, isChecked, elem) {
             var cat = el('set-cat').value;
