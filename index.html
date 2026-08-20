@@ -9942,21 +9942,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
             } catch(e) { console.error('[toggleMisUnit] top-sync error: '+e); }
 
-            // v1.5.20: 立即 saveToLocal
+            // v1.5.239: saveToLocal wrapped in try-catch
             try { saveToLocal(); } catch(e) { console.error('[saveToLocal error] '+e); }
-            return;
-
-            // v1.5.232: sync top-level select-all when any child changes
-            var rootContainer = el('mission-checkbox-root');
-            if (rootContainer) {
-                var allVolChks = rootContainer.querySelectorAll('.vol-master-chk');
-                var topAllChecked = allVolChks.length > 0 && Array.from(allVolChks).every(function(c){return c.checked;});
-                var topMaster = rootContainer.querySelector('.select-all-chk');
-                if (topMaster) topMaster.checked = topAllChecked;
-            }
-
-            // v1.5.20: 立即 saveToLocal, 不依賴「💾 儲存教材庫變更」按鈕
-            saveToLocal();
         }
         
 
