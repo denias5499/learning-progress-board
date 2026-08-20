@@ -5207,17 +5207,17 @@ function isUnitScheduledAnywhere(u) {
 //   1. task.unitId === unit.id (簡單對應): 加 task.pages 到 unit
 //   2. task 跨 unit (跨單元任務): 加 overlap pages 到 unit (mission 內)
 // 避免重複: 同一 task 的同一 page 只算進一個 unit
-// v1.5.229: 只把 task 頁數算給 task.unitId 指定的單元，不跨 unit 分布
-// 舊版把任何 task 的 overlap 範圍算給所有同 sub 有重疊的單元 → 大範圍單元錯誤計入大量 donePages
+// v1.5.229 FIX: 還原 v1.5.228 正確 overlap 演算法 + 幽靈 unit 提前過濾
+// 重點: overlap 分布是正確的設計(跨單元任務本該如此)，幽靈 unit 問題在 processUnit 過濾
 function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
     var result = {};
     if (!appPlans) return result;
 
+    // v1.5.171: 跨單元任務 overlap + Set 去重 (mission 內 unit, 一致算法)
+    var pageSet = {};
+    var missionUnitMap = {};
     var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
     var allCats = (filterCat && filterCat !== 'ALL') ? [filterCat] : (masters ? Object.keys(masters) : []);
-
-    // 記錄每個 unit 的頁數範圍 (mission 內所有 unit)
-    var missionUnitMap = {};
     allCats.forEach(function(c) {
         var catMaster = masters ? masters[c] : null;
         if (!catMaster) return;
@@ -5230,11 +5230,9 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
         });
     });
 
-    // 每個 unit 的 Done Pages Set (Set 去重)
-    var pageSet = {};
     function addPageSet(uid, s, e) {
         if (!pageSet[uid]) pageSet[uid] = new Set();
-        for (var p = s; p <= e; p++) { pageSet[uid].add(p); }
+        for (var p = s; p <= e; p++) pageSet[uid].add(p);
     }
 
     appPlans.forEach(function(plan) {
@@ -5244,29 +5242,26 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
                 if (!t || !t.isDone || !t.unitId) return;
                 if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) return;
                 if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) return;
-
-                var uid = t.unitId;
-                // 只對 task.unitId 指定的單元計入 done pages
-                if (!missionUnitMap[uid]) return;
-
                 if (!t.startPage || !t.endPage || t.endPage < t.startPage) {
-                    addPageSet(uid, 1, 1);
+                    addPageSet(t.unitId, 1, 1);
                     return;
                 }
-                var ts = t.startPage, te = t.endPage;
-                var uInfo = missionUnitMap[uid];
-                var us = Math.max(ts, uInfo.start);
-                var ue = Math.min(te, uInfo.end);
-                if (ue >= us) {
-                    addPageSet(uid, us, ue);
-                }
+                var s = t.startPage, e = t.endPage;
+                var taskUnitInfo = missionUnitMap[t.unitId];
+                var taskSub = taskUnitInfo ? taskUnitInfo.sub : null;
+                Object.keys(missionUnitMap).forEach(function(uid) {
+                    var u = missionUnitMap[uid];
+                    if (!u || u.start === undefined || u.end === undefined) return;
+                    if (u.sub !== taskSub) return;
+                    var us = Math.max(s, u.start);
+                    var ue = Math.min(e, u.end);
+                    if (ue >= us) addPageSet(uid, us, ue);
+                });
             });
         });
     });
 
-    Object.keys(pageSet).forEach(function(uid) {
-        result[uid] = pageSet[uid].size;
-    });
+    Object.keys(pageSet).forEach(function(uid) { result[uid] = pageSet[uid].size; });
     return result;
 }
 
