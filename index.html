@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.229]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.230]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -11351,6 +11351,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             
                             if (isActuallyDone) {
                                 doneUnits.push({
+                                    id: u.id,
                                     name: u.name,
                                     days: logData[u.id] ? logData[u.id].dates.size : 1,
                                     finishDate: logData[u.id] ? logData[u.id].lastDate : '未知'
@@ -11424,6 +11425,36 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (totalRendered === 0) root.innerHTML = '<div style="text-align:center; color:#94a3b8; margin-top: 50px; font-size: 1.2em;"><h3>📭 目前篩選的範圍內沒有內容</h3></div>'; 
         }
 
+        // v1.5.230: 從所有 missions 移除指定 unitId（幽靈 unit 清理）
+        window.removeDoneUnitFromMissions = function(unitId, unitName, dataKey) {
+            if (!confirm('確定要將「' + unitName + '」從所有任務中移除嗎？\n移除後將重新計算進度。')) return;
+            var user = multiData[currentUserId];
+            if (!user || !user.masters) return;
+            var removed = false;
+            // 遍歷所有 cat/mis，从 mission list 中移除 unitId
+            Object.keys(user.masters).forEach(function(cat) {
+                Object.keys(user.masters[cat] || {}).forEach(function(sub) {
+                    var misObj = user.masters[cat][sub];
+                    if (!misObj || !misObj.missions) return;
+                    Object.keys(misObj.missions).forEach(function(mis) {
+                        var arr = misObj.missions[mis];
+                        var idx = arr.indexOf(unitId);
+                        if (idx !== -1) {
+                            arr.splice(idx, 1);
+                            removed = true;
+                        }
+                    });
+                });
+            });
+            if (removed) {
+                saveMultiData();
+                alert('已移除「' + unitName + '」。請重新整理頁面。');
+                closeModal('modal-dash-detail');
+            } else {
+                alert('找不到該單元，或已不在任務中。');
+            }
+        };
+
         window.showDashDetail = function(type, subject, dataKey) {
             var dataInfo = window._dashDataStore[dataKey];
             if (!dataInfo) return;
@@ -11434,9 +11465,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 el('dd-title').innerHTML = `✅ ${subject} - 已完成單元`;
                 if(data.length === 0) html = '<div style="color:#7f8c8d;">目前無已完成的單元。</div>';
                 else {
-                    html += '<table style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="border-bottom:2px solid #ccc; padding:10px;">單元名稱</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">花費天數</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">完成日期</th></tr>';
+                    html += '<table style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="border-bottom:2px solid #ccc; padding:10px;">單元名稱</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">花費天數</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">完成日期</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">操作</th></tr>';
                     data.forEach(d => {
-                        html += `<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">${d.name}</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--accent);">${d.days} 天</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--secondary);">${d.finishDate}</td></tr>`;
+                        html += `<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">${d.name}</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--accent);">${d.days} 天</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--secondary);">${d.finishDate}</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center;"><button style="background:none; border:1px solid var(--danger); color:var(--danger); padding:3px 8px; border-radius:4px; cursor:pointer; font-size:0.85em;" onclick="removeDoneUnitFromMissions('${d.id}', \'${d.name}\', '${dataKey}')">🗑 移除</button></td></tr>`;
                     });
                     html += '</table>';
                 }
