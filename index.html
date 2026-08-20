@@ -9847,6 +9847,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         toggleMisUnit(cb.value, isChecked, cb);
                     }
                 });
+                // v1.5.233: 迴圈結束後統一 sync vol-master（避免迴圈中反覆觸發 toggleMisUnit 造成 vol-master 被錯誤更新）
+                var allUnits = container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
+                var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
+                var masterChk = container.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
+                if (masterChk) masterChk.checked = allChecked;
             }
         }
 
@@ -9878,16 +9883,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             }
 
+            // v1.5.232: 同步更新該 vol 的 master checkbox（在 toggleVolCheck 迴圈結束後統一處理）
             if (elem) {
                 var vol = elem.dataset.vol;
                 var container = elem.closest('.vertical-scroll');
                 if (container) {
                     var allUnits = container.querySelectorAll(`input[type="checkbox"][data-vol="${vol}"]:not(.vol-master-chk)`);
-                    var allChecked = true;
-                    for(var i=0; i<allUnits.length; i++) {
-                        if(!allUnits[i].checked) { allChecked = false; break; }
-                    }
-                    var masterChk = container.querySelector(`.vol-master-chk[data-vol="${vol}"]`);
+                    var allChecked = Array.from(allUnits).every(function(u){return u.checked;});
+                    var masterChk = container.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
                     if (masterChk) masterChk.checked = allChecked;
                 }
             }
