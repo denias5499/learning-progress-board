@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.239]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.238]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9880,10 +9880,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
 
         function toggleMisUnit(unitId, isChecked, elem) {
-            console.log('[toggleMisUnit] called unitId='+unitId+' isChecked='+isChecked);
             var cat = el('set-cat').value;
             var mis = el('set-mis').value;
-            if(!cat || !mis) { console.log('[toggleMisUnit] early return - no cat/mis'); return; }
+            if(!cat || !mis) return;
             var arr = appMissions[cat][mis];
 
             if (isChecked && !arr.includes(unitId)) arr.push(unitId);
@@ -9908,43 +9907,24 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             }
 
-            // v1.5.239: vol-master sync — wrapped in try-catch (localStorage quota may fail)
+            // v1.5.238: vol-master sync — vol-master is sibling BEFORE .vertical-scroll
             // Fix: container.parentElement = card div, then find .vol-master-chk inside it
-            console.log('[toggleMisUnit] START unitId='+unitId+' isChecked='+isChecked+' vol='+(elem?elem.dataset.vol:'no-elem'));
-            try {
-                if (elem) {
-                    var vol = elem.dataset.vol;
-                    var container = elem.closest('.vertical-scroll');
-                    var card = container ? container.parentElement : null;
-                    console.log('[toggleMisUnit] container='+(container?'found':'NULL')+' card='+(card?'found:'NULL'));
-                    if (card) {
-                        var allUnits = container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)');
-                        var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
-                        console.log('[toggleMisUnit] allUnits='+allUnits.length+' allChecked='+allChecked);
-                        var masterChk = card.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
-                        console.log('[toggleMisUnit] masterChk='+(masterChk?'found':'NULL'));
-                        if (masterChk) {
-                            masterChk.checked = allChecked;
-                            console.log('[toggleMisUnit] SET masterChk.checked='+allChecked);
-                        }
-                    }
+            if (elem) {
+                var vol = elem.dataset.vol;
+                var container = elem.closest('.vertical-scroll');
+                var card = container ? container.parentElement : null;
+                var masterChk = null;
+                if (card) {
+                    masterChk = card.querySelector('.vol-master-chk[data-vol="'+vol+'"]');
                 }
-            } catch(e) { console.error('[toggleMisUnit] sync error: '+e); }
-
-            // v1.5.232: sync top-level select-all when any child changes
-            try {
-                var rootContainer = el('mission-checkbox-root');
-                if (rootContainer) {
-                    var allVolChks = rootContainer.querySelectorAll('.vol-master-chk');
-                    var topAllChecked = allVolChks.length > 0 && Array.from(allVolChks).every(function(c){return c.checked;});
-                    var topMaster = rootContainer.querySelector('.select-all-chk');
-                    if (topMaster) topMaster.checked = topAllChecked;
+                // DEBUG
+                var allUnits = container ? container.querySelectorAll('input[type="checkbox"][data-vol="'+vol+'"]:not(.vol-master-chk)') : [];
+                var allChecked = allUnits.length > 0 && Array.from(allUnits).every(function(u){return u.checked;});
+                console.log('[vol-master sync] vol='+vol+' container='+(container?'found':'NULL')+' card='+(card?'found':'NULL')+' masterChk='+(masterChk?'found':'NULL')+' allUnits='+allUnits.length+' allChecked='+allChecked+' elem.dataset.vol='+elem.dataset.vol);
+                if (card && masterChk) {
+                    masterChk.checked = allChecked;
                 }
-            } catch(e) { console.error('[toggleMisUnit] top-sync error: '+e); }
-
-            // v1.5.20: 立即 saveToLocal
-            try { saveToLocal(); } catch(e) { console.error('[saveToLocal error] '+e); }
-            return;
+            }
 
             // v1.5.232: sync top-level select-all when any child changes
             var rootContainer = el('mission-checkbox-root');
