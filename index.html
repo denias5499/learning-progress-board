@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.226]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.228]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1059,34 +1059,38 @@
             font-size: 0.95em; cursor: pointer; font-weight: bold;
         }
         .backup-status-bar .bk-btn:hover { background: rgba(255,255,255,0.5); }
-        .dirty-banner {
+.dirty-banner {
             display: none;
             background: linear-gradient(90deg, #fef3c7, #fde68a);
             color: #78350f;
             padding: 10px 16px;
-            border-bottom: 2px solid #f59e0b;
+            border: 1px solid #fcd34d;
+            border-radius: 8px;
+            margin: 0 0 12px 0;
             text-align: center;
             font-size: 0.95em;
-            position: sticky; top: 0; z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
         }
         .dirty-banner.show { display: block; }
         .dirty-banner a { color: #b45309; font-weight: bold; text-decoration: underline; cursor: pointer; }
         .dirty-banner .dismiss {
             float: right; background: none; border: none; cursor: pointer;
             color: #78350f; font-size: 1.2em; padding: 0 6px;
+            line-height: 1;
         }
         </style>
 </head>
 <body>
 
-    <!-- v1.5.226: 未匯出備份橫幅（預設隱藏） -->
-    <div id="dirty-banner" class="dirty-banner" role="alert">
-        <button class="dismiss" onclick="dismissDirtyBanner()" title="暫時關閉 (下次有變動又會出現)">✕</button>
-        📦 你有 <strong>未匯出</strong> 的資料異動 (最早自 <span id="dirty-since-time">--:--</span>)，建議
-        <a href="#" onclick="exportDataToFile(); return false;">立即匯出備份</a> 以免本地資料意外遺失
-    </div>
-
     <div class="container">
+
+        <!-- v1.5.227: 未匯出備份橫幅（搬進 container, 自動對齊內容寬度） -->
+        <div id="dirty-banner" class="dirty-banner" role="alert">
+            <button class="dismiss" onclick="dismissDirtyBanner()" title="暫時關閉 (下次有變動又會出現)">✕</button>
+            📦 你有 <strong>未匯出</strong> 的資料異動 (最早自 <span id="dirty-since-time">--:--</span>)，建議
+            <a href="#" onclick="exportDataToFile(); return false;">立即匯出備份</a> 以免本地資料意外遺失
+        </div>
+
         <div class="header">
             <h1 id="main-app-title" title="🏠 點擊回到首頁" onclick="returnToHome()" style="cursor: pointer; user-select: none;"></h1>
             <div class="header-controls">
@@ -7937,14 +7941,28 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 // v1.5.221: 不要 renderAccuracyStats() (會 rebuild form 蓋掉 dropdowns)
                 // 只更新 _highlightedUnitName 變數, 然後只更新 table 部分 (或下次 switchStatsView 才生效)
                 window._highlightedUnitName = ctx.unit.name;
-                // 找現有 table row 高亮 (如果有)
+                // v1.5.228: highlight 用完整 ctx 比對 row (subject+typeName+instance.name+unitName)
+                //            避免只 match unitName 跳到別科目的同名 row (例: 生物 第1回 → 跳成 數學 第1回)
                 var rows = document.querySelectorAll('.accuracy-table tbody tr');
+                var highlightedAny = false;
                 for (var i = 0; i < rows.length; i++) {
-                    if (rows[i].textContent.indexOf(ctx.unit.name) >= 0) {
-                        rows[i].style.background = '#F3B8B1';
-                        if (rows[i].scrollIntoView) rows[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    var row = rows[i];
+                    var tds = row.querySelectorAll('td');
+                    if (tds.length < 4) continue;
+                    // tds[1]=科目 tds[2]=教材類型 tds[3]=教材版本
+                    var rowSub = ((tds[1] && tds[1].textContent) || '').trim();
+                    var rowType = ((tds[2] && tds[2].textContent) || '').trim();
+                    var rowInst = ((tds[3] && tds[3].textContent) || '').trim();
+                    if (rowSub === ctx.sub && rowType === ctx.typeName && rowInst === ctx.instance.name &&
+                        row.textContent.indexOf(ctx.unit.name) >= 0) {
+                        row.style.background = '#F3B8B1';
+                        if (row.scrollIntoView) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        highlightedAny = true;
                         break;
                     }
+                }
+                if (!highlightedAny) {
+                    console.log('jumpToAccuracyForUnit: 找到 unit 但 records 表格沒有對應 row (可能尚未登錄 records 或 filter 擋住)');
                 }
                 console.log('jumpToAccuracyForUnit: dropdowns 設定完成');
             };
@@ -7962,24 +7980,36 @@ function renderWizardUnitRowHtml(ws, i, u) {
             jumpToAccuracyForUnit(unitId);
         }
 
-        // v1.5.205: 計算某 unit 的最近答對率 (從 records 找含此 unit name 的考試, 取平均)
-        // 用 loose match (雙向 substring): 處理 unit name 不完全相同的情況 (例: 樹狀圖「字音」 vs records.wrongUnits「國字注音」)
-        function getUnitAccuracyRate(unitName) {
+        // v1.5.205 + v1.5.228 fix: 計算某 unit 的最近答對率
+        // v1.5.228: 加 subject/typeName/instanceName 三層 context filter (避免 cross-instance 污染)
+        //            例: 生物/麻辣甲/第1回 不該去拉 數學/麻辣甲/第1回 100% 的 records
+        // 用 loose match (雙向 substring): 處理 unit name 不完全相同的情況
+        function getUnitAccuracyRate(unitName, sub, typeName, instanceName) {
             var records = loadAccuracyRecords();
             var rates = [];
             function looseMatch(a, b) {
                 if (!a || !b) return false;
                 return a.indexOf(b) >= 0 || b.indexOf(a) >= 0;
             }
+            function ctxMatch(r) {
+                if (sub && r.subject !== sub) return false;
+                if (typeName && r.typeName !== typeName) return false;
+                if (instanceName && r.instanceName !== instanceName) return false;
+                return true;
+            }
             records.forEach(function(r) {
+                if (!ctxMatch(r)) return;
                 // 主考試 (Row 2 metadata) - 用 wrongUnits 雙向 match
                 if (r.wrongUnits && Array.isArray(r.wrongUnits)) {
                     var mainMatched = r.wrongUnits.some(function(wu) { return looseMatch(wu, unitName); });
                     if (mainMatched && r.total > 0) rates.push(r.correct / r.total);
                 }
-                // 額外考卷 (chip 區)
+                // 額外考卷 (chip 區) — 用同一個 ctx 過濾
                 if (r.extraExams && Array.isArray(r.extraExams)) {
                     r.extraExams.forEach(function(e) {
+                        if (e.subject && sub && e.subject !== sub) return;
+                        if (e.typeName && typeName && e.typeName !== typeName) return;
+                        if (e.instanceName && instanceName && e.instanceName !== instanceName) return;
                         if (e.name && looseMatch(e.name, unitName) && e.total > 0) {
                             rates.push(e.correct / e.total);
                         }
@@ -9702,11 +9732,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // v1.5.11: 用 typeName + instanceName 當 grouping key, label = 「typeName-instanceName」
                     // v1.5.18: 區分 volume 跟 custom — volume 顯示 冊名 + instance header, custom 顯示 typeName-instanceName
                     var matUnits = _collectSubjectUnits(s);
-                    var byVol = {}; // v1.5.147: key = 'typeName|instanceName|vol' (避免不同 type 同 vol name 混亂)
+                    // v1.5.228: key 加 instanceName 區隔 (麻辣甲 vs 大滿貫甲 同 type 同 vol 不同 instance)
+                    //            原 key 已是 typeName|vol (v1.5.147), 現在升級為 typeName|instanceName|vol
+                    var byVol = {};
                     matUnits.forEach(function(u) {
-                        // v1.5.147: key 加 typeName 區隔 (同 vol name 可能出現在不同 type)
-                        var k = (u._typeName || '_') + '|' + (u.vol || '_single');
-                        if (!byVol[k]) byVol[k] = { units: [], typeName: u._typeName || '', instanceName: u._instanceName || (u.vol || '_single') };
+                        var k = (u._typeName || '_') + '|' + (u._instanceName || '_inst') + '|' + (u.vol || '_single');
+                        if (!byVol[k]) byVol[k] = {
+                            units: [],
+                            typeName: u._typeName || '',
+                            instanceName: u._instanceName || '',
+                            volName: u.vol || ''
+                        };
                         byVol[k].units.push(u);
                     });
                     var anyShown = false;
@@ -9719,15 +9755,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         // v1.5.18 + v1.5.147: 區分 volume 跟 custom — v1.5.147 key 改為 typeName|volName
                         var keyParts = key.split('|');
                         var keyTypeName = keyParts[0];
-                        var keyVolName = keyParts[1] || '_single';
+                        // v1.5.228: key 改成 typeName|instanceName|vol, parts 重排
+                        var keyInstanceName = keyParts[1] || '_inst';
+                        var keyVolName = keyParts[2] || '_single';
                         var label;
                         var isVolume = (keyVolName !== '_single');
                         if (isVolume) {
-                            // volume: label 用 冊名 (跟 教材庫 tab 1 一致)
-                            label = key;
+                            // v1.5.228: label 改為「instanceName | volName」混合形式 (Denias 要求)
+                            //            沒 instanceName 就只顯示 volName
+                            var instPart = (keyInstanceName && keyInstanceName !== '_inst') ? keyInstanceName : '';
+                            label = instPart ? (instPart + ' | ' + keyVolName) : keyVolName;
                         } else {
                             // custom: 維持 typeName-instanceName
-                            label = info.typeName + '-' + info.instanceName;
+                            label = info.typeName + (info.instanceName ? '-' + info.instanceName : '');
                         }
                         // v1.5.18: volume 第一冊 顯示 時 加 instance header (跟 教材庫 一致)
                         var instanceHeader = '';
@@ -9739,7 +9779,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             }
                         }
                         html += instanceHeader;
-                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(keyVolName)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(keyVolName)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${escapeHtml(label)} (全冊)</b></label>`;
+                        // v1.5.228: 移除 📚 icon (Denias 要求)
+                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(keyVolName)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(keyVolName)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>${escapeHtml(label)} (全冊)</b></label>`;
                         html += `<div style="padding-left:15px;">`;
                         info.units.forEach(function(u) {
                             var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
@@ -10692,7 +10733,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         if (!volName) return null;
                         return '📖 ' + escapeHtml(volName);
                     }
-                    function renderUnitRow(u) {
+                    function renderUnitRow(u, optCtx) {
+                        // v1.5.228: optCtx = {sub, typeName, instanceName} 由 caller 傳入，避免 cross-instance 汙染
                         var t = totalOf(u);
                         var st = getStatus(u.id, t);
                         var dotClass = 'dot-' + st;
@@ -10708,7 +10750,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var cat4jump = suInfo ? suInfo.firstCat : '';
                         var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
                         var scheduledDays = getUnitScheduledDays(u.id);
-                        var accuracyRate = getUnitAccuracyRate(u.name);
+                        // v1.5.228: 傳入當前 unit 的 sub/typeName/instanceName 給 getUnitAccuracyRate filter
+                        var accuracyRate = getUnitAccuracyRate(u.name, optCtx && optCtx.sub, optCtx && optCtx.typeName, optCtx && optCtx.instanceName);
                         var accuracyBarHtml = '';
                         if (accuracyRate !== null) {
                             var accPct = Math.round(accuracyRate * 100);
@@ -10772,7 +10815,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 html += '<ul class="tree-units">';
                             }
                             vol.units.forEach(function(u) {
-                                html += renderUnitRow(u);
+                                html += renderUnitRow(u, { sub: sub, typeName: inst.typeName, instanceName: inst.instanceName });
                             });
                             if (volLabel) html += '</ul></ul>';
                         });
@@ -11992,6 +12035,9 @@ document.getElementById('import-file').addEventListener('change', function(e) {
         updateBackupIndicator();  // v1.5.226: 啟動時更新備份狀態
         loadTheme();
         renderAppPrefsCatHours();  // v1.5.112: 初始化任務預設時數 UI
+        // v1.5.227: clearDirty 到 init 完成後才觸發 (避免 init 內部 setItem 誤觸)
+        // switchUser 在 initUsers 內部會 setItem( FAMILY) re-write, 不代表 user 改過資料
+        setTimeout(function() { clearDirty('init-settled'); }, 2000);
     </script>
 </body>
 </html>
