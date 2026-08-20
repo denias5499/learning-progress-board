@@ -1109,9 +1109,9 @@
                 <div class="btn-group">
                     <button id="nav-btn-settings" class="nav-btn nav-btn-1" onclick="openSettings()">⚙️ 教材庫與備份</button>
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
-                    <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color: #c4e0f9 !important;">📊 學習統計分析</button>
+                    <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color: #c4e0f9 !important; margin-right: 8px;">📊 學習統計分析</button>
+                    <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color: #FFE17A !important;">🏠 回首頁</button>
                 </div>
-                <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color: #FFE17A !important; margin-left: 30px;">🏠 回首頁</button>
             </div>
         </div>
 
@@ -1227,6 +1227,8 @@
                     
                     <div style="margin-top: 10px; background: #fff; padding: 15px; border-radius: 8px; border: 2px dashed var(--accent); position: relative;">
                         <h3 style="margin-top: 0; margin-bottom: 15px; color: var(--primary);">📥 請勾選此任務要涵蓋的單元範圍：</h3>
+                        <!-- v1.5.232: top-level 全選 checkbox -->
+                        <div style="margin-bottom:8px; padding:6px 10px; background:#f0f9ff; border-radius:6px; border:1px solid var(--border); display:flex; align-items:center; gap:8px;"><input type="checkbox" class="select-all-chk" id="top-sel-all" onchange="toggleTopSelectAll(this.checked)" style="width:auto; transform:scale(1.2);"><label for="top-sel-all" style="font-weight:bold; color:var(--primary); cursor:pointer; margin:0;">☑ 全部勾選 / 取消全選</label></div>
                     <!-- v1.5.12: 全域教材類型 filter dropdown — 動態生成 (從當前 cat 的教材庫 scan 唯一 typeName) -->
                     <div style="margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <span style="font-weight: bold; color: var(--secondary);">📁 教材類型過濾：</span>
@@ -9783,7 +9785,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         }
                         html += instanceHeader;
                         // v1.5.228: 移除 📚 icon (Denias 要求)
-                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(keyVolName)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(keyVolName)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>${escapeHtml(label)} (全冊)</b></label>`;
+                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${escapeHtml(keyVolName)}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${escapeHtml(keyVolName)}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>${escapeHtml(keyVolName)}</b></label>`;
                         html += `<div style="padding-left:15px;">`;
                         info.units.forEach(function(u) {
                             var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
@@ -9798,7 +9800,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 } else {
                     var volsToRender = s.volOrder || Object.keys(s.vols);
                     volsToRender.forEach(vol => {
-                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${vol}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${vol}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${vol} (全冊)</b></label>`;
+                        html += `<label style="display:block; margin-bottom:8px; margin-top:12px; border-bottom:1px solid #e2e8f0; padding-bottom:8px; color:var(--accent); cursor:pointer;"><input type="checkbox" class="vol-master-chk" data-vol="${vol}" onchange="toggleVolCheck(this, '${cat}', '${mis}', '${sub}', '${vol}')" style="width:auto; margin-right:5px; transform:scale(1.2);"> <b>📚 ${vol}</b></label>`;
                         html += `<div style="padding-left:15px;">`;
                         s.vols[vol].forEach(u => {
                             var isChecked = selectedIds.includes(u.id) ? 'checked' : '';
@@ -9826,6 +9828,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         }
                     }
                 });
+                // v1.5.232: sync top-level select-all when all vol-master-chk are checked
+                var allVolChks = root.querySelectorAll('.vol-master-chk');
+                var allVolsChecked = allVolChks.length > 0 && Array.from(allVolChks).every(c => c.checked);
+                var topSel = root.querySelector('.select-all-chk');
+                if (topSel) topSel.checked = allVolsChecked;
             }, 0);
         }
 
@@ -9853,6 +9860,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
             else if (!isChecked) {
                 var idx = arr.indexOf(unitId);
                 if (idx > -1) arr.splice(idx, 1);
+
+                // v1.5.232: uncheck 時同步把 plans 內所有 isDone task 改回 false
+                // 這樣 unit 不會因為殘留的 isDone task 而錯誤顯示為已完成
+                (appPlans || []).forEach(function(plan) {
+                    if (!plan.grid) return;
+                    Object.keys(plan.grid).forEach(function(dStr) {
+                        var tasks = plan.grid[dStr];
+                        if (!tasks) return;
+                        for (var i = 0; i < tasks.length; i++) {
+                            var t = tasks[i];
+                            if (t && t.unitId === unitId && t.isDone) {
+                                t.isDone = false;
+                            }
+                        }
+                    });
+                });
             }
 
             if (elem) {
@@ -9869,10 +9892,61 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
             }
 
+            // v1.5.232: also sync the top-level select-all when children change
+            var rootContainer = el('mission-checkbox-root');
+            if (rootContainer) {
+                var allVolChks = rootContainer.querySelectorAll('.vol-master-chk');
+                var topAllChecked = true;
+                for (var vi = 0; vi < allVolChks.length; vi++) {
+                    if (!allVolChks[vi].checked) { topAllChecked = false; break; }
+                }
+                var topMaster = rootContainer.querySelector('.select-all-chk');
+                if (topMaster) topMaster.checked = topAllChecked;
+            }
+
             // v1.5.20: 立即 saveToLocal, 不依賴「💾 儲存教材庫變更」按鈕
             saveToLocal();
         }
         
+
+        // v1.5.232: top-level 全選 — 勾選時等效勾選所有 unit，實作「全部勾選 / 取消全選」
+        function toggleTopSelectAll(checked) {
+            var root = el('mission-checkbox-root');
+            if (!root) return;
+            // 找出所有 unit checkbox（排除 vol-master-chk 和 select-all-chk 本身）
+            var unitChks = root.querySelectorAll('input[type="checkbox"][data-vol]');
+            unitChks.forEach(function(cb) {
+                if (cb.classList.contains('vol-master-chk') || cb.classList.contains('select-all-chk')) return;
+                if (cb.checked !== checked) {
+                    cb.checked = checked;
+                    // 直接改 missions 陣列，不透過 toggleMisUnit（避免重複 splice）
+                    var unitId = cb.value;
+                    var cat = el('set-cat').value;
+                    var mis = el('set-mis').value;
+                    if (!cat || !mis) return;
+                    var arr = appMissions[cat][mis];
+                    if (checked && !arr.includes(unitId)) arr.push(unitId);
+                    else if (!checked) {
+                        var idx = arr.indexOf(unitId);
+                        if (idx > -1) arr.splice(idx, 1);
+                    }
+                }
+            });
+            // 同步所有 vol-master-chk
+            var masterChks = root.querySelectorAll('.vol-master-chk');
+            masterChks.forEach(function(mchk) {
+                var vol = mchk.dataset.vol;
+                var container = mchk.closest('.vertical-scroll');
+                if (!container) return;
+                var units = container.querySelectorAll('input[type="checkbox"][data-vol="${vol}"]:not(.vol-master-chk)');
+                if (units.length > 0) {
+                    var allChecked = Array.from(units).every(u => u.checked);
+                    mchk.checked = allChecked;
+                }
+            });
+            saveToLocal();
+        }
+
         // v1.5.182: 診斷教材庫結構 (彈出 alert 顯示 trace)
         function dedupTraceAndShow() {
             var uid = currentUserId || Object.keys(multiData)[0];
