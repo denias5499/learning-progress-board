@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.240]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.241]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7798,6 +7798,726 @@ function renderWizardUnitRowHtml(ws, i, u) {
             else if (view === 'wrongnotes') renderWrongNotesView && renderWrongNotesView();
         }
         
+
+        // ============================================================
+        // 錯題資料庫 v1.6.0 (Phase 2+3)
+        // ============================================================
+
+        // --- 狀態 ---
+        var WN_STATE = {
+            currentStudent: '', currentSubject: '', currentVolume: '', currentUnit: '',
+            cropBoxes: [], eraseBoxes: [],
+            mode: 'add', // 'add' | 'erase' | 'clean'
+            importedImage: null, cleanImage: null, importedFileName: '',
+            selectedReasons: [],
+            practiceQuestions: [], practiceIndex: 0,
+            practiceResults: {}, // id -> 'mastered' | 'stillwrong'
+        };
+
+        // --- Tab 切換 ---
+        function WN_switchTab(tab) {
+            document.querySelectorAll('.wn-tab').forEach(function(t){ t.classList.remove('active'); });
+            document.querySelectorAll('.wn-page').forEach(function(p){ p.classList.remove('active'); });
+            var tBtn = document.querySelector('.wn-tab[data-wntab="'+tab+'"]');
+            if(tBtn) tBtn.classList.add('active');
+            var tPage = document.getElementById('wn-'+tab);
+            if(tPage) tPage.classList.add('active');
+            if(tab === 'notes') WN_renderNotesList();
+            if(tab === 'stats') WN_renderStats();
+            if(tab === 'practice') WN_renderPracticeList();
+        }
+
+        // --- init WrongNotes view ---
+        function WN_init() {
+            WN_migrateNotes();
+            WN_loadStudentOptions();
+            // 嘗試帶入外部傳入的資料
+            if(window._wn_pendingData) {
+                WN_applyPendingData(window._wn_pendingData);
+                window._wn_pendingData = null;
+            }
+        }
+
+        // --- 舊筆記搬遷 myStudyNotes -> StudyMap_WrongNotes ---
+        function WN_migrateNotes() {
+            try {
+                var old = localStorage.getItem('myStudyNotes');
+                var nou = localStorage.getItem('StudyMap_WrongNotes');
+                if(old && !nou) {
+                    localStorage.setItem('StudyMap_WrongNotes', old);
+                    console.log('[WN] 舊筆記已搬遷到 StudyMap_WrongNotes');
+                }
+            } catch(e){}
+        }
+
+        function WN_getNotes() {
+            try {
+                return JSON.parse(localStorage.getItem('StudyMap_WrongNotes') || '[]');
+            } catch(e){ return []; }
+        }
+
+        function WN_saveNotes(notes) {
+            try { localStorage.setItem('StudyMap_WrongNotes', JSON.stringify(notes)); } catch(e){}
+        }
+
+        // --- 帶入資料（從答對率頁跳轉時呼叫） ---
+        function WN_applyPendingData(data) {
+            // data: {student, subject, volume, unit}
+            var sEl = document.getElementById('wn-student');
+            var sbEl = document.getElementById('wn-subject');
+            var vEl = document.getElementById('wn-volume');
+            var uEl = document.getElementById('wn-unit');
+            if(sEl) sEl.value = data.student || '';
+            if(sbEl) sbEl.value = data.subject || '';
+            // 觸發 change 以刷新下層選項
+            if(sbEl) WN_onSubjectChange(data.volume, data.unit);
+        }
+
+        // --- 載入學生/科目/冊次/單元 下拉選單 ---
+        function WN_loadStudentOptions() {
+            var sel = document.getElementById('wn-student');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">請選擇學生</option>';
+            try {
+                var users = typeof appUsers !== 'undefined' ? appUsers : [];
+                users.forEach(function(u){
+                    var name = u.name || u;
+                    sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                });
+            } catch(e){}
+        }
+
+        function WN_onStudentChange() {
+            WN_STATE.currentStudent = document.getElementById('wn-student').value;
+        }
+
+        function WN_onSubjectChange(prefillVol, prefillUnit) {
+            var subject = document.getElementById('wn-subject').value;
+            var volSel = document.getElementById('wn-volume');
+            var unitSel = document.getElementById('wn-unit');
+            WN_STATE.currentSubject = subject;
+            volSel.innerHTML = '<option value="">請選擇冊次</option>';
+            unitSel.innerHTML = '<option value="">請選擇單元</option>';
+            if(!subject) return;
+            try {
+                var subjects = typeof appMaster !== 'undefined' ? appMaster : {};
+                var volKeys = Object.keys(subjects[subject] || {});
+                volKeys.forEach(function(v){
+                    volSel.innerHTML += '<option value="'+escapeHtml(v)+'">'+escapeHtml(v)+'</option>';
+                });
+            } catch(e){}
+            if(prefillVol && volSel.querySelector('option[value="'+prefillVol+'"]')) {
+                volSel.value = prefillVol;
+                WN_onVolumeChange(prefillUnit);
+            }
+        }
+
+        function WN_onVolumeChange(prefillUnit) {
+            var subject = document.getElementById('wn-subject').value;
+            var volume = document.getElementById('wn-volume').value;
+            var unitSel = document.getElementById('wn-unit');
+            WN_STATE.currentVolume = volume;
+            unitSel.innerHTML = '<option value="">請選擇單元</option>';
+            if(!subject || !volume) return;
+            try {
+                var units = typeof appMaster !== 'undefined' ? (appMaster[subject] || {})[volume] || [] : [];
+                units.forEach(function(u){
+                    var name = typeof u === 'object' ? u.name : u;
+                    unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                });
+            } catch(e){}
+            if(prefillUnit && unitSel.querySelector('option[value="'+prefillUnit+'"]')) {
+                unitSel.value = prefillUnit;
+            }
+            WN_STATE.currentUnit = unitSel.value;
+        }
+
+        // --- 檔案處理 ---
+        function WN_handleFileInput(input) {
+            if(!input.files.length) return;
+            var file = input.files[0];
+            WN_STATE.importedFileName = file.name;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                WN_STATE.importedImage = e.target.result;
+                WN_showCropImage(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function WN_showCropImage(dataUrl) {
+            var cropArea = document.getElementById('wn-crop-area');
+            var img = document.getElementById('wn-crop-img');
+            var modeBar = document.getElementById('wn-mode-bar');
+            img.src = dataUrl;
+            img.onload = function() {
+                cropArea.style.display = 'inline-block';
+                modeBar.style.display = 'flex';
+                WN_STATE.cropBoxes = [];
+                WN_STATE.eraseBoxes = [];
+                WN_STATE.mode = 'add';
+                WN_updateModeButtons();
+                WN_renderBoxes();
+                // 設定 crop area 事件
+                WN_setupCropEvents();
+            };
+        }
+
+        function WN_setupCropEvents() {
+            var cropArea = document.getElementById('wn-crop-area');
+            var isDragging = false, startX, startY, currentBox;
+            cropArea.onmousedown = function(e) {
+                if(e.target !== cropArea && e.target !== document.getElementById('wn-crop-img')) return;
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
+                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
+                startX = (e.clientX - rect.left) * scaleX;
+                startY = (e.clientY - rect.top) * scaleY;
+                isDragging = true;
+                if(WN_STATE.mode === 'add') {
+                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
+                } else if(WN_STATE.mode === 'erase') {
+                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
+                }
+            };
+            cropArea.onmousemove = function(e) {
+                if(!isDragging || !currentBox) return;
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
+                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
+                var curX = (e.clientX - rect.left) * scaleX;
+                var curY = (e.clientY - rect.top) * scaleY;
+                currentBox.w = Math.abs(curX - startX);
+                currentBox.h = Math.abs(curY - startY);
+                currentBox.x = Math.min(startX, curX);
+                currentBox.y = Math.min(startY, curY);
+                WN_renderBoxes();
+            };
+            cropArea.onmouseup = function(e) {
+                if(!isDragging) return;
+                isDragging = false;
+                if(currentBox && currentBox.w > 10 && currentBox.h > 10) {
+                    if(WN_STATE.mode === 'add') {
+                        WN_STATE.cropBoxes.push(currentBox);
+                    } else if(WN_STATE.mode === 'erase') {
+                        WN_STATE.eraseBoxes.push(currentBox);
+                        WN_applyErase();
+                    }
+                }
+                currentBox = null;
+                WN_renderBoxes();
+            };
+            cropArea.onmouseleave = function() { if(isDragging && currentBox) { currentBox = null; isDragging = false; } };
+        }
+
+        function WN_renderBoxes() {
+            var cropArea = document.getElementById('wn-crop-area');
+            if(!cropArea) return;
+            // 移除舊框
+            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b){ b.remove(); });
+            var img = document.getElementById('wn-crop-img');
+            var rect = cropArea.getBoundingClientRect();
+            var scaleX = rect.width / img.naturalWidth;
+            var scaleY = rect.height / img.naturalHeight;
+
+            // 繪製裁切框（藍色）
+            WN_STATE.cropBoxes.forEach(function(box, i) {
+                var div = document.createElement('div');
+                div.className = 'wn-crop-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.innerHTML = '<span class="wn-box-num">'+(i+1)+'</span><button class="wn-box-delete" onclick="WN_deleteBox(event, '+box.id+')">✕</button>';
+                cropArea.appendChild(div);
+            });
+
+            // 繪製消除框（紅色）
+            WN_STATE.eraseBoxes.forEach(function(box, i) {
+                var div = document.createElement('div');
+                div.className = 'wn-erase-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.innerHTML = '<button class="wn-erase-del" onclick="WN_deleteEraseBox(event, '+box.id+')">✕</button>';
+                cropArea.appendChild(div);
+            });
+        }
+
+        function WN_deleteBox(e, id) {
+            e.stopPropagation();
+            WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== id; });
+            WN_renderBoxes();
+        }
+
+        function WN_deleteEraseBox(e, id) {
+            e.stopPropagation();
+            WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== id; });
+            WN_renderBoxes();
+        }
+
+        function WN_setMode(mode) {
+            WN_STATE.mode = mode;
+            WN_updateModeButtons();
+        }
+
+        function WN_updateModeButtons() {
+            ['add','erase','clean'].forEach(function(m){
+                var btn = document.getElementById('wn-mode-'+m);
+                if(btn) btn.classList.toggle('active', WN_STATE.mode === m);
+            });
+            var cleanUpload = document.getElementById('wn-clean-upload');
+            if(cleanUpload) cleanUpload.style.display = (WN_STATE.mode === 'clean') ? 'block' : 'none';
+        }
+
+        function WN_clearAllBoxes() {
+            WN_STATE.cropBoxes = [];
+            WN_STATE.eraseBoxes = [];
+            WN_STATE.cleanImage = null;
+            WN_renderBoxes();
+        }
+
+        // --- 內容感知填補（消除答案） ---
+        function WN_applyErase() {
+            if(!WN_STATE.eraseBoxes.length || !WN_STATE.importedImage) return;
+            var img = document.getElementById('wn-crop-img');
+            var canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            WN_STATE.eraseBoxes.forEach(function(box) {
+                // 內容感知填補：用周圍顏色填補
+                var patchSize = Math.max(box.w, box.h) * 0.5;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(box.x, box.y, box.w, box.h);
+                // 簡單模糊填補：取周圍平均色彩
+                try {
+                    var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    var d = imgData.data;
+                    var r=0,g=0,b=0,cnt=0;
+                    // 取框外圍邊緣像素平均值
+                    for(var py = Math.max(0,box.y-2); py < Math.min(canvas.height, box.y+box.h+2); py++) {
+                        for(var px = Math.max(0,box.x-2); px < Math.min(canvas.width, box.x+box.w+2); px++) {
+                            if(py < box.y || py >= box.y+box.h || px < box.x || px >= box.x+box.w) {
+                                var idx = (py*canvas.width+px)*4;
+                                r+=d[idx]; g+=d[idx+1]; b+=d[idx+2]; cnt++;
+                            }
+                        }
+                    }
+                    if(cnt>0) { r=Math.round(r/cnt); g=Math.round(g/cnt); b=Math.round(b/cnt); }
+                    ctx.fillStyle = 'rgb('+r+','+g+','+b+')';
+                    ctx.fillRect(box.x+1, box.y+1, box.w-2, box.h-2);
+                } catch(err){}
+            });
+            // 更新顯示
+            var newDataUrl = canvas.toDataURL('image/png');
+            document.getElementById('wn-crop-img').src = newDataUrl;
+            WN_STATE.importedImage = newDataUrl;
+        }
+
+        // --- 上傳乾淨版本 ---
+        function WN_handleCleanImage(input) {
+            if(!input.files.length) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                WN_STATE.cleanImage = e.target.result;
+                document.getElementById('wn-crop-img').src = e.target.result;
+                WN_STATE.importedImage = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+
+        // --- 錯題原因 ---
+        function WN_toggleReason(el) {
+            var reason = el.getAttribute('data-reason');
+            el.classList.toggle('selected');
+            if(el.classList.contains('selected')) {
+                if(WN_STATE.selectedReasons.indexOf(reason) === -1) WN_STATE.selectedReasons.push(reason);
+            } else {
+                WN_STATE.selectedReasons = WN_STATE.selectedReasons.filter(function(r){ return r !== reason; });
+            }
+        }
+
+        // --- 儲存筆記 ---
+        function WN_saveNote() {
+            var student = document.getElementById('wn-student').value;
+            var subject = document.getElementById('wn-subject').value;
+            var volume = document.getElementById('wn-volume').value;
+            var unit = document.getElementById('wn-unit').value;
+            var source = document.getElementById('wn-source').value;
+            var content = document.getElementById('wn-note-content').value;
+            if(!student || !subject || !volume || !unit) {
+                alert('請填寫學生、科目、冊次、單元');
+                return;
+            }
+            if(!WN_STATE.cropBoxes.length) {
+                alert('請框選至少一個錯題區塊');
+                return;
+            }
+            // 對每個框產生筆記
+            var notes = WN_getNotes();
+            WN_STATE.cropBoxes.forEach(function(box, i) {
+                var imgData = WN_cropBoxToDataUrl(box);
+                notes.push({
+                    id: Date.now() + '_' + i,
+                    date: new Date().toISOString().slice(0,10),
+                    student: student, subject: subject, volume: volume, unit: unit,
+                    source: source, reasons: WN_STATE.selectedReasons.slice(),
+                    imgUrl: imgData, content: content,
+                    practiced: 0, mastered: 0, stillWrong: 0
+                });
+            });
+            WN_saveNotes(notes);
+            WN_cancelImport();
+            WN_switchTab('notes');
+            alert('已儲存 ' + WN_STATE.cropBoxes.length + ' 筆錯題筆記');
+        }
+
+        function WN_cropBoxToDataUrl(box) {
+            var img = document.getElementById('wn-crop-img');
+            var canvas = document.createElement('canvas');
+            canvas.width = box.w;
+            canvas.height = box.h;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
+            return canvas.toDataURL('image/png');
+        }
+
+        function WN_cancelImport() {
+            WN_STATE.cropBoxes = [];
+            WN_STATE.eraseBoxes = [];
+            WN_STATE.importedImage = null;
+            WN_STATE.cleanImage = null;
+            WN_STATE.selectedReasons = [];
+            document.getElementById('wn-crop-area').style.display = 'none';
+            document.getElementById('wn-mode-bar').style.display = 'none';
+            document.getElementById('wn-setting-area').style.display = 'none';
+            document.getElementById('wn-note-content').value = '';
+            document.querySelectorAll('.wn-reason-tag').forEach(function(t){ t.classList.remove('selected'); });
+        }
+
+        // --- 查看錯題筆記列表 ---
+        function WN_renderNotesList() {
+            var notes = WN_getNotes();
+            var studentFilter = document.getElementById('wn-notes-student') ? document.getElementById('wn-notes-student').value : '';
+            var subjectFilter = document.getElementById('wn-notes-subject') ? document.getElementById('wn-notes-subject').value : '';
+            var volumeFilter = document.getElementById('wn-notes-volume') ? document.getElementById('wn-notes-volume').value : '';
+            var filtered = notes.filter(function(n) {
+                return (!studentFilter || n.student === studentFilter) &&
+                       (!subjectFilter || n.subject === subjectFilter) &&
+                       (!volumeFilter || n.volume === volumeFilter);
+            });
+            // 載入篩選下拉
+            WN_loadNotesFilterOptions(notes);
+            var list = document.getElementById('wn-notes-list');
+            if(!list) return;
+            if(!filtered.length) {
+                list.innerHTML = '<div class="wn-empty">尚無錯題筆記，請由「匯入錯題」新增</div>';
+                return;
+            }
+            list.innerHTML = filtered.map(function(n) {
+                return '<div class="wn-note-card" data-id="'+n.id+'">' +
+                    '<div class="wn-note-header" onclick="WN_toggleNoteExpand(this)">' +
+                        '<div>' +
+                            '<div style="font-weight:bold;color:var(--primary)">'+escapeHtml(n.subject)+' / '+escapeHtml(n.volume)+' / '+escapeHtml(n.unit)+'</div>' +
+                            '<div class="wn-note-meta"><span>📅 '+n.date+'</span><span>👤 '+escapeHtml(n.student)+'</span><span>📌 '+escapeHtml(n.source)+'</span></div>' +
+                        '</div>' +
+                        '<input type="checkbox" class="wn-checkbox wn-note-check" data-id="'+n.id+'" onclick="WN_onNoteCheck(event)">' +
+                    '</div>' +
+                    '<div class="wn-note-content">' +
+                        '<div style="margin-bottom:8px"><span class="wn-label">錯題原因:</span> '+(n.reasons||[]).join(', ')+'</div>' +
+                        (n.imgUrl ? '<img class="wn-note-img" src="'+n.imgUrl+'">' : '') +
+                        '<div style="margin-top:8px;white-space:pre-wrap">'+escapeHtml(n.content||'')+'</div>' +
+                        '<div style="margin-top:10px;display:flex;gap:8px">' +
+                            '<button class="wn-btn wn-btn-danger" onclick="WN_deleteNote(''+n.id+'')">🗑 刪除</button>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            WN_updateComposeBtn();
+        }
+
+        function WN_loadNotesFilterOptions(notes) {
+            ['student','subject','volume'].forEach(function(type) {
+                var sel = document.getElementById('wn-notes-'+type);
+                if(!sel) return;
+                var current = sel.value;
+                var vals = [...new Set(notes.map(function(n){ return n[type]; }))];
+                sel.innerHTML = '<option value="">全部'+(type==='student'?'學生':type==='subject'?'科目':'冊次')+'</option>';
+                vals.forEach(function(v){ sel.innerHTML += '<option value="'+escapeHtml(v)+'">'+escapeHtml(v)+'</option>'; });
+                sel.value = current;
+            });
+        }
+
+        function WN_toggleNoteExpand(header) {
+            var card = header.parentElement;
+            card.classList.toggle('expanded');
+        }
+
+        function WN_onNoteCheck(e) {
+            e.stopPropagation();
+            WN_updateComposeBtn();
+        }
+
+        function WN_updateComposeBtn() {
+            var checks = document.querySelectorAll('.wn-note-check:checked');
+            var btn = document.getElementById('wn-compose-btn');
+            if(btn) btn.disabled = !checks.length;
+        }
+
+        function WN_clearNotesFilter() {
+            ['wn-notes-student','wn-notes-subject','wn-notes-volume'].forEach(function(id){
+                var el = document.getElementById(id);
+                if(el) el.value = '';
+            });
+            WN_renderNotesList();
+        }
+
+        function WN_deleteNote(id) {
+            if(!confirm('確定刪除這筆記？')) return;
+            var notes = WN_getNotes().filter(function(n){ return n.id !== id; });
+            WN_saveNotes(notes);
+            WN_renderNotesList();
+        }
+
+        // --- 組成練習卷 ---
+        function WN_composePractice() {
+            var checks = document.querySelectorAll('.wn-note-check:checked');
+            if(!checks.length) { alert('請勾選要練習的錯題'); return; }
+            var notes = WN_getNotes();
+            var selected = [];
+            checks.forEach(function(c){ var n = notes.find(function(x){ return x.id === c.getAttribute('data-id'); }); if(n) selected.push(n); });
+            if(document.getElementById('wn-shuffle-practice').checked) {
+                selected = selected.sort(function(){ return Math.random()-0.5; });
+            }
+            WN_STATE.practiceQuestions = selected;
+            WN_STATE.practiceIndex = 0;
+            WN_STATE.practiceResults = {};
+            WN_switchTab('practice');
+            WN_showPracticeQuestion();
+        }
+
+        // --- 錯題再練 ---
+        function WN_renderPracticeList() {
+            var notes = WN_getNotes();
+            var studentFilter = document.getElementById('wn-practice-student') ? document.getElementById('wn-practice-student').value : '';
+            var subjectFilter = document.getElementById('wn-practice-subject') ? document.getElementById('wn-practice-subject').value : '';
+            var filtered = notes.filter(function(n) {
+                return (!studentFilter || n.student === studentFilter) && (!subjectFilter || n.subject === subjectFilter);
+            });
+            var list = document.getElementById('wn-practice-list');
+            if(!list) return;
+            if(!filtered.length) {
+                list.innerHTML = '<div class="wn-empty">尚無錯題可練習</div>';
+                return;
+            }
+            list.innerHTML = filtered.map(function(n) {
+                return '<div class="wn-note-card" style="cursor:default">' +
+                    '<div class="wn-note-header" style="cursor:pointer" onclick="WN_toggleNoteExpand(this)">' +
+                        '<div>' +
+                            '<div style="font-weight:bold;color:var(--primary)">'+escapeHtml(n.subject)+' / '+escapeHtml(n.volume)+' / '+escapeHtml(n.unit)+'</div>' +
+                            '<div class="wn-note-meta"><span>📅 '+n.date+'</span><span>👤 '+escapeHtml(n.student)+'</span></div>' +
+                        '</div>' +
+                        '<input type="checkbox" class="wn-checkbox wn-prac-check" data-id="'+n.id+'" onclick="WN_onPracCheck()">' +
+                    '</div>' +
+                    '<div class="wn-note-content">' +
+                        (n.imgUrl ? '<img class="wn-note-img" src="'+n.imgUrl+'">' : '') +
+                        '<div style="margin-top:8px"><span class="wn-label">原因:</span> '+(n.reasons||[]).join(', ')+'</div>' +
+                    '</div>' +
+                '</div>';
+            }).join('');
+            WN_updatePracBtns();
+        }
+
+        function WN_onPracCheck() {
+            WN_updatePracBtns();
+        }
+
+        function WN_updatePracBtns() {
+            var checks = document.querySelectorAll('.wn-prac-check:checked');
+            var startBtn = document.getElementById('wn-start-practice-btn');
+            var printBtn = document.getElementById('wn-print-btn');
+            if(startBtn) startBtn.disabled = !checks.length;
+            if(printBtn) printBtn.disabled = !checks.length;
+        }
+
+        function WN_clearPracticeFilter() {
+            ['wn-practice-student','wn-practice-subject'].forEach(function(id){
+                var el = document.getElementById(id);
+                if(el) el.value = '';
+            });
+            WN_renderPracticeList();
+        }
+
+        function WN_startPractice() {
+            var checks = document.querySelectorAll('.wn-prac-check:checked');
+            if(!checks.length) { alert('請勾選要練習的錯題'); return; }
+            var notes = WN_getNotes();
+            var selected = [];
+            checks.forEach(function(c){ var n = notes.find(function(x){ return x.id === c.getAttribute('data-id'); }); if(n) selected.push(n); });
+            if(document.getElementById('wn-shuffle-practice').checked) {
+                selected = selected.sort(function(){ return Math.random()-0.5; });
+            }
+            WN_STATE.practiceQuestions = selected;
+            WN_STATE.practiceIndex = 0;
+            WN_STATE.practiceResults = {};
+            document.getElementById('wn-practice-select').style.display = 'none';
+            document.getElementById('wn-practice-area').style.display = 'block';
+            WN_showPracticeQuestion();
+        }
+
+        function WN_showPracticeQuestion() {
+            var q = WN_STATE.practiceQuestions[WN_STATE.practiceIndex];
+            if(!q) return;
+            var progress = document.getElementById('wn-practice-progress');
+            if(progress) progress.textContent = '第 '+(WN_STATE.practiceIndex+1)+' / '+WN_STATE.practiceQuestions.length+' 題';
+            var area = document.getElementById('wn-practice-question');
+            if(area) {
+                area.innerHTML = (q.imgUrl ? '<img src="'+q.imgUrl+'" style="max-width:350px;border-radius:8px;margin:0 auto;display:block">' : '') +
+                    '<div style="margin-top:12px;font-size:0.9em;color:var(--secondary)">' +
+                        '<span>'+escapeHtml(q.subject)+' / '+escapeHtml(q.volume)+' / '+escapeHtml(q.unit)+'</span>' +
+                        '<span style="margin-left:12px">錯題原因: '+(q.reasons||[]).join(', ')+'</span>' +
+                    '</div>';
+            }
+            var reveal = document.getElementById('wn-answer-reveal');
+            if(reveal) { reveal.classList.remove('show'); reveal.innerHTML = ''; }
+        }
+
+        function WN_nextQuestion() {
+            if(WN_STATE.practiceIndex < WN_STATE.practiceQuestions.length-1) {
+                WN_STATE.practiceIndex++;
+                WN_showPracticeQuestion();
+            } else {
+                WN_finishPractice();
+            }
+        }
+
+        function WN_prevQuestion() {
+            if(WN_STATE.practiceIndex > 0) {
+                WN_STATE.practiceIndex--;
+                WN_showPracticeQuestion();
+            }
+        }
+
+        function WN_markMastered() {
+            var q = WN_STATE.practiceQuestions[WN_STATE.practiceIndex];
+            if(q) {
+                WN_STATE.practiceResults[q.id] = 'mastered';
+                // 更新統計
+                var notes = WN_getNotes();
+                var note = notes.find(function(n){ return n.id === q.id; });
+                if(note) { note.mastered = (note.mastered||0)+1; note.practiced = (note.practiced||0)+1; WN_saveNotes(notes); }
+            }
+            WN_nextQuestion();
+        }
+
+        function WN_markStillWrong() {
+            var q = WN_STATE.practiceQuestions[WN_STATE.practiceIndex];
+            if(q) {
+                WN_STATE.practiceResults[q.id] = 'stillwrong';
+                var notes = WN_getNotes();
+                var note = notes.find(function(n){ return n.id === q.id; });
+                if(note) { note.stillWrong = (note.stillWrong||0)+1; note.practiced = (note.practiced||0)+1; WN_saveNotes(notes); }
+            }
+            WN_nextQuestion();
+        }
+
+        function WN_finishPractice() {
+            var results = WN_STATE.practiceResults;
+            var total = WN_STATE.practiceQuestions.length;
+            var mastered = Object.values(results).filter(function(v){ return v==='mastered'; }).length;
+            var stillwrong = total - mastered;
+            var area = document.getElementById('wn-practice-area');
+            if(area) {
+                area.innerHTML = '<div class="wn-section" style="text-align:center">' +
+                    '<div style="font-size:3em;margin-bottom:15px">'+(stillwrong===0?'🎉':'📝')+'</div>' +
+                    '<div style="font-size:1.3em;font-weight:bold;margin-bottom:15px">練習完成！</div>' +
+                    '<div style="font-size:1.1em;color:var(--secondary)">總題數: '+total+'</div>' +
+                    '<div style="font-size:1.1em;color:#27ae60;font-weight:bold">學會了: '+mastered+' 題</div>' +
+                    '<div style="font-size:1.1em;color:#e74c3c;font-weight:bold;margin-bottom:20px">再錯: '+stillwrong+' 題</div>' +
+                    '<div style="color:#95a5a6;margin-bottom:15px">再錯的題目已標記，稍後可再練習</div>' +
+                    '<button class="wn-btn wn-btn-primary" onclick="WN_exitPractice()">🔙 返回</button>' +
+                '</div>';
+            }
+        }
+
+        function WN_exitPractice() {
+            WN_STATE.practiceQuestions = [];
+            WN_STATE.practiceIndex = 0;
+            WN_STATE.practiceResults = {};
+            document.getElementById('wn-practice-area').style.display = 'none';
+            document.getElementById('wn-practice-select').style.display = 'block';
+            WN_renderPracticeList();
+        }
+
+        // --- 列印練習卷 ---
+        function WN_printPractice() {
+            var checks = document.querySelectorAll('.wn-prac-check:checked');
+            if(!checks.length) { alert('請勾選要列印的錯題'); return; }
+            var notes = WN_getNotes();
+            var selected = [];
+            checks.forEach(function(c){ var n = notes.find(function(x){ return x.id === c.getAttribute('data-id'); }); if(n) selected.push(n); });
+            var printArea = document.getElementById('wn-print-area');
+            printArea.style.display = 'block';
+            printArea.innerHTML = '<div style="font-family:serif;padding:20px">' +
+                '<h2 style="text-align:center;margin-bottom:20px">錯題練習卷</h2>' +
+                '<div style="margin-bottom:10px">姓名: __________ &nbsp; 日期: __________</div>' +
+                selected.map(function(n,i){
+                    return '<div style="margin-bottom:25px;page-break-inside:avoid">' +
+                        '<div style="font-weight:bold;margin-bottom:5px">'+(i+1)+'. '+escapeHtml(n.subject)+' / '+escapeHtml(n.volume)+' / '+escapeHtml(n.unit)+'</div>' +
+                        (n.imgUrl ? '<img src="'+n.imgUrl+'" style="max-width:500px">' : '') +
+                        '<div style="margin-top:5px">答: ______________</div>' +
+                    '</div>';
+                }).join('<hr>') +
+            '</div>';
+            window.print();
+            setTimeout(function(){ printArea.style.display = 'none'; }, 500);
+        }
+
+        // --- 錯題統計 ---
+        function WN_renderStats() {
+            var notes = WN_getNotes();
+            var total = notes.length;
+            var mastered = notes.filter(function(n){ return (n.mastered||0) > 0; }).length;
+            var stillwrong = notes.filter(function(n){ return (n.stillWrong||0) > 0; }).length;
+            var practice = notes.reduce(function(s,n){ return s+(n.practiced||0); }, 0);
+            document.getElementById('wn-stat-total').textContent = total;
+            document.getElementById('wn-stat-mastered').textContent = mastered;
+            document.getElementById('wn-stat-stillwrong').textContent = stillwrong;
+            document.getElementById('wn-stat-practice').textContent = practice;
+            // 依科目
+            var bySubject = {};
+            notes.forEach(function(n){
+                if(!bySubject[n.subject]) bySubject[n.subject] = {total:0, mastered:0, stillwrong:0};
+                bySubject[n.subject].total++;
+                if((n.mastered||0)>0) bySubject[n.subject].mastered++;
+                if((n.stillWrong||0)>0) bySubject[n.subject].stillwrong++;
+            });
+            var statsEl = document.getElementById('wn-stats-by-subject');
+            if(statsEl) {
+                statsEl.innerHTML = Object.keys(bySubject).map(function(sb){
+                    var d = bySubject[sb];
+                    var rate = d.total > 0 ? Math.round((d.stillwrong/d.total)*100) : 0;
+                    return '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">' +
+                        '<span style="min-width:60px;font-weight:600">'+escapeHtml(sb)+'</span>' +
+                        '<div style="flex:1;height:8px;background:#f0f0f0;border-radius:4px"><div style="height:100%;width:'+rate+'%;background:#e74c3c;border-radius:4px"></div></div>' +
+                        '<span style="color:#e74c3c;font-weight:bold">'+rate+'% 再錯率</span>' +
+                        '<span style="color:#95a5a6;font-size:0.85em">('+d.stillwrong+'/'+d.total+')</span>' +
+                    '</div>';
+                }).join('');
+            }
+        }
+
+        // --- renderWrongNotesView (由 switchStatsView 呼叫) ---
+        function renderWrongNotesView() {
+            WN_init();
+        }
+
+
         // v1.5.158: 答對率統計 (per-user storage, 改下拉立即重渲染)
         var STORAGE_KEY_ACCURACY_BASE = 'StudyMap_AccuracyRecords_V158';
         if (!window._accExtraExams) window._accExtraExams = [];
