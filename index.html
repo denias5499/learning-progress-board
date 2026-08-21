@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.245]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.246]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1590,15 +1590,15 @@
                             <div id="wn-import" class="wn-page active">
                                 <div class="wn-section">
                                     <div class="wn-section-title">📋 基本資料</div>
-                                    <div class="wn-row" style="flex-wrap:wrap;gap:10px">
+                                    <div class="wn-row" style="flex-wrap:wrap;gap:8px;align-items:center">
                                         <span class="wn-label">學生:</span>
-                                        <select id="wn-student" class="wn-select" onchange="WN_onStudentChange()" style="min-width:120px"><option value="">請選擇學生</option></select>
+                                        <select id="wn-student" class="wn-select" onchange="WN_onStudentChange()" style="min-width:110px"><option value="">請選擇學生</option></select>
                                         <span class="wn-label">科目:</span>
-                                        <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()" style="min-width:120px"><option value="">請選擇科目</option></select>
+                                        <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()" style="min-width:110px"><option value="">請選擇科目</option></select>
                                         <span class="wn-label">冊次:</span>
-                                        <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()" style="min-width:120px"><option value="">請選擇冊次</option></select>
+                                        <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()" style="min-width:110px"><option value="">請選擇冊次</option></select>
                                         <span class="wn-label">單元:</span>
-                                        <select id="wn-unit" class="wn-select" style="min-width:150px"><option value="">請選擇單元</option></select>
+                                        <select id="wn-unit" class="wn-select" style="min-width:140px"><option value="">請選擇單元</option></select>
                                     </div>
                                 </div>
                                 <div class="wn-section">
@@ -8057,9 +8057,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if(!sbEl) return;
             sbEl.innerHTML = '<option value="">請選擇科目</option>';
             try {
-                var subjects = typeof appMaster !== 'undefined' ? Object.keys(appMaster || {}) : [];
-                subjects.forEach(function(s){ sbEl.innerHTML += '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; });
-            } catch(e){}
+                var seenSubjects = {};
+                if(typeof appMaster !== 'undefined') {
+                    Object.keys(appMaster).forEach(function(cat){
+                        Object.keys(appMaster[cat] || {}).forEach(function(sub){
+                            if(!seenSubjects[sub]) {
+                                seenSubjects[sub] = true;
+                                sbEl.innerHTML += '<option value="'+escapeHtml(sub)+'">'+escapeHtml(sub)+'</option>';
+                            }
+                        });
+                    });
+                }
+            } catch(e){ console.log('[WN] loadSubjectOptions error:', e); }
         }
 
         // --- 舊筆記搬遷 myStudyNotes -> StudyMap_WrongNotes ---
@@ -8124,12 +8133,23 @@ function renderWizardUnitRowHtml(ws, i, u) {
             unitSel.innerHTML = '<option value="">請選擇單元</option>';
             if(!subject) return;
             try {
-                var subjects = typeof appMaster !== 'undefined' ? appMaster : {};
-                var volKeys = Object.keys(subjects[subject] || {});
-                volKeys.forEach(function(v){
-                    volSel.innerHTML += '<option value="'+escapeHtml(v)+'">'+escapeHtml(v)+'</option>';
-                });
-            } catch(e){}
+                // appMaster 結構：{ category: { subject: { instanceName: [units...] } } }
+                // 找出這個 subject 隸屬哪個 category，取該 category 內的 materials (instances)
+                var foundCat = null, foundSubjectData = null;
+                if(typeof appMaster !== 'undefined' && appMaster) {
+                    Object.keys(appMaster).forEach(function(cat){
+                        if(foundSubjectData) return;
+                        var subData = appMaster[cat][subject];
+                        if(subData) { foundCat = cat; foundSubjectData = subData; }
+                    });
+                }
+                if(foundSubjectData) {
+                    // foundSubjectData 是 { '第一冊': [units], '第二冊': [units] }
+                    Object.keys(foundSubjectData).forEach(function(volName){
+                        volSel.innerHTML += '<option value="'+escapeHtml(volName)+'">'+escapeHtml(volName)+'</option>';
+                    });
+                }
+            } catch(e){ console.log('[WN] onSubjectChange error:', e); }
             if(prefillVol && volSel.querySelector('option[value="'+prefillVol+'"]')) {
                 volSel.value = prefillVol;
                 WN_onVolumeChange(prefillUnit);
@@ -8144,12 +8164,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
             unitSel.innerHTML = '<option value="">請選擇單元</option>';
             if(!subject || !volume) return;
             try {
-                var units = typeof appMaster !== 'undefined' ? (appMaster[subject] || {})[volume] || [] : [];
+                // 從 appMaster 找到 subject 所在 category，取 units 陣列
+                var foundSubjectData = null;
+                if(typeof appMaster !== 'undefined' && appMaster) {
+                    Object.keys(appMaster).forEach(function(cat){
+                        if(foundSubjectData) return;
+                        var subData = appMaster[cat][subject];
+                        if(subData && subData[volume]) { foundSubjectData = subData[volume]; }
+                    });
+                }
+                var units = foundSubjectData || [];
                 units.forEach(function(u){
                     var name = typeof u === 'object' ? u.name : u;
                     unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
                 });
-            } catch(e){}
+            } catch(e){ console.log('[WN] onVolumeChange error:', e); }
             if(prefillUnit && unitSel.querySelector('option[value="'+prefillUnit+'"]')) {
                 unitSel.value = prefillUnit;
             }
@@ -8740,6 +8769,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function renderWrongNotesView() {
             // 每次進入 tab 都重新整理下拉選單
             WN_migrateNotes();
+            // 載入學生
             var sel = document.getElementById('wn-student');
             if(sel) {
                 sel.innerHTML = '<option value="">請選擇學生</option>';
@@ -8751,13 +8781,27 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     });
                 } catch(e){}
             }
+            // 載入科目（橫跨所有 category 的 subject list）
             var sbEl = document.getElementById('wn-subject');
             if(sbEl) {
                 sbEl.innerHTML = '<option value="">請選擇科目</option>';
                 try {
-                    var subjects = typeof appMaster !== 'undefined' ? Object.keys(appMaster || {}) : [];
-                    subjects.forEach(function(s){ sbEl.innerHTML += '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; });
-                } catch(e){}
+                    var seenSubjects = {};
+                    if(typeof appMaster !== 'undefined' && appMaster) {
+                        Object.keys(appMaster).forEach(function(cat){
+                            Object.keys(appMaster[cat] || {}).forEach(function(sub){
+                                if(!seenSubjects[sub]) {
+                                    seenSubjects[sub] = true;
+                                    sbEl.innerHTML += '<option value="'+escapeHtml(sub)+'">'+escapeHtml(sub)+'</option>';
+                                }
+                            });
+                        });
+                    }
+                } catch(e){ console.log('[WN] 科目載入錯誤:', e); }
+            }
+            // 如果appMaster還是空的，等一下再試
+            if(sbEl && sbEl.options.length <= 1) {
+                setTimeout(function(){ renderWrongNotesView(); }, 1000);
             }
             // 如果有外部帶入資料
             if(window._wn_pendingData) {
