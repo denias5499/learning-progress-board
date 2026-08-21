@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.244]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.245]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1590,17 +1590,15 @@
                             <div id="wn-import" class="wn-page active">
                                 <div class="wn-section">
                                     <div class="wn-section-title">📋 基本資料</div>
-                                    <div class="wn-row">
+                                    <div class="wn-row" style="flex-wrap:wrap;gap:10px">
                                         <span class="wn-label">學生:</span>
-                                        <select id="wn-student" class="wn-select" onchange="WN_onStudentChange()"><option value="">請選擇學生</option></select>
+                                        <select id="wn-student" class="wn-select" onchange="WN_onStudentChange()" style="min-width:120px"><option value="">請選擇學生</option></select>
                                         <span class="wn-label">科目:</span>
-                                        <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()"><option value="">請選擇科目</option></select>
-                                    </div>
-                                    <div class="wn-row">
+                                        <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()" style="min-width:120px"><option value="">請選擇科目</option></select>
                                         <span class="wn-label">冊次:</span>
-                                        <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()"><option value="">請選擇冊次</option></select>
+                                        <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()" style="min-width:120px"><option value="">請選擇冊次</option></select>
                                         <span class="wn-label">單元:</span>
-                                        <select id="wn-unit" class="wn-select"><option value="">請選擇單元</option></select>
+                                        <select id="wn-unit" class="wn-select" style="min-width:150px"><option value="">請選擇單元</option></select>
                                     </div>
                                 </div>
                                 <div class="wn-section">
@@ -8040,12 +8038,28 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // --- init WrongNotes view ---
         function WN_init() {
             WN_migrateNotes();
-            WN_loadStudentOptions();
+            // 等 appUsers/appMaster 準備好再載入
+            if(typeof appUsers !== 'undefined' && appUsers.length) {
+                WN_loadStudentOptions();
+            }
+            if(typeof appMaster !== 'undefined' && Object.keys(appMaster||{}).length) {
+                WN_loadSubjectOptions();
+            }
             // 嘗試帶入外部傳入的資料
             if(window._wn_pendingData) {
                 WN_applyPendingData(window._wn_pendingData);
                 window._wn_pendingData = null;
             }
+        }
+
+        function WN_loadSubjectOptions() {
+            var sbEl = document.getElementById('wn-subject');
+            if(!sbEl) return;
+            sbEl.innerHTML = '<option value="">請選擇科目</option>';
+            try {
+                var subjects = typeof appMaster !== 'undefined' ? Object.keys(appMaster || {}) : [];
+                subjects.forEach(function(s){ sbEl.innerHTML += '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; });
+            } catch(e){}
         }
 
         // --- 舊筆記搬遷 myStudyNotes -> StudyMap_WrongNotes ---
@@ -8724,7 +8738,32 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // --- renderWrongNotesView (由 switchStatsView 呼叫) ---
         function renderWrongNotesView() {
-            WN_init();
+            // 每次進入 tab 都重新整理下拉選單
+            WN_migrateNotes();
+            var sel = document.getElementById('wn-student');
+            if(sel) {
+                sel.innerHTML = '<option value="">請選擇學生</option>';
+                try {
+                    var users = typeof appUsers !== 'undefined' ? appUsers : [];
+                    users.forEach(function(u){
+                        var name = u.name || u;
+                        sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                    });
+                } catch(e){}
+            }
+            var sbEl = document.getElementById('wn-subject');
+            if(sbEl) {
+                sbEl.innerHTML = '<option value="">請選擇科目</option>';
+                try {
+                    var subjects = typeof appMaster !== 'undefined' ? Object.keys(appMaster || {}) : [];
+                    subjects.forEach(function(s){ sbEl.innerHTML += '<option value="'+escapeHtml(s)+'">'+escapeHtml(s)+'</option>'; });
+                } catch(e){}
+            }
+            // 如果有外部帶入資料
+            if(window._wn_pendingData) {
+                WN_applyPendingData(window._wn_pendingData);
+                window._wn_pendingData = null;
+            }
         }
 
 
