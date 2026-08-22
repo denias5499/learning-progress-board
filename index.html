@@ -1522,6 +1522,10 @@
                         .wn-section{background:white;border-radius:12px;padding:20px;margin-bottom:15px;border:1.5px solid var(--border)}
                         .wn-section-title{font-size:1.05em;font-weight:bold;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:6px}
                         .wn-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.wn-row-2fields{display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
+.wn-field-group{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.wn-field-group .wn-label{font-weight:bold;color:var(--secondary);min-width:auto}
+.wn-field-group .wn-select{min-width:100px}
                         .wn-label{font-weight:600;color:var(--secondary);min-width:70px}
                         .wn-select{padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;font-size:0.95em;min-width:150px;background:white}
                         .wn-btn{padding:8px 18px;border:none;border-radius:8px;cursor:pointer;font-size:0.95em;font-weight:600;transition:all 0.2s}
@@ -1590,21 +1594,17 @@
                             <div id="wn-import" class="wn-page active">
                                 <div class="wn-section">
                                     <div class="wn-section-title">📋 基本資料</div>
-                                    <div class="wn-row" style="flex-wrap:wrap;gap:8px;align-items:center">
-                                        <span class="wn-label">學生:</span>
-                                        <select id="wn-student" class="wn-select" onchange="WN_onStudentChange()" style="min-width:100px"><option value="">請選擇</option></select>
-                                        <span class="wn-label">科目:</span>
-                                        <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()" style="min-width:100px"><option value="">請選擇</option></select>
-                                        <span class="wn-label">教材:</span>
-                                        <select id="wn-material" class="wn-select" onchange="WN_onMaterialChange()" style="min-width:100px"><option value="">請選擇</option></select>
-                                        <span class="wn-label">教材名:</span>
-                                        <select id="wn-instance" class="wn-select" onchange="WN_onInstanceChange()" style="min-width:100px"><option value="">請選擇</option></select>
-                                        <span class="wn-label">冊次:</span>
-                                        <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()" style="min-width:100px"><option value="">請選擇</option></select>
-                                        <span class="wn-label">單元:</span>
-                                        <select id="wn-unit" class="wn-select" style="min-width:130px"><option value="">請選擇</option></select>
+                                    <div class="wn-row wn-row-2fields">
+                                        <div class="wn-field-group"><span class="wn-label">學生</span><select id="wn-student" class="wn-select" onchange="WN_onStudentChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">科目</span><select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">教材類型</span><select id="wn-material" class="wn-select" onchange="WN_onMaterialChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">教材名</span><select id="wn-instance" class="wn-select" onchange="WN_onInstanceChange()"><option value="">請選擇</option></select></div>
                                     </div>
-                                </div>
+                                    <div class="wn-row wn-row-2fields">
+                                        <div class="wn-field-group"><span class="wn-label">冊次</span><select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">單元</span><select id="wn-unit" class="wn-select"><option value="">請選擇</option></select></div>
+                                    </div>
+
                                 <div class="wn-section">
                                     <div class="wn-section-title">📷 上傳錯題圖片</div>
                                     <div id="wn-drop-zone" class="wn-drop-zone" onclick="document.getElementById('wn-file-input').click()">
@@ -8227,7 +8227,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     if(inst) {
                         console.log('[WN] onInstanceChange inst=', instName, 'vols=', inst.vols ? Object.keys(inst.vols) : 'none', 'volOrder=', JSON.stringify(inst.volOrder||[]), 'units=', JSON.stringify(inst.units||[]).slice(0,100));
                         // 判斷是否為「不分冊」教材：volOrder=["不分冊"] 或 vols=null+volOrder=null
-                        var isNoVol = (inst.volOrder && inst.volOrder.length === 1 && inst.volOrder[0] === '不分冊');
+                        var isNoVol = (inst.volOrder && inst.volOrder.length === 1 && inst.volOrder[0] === '不分冊') ||
+                                     (inst.units && inst.units.length > 0 && inst.units[0] && inst.units[0].vol === '不分冊');
                         console.log('[WN] isNoVol=', isNoVol, 'volOrder=', JSON.stringify(inst.volOrder||[]), 'vols=', inst.vols ? Object.keys(inst.vols) : 'null');
                         if(isNoVol) {
                             // 不分冊：冊次保持「請選擇」(空白)，單元直接顯示所有單元
@@ -8254,16 +8255,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                                 volSel.innerHTML += '<option value="'+escapeHtml(vol)+'">'+escapeHtml(vol)+'</option>';
                             });
                         }
-                        // units 有 vol 欄位（另一種無 vols 結構形式）
-                        else if(inst.units && inst.units.length > 0 && inst.units[0] && inst.units[0].vol) {
-                            var volSet = {};
-                            inst.units.forEach(function(u){
-                                if(u.vol && !volSet[u.vol]) {
-                                    volSet[u.vol] = true;
-                                    volSel.innerHTML += '<option value="'+escapeHtml(u.vol)+'">'+escapeHtml(u.vol)+'</option>';
-                                }
-                            });
-                        }
+
                         // vols=null 且 volOrder=[] 且 units 沒有 vol 欄位 → 冊次=單元本身（如模擬題本翰林穩贏）
                         else if(inst.units && inst.units.length > 0) {
                             console.log('[WN] 冊次=單元 類型: units=', inst.units.map(function(u){return u.name;}));
