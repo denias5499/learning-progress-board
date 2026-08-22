@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.250]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.251]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8040,12 +8040,32 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // --- init WrongNotes view ---
         function WN_init() {
             WN_migrateNotes();
-            WN_loadStudentOptions();
             WN_loadSubjectOptions();
+            WN_loadStudentOptions();
             if(window._wn_pendingData) {
                 WN_applyPendingData(window._wn_pendingData);
                 window._wn_pendingData = null;
             }
+        }
+
+        function WN_waitForUsers(retry) {
+            retry = retry || 0;
+            if(retry > 10) { console.log('[WN] appUsers 載入逾時'); return; }
+            var users = (typeof appUsers !== 'undefined' && appUsers && appUsers.length) ? appUsers : null;
+            if(!users) {
+                console.log('[WN] 等 appUsers... retry', retry);
+                setTimeout(function(){ WN_waitForUsers(retry+1); }, 300);
+                return;
+            }
+            // appUsers ready - populate student dropdown
+            var sel = document.getElementById('wn-student');
+            if(!sel) return;
+            sel.innerHTML = '<option value="">請選擇</option>';
+            users.forEach(function(u){
+                var name = u.name || u;
+                sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+            });
+            console.log('[WN] 學生 loaded:', users.length);
         }
 
         function WN_loadSubjectOptions() {
@@ -8102,14 +8122,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function WN_loadStudentOptions() {
             var sel = document.getElementById('wn-student');
             if(!sel) return;
-            sel.innerHTML = '<option value="">請選擇學生</option>';
-            try {
-                var users = typeof appUsers !== 'undefined' ? appUsers : [];
-                users.forEach(function(u){
-                    var name = u.name || u;
-                    sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
-                });
-            } catch(e){}
+            var users = (typeof appUsers !== 'undefined' && appUsers && appUsers.length) ? appUsers : null;
+            if(!users) {
+                console.log('[WN] appUsers not ready, waiting...');
+                setTimeout(function(){ WN_waitForUsers(1); }, 300);
+                return;
+            }
+            sel.innerHTML = '<option value="">請選擇</option>';
+            users.forEach(function(u){
+                var name = u.name || u;
+                sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+            });
+            console.log('[WN] 學生 loaded directly:', users.length);
         }
 
         function WN_onStudentChange() {
