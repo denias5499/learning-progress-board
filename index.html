@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.5]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.6]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1543,7 +1543,7 @@
                         .wn-crop-area{position:relative;display:inline-block;max-width:100%;overflow:auto;background:#f0f0f0;border-radius:8px;margin-top:10px}
                         .wn-crop-area img{display:block;max-width:100%}
                         .wn-crop-box{position:absolute;border:2px solid #3498db;background:rgba(52,152,219,0.15);cursor:move;display:flex;align-items:center;justify-content:center}
-                        .wn-crop-box .wn-box-delete{position:absolute;top:-10px;right:-10px;width:22px;height:22px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:22px;text-align:center}
+                        .wn-crop-box .wn-box-delete{position:absolute;top:-10px;right:-10px;width:22px;height:22px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:22px;text-align:center;pointer-events:all;z-index:10}
                         .wn-crop-box .wn-box-num{background:var(--accent);color:white;padding:2px 8px;border-radius:10px;font-size:0.8em;font-weight:bold}
                         .wn-mode-bar{display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
                         .wn-mode-btn{padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-size:1em;transition:all 0.2s;font-weight:500}
@@ -1580,7 +1580,7 @@
                         .wn-stat-card.danger .wn-stat-num{color:#e74c3c}
                         .wn-stat-card.success .wn-stat-num{color:#27ae60}
                         .wn-erase-box{position:absolute;border:2px solid #e74c3c;background:rgba(231,76,60,0.15);cursor:move}
-                        .wn-erase-box .wn-erase-del{position:absolute;top:-10px;right:-10px;width:20px;height:20px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:12px}
+                        .wn-erase-box .wn-erase-del{position:absolute;top:-10px;right:-10px;width:22px;height:22px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:22px;text-align:center;pointer-events:all;z-index:10}
                         </style>
 
                         <div class="wn-container">
@@ -8409,8 +8409,13 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var imgEl = document.getElementById('wn-crop-img');
             var isDragging = false, startX, startY, currentBox;
             cropArea.onmousedown = function(e) {
-                console.log('[WN] mousedown guard check:', e.target === cropArea, e.target === imgEl, 'target tag:', e.target.tagName);
-                if(e.target !== cropArea && e.target !== imgEl) return;
+                var isDeleteBtn = e.target.closest('.wn-box-delete, .wn-erase-del');
+                var isBox = e.target.closest('.wn-crop-box, .wn-erase-box');
+                console.log('[WN] mousedown guard check: target tag:', e.target.tagName, 'isDeleteBtn:', !!isDeleteBtn, 'isBox:', !!isBox);
+                // Allow: clicking open space, OR clicking delete button
+                // Block: clicking on existing box body (not the delete button)
+                if(!isDeleteBtn && isBox) return;
+                if(!isDeleteBtn && e.target !== cropArea && e.target !== imgEl) return;
                 e.preventDefault();
                 var rect = cropArea.getBoundingClientRect();
                 var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
