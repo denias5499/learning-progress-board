@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.257]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.258]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8147,6 +8147,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function WN_onSubjectChange(prefillVol, prefillUnit) {
+            WN_STATE.isVolUnitShared = false;
             var subject = document.getElementById('wn-subject').value;
             var matSel = document.getElementById('wn-material');
             var volSel = document.getElementById('wn-volume');
@@ -8171,6 +8172,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
 function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
+            WN_STATE.isVolUnitShared = false;
             var subject = document.getElementById('wn-subject').value;
             var matName = document.getElementById('wn-material').value;
             var instSel = document.getElementById('wn-instance');
@@ -8215,6 +8217,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             WN_STATE.currentInstance = instName;
             volSel.innerHTML = '<option value="">請選擇</option>';
             unitSel.innerHTML = '<option value="">請選擇</option>';
+            WN_STATE.isVolUnitShared = false;
             if(!subject || !matName || !instName) return;
             try {
                 var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
@@ -8264,6 +8267,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         // vols=null 且 volOrder=[] 且 units 沒有 vol 欄位 → 冊次=單元本身（如模擬題本翰林穩贏）
                         else if(inst.units && inst.units.length > 0) {
                             console.log('[WN] 冊次=單元 類型: units=', inst.units.map(function(u){return u.name;}));
+                            WN_STATE.isVolUnitShared = true;
                             inst.units.forEach(function(u){
                                 var name = typeof u === 'object' ? (u.name || u) : u;
                                 volSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
@@ -8312,8 +8316,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         }
                         console.log('[WN] onVolumeChange vol=', volName, 'units count=', units.length, 'first=', units[0] ? (units[0].name||units[0]) : 'none');
                         // 冊次=單元類型：volName 有值但 units 為空 → 直接用 volName 填 unitSel
-                        if(volName && !units.length) {
+                        if(volName && !units.length && WN_STATE.isVolUnitShared) {
                             unitSel.innerHTML = '<option value="'+escapeHtml(volName)+'">'+escapeHtml(volName)+'</option>';
+                            WN_STATE.currentUnit = volName;
                         } else {
                             units.forEach(function(u){
                                 var name = typeof u === 'object' ? u.name : u;
