@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.249]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.250]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8040,14 +8040,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // --- init WrongNotes view ---
         function WN_init() {
             WN_migrateNotes();
-            // 等 appUsers/appMaster 準備好再載入
-            if(typeof appUsers !== 'undefined' && appUsers.length) {
-                WN_loadStudentOptions();
-            }
-            if(typeof appMaster !== 'undefined' && Object.keys(appMaster||{}).length) {
-                WN_loadSubjectOptions();
-            }
-            // 嘗試帶入外部傳入的資料
+            WN_loadStudentOptions();
+            WN_loadSubjectOptions();
             if(window._wn_pendingData) {
                 WN_applyPendingData(window._wn_pendingData);
                 window._wn_pendingData = null;
@@ -8057,17 +8051,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function WN_loadSubjectOptions() {
             var sbEl = document.getElementById('wn-subject');
             if(!sbEl) return;
-            sbEl.innerHTML = '<option value="">請選擇科目</option>';
+            sbEl.innerHTML = '<option value="">請選擇</option>';
             try {
-                var seenSubjects = {};
-                if(typeof appMaster !== 'undefined') {
-                    Object.keys(appMaster).forEach(function(cat){
-                        Object.keys(appMaster[cat] || {}).forEach(function(sub){
-                            if(!seenSubjects[sub]) {
-                                seenSubjects[sub] = true;
-                                sbEl.innerHTML += '<option value="'+escapeHtml(sub)+'">'+escapeHtml(sub)+'</option>';
-                            }
-                        });
+                if(typeof appMaster !== 'undefined' && appMaster) {
+                    Object.keys(appMaster).forEach(function(sub){
+                        if(!appMaster[sub] || typeof appMaster[sub] !== 'object') return;
+                        if(!appMaster[sub].materials) return;
+                        sbEl.innerHTML += '<option value="'+escapeHtml(sub)+'">'+escapeHtml(sub)+'</option>';
                     });
                 }
             } catch(e){ console.log('[WN] loadSubjectOptions error:', e); }
@@ -8791,6 +8781,19 @@ function WN_onMaterialChange(prefillVol, prefillUnit) {
 
         // --- renderWrongNotesView (由 switchStatsView 呼叫) ---
         function renderWrongNotesView() {
+            // DEBUG: dump appMaster structure
+            try {
+                console.log('[WN] === appMaster Structure ===');
+                console.log('[WN] appMaster type:', typeof appMaster);
+                console.log('[WN] appMaster keys:', appMaster ? Object.keys(appMaster) : 'null');
+                if(appMaster) {
+                    Object.keys(appMaster).forEach(function(key) {
+                        console.log('[WN] appMaster['+key+'] =', JSON.stringify(appMaster[key]).slice(0,300));
+                    });
+                }
+                console.log('[WN] === END appMaster ===');
+            } catch(e) { console.log('[WN] dump error:', e); }
+
             // 每次進入 tab 都重新整理下拉選單
             WN_migrateNotes();
             // 載入學生
@@ -8805,20 +8808,17 @@ function WN_onMaterialChange(prefillVol, prefillUnit) {
                     });
                 } catch(e){}
             }
-            // 載入科目（橫跨所有 category 的 subject list）
+            // 載入科目：直接取 appMaster keys，過濾掉無效 key（如 materials 是屬性名）
             var sbEl = document.getElementById('wn-subject');
             if(sbEl) {
-                sbEl.innerHTML = '<option value="">請選擇科目</option>';
+                sbEl.innerHTML = '<option value="">請選擇</option>';
                 try {
-                    var seenSubjects = {};
                     if(typeof appMaster !== 'undefined' && appMaster) {
-                        Object.keys(appMaster).forEach(function(cat){
-                            Object.keys(appMaster[cat] || {}).forEach(function(sub){
-                                if(!seenSubjects[sub]) {
-                                    seenSubjects[sub] = true;
-                                    sbEl.innerHTML += '<option value="'+escapeHtml(sub)+'">'+escapeHtml(sub)+'</option>';
-                                }
-                            });
+                        Object.keys(appMaster).forEach(function(sub){
+                            // materials 是 appMaster 某個 subject 的屬性名稱（boolean），不是獨立科目，必須過濾
+                            if(!appMaster[sub] || typeof appMaster[sub] !== 'object') return;
+                            if(!appMaster[sub].materials) return;
+                            sbEl.innerHTML += '<option value="'+escapeHtml(sub)+'">'+escapeHtml(sub)+'</option>';
                         });
                     }
                 } catch(e){ console.log('[WN] 科目載入錯誤:', e); }
