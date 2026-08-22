@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.258]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.259]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1599,12 +1599,10 @@
                                         <div class="wn-field-group"><span class="wn-label">科目</span><select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()"><option value="">請選擇</option></select></div>
                                         <div class="wn-field-group"><span class="wn-label">教材類型</span><select id="wn-material" class="wn-select" onchange="WN_onMaterialChange()"><option value="">請選擇</option></select></div>
                                         <div class="wn-field-group"><span class="wn-label">教材名</span><select id="wn-instance" class="wn-select" onchange="WN_onInstanceChange()"><option value="">請選擇</option></select></div>
-                                    </div>
-                                    <div class="wn-row wn-row-2fields">
                                         <div class="wn-field-group"><span class="wn-label">冊次</span><select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()"><option value="">請選擇</option></select></div>
                                         <div class="wn-field-group"><span class="wn-label">單元</span><select id="wn-unit" class="wn-select"><option value="">請選擇</option></select></div>
                                     </div>
-
+                                </div>
                                 <div class="wn-section">
                                     <div class="wn-section-title">📷 上傳錯題圖片</div>
                                     <div id="wn-drop-zone" class="wn-drop-zone" onclick="document.getElementById('wn-file-input').click()">
@@ -8226,9 +8224,11 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     var inst = instances.find(function(i){ return i.name === instName; });
                     if(inst) {
                         console.log('[WN] onInstanceChange inst=', instName, 'vols=', inst.vols ? Object.keys(inst.vols) : 'none', 'volOrder=', JSON.stringify(inst.volOrder||[]), 'units=', JSON.stringify(inst.units||[]).slice(0,100));
-                        // 判斷是否為「不分冊」教材：volOrder=["不分冊"] 或 vols=null+volOrder=null
+                        // 判斷是否為「不分冊」教材：
+                        // 條件A: volOrder=["不分冊"]
+                        // 條件B: volOrder=[]（空）且 vols=null → 所有 units 都是同一冊次（不分冊）
                         var isNoVol = (inst.volOrder && inst.volOrder.length === 1 && inst.volOrder[0] === '不分冊') ||
-                                     (inst.units && inst.units.length > 0 && inst.units[0] && inst.units[0].vol === '不分冊');
+                                     (!inst.volOrder || inst.volOrder.length === 0) && inst.vols === null;
                         console.log('[WN] isNoVol=', isNoVol, 'volOrder=', JSON.stringify(inst.volOrder||[]), 'vols=', inst.vols ? Object.keys(inst.vols) : 'null');
                         if(isNoVol) {
                             // 不分冊：冊次保持「請選擇」(空白)，單元直接顯示所有單元
