@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.251]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.252]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1597,6 +1597,8 @@
                                         <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()" style="min-width:100px"><option value="">請選擇</option></select>
                                         <span class="wn-label">教材:</span>
                                         <select id="wn-material" class="wn-select" onchange="WN_onMaterialChange()" style="min-width:100px"><option value="">請選擇</option></select>
+                                        <span class="wn-label">教材名:</span>
+                                        <select id="wn-instance" class="wn-select" onchange="WN_onInstanceChange()" style="min-width:100px"><option value="">請選擇</option></select>
                                         <span class="wn-label">冊次:</span>
                                         <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()" style="min-width:100px"><option value="">請選擇</option></select>
                                         <span class="wn-label">單元:</span>
@@ -8015,7 +8017,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // --- 狀態 ---
         var WN_STATE = {
-            currentStudent: '', currentSubject: '', currentMaterial: '', currentVolume: '', currentUnit: '',
+            currentStudent: '', currentSubject: '', currentMaterial: '', currentInstance: '', currentVolume: '', currentUnit: '',
             cropBoxes: [], eraseBoxes: [],
             mode: 'add', // 'add' | 'erase' | 'clean'
             importedImage: null, cleanImage: null, importedFileName: '',
@@ -8107,15 +8109,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // --- 帶入資料（從答對率頁跳轉時呼叫） ---
         function WN_applyPendingData(data) {
-            // data: {student, subject, volume, unit}
+            // data: {student, subject, material, instance, volume, unit}
             var sEl = document.getElementById('wn-student');
             var sbEl = document.getElementById('wn-subject');
+            var matEl = document.getElementById('wn-material');
             var vEl = document.getElementById('wn-volume');
             var uEl = document.getElementById('wn-unit');
             if(sEl) sEl.value = data.student || '';
             if(sbEl) sbEl.value = data.subject || '';
-            // 觸發 change 以刷新下層選項
-            if(sbEl) WN_onSubjectChange(data.volume, data.unit);
+            if(matEl) matEl.value = data.material || '';
+            // 觸發 cascade：subject → material → instance → vol → unit
+            if(matEl && matEl.value) WN_onMaterialChange(data.instance, data.volume, data.unit);
         }
 
         // --- 載入學生/科目/冊次/單元 下拉選單 ---
@@ -8147,6 +8151,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var unitSel = document.getElementById('wn-unit');
             WN_STATE.currentSubject = subject;
             matSel.innerHTML = '<option value="">請選擇</option>';
+            document.getElementById('wn-instance').innerHTML = '<option value="">請選擇</option>';
             volSel.innerHTML = '<option value="">請選擇</option>';
             unitSel.innerHTML = '<option value="">請選擇</option>';
             if(!subject) return;
@@ -8163,26 +8168,78 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } catch(e){ console.log('[WN] onSubjectChange error:', e); }
         }
 
-function WN_onMaterialChange(prefillVol, prefillUnit) {
+function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var subject = document.getElementById('wn-subject').value;
             var matName = document.getElementById('wn-material').value;
+            var instSel = document.getElementById('wn-instance');
             var volSel = document.getElementById('wn-volume');
             var unitSel = document.getElementById('wn-unit');
             WN_STATE.currentMaterial = matName;
+            WN_STATE.currentInstance = '';
+            instSel.innerHTML = '<option value="">請選擇</option>';
             volSel.innerHTML = '<option value="">請選擇</option>';
             unitSel.innerHTML = '<option value="">請選擇</option>';
             if(!subject || !matName) return;
             try {
+                // 教材類型 → instances (教材名稱)
                 var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
-                console.log('[WN] onMaterialChange mat=', matName, 'subjData.materials[matName]=', subjData && subjData.materials ? subjData.materials[matName] : 'null');
                 if(subjData && subjData.materials && subjData.materials[matName]) {
                     var instances = subjData.materials[matName].instances || [];
-                    console.log('[WN] instances:', instances.map(function(i){ return i.name; }));
+                    console.log('[WN] onMaterialChange mat=', matName, 'instances=', instances.map(function(i){ return i.name; }));
                     instances.forEach(function(inst){
-                        volSel.innerHTML += '<option value="'+escapeHtml(inst.name)+'">'+escapeHtml(inst.name)+'</option>';
+                        instSel.innerHTML += '<option value="'+escapeHtml(inst.name)+'">'+escapeHtml(inst.name)+'</option>';
                     });
                 }
             } catch(e){ console.log('[WN] onMaterialChange error:', e); }
+            // 如果有預填的 instance/vol/unit，先等 instance 載入再設定
+            if(prefillInst) {
+                setTimeout(function(){
+                    var opt = instSel.querySelector('option[value="'+prefillInst+'"]');
+                    if(opt) {
+                        instSel.value = prefillInst;
+                        WN_onInstanceChange(prefillVol, prefillUnit);
+                    }
+                }, 50);
+            }
+        }
+
+        // --- 選擇教材名稱後：設定冊次 + 單元 ---
+        function WN_onInstanceChange(prefillVol, prefillUnit) {
+            var subject = document.getElementById('wn-subject').value;
+            var matName = document.getElementById('wn-material').value;
+            var instName = document.getElementById('wn-instance').value;
+            var volSel = document.getElementById('wn-volume');
+            var unitSel = document.getElementById('wn-unit');
+            WN_STATE.currentInstance = instName;
+            volSel.innerHTML = '<option value="">請選擇</option>';
+            unitSel.innerHTML = '<option value="">請選擇</option>';
+            if(!subject || !matName || !instName) return;
+            try {
+                var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
+                if(subjData && subjData.materials && subjData.materials[matName]) {
+                    var instances = subjData.materials[matName].instances || [];
+                    var inst = instances.find(function(i){ return i.name === instName; });
+                    if(inst) {
+                        console.log('[WN] onInstanceChange inst=', instName, 'vols=', inst.vols ? Object.keys(inst.vols) : 'none', 'units=', JSON.stringify(inst.units||[]).slice(0,100));
+                        // 冊次：優先從 vols (type=volume)，否則從 units 的 vol 欄位
+                        if(inst.vols) {
+                            Object.keys(inst.vols).forEach(function(vol){
+                                volSel.innerHTML += '<option value="'+escapeHtml(vol)+'">'+escapeHtml(vol)+'</option>';
+                            });
+                        }
+                        // 如果 units 有 vol 欄位，代表冊次是 units 自己的 vol 值
+                        else if(inst.units && inst.units.length > 0 && inst.units[0].vol) {
+                            var volSet = {};
+                            inst.units.forEach(function(u){
+                                if(u.vol && !volSet[u.vol]) {
+                                    volSet[u.vol] = true;
+                                    volSel.innerHTML += '<option value="'+escapeHtml(u.vol)+'">'+escapeHtml(u.vol)+'</option>';
+                                }
+                            });
+                        }
+                    }
+                }
+            } catch(e){ console.log('[WN] onInstanceChange error:', e); }
             if(prefillVol) {
                 setTimeout(function(){
                     if(volSel.querySelector('option[value="'+prefillVol+'"]')) {
@@ -8196,6 +8253,7 @@ function WN_onMaterialChange(prefillVol, prefillUnit) {
         function WN_onVolumeChange(prefillUnit) {
             var subject = document.getElementById('wn-subject').value;
             var matName = document.getElementById('wn-material').value;
+            var instName = document.getElementById('wn-instance').value;
             var volName = document.getElementById('wn-volume').value;
             var unitSel = document.getElementById('wn-unit');
             WN_STATE.currentVolume = volName;
@@ -8205,16 +8263,22 @@ function WN_onMaterialChange(prefillVol, prefillUnit) {
                 var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
                 if(subjData && subjData.materials && subjData.materials[matName]) {
                     var instances = subjData.materials[matName].instances || [];
-                    instances.forEach(function(inst){
-                        if(inst.name === volName) {
-                            var units = inst.units || [];
-                            console.log('[WN] onVolumeChange units:', units);
-                            units.forEach(function(u){
-                                var name = typeof u === 'object' ? u.name : u;
-                                unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
-                            });
+                    var inst = instances.find(function(i){ return i.name === instName; });
+                    if(inst) {
+                        var units = [];
+                        // 從 vols[volName] 取單元
+                        if(inst.vols && inst.vols[volName]) {
+                            units = inst.vols[volName];
+                        } else if(inst.units) {
+                            // 從 units 陣列過濾 vol=volName 的項目
+                            units = inst.units.filter(function(u){ return u.vol === volName; });
                         }
-                    });
+                        console.log('[WN] onVolumeChange vol=', volName, 'units=', units.map(function(u){ return u.name||u; }));
+                        units.forEach(function(u){
+                            var name = typeof u === 'object' ? u.name : u;
+                            unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                        });
+                    }
                 }
             } catch(e){ console.log('[WN] onVolumeChange error:', e); }
             if(prefillUnit) {
@@ -8456,7 +8520,7 @@ function WN_onMaterialChange(prefillVol, prefillUnit) {
                 notes.push({
                     id: Date.now() + '_' + i,
                     date: new Date().toISOString().slice(0,10),
-                    student: student, subject: subject, material: WN_STATE.currentMaterial, volume: volume, unit: unit,
+                    student: student, subject: subject, material: WN_STATE.currentMaterial, instance: WN_STATE.currentInstance, volume: volume, unit: unit,
                     source: source, reasons: WN_STATE.selectedReasons.slice(),
                     imgUrl: imgData, content: content,
                     practiced: 0, mastered: 0, stillWrong: 0
