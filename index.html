@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.259]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.0]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8475,6 +8475,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         // --- 內容感知填補（消除答案） ---
+        // --- 內容感知填補（消除答案） ---
         function WN_applyErase() {
             if(!WN_STATE.eraseBoxes.length || !WN_STATE.importedImage) return;
             var img = document.getElementById('wn-crop-img');
@@ -8483,31 +8484,98 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             canvas.height = img.naturalHeight;
             var ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
+
             WN_STATE.eraseBoxes.forEach(function(box) {
-                // 內容感知填補：用周圍顏色填補
-                var patchSize = Math.max(box.w, box.h) * 0.5;
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(box.x, box.y, box.w, box.h);
-                // 簡單模糊填補：取周圍平均色彩
-                try {
-                    var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    var d = imgData.data;
-                    var r=0,g=0,b=0,cnt=0;
-                    // 取框外圍邊緣像素平均值
-                    for(var py = Math.max(0,box.y-2); py < Math.min(canvas.height, box.y+box.h+2); py++) {
-                        for(var px = Math.max(0,box.x-2); px < Math.min(canvas.width, box.x+box.w+2); px++) {
-                            if(py < box.y || py >= box.y+box.h || px < box.x || px >= box.x+box.w) {
-                                var idx = (py*canvas.width+px)*4;
+                var bx = Math.round(box.x), by = Math.round(box.y);
+                var bw = Math.round(box.w), bh = Math.round(box.h);
+                // Pad to avoid border issues
+                var PAD = 12;
+                var sx = Math.max(0, bx - PAD), sy = Math.max(0, by - PAD);
+                var sw = Math.min(canvas.width - sx, bw + PAD*2);
+                var sh = Math.min(canvas.height - sy, bh + PAD*2);
+
+                var imgData = ctx.getImageData(sx, sy, sw, sh);
+                var d = imgData.data;
+                var localW = sw, localH = sh;
+
+                // Build grayscale array for faster access
+                var gray = new Uint16Array(localW * localH);
+                for(var i=0; i<gray.length; i++) {
+                    gray[i] = (d[i*4]*77 + d[i*4+1]*150 + d[i*4+2]*29) >> 8;
+                }
+
+                // Compute 11x11 local median for each pixel (approximate with min filter + threshold)
+                var MED = 11;
+                var HPAD = MED >> 1;
+                var penMask = new Uint8Array(localW * localH);
+
+                for(var y=HPAD; y<localH-HPAD; y++) {
+                    for(var x=HPAD; x<localW-HPAD; x++) {
+                        // Compute local min (darkest pixel in window - pen marks are dark)
+                        var minVal = 255, minCnt = 0, sumVal = 0, sumCnt = 0;
+                        for(var fy=-HPAD; fy<=HPAD; fy++) {
+                            for(var fx=-HPAD; fx<=HPAD; fx++) {
+                                var v = gray[(y+fy)*localW + (x+fx)];
+                                if(v < minVal) minVal = v;
+                                sumVal += v; sumCnt++;
+                            }
+                        }
+                        var localMedian = Math.round(sumVal / sumCnt);
+                        var center = gray[y*localW + x];
+
+                        // Pen candidate: significantly darker than local average
+                        // and not already very dark (to avoid killing print text)
+                        if(center < localMedian - 18 && center > 15) {
+                            penMask[y*localW + x] = 1;
+                        }
+                    }
+                }
+
+                // Replace pen pixels with neighborhood average
+                var REPL = 8; // replacement radius
+                for(var y=HPAD; y<localH-HPAD; y++) {
+                    for(var x=HPAD; x<localW-HPAD; x++) {
+                        if(!penMask[y*localW + x]) continue;
+                        var r=0,g=0,b=0,cnt=0;
+                        outer:
+                        for(var fy=-REPL; fy<=REPL; fy++) {
+                            for(var fx=-REPL; fx<=REPL; fx++) {
+                                var nx=x+fx, ny=y+fy;
+                                if(nx<0||nx>=localW||ny<0||ny>=localH) continue;
+                                if(penMask[ny*localW+nx]) continue; // skip other pen pixels
+                                var idx=(ny*localW+nx)*4;
                                 r+=d[idx]; g+=d[idx+1]; b+=d[idx+2]; cnt++;
                             }
                         }
+                        if(cnt > 0) {
+                            var idx=(y*localW+x)*4;
+                            d[idx]   = Math.round(r/cnt);
+                            d[idx+1] = Math.round(g/cnt);
+                            d[idx+2] = Math.round(b/cnt);
+                        } else {
+                            // fallback: use surrounding average
+                            var r2=0,g2=0,b2=0,cnt2=0;
+                            for(var fy=-REPL; fy<=REPL; fy++) {
+                                for(var fx=-REPL; fx<=REPL; fx++) {
+                                    var nx=x+fx, ny=y+fy;
+                                    if(nx<0||nx>=localW||ny<0||ny>=localH) continue;
+                                    var idx2=(ny*localW+nx)*4;
+                                    r2+=d[idx2]; g2+=d[idx2+1]; b2+=d[idx2+2]; cnt2++;
+                                }
+                            }
+                            if(cnt2>0) {
+                                var idx=(y*localW+x)*4;
+                                d[idx]   = Math.round(r2/cnt2);
+                                d[idx+1] = Math.round(g2/cnt2);
+                                d[idx+2] = Math.round(b2/cnt2);
+                            }
+                        }
                     }
-                    if(cnt>0) { r=Math.round(r/cnt); g=Math.round(g/cnt); b=Math.round(b/cnt); }
-                    ctx.fillStyle = 'rgb('+r+','+g+','+b+')';
-                    ctx.fillRect(box.x+1, box.y+1, box.w-2, box.h-2);
-                } catch(err){}
+                }
+
+                ctx.putImageData(imgData, sx, sy);
             });
-            // 更新顯示
+
             var newDataUrl = canvas.toDataURL('image/png');
             document.getElementById('wn-crop-img').src = newDataUrl;
             WN_STATE.importedImage = newDataUrl;
