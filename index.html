@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.252]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.253]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8126,18 +8126,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function WN_loadStudentOptions() {
             var sel = document.getElementById('wn-student');
             if(!sel) return;
-            var users = (typeof appUsers !== 'undefined' && appUsers && appUsers.length) ? appUsers : null;
-            if(!users) {
-                console.log('[WN] appUsers not ready, waiting...');
-                setTimeout(function(){ WN_waitForUsers(1); }, 300);
+            // 學生資料在 multiData：{ userId: {name: "學生名", ...}, ... }
+            var users = (typeof multiData !== 'undefined' && multiData) ? Object.keys(multiData).map(function(uid){ return {name: multiData[uid].name || uid}; }) : [];
+            if(!users.length) {
+                console.log('[WN] multiData not ready, waiting...');
+                setTimeout(function(){ WN_loadStudentOptions(); }, 300);
                 return;
             }
             sel.innerHTML = '<option value="">請選擇</option>';
             users.forEach(function(u){
-                var name = u.name || u;
+                var name = u.name || '';
                 sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
             });
-            console.log('[WN] 學生 loaded directly:', users.length);
+            console.log('[WN] 學生 loaded:', users.length, users.map(function(u){return u.name;}));
         }
 
         function WN_onStudentChange() {
@@ -8220,14 +8221,34 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     var instances = subjData.materials[matName].instances || [];
                     var inst = instances.find(function(i){ return i.name === instName; });
                     if(inst) {
-                        console.log('[WN] onInstanceChange inst=', instName, 'vols=', inst.vols ? Object.keys(inst.vols) : 'none', 'units=', JSON.stringify(inst.units||[]).slice(0,100));
-                        // 冊次：優先從 vols (type=volume)，否則從 units 的 vol 欄位
-                        if(inst.vols) {
+                        console.log('[WN] onInstanceChange inst=', instName, 'vols=', inst.vols ? Object.keys(inst.vols) : 'none', 'volOrder=', JSON.stringify(inst.volOrder||[]), 'units=', JSON.stringify(inst.units||[]).slice(0,100));
+                        // 判斷是否為「不分冊」教材：volOrder=["不分冊"] 或 vols=null+volOrder=null
+                        var isNoVol = (inst.volOrder && inst.volOrder.length === 1 && inst.volOrder[0] === '不分冊');
+                        if(isNoVol) {
+                            // 不分冊：冊次鎖定為「不分冊」，直接顯示單元
+                            volSel.innerHTML = '<option value="不分冊" disabled>不分冊</option>';
+                            volSel.value = '不分冊';
+                            WN_STATE.currentVolume = '不分冊';
+                            // 直接渲染單元
+                            (inst.units || []).forEach(function(u){
+                                var name = typeof u === 'object' ? (u.name || u) : u;
+                                unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                            });
+                            // 如果有 prefillUnit，自動設定
+                            if(prefillUnit) {
+                                setTimeout(function(){
+                                    var opt = unitSel.querySelector('option[value="'+prefillUnit+'"]');
+                                    if(opt) unitSel.value = prefillUnit;
+                                }, 50);
+                            }
+                        }
+                        // 一般冊次教材：從 vols 讀冊次
+                        else if(inst.vols) {
                             Object.keys(inst.vols).forEach(function(vol){
                                 volSel.innerHTML += '<option value="'+escapeHtml(vol)+'">'+escapeHtml(vol)+'</option>';
                             });
                         }
-                        // 如果 units 有 vol 欄位，代表冊次是 units 自己的 vol 值
+                        // units 有 vol 欄位（另一種無 vols 結構成式）
                         else if(inst.units && inst.units.length > 0 && inst.units[0].vol) {
                             var volSet = {};
                             inst.units.forEach(function(u){
@@ -8240,7 +8261,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     }
                 }
             } catch(e){ console.log('[WN] onInstanceChange error:', e); }
-            if(prefillVol) {
+            if(prefillVol && prefillVol !== '不分冊') {
                 setTimeout(function(){
                     if(volSel.querySelector('option[value="'+prefillVol+'"]')) {
                         volSel.value = prefillVol;
@@ -8266,11 +8287,16 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     var inst = instances.find(function(i){ return i.name === instName; });
                     if(inst) {
                         var units = [];
-                        // 從 vols[volName] 取單元
-                        if(inst.vols && inst.vols[volName]) {
+                        // 不分冊：直接從 inst.units 取（volName === "不分冊"）
+                        if(volName === '不分冊' || (inst.volOrder && inst.volOrder.length === 1 && inst.volOrder[0] === '不分冊')) {
+                            units = inst.units || [];
+                        }
+                        // 一般冊次教材：從 vols[volName] 取
+                        else if(inst.vols && inst.vols[volName]) {
                             units = inst.vols[volName];
-                        } else if(inst.units) {
-                            // 從 units 陣列過濾 vol=volName 的項目
+                        }
+                        // units 有 vol 欄位
+                        else if(inst.units) {
                             units = inst.units.filter(function(u){ return u.vol === volName; });
                         }
                         console.log('[WN] onVolumeChange vol=', volName, 'units=', units.map(function(u){ return u.name||u; }));
