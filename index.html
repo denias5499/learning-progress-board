@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.0]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.1]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1605,7 +1605,7 @@
                                 </div>
                                 <div class="wn-section">
                                     <div class="wn-section-title">📷 上傳錯題圖片</div>
-                                    <div id="wn-drop-zone" class="wn-drop-zone" onclick="document.getElementById('wn-file-input').click()">
+                                    <div id="wn-drop-zone" class="wn-drop-zone" onclick="document.getElementById('wn-file-input').click()" ondragover="WN_onDragOver(event)" ondrop="WN_onDrop(event)">
                                         <p>📁 拖曳圖片或 PDF 到這裡</p>
                                         <p style="font-size:0.85em;color:#95a5a6;">或點擊選擇檔案（支援 jpg, png, webp, pdf）</p>
                                     </div>
@@ -1614,6 +1614,7 @@
                                         <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
                                         <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
                                         <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
+                                        <button class="wn-cancel-btn" onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
                                         <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
                                     </div>
                                     <div id="wn-crop-area" class="wn-crop-area" style="display:none">
@@ -8327,6 +8328,43 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         // --- 檔案處理 ---
+        function WN_onDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var dz = document.getElementById('wn-drop-zone');
+            if(dz) dz.classList.add('drag-over');
+        }
+        function WN_onDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var dz = document.getElementById('wn-drop-zone');
+            if(dz) dz.classList.remove('drag-over');
+            var files = e.dataTransfer.files;
+            if(files.length > 0) {
+                var input = document.getElementById('wn-file-input');
+                // Transfer files to the hidden input
+                var dt = new DataTransfer();
+                for(var i=0; i<files.length; i++) dt.items.add(files[i]);
+                input.files = dt.files;
+                WN_handleFileInput(input);
+            }
+        }
+        function WN_cancelImage() {
+            var cropArea = document.getElementById('wn-crop-area');
+            var dropZone = document.getElementById('wn-drop-zone');
+            var modeBar = document.getElementById('wn-mode-bar');
+            var img = document.getElementById('wn-crop-img');
+            if(cropArea) cropArea.style.display = 'none';
+            if(dropZone) dropZone.style.display = 'block';
+            if(modeBar) modeBar.style.display = 'none';
+            if(img) img.src = '';
+            WN_STATE.importedImage = null;
+            WN_STATE.importedFileName = null;
+            WN_STATE.cropBoxes = [];
+            WN_STATE.eraseBoxes = [];
+            WN_renderBoxes();
+            document.getElementById('wn-file-input').value = '';
+        }
         function WN_handleFileInput(input) {
             if(!input.files.length) return;
             var file = input.files[0];
@@ -8343,10 +8381,12 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var cropArea = document.getElementById('wn-crop-area');
             var img = document.getElementById('wn-crop-img');
             var modeBar = document.getElementById('wn-mode-bar');
+            var dropZone = document.getElementById('wn-drop-zone');
             img.src = dataUrl;
             img.onload = function() {
                 cropArea.style.display = 'inline-block';
                 modeBar.style.display = 'flex';
+                if(dropZone) dropZone.style.display = 'none';
                 WN_STATE.cropBoxes = [];
                 WN_STATE.eraseBoxes = [];
                 WN_STATE.mode = 'add';
