@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.246]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.247]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1592,13 +1592,15 @@
                                     <div class="wn-section-title">📋 基本資料</div>
                                     <div class="wn-row" style="flex-wrap:wrap;gap:8px;align-items:center">
                                         <span class="wn-label">學生:</span>
-                                        <select id="wn-student" class="wn-select" onchange="WN_onStudentChange()" style="min-width:110px"><option value="">請選擇學生</option></select>
+                                        <select id="wn-student" class="wn-select" onchange="WN_onStudentChange()" style="min-width:100px"><option value="">請選擇</option></select>
                                         <span class="wn-label">科目:</span>
-                                        <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()" style="min-width:110px"><option value="">請選擇科目</option></select>
+                                        <select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()" style="min-width:100px"><option value="">請選擇</option></select>
+                                        <span class="wn-label">教材:</span>
+                                        <select id="wn-material" class="wn-select" onchange="WN_onMaterialChange()" style="min-width:100px"><option value="">請選擇</option></select>
                                         <span class="wn-label">冊次:</span>
-                                        <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()" style="min-width:110px"><option value="">請選擇冊次</option></select>
+                                        <select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()" style="min-width:100px"><option value="">請選擇</option></select>
                                         <span class="wn-label">單元:</span>
-                                        <select id="wn-unit" class="wn-select" style="min-width:140px"><option value="">請選擇單元</option></select>
+                                        <select id="wn-unit" class="wn-select" style="min-width:130px"><option value="">請選擇</option></select>
                                     </div>
                                 </div>
                                 <div class="wn-section">
@@ -8013,7 +8015,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // --- 狀態 ---
         var WN_STATE = {
-            currentStudent: '', currentSubject: '', currentVolume: '', currentUnit: '',
+            currentStudent: '', currentSubject: '', currentMaterial: '', currentVolume: '', currentUnit: '',
             cropBoxes: [], eraseBoxes: [],
             mode: 'add', // 'add' | 'erase' | 'clean'
             importedImage: null, cleanImage: null, importedFileName: '',
@@ -8126,61 +8128,101 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         function WN_onSubjectChange(prefillVol, prefillUnit) {
             var subject = document.getElementById('wn-subject').value;
+            var matSel = document.getElementById('wn-material');
             var volSel = document.getElementById('wn-volume');
             var unitSel = document.getElementById('wn-unit');
             WN_STATE.currentSubject = subject;
-            volSel.innerHTML = '<option value="">請選擇冊次</option>';
-            unitSel.innerHTML = '<option value="">請選擇單元</option>';
+            matSel.innerHTML = '<option value="">請選擇</option>';
+            volSel.innerHTML = '<option value="">請選擇</option>';
+            unitSel.innerHTML = '<option value="">請選擇</option>';
             if(!subject) return;
             try {
-                // appMaster 結構：{ category: { subject: { instanceName: [units...] } } }
-                // 找出這個 subject 隸屬哪個 category，取該 category 內的 materials (instances)
-                var foundCat = null, foundSubjectData = null;
+                // appMaster 結構：{ category: { subject: { materials: { typeName: { instances: [{name,units}]} } } } }
+                // 找出 subject 所在 category
+                var foundCat = null, foundSubjData = null;
                 if(typeof appMaster !== 'undefined' && appMaster) {
                     Object.keys(appMaster).forEach(function(cat){
-                        if(foundSubjectData) return;
-                        var subData = appMaster[cat][subject];
-                        if(subData) { foundCat = cat; foundSubjectData = subData; }
+                        if(foundSubjData) return;
+                        if(appMaster[cat] && appMaster[cat][subject]) {
+                            foundCat = cat;
+                            foundSubjData = appMaster[cat][subject];
+                        }
                     });
                 }
-                if(foundSubjectData) {
-                    // foundSubjectData 是 { '第一冊': [units], '第二冊': [units] }
-                    Object.keys(foundSubjectData).forEach(function(volName){
-                        volSel.innerHTML += '<option value="'+escapeHtml(volName)+'">'+escapeHtml(volName)+'</option>';
+                if(foundSubjData && foundSubjData.materials) {
+                    // materials 的 key 就是教材類型
+                    Object.keys(foundSubjData.materials).forEach(function(matName){
+                        matSel.innerHTML += '<option value="'+escapeHtml(matName)+'">'+escapeHtml(matName)+'</option>';
                     });
                 }
             } catch(e){ console.log('[WN] onSubjectChange error:', e); }
-            if(prefillVol && volSel.querySelector('option[value="'+prefillVol+'"]')) {
-                volSel.value = prefillVol;
-                WN_onVolumeChange(prefillUnit);
+        }
+
+        function WN_onMaterialChange(prefillVol, prefillUnit) {
+            var subject = document.getElementById('wn-subject').value;
+            var matName = document.getElementById('wn-material').value;
+            var volSel = document.getElementById('wn-volume');
+            var unitSel = document.getElementById('wn-unit');
+            WN_STATE.currentMaterial = matName;
+            volSel.innerHTML = '<option value="">請選擇</option>';
+            unitSel.innerHTML = '<option value="">請選擇</option>';
+            if(!subject || !matName) return;
+            try {
+                // 從 appMaster 找到 materials[matName].instances，取實例名稱當冊次
+                var foundInstances = null;
+                if(typeof appMaster !== 'undefined' && appMaster) {
+                    Object.keys(appMaster).forEach(function(cat){
+                        if(foundInstances) return;
+                        var subData = (appMaster[cat] || {})[subject];
+                        if(subData && subData.materials && subData.materials[matName]) {
+                            foundInstances = subData.materials[matName].instances || [];
+                        }
+                    });
+                }
+                foundInstances.forEach(function(inst){
+                    volSel.innerHTML += '<option value="'+escapeHtml(inst.name)+'">'+escapeHtml(inst.name)+'</option>';
+                });
+            } catch(e){ console.log('[WN] onMaterialChange error:', e); }
+            if(prefillVol) {
+                setTimeout(function(){
+                    if(volSel.querySelector('option[value="'+prefillVol+'"]')) {
+                        volSel.value = prefillVol;
+                        WN_onVolumeChange(prefillUnit);
+                    }
+                }, 50);
             }
         }
 
         function WN_onVolumeChange(prefillUnit) {
             var subject = document.getElementById('wn-subject').value;
-            var volume = document.getElementById('wn-volume').value;
+            var matName = document.getElementById('wn-material').value;
+            var volName = document.getElementById('wn-volume').value;
             var unitSel = document.getElementById('wn-unit');
-            WN_STATE.currentVolume = volume;
-            unitSel.innerHTML = '<option value="">請選擇單元</option>';
-            if(!subject || !volume) return;
+            WN_STATE.currentVolume = volName;
+            unitSel.innerHTML = '<option value="">請選擇</option>';
+            if(!subject || !matName || !volName) return;
             try {
-                // 從 appMaster 找到 subject 所在 category，取 units 陣列
-                var foundSubjectData = null;
+                // 從 appMaster 找 materials[matName].instances，找 volName 這個實例，取其 units
+                var foundUnits = [];
                 if(typeof appMaster !== 'undefined' && appMaster) {
                     Object.keys(appMaster).forEach(function(cat){
-                        if(foundSubjectData) return;
-                        var subData = appMaster[cat][subject];
-                        if(subData && subData[volume]) { foundSubjectData = subData[volume]; }
+                        if(foundUnits.length) return;
+                        var subData = (appMaster[cat] || {})[subject];
+                        if(subData && subData.materials && subData.materials[matName]) {
+                            var instances = subData.materials[matName].instances || [];
+                            instances.forEach(function(inst){
+                                if(inst.name === volName) { foundUnits = inst.units || []; }
+                            });
+                        }
                     });
                 }
-                var units = foundSubjectData || [];
-                units.forEach(function(u){
+                foundUnits.forEach(function(u){
                     var name = typeof u === 'object' ? u.name : u;
                     unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
                 });
             } catch(e){ console.log('[WN] onVolumeChange error:', e); }
-            if(prefillUnit && unitSel.querySelector('option[value="'+prefillUnit+'"]')) {
-                unitSel.value = prefillUnit;
+            if(prefillUnit) {
+                setTimeout(function(){ if(unitSel.querySelector('option[value="'+prefillUnit+'"]')) unitSel.value = prefillUnit; }, 50);
             }
             WN_STATE.currentUnit = unitSel.value;
         }
@@ -8418,7 +8460,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 notes.push({
                     id: Date.now() + '_' + i,
                     date: new Date().toISOString().slice(0,10),
-                    student: student, subject: subject, volume: volume, unit: unit,
+                    student: student, subject: subject, material: WN_STATE.currentMaterial, volume: volume, unit: unit,
                     source: source, reasons: WN_STATE.selectedReasons.slice(),
                     imgUrl: imgData, content: content,
                     practiced: 0, mastered: 0, stillWrong: 0
