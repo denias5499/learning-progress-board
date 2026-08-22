@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.3]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.4]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8385,8 +8385,14 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             img.src = dataUrl;
             img.onload = function() {
                 cropArea.style.display = 'inline-block';
+                cropArea.style.border = '2px solid red'; // debug
                 modeBar.style.display = 'flex';
                 if(dropZone) dropZone.style.display = 'none';
+                var rect = cropArea.getBoundingClientRect();
+                var imgRect = img.getBoundingClientRect();
+                console.log('[WN] cropArea rect:', JSON.stringify({w:Math.round(rect.width),h:Math.round(rect.height)}));
+                console.log('[WN] img rect:', JSON.stringify({w:Math.round(imgRect.width),h:Math.round(imgRect.height),naturalW:img.naturalWidth,naturalH:img.naturalHeight}));
+                console.log('[WN] cropArea children:', cropArea.children.length);
                 WN_STATE.cropBoxes = [];
                 WN_STATE.eraseBoxes = [];
                 WN_STATE.mode = 'add';
