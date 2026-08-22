@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.255]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.256]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8926,17 +8926,19 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
             // 每次進入 tab 都重新整理下拉選單
             WN_migrateNotes();
-            // 載入學生
+            // 載入學生（用 multiData）
             var sel = document.getElementById('wn-student');
             if(sel) {
-                sel.innerHTML = '<option value="">請選擇學生</option>';
+                sel.innerHTML = '<option value="">請選擇</option>';
                 try {
-                    var users = typeof appUsers !== 'undefined' ? appUsers : [];
-                    users.forEach(function(u){
-                        var name = u.name || u;
-                        sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
-                    });
-                } catch(e){}
+                    if(typeof multiData !== 'undefined' && multiData) {
+                        Object.keys(multiData).forEach(function(uid){
+                            var name = multiData[uid].name || uid;
+                            sel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                        });
+                    }
+                    console.log('[WN] 學生 dropdown populated, count=', sel.options.length);
+                } catch(e){ console.log('[WN] 學生載入錯誤:', e); }
             }
             // 載入科目：直接取 appMaster keys，過濾掉無效 key（如 materials 是屬性名）
             var sbEl = document.getElementById('wn-subject');
