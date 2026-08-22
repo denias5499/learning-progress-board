@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.2]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.3]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8402,6 +8402,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var cropArea = document.getElementById('wn-crop-area');
             var isDragging = false, startX, startY, currentBox;
             cropArea.onmousedown = function(e) {
+                console.log('[WN] mousedown target:', e.target.id, 'tag:', e.target.tagName, 'mode:', WN_STATE.mode);
                 if(e.target !== cropArea && e.target !== document.getElementById('wn-crop-img')) return;
                 e.preventDefault();
                 var rect = cropArea.getBoundingClientRect();
@@ -8431,6 +8432,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 WN_renderBoxes();
             };
             cropArea.onmouseup = function(e) {
+                console.log('[WN] mouseup, isDragging:', isDragging, 'currentBox:', currentBox);
                 if(!isDragging) return;
                 isDragging = false;
                 if(currentBox && currentBox.w > 10 && currentBox.h > 10) {
