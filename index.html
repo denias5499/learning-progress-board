@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.248]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.249]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8137,34 +8137,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
             unitSel.innerHTML = '<option value="">請選擇</option>';
             if(!subject) return;
             try {
-                // appMaster 結構：{ category: { subject: { materials: { typeName: { instances: [{name,units}]} } } } }
-                // 找出 subject 所在 category
-                var foundCat = null, foundSubjData = null;
-                console.log('[WN] onSubjectChange subject=', subject);
-                console.log('[WN] appMaster keys=', typeof appMaster !== 'undefined' ? Object.keys(appMaster) : 'undefined');
-                if(typeof appMaster !== 'undefined' && appMaster) {
-                    Object.keys(appMaster).forEach(function(cat){
-                        console.log('[WN] checking cat=', cat, 'subjects in cat=', appMaster[cat] ? Object.keys(appMaster[cat]) : 'null');
-                        if(foundSubjData) return;
-                        if(appMaster[cat] && appMaster[cat][subject]) {
-                            foundCat = cat;
-                            foundSubjData = appMaster[cat][subject];
-                            console.log('[WN] found! cat=', cat, 'subjData.materials=', foundSubjData.materials ? Object.keys(foundSubjData.materials) : 'none');
-                        }
-                    });
-                }
-                if(foundSubjData && foundSubjData.materials) {
-                    Object.keys(foundSubjData.materials).forEach(function(matName){
+                // appMaster 結構：appMaster[subjectName] = { materials: { typeName: { instances: [{name, units}]} } }
+                // 直接用 appMaster[subject] 取 materials（不需要繞 category）
+                var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
+                console.log('[WN] onSubjectChange subject=', subject, '-> subjData.materials=', subjData && subjData.materials ? Object.keys(subjData.materials) : 'null');
+                if(subjData && subjData.materials) {
+                    Object.keys(subjData.materials).forEach(function(matName){
                         matSel.innerHTML += '<option value="'+escapeHtml(matName)+'">'+escapeHtml(matName)+'</option>';
                     });
-                    console.log('[WN] materials added, count=', Object.keys(foundSubjData.materials).length);
-                } else {
-                    console.log('[WN] foundSubjData or .materials is null/undefined');
                 }
             } catch(e){ console.log('[WN] onSubjectChange error:', e); }
         }
 
-        function WN_onMaterialChange(prefillVol, prefillUnit) {
+function WN_onMaterialChange(prefillVol, prefillUnit) {
             var subject = document.getElementById('wn-subject').value;
             var matName = document.getElementById('wn-material').value;
             var volSel = document.getElementById('wn-volume');
@@ -8174,20 +8159,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
             unitSel.innerHTML = '<option value="">請選擇</option>';
             if(!subject || !matName) return;
             try {
-                // 從 appMaster 找到 materials[matName].instances，取實例名稱當冊次
-                var foundInstances = null;
-                if(typeof appMaster !== 'undefined' && appMaster) {
-                    Object.keys(appMaster).forEach(function(cat){
-                        if(foundInstances) return;
-                        var subData = (appMaster[cat] || {})[subject];
-                        if(subData && subData.materials && subData.materials[matName]) {
-                            foundInstances = subData.materials[matName].instances || [];
-                        }
+                var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
+                console.log('[WN] onMaterialChange mat=', matName, 'subjData.materials[matName]=', subjData && subjData.materials ? subjData.materials[matName] : 'null');
+                if(subjData && subjData.materials && subjData.materials[matName]) {
+                    var instances = subjData.materials[matName].instances || [];
+                    console.log('[WN] instances:', instances.map(function(i){ return i.name; }));
+                    instances.forEach(function(inst){
+                        volSel.innerHTML += '<option value="'+escapeHtml(inst.name)+'">'+escapeHtml(inst.name)+'</option>';
                     });
                 }
-                foundInstances.forEach(function(inst){
-                    volSel.innerHTML += '<option value="'+escapeHtml(inst.name)+'">'+escapeHtml(inst.name)+'</option>';
-                });
             } catch(e){ console.log('[WN] onMaterialChange error:', e); }
             if(prefillVol) {
                 setTimeout(function(){
@@ -8208,24 +8188,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
             unitSel.innerHTML = '<option value="">請選擇</option>';
             if(!subject || !matName || !volName) return;
             try {
-                // 從 appMaster 找 materials[matName].instances，找 volName 這個實例，取其 units
-                var foundUnits = [];
-                if(typeof appMaster !== 'undefined' && appMaster) {
-                    Object.keys(appMaster).forEach(function(cat){
-                        if(foundUnits.length) return;
-                        var subData = (appMaster[cat] || {})[subject];
-                        if(subData && subData.materials && subData.materials[matName]) {
-                            var instances = subData.materials[matName].instances || [];
-                            instances.forEach(function(inst){
-                                if(inst.name === volName) { foundUnits = inst.units || []; }
+                var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
+                if(subjData && subjData.materials && subjData.materials[matName]) {
+                    var instances = subjData.materials[matName].instances || [];
+                    instances.forEach(function(inst){
+                        if(inst.name === volName) {
+                            var units = inst.units || [];
+                            console.log('[WN] onVolumeChange units:', units);
+                            units.forEach(function(u){
+                                var name = typeof u === 'object' ? u.name : u;
+                                unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
                             });
                         }
                     });
                 }
-                foundUnits.forEach(function(u){
-                    var name = typeof u === 'object' ? u.name : u;
-                    unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
-                });
             } catch(e){ console.log('[WN] onVolumeChange error:', e); }
             if(prefillUnit) {
                 setTimeout(function(){ if(unitSel.querySelector('option[value="'+prefillUnit+'"]')) unitSel.value = prefillUnit; }, 50);
