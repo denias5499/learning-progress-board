@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.6]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.7]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8404,124 +8404,208 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         function WN_setupCropEvents() {
-            console.log('[WN] setupCropEvents called, mode:', WN_STATE.mode);
             var cropArea = document.getElementById('wn-crop-area');
             var imgEl = document.getElementById('wn-crop-img');
-            var isDragging = false, startX, startY, currentBox;
-            cropArea.onmousedown = function(e) {
-                var isDeleteBtn = e.target.closest('.wn-box-delete, .wn-erase-del');
-                var isBox = e.target.closest('.wn-crop-box, .wn-erase-box');
-                console.log('[WN] mousedown guard check: target tag:', e.target.tagName, 'isDeleteBtn:', !!isDeleteBtn, 'isBox:', !!isBox);
-                // Allow: clicking open space, OR clicking delete button
-                // Block: clicking on existing box body (not the delete button)
-                if(!isDeleteBtn && isBox) return;
-                if(!isDeleteBtn && e.target !== cropArea && e.target !== imgEl) return;
+            if(!cropArea || !imgEl) return;
+
+            // === Box mousedown: drag or resize (uses stopPropagation like old code) ===
+            function onBoxMouseDown(e) {
+                if(e.target.classList.contains('wn-box-delete') || e.target.classList.contains('wn-erase-del')) return; // let delete btn work
                 e.preventDefault();
+                e.stopPropagation();
+
+                var box = e.currentTarget;
+                var isErase = WN_STATE.mode === 'erase';
+
+                // Get current pointer position relative to cropArea
                 var rect = cropArea.getBoundingClientRect();
-                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
-                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
-                startX = (e.clientX - rect.left) * scaleX;
-                startY = (e.clientY - rect.top) * scaleY;
-                isDragging = true;
-                if(WN_STATE.mode === 'add') {
-                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
-                } else if(WN_STATE.mode === 'erase') {
-                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
-                }
-            };
-            cropArea.onmousemove = function(e) {
-                if(!isDragging || !currentBox) return;
-                e.preventDefault();
-                var rect = cropArea.getBoundingClientRect();
-                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
-                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
-                var curX = (e.clientX - rect.left) * scaleX;
-                var curY = (e.clientY - rect.top) * scaleY;
-                currentBox.w = Math.abs(curX - startX);
-                currentBox.h = Math.abs(curY - startY);
-                currentBox.x = Math.min(startX, curX);
-                currentBox.y = Math.min(startY, curY);
-                WN_renderBoxes();
-            };
-            cropArea.onmouseup = function(e) {
-                console.log('[WN] mouseup, isDragging:', isDragging, 'currentBox:', currentBox);
-                if(!isDragging) return;
-                isDragging = false;
-                if(currentBox && currentBox.w > 10 && currentBox.h > 10) {
-                    if(WN_STATE.mode === 'add') {
-                        WN_STATE.cropBoxes.push(currentBox);
-                    } else if(WN_STATE.mode === 'erase') {
-                        WN_STATE.eraseBoxes.push(currentBox);
-                        WN_applyErase();
+                var startX = e.clientX;
+                var startY = e.clientY;
+                var startLeft = box.offsetLeft;
+                var startTop = box.offsetTop;
+                var startW = box.offsetWidth;
+                var startH = box.offsetHeight;
+
+                var isResizing = e.target.classList.contains('resize-tl') || e.target.classList.contains('resize-br');
+
+                function onMouseMove(e) {
+                    var dx = e.clientX - startX;
+                    var dy = e.clientY - startY;
+                    var scaleX = cropArea.offsetWidth / imgEl.offsetWidth;
+                    var scaleY = cropArea.offsetHeight / imgEl.offsetHeight;
+
+                    if(isResizing) {
+                        if(e.target.classList.contains('resize-br')) {
+                            box.style.width = Math.max(30, startW + dx / scaleX) + 'px';
+                            box.style.height = Math.max(20, startH + dy / scaleY) + 'px';
+                        } else if(e.target.classList.contains('resize-tl')) {
+                            var newW = Math.max(30, startW - dx / scaleX);
+                            var newH = Math.max(20, startH - dy / scaleY);
+                            if(newW > 30) { box.style.left = (startLeft + dx / scaleX) + 'px'; box.style.width = newW + 'px'; }
+                            if(newH > 20) { box.style.top = (startTop + dy / scaleY) + 'px'; box.style.height = newH + 'px'; }
+                        }
+                    } else {
+                        // Drag: move box
+                        box.style.left = Math.max(0, startLeft + dx / scaleX) + 'px';
+                        box.style.top = Math.max(0, startTop + dy / scaleY) + 'px';
                     }
                 }
-                currentBox = null;
+
+                function onMouseUp(e) {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            }
+
+            // === Container mousedown: create new box when clicking on background ===
+            cropArea.addEventListener('mousedown', function(e) {
+                // If clicking on existing box, let box's own handler take over
+                if(e.target.closest('.wn-crop-box, .wn-erase-box')) return;
+
+                // Clicking on background or img: create new box at click position
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var scaleX = imgEl.naturalWidth / imgEl.offsetWidth;
+                var scaleY = imgEl.naturalHeight / imgEl.offsetHeight;
+                var clickX = (e.clientX - rect.left) * scaleX;
+                var clickY = (e.clientY - rect.top) * scaleY;
+
+                var newBox = {
+                    id: Date.now(),
+                    x: clickX - 100,
+                    y: clickY - 50,
+                    w: 200,
+                    h: 100,
+                    isErase: WN_STATE.mode === 'erase'
+                };
+
+                if(WN_STATE.mode === 'add') {
+                    WN_STATE.cropBoxes.push(newBox);
+                } else if(WN_STATE.mode === 'erase') {
+                    WN_STATE.eraseBoxes.push(newBox);
+                    // Immediately apply erase
+                    setTimeout(function() { WN_applyErase(); }, 50);
+                }
                 WN_renderBoxes();
-            };
-            cropArea.onmouseleave = function() { if(isDragging && currentBox) { currentBox = null; isDragging = false; } };
+            });
+
+            // Attach drag handlers to existing boxes
+            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(box) {
+                box.addEventListener('mousedown', onBoxMouseDown);
+            });
         }
 
         function WN_renderBoxes() {
             var cropArea = document.getElementById('wn-crop-area');
             if(!cropArea) return;
-            // 移除舊框
             cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b){ b.remove(); });
             var img = document.getElementById('wn-crop-img');
-            var rect = cropArea.getBoundingClientRect();
-            var scaleX = rect.width / img.naturalWidth;
-            var scaleY = rect.height / img.naturalHeight;
+            if(!img) return;
+            var scaleX = img.offsetWidth / img.naturalWidth;
+            var scaleY = img.offsetHeight / img.naturalHeight;
 
-            // 繪製裁切框（藍色）
+            function makeBox(box, isErase) {
+                var div = document.createElement('div');
+                div.className = isErase ? 'wn-erase-box' : 'wn-crop-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.dataset.id = box.id;
+
+                // Delete button
+                var del = document.createElement('button');
+                del.className = isErase ? 'wn-erase-del' : 'wn-box-delete';
+                del.innerHTML = '✕';
+                del.onclick = function(e) {
+                    e.stopPropagation();
+                    if(isErase) {
+                        WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== box.id; });
+                    } else {
+                        WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== box.id; });
+                    }
+                    WN_renderBoxes();
+                };
+                div.appendChild(del);
+
+                // Resize handles (old style: tl and br)
+                var tl = document.createElement('div');
+                tl.className = 'resize-handle resize-tl';
+                div.appendChild(tl);
+                var br = document.createElement('div');
+                br.className = 'resize-handle resize-br';
+                div.appendChild(br);
+
+                // Number label for crop boxes
+                if(!isErase) {
+                    var num = document.createElement('span');
+                    num.className = 'wn-box-num';
+                    num.style.cssText = 'position:absolute;top:4px;left:4px;background:var(--accent);color:white;padding:2px 8px;border-radius:10px;font-size:0.8em;font-weight:bold;pointer-events:none;';
+                    div.appendChild(num);
+                }
+
+                return div;
+            }
+
             WN_STATE.cropBoxes.forEach(function(box, i) {
-                var div = document.createElement('div');
-                div.className = 'wn-crop-box';
-                div.style.left = (box.x * scaleX) + 'px';
-                div.style.top = (box.y * scaleY) + 'px';
-                div.style.width = (box.w * scaleX) + 'px';
-                div.style.height = (box.h * scaleY) + 'px';
-                div.innerHTML = '<span class="wn-box-num">'+(i+1)+'</span><button class="wn-box-delete" onclick="WN_deleteBox(event, box.id)">✕</button>';
+                var div = makeBox(box, false);
+                div.querySelector('.wn-box-num').textContent = i + 1;
                 cropArea.appendChild(div);
             });
+            WN_STATE.eraseBoxes.forEach(function(box) {
+                cropArea.appendChild(makeBox(box, true));
+            });
 
-            // 繪製消除框（紅色）
-            WN_STATE.eraseBoxes.forEach(function(box, i) {
-                var div = document.createElement('div');
-                div.className = 'wn-erase-box';
-                div.style.left = (box.x * scaleX) + 'px';
-                div.style.top = (box.y * scaleY) + 'px';
-                div.style.width = (box.w * scaleX) + 'px';
-                div.style.height = (box.h * scaleY) + 'px';
-                div.innerHTML = '<button class="wn-erase-del" onclick="WN_deleteEraseBox(event, box.id)">✕</button>';
-                cropArea.appendChild(div);
+            // Re-attach mousedown handlers (for newly created boxes)
+            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(box) {
+                box.onmousedown = function(e) {
+                    if(e.target.classList.contains('wn-box-delete') || e.target.classList.contains('wn-erase-del')) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var startX = e.clientX, startY = e.clientY;
+                    var startLeft = box.offsetLeft, startTop = box.offsetTop, startW = box.offsetWidth, startH = box.offsetHeight;
+                    var isErase = box.classList.contains('wn-erase-box');
+                    var boxId = parseInt(box.dataset.id);
+
+                    function onMove(e) {
+                        var dx = e.clientX - startX, dy = e.clientY - startY;
+                        var scaleX = img.offsetWidth / img.naturalWidth;
+                        var scaleY = img.offsetHeight / img.naturalHeight;
+                        if(e.target.classList.contains('resize-br')) {
+                            box.style.width = Math.max(30, startW + dx / scaleX) + 'px';
+                            box.style.height = Math.max(20, startH + dy / scaleY) + 'px';
+                        } else if(e.target.classList.contains('resize-tl')) {
+                            var newW = Math.max(30, startW - dx / scaleX);
+                            var newH = Math.max(20, startH - dy / scaleY);
+                            if(newW > 30) { box.style.left = (startLeft + dx / scaleX) + 'px'; box.style.width = newW + 'px'; }
+                            if(newH > 20) { box.style.top = (startTop + dy / scaleY) + 'px'; box.style.height = newH + 'px'; }
+                        } else {
+                            box.style.left = Math.max(0, startLeft + dx / scaleX) + 'px';
+                            box.style.top = Math.max(0, startTop + dy / scaleY) + 'px';
+                        }
+                    }
+                    function onUp(e) {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        // Update box coords in state
+                        var arr = isErase ? WN_STATE.eraseBoxes : WN_STATE.cropBoxes;
+                        var b = arr.find(function(x){ return x.id === boxId; });
+                        if(b) {
+                            b.x = parseFloat(box.style.left) / scaleX;
+                            b.y = parseFloat(box.style.top) / scaleY;
+                            b.w = parseFloat(box.style.width) / scaleX;
+                            b.h = parseFloat(box.style.height) / scaleY;
+                        }
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                };
             });
         }
 
-        function WN_deleteBox(e, id) {
-            e.stopPropagation();
-            WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== id; });
-            WN_renderBoxes();
-        }
-
-        function WN_deleteEraseBox(e, id) {
-            e.stopPropagation();
-            WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== id; });
-            WN_renderBoxes();
-        }
-
-        function WN_setMode(mode) {
-            WN_STATE.mode = mode;
-            WN_updateModeButtons();
-            console.log('[WN] mode changed to:', mode, 'cropArea display:', document.getElementById('wn-crop-area')?.style.display);
-        }
-
-        function WN_updateModeButtons() {
-            ['add','erase','clean'].forEach(function(m){
-                var btn = document.getElementById('wn-mode-'+m);
-                if(btn) btn.classList.toggle('active', WN_STATE.mode === m);
-            });
-            var cleanUpload = document.getElementById('wn-clean-upload');
-            if(cleanUpload) cleanUpload.style.display = (WN_STATE.mode === 'clean') ? 'block' : 'none';
-        }
 
         function WN_clearAllBoxes() {
             WN_STATE.cropBoxes = [];
