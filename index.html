@@ -1079,10 +1079,15 @@
             line-height: 1;
         }
         
+        .wn-crop-workspace { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 20px 100px 20px; display:flex; flex-direction:column; align-items:center; gap:20px; }
+        /* wn-crop-workspace: full-screen scrollable workspace inside crop modal */
+        .wn-crop-workspace { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 20px 100px 20px; display:flex; flex-direction:column; align-items:center; gap:20px; }
         /* ===== Old Wrong-Note DB Styles ===== */
         /* crop-modal: full-screen overlay (position:fixed set by JS when shown) */
 /* crop-modal: full-screen overlay - must be isolated from parent stacking contexts */
-#crop-modal { display:none; position:fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:0 !important; width:100vw !important; height:100vh !important; background:rgba(0,0,0,0.95) !important; z-index:99999 !important; flex-direction:column; align-items:center; justify-content:center; overflow:auto; padding:20px; box-sizing:border-box; }
+/* crop-modal: full-screen overlay - fixed to viewport, no scrollbar issues */
+#crop-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#e8ecef; z-index:9000; flex-direction:column; overflow:hidden; }
+
         .wn-crop-area.wn-crop-area-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; z-index:9000; overflow:auto; padding:20px; box-sizing:border-box; }
         .crop-header-wrapper { background:#f8f9fa; border-bottom:2px solid #dee2e6; padding:15px 20px; position:sticky; top:0; z-index:10; }
         .crop-header { max-width:900px; margin:0 auto; }
@@ -1095,6 +1100,7 @@
         .glass-btn-small { padding:7px 16px; border:1.5px solid rgba(0,0,0,0.15); border-radius:20px; font-size:0.9em; cursor:pointer; background:#fff; transition:all 0.2s; }
         .glass-btn-small:hover { border-color:var(--accent,#3498db); }
         .page-container { position:relative; display:inline-block; width:100%; }
+
         .page-container img, .page-container canvas { display:block; width:100%; }
         .mock-crop-box { position:absolute; border:2px solid #3498db; background:rgba(52,152,219,0.15); cursor:move; box-sizing:border-box; display:flex; align-items:center; justify-content:center; z-index:5; }
         .delete-box-btn { position:absolute; top:-10px; right:-10px; width:22px; height:22px; background:#e74c3c; color:#fff; border:none; border-radius:50%; cursor:pointer; font-size:13px; line-height:22px; text-align:center; z-index:15; }
@@ -8309,7 +8315,7 @@ async function handleFilesForCrop(files) {
         const workspace = document.getElementById('wn-crop-workspace');
         workspace.innerHTML = ''; 
         document.getElementById('crop-modal').style.display = 'flex';
-        document.getElementById('crop-modal').style.position = 'fixed';
+        // position:fixed already set by CSS
         // CRITICAL: Activate stats-wrongnotes so ALL its children (settings-container, note-page, view-page) are visible
         var statsWN = document.getElementById('stats-wrongnotes');
         if(statsWN) {
@@ -8732,7 +8738,7 @@ function toggleCardSource(selectEl) {
     }
 function finishCropping() {
         document.getElementById('crop-modal').style.display = 'none';
-        document.getElementById('crop-modal').style.position = 'relative';
+        // position reset not needed
         // Show settings-container and scroll to it
         var settingsContainer = document.getElementById('settings-container');
         if(settingsContainer) {
@@ -8740,13 +8746,6 @@ function finishCropping() {
             setTimeout(function() {
                 settingsContainer.scrollIntoView({ behavior: 'smooth' });
             }, 100);
-        }
-        // If no cards were created, just show the upload area
-        var slider = document.getElementById('cards-slider');
-        if(slider && slider.children.length === 0) {
-            // No cards = user uploaded but didn't crop anything
-            // Go to import-page to let them try again or crop
-            if(typeof goToPage === 'function') goToPage('import-page');
         }
     }
 function cancelCropping() {
