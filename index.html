@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.14]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.259]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1078,77 +1078,7 @@
             color: #78350f; font-size: 1.2em; padding: 0 6px;
             line-height: 1;
         }
-        
-        .wn-crop-workspace { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 20px 100px 20px; display:flex; flex-direction:column; align-items:center; gap:20px; }
-        /* wn-crop-workspace: full-screen scrollable workspace inside crop modal */
-        .wn-crop-workspace { flex:1; overflow-y:auto; overflow-x:hidden; padding:0 20px 100px 20px; display:flex; flex-direction:column; align-items:center; gap:20px; }
-        /* ===== Old Wrong-Note DB Styles ===== */
-        /* crop-modal: full-screen overlay (position:fixed set by JS when shown) */
-/* crop-modal: full-screen overlay - must be isolated from parent stacking contexts */
-/* crop-modal: full-screen overlay - fixed to viewport, no scrollbar issues */
-#crop-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#e8ecef; z-index:9000; flex-direction:column; }
-
-        .wn-crop-area.wn-crop-area-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; z-index:9000; overflow:auto; padding:20px; box-sizing:border-box; }
-        .crop-header-wrapper { background:#f8f9fa; border-bottom:2px solid #dee2e6; padding:15px 20px; position:sticky; top:0; z-index:10; }
-        .crop-header { max-width:900px; margin:0 auto; }
-        .crop-modal-footer { display:flex; justify-content:center; gap:15px; padding:15px; background:#f8f9fa; border-top:2px solid #dee2e6; position:absolute; bottom:0; left:0; right:0; z-index:10; }
-        .glass-btn { padding:10px 28px; border:none; border-radius:25px; font-size:1em; cursor:pointer; transition:all 0.2s; }
-        .glass-btn-cancel { background:#fff; color:#e74c3c; border:2px solid #e74c3c; }
-        .glass-btn-cancel:hover { background:#e74c3c; color:#fff; }
-        .glass-btn-complete { background:var(--accent,#3498db); color:#fff; }
-        .glass-btn-complete:hover { background:#2980b9; }
-        .glass-btn-small { padding:7px 16px; border:1.5px solid rgba(0,0,0,0.15); border-radius:20px; font-size:0.9em; cursor:pointer; background:#fff; transition:all 0.2s; }
-        .glass-btn-small:hover { border-color:var(--accent,#3498db); }
-        .page-container { position:relative; max-width:800px; width:100%; margin:0 auto; }
-
-        .page-container img, .page-container canvas { display:block; width:100%; }
-        .mock-crop-box { position:absolute; border:2px solid #3498db; background:rgba(52,152,219,0.15); cursor:move; box-sizing:border-box; display:flex; align-items:center; justify-content:center; z-index:5; }
-        .delete-box-btn { position:absolute; top:-10px; right:-10px; width:22px; height:22px; background:#e74c3c; color:#fff; border:none; border-radius:50%; cursor:pointer; font-size:13px; line-height:22px; text-align:center; z-index:15; }
-        .resize-handle { position:absolute; width:12px; height:12px; background:#e74c3c; border-radius:50%; z-index:15; }
-        .resize-handle.tl { top:-6px; left:-6px; cursor:nw-resize; }
-        .resize-handle.br { bottom:-6px; right:-6px; cursor:se-resize; }
-        .add-crop-btn { width:28px; height:28px; background:var(--accent,#3498db); color:#fff; border:none; border-radius:50%; font-size:18px; line-height:28px; cursor:pointer; z-index:10; }
-        .add-crop-btn.selected { background:#27ae60; }
-        .slider-container { display:flex; gap:10px; overflow-x:auto; padding:10px 0; align-items:flex-start; }
-        .file-card { flex:0 0 200px; background:#fff; border:2px solid #dee2e6; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; position:relative; max-height:280px; overflow-y:auto; }
-        .file-card img { width:100%; border-radius:6px; object-fit:contain; max-height:120px; }
-        .file-card .delete-card-btn { position:absolute; top:5px; right:5px; width:20px; height:20px; background:#e74c3c; color:#fff; border:none; border-radius:50%; cursor:pointer; font-size:12px; line-height:20px; }
-        .file-card select, .file-card input[type=text] { width:100%; padding:5px; border:1.5px solid #dee2e6; border-radius:6px; font-size:0.85em; box-sizing:border-box; }
-        .generate-btn { display:block; margin:10px auto; padding:10px 30px; background:var(--accent,#3498db); color:#fff; border:none; border-radius:25px; font-size:1em; cursor:pointer; }
-        .generate-btn:hover { background:#2980b9; }
-        .note-slot { background:#fff; border-radius:12px; margin-bottom:15px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
-        .note-slot-header { display:flex; gap:15px; padding:10px 15px; color:#fff; font-size:0.9em; flex-wrap:wrap; }
-        .note-slot-body { display:flex; gap:15px; padding:15px; }
-        .note-left { flex:0 0 180px; }
-        .note-right { flex:1; display:flex; flex-direction:column; gap:10px; }
-        .note-img-area img { max-width:100%; border-radius:8px; }
-        .note-grid-area { min-height:60px; padding:8px; border:1.5px dashed #dee2e6; border-radius:8px; font-size:0.95em; line-height:1.5; outline:none; }
-        .note-grid-area:focus { border-color:var(--accent,#3498db); }
-        .note-grid-area:empty:before { content:attr(placeholder); color:#aaa; }
-        .note-action-btns { display:flex; gap:8px; margin-top:10px; }
-        .action-btn-small { padding:5px 12px; border:1.5px solid #dee2e6; background:#fff; border-radius:6px; cursor:pointer; font-size:0.85em; }
-        .action-btn-small:hover { border-color:var(--accent,#3498db); }
-        .save-btn-container { text-align:center; padding:15px; }
-        .btn-save { padding:10px 30px; background:#27ae60; color:#fff; border:none; border-radius:25px; font-size:1em; cursor:pointer; }
-        .btn-save:hover { background:#1e8449; }
-        .filter-bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:10px; }
-        .filter-select { padding:6px 10px; border:1.5px solid #dee2e6; border-radius:8px; font-size:0.9em; }
-        .btn-print { padding:6px 14px; background:#fff; border:1.5px solid #dee2e6; border-radius:8px; cursor:pointer; font-size:0.9em; }
-        .placeholder-text { text-align:center; color:#aaa; padding:40px; font-size:1.1em; }
-        .checkbox-group label { display:block; padding:3px 0; font-size:0.9em; cursor:pointer; }
-
-        /* Override .wn-crop-area styles for #crop-modal so it works as full-screen overlay */
-        body #crop-modal { position:fixed !important; top:0 !important; left:0 !important; width:100% !important; height:100% !important; background:#e8ecef !important; z-index:9000 !important; display:flex !important; flex-direction:column !important; }
-        /* ===== End Old Wrong-Note DB Styles ===== */
-
-
-
-        /* ===== Old Wrong-Note DB page system ===== */
-        .page { display: none !important; }
-        .page.active { display: block !important; }
-        /* ===== End Old Wrong-Note DB page system =====
-
-</style>
+        </style>
 </head>
 <body>
 
@@ -1675,43 +1605,23 @@
                                 </div>
                                 <div class="wn-section">
                                     <div class="wn-section-title">📷 上傳錯題圖片</div>
-                                    <div id="wn-drop-zone" class="wn-drop-zone drop-zone" onclick="document.getElementById('wn-file-input').click()" >
+                                    <div id="wn-drop-zone" class="wn-drop-zone" onclick="document.getElementById('wn-file-input').click()" ondragover="WN_onDragOver(event)" ondrop="WN_onDrop(event)">
                                         <p>📁 拖曳圖片或 PDF 到這裡</p>
                                         <p style="font-size:0.85em;color:#95a5a6;">或點擊選擇檔案（支援 jpg, png, webp, pdf）</p>
                                     </div>
-                                    <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" multiple onchange="WN_handleFileInput(this.files)">
-                                    
-                                    <div 
-                                <!-- 設定卡片區 (old wrong-note DB) -->
-                                <div id="settings-container" style="display:none; margin-top:15px;">
-                                    <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:8px;">Step 2~5：為每個檔案設定詳細資訊</div>
-                                    <div class="slider-container" id="cards-slider"></div>
-                                    <button class="generate-btn" onclick="generateNote()">📝 生成錯題筆記</button>
-                                </div>
-                                <!-- 編輯生成筆記頁面 -->
-                                <div id="note-page" class="page" style="display:none;">
-                                    <div id="note-slots-container"></div>
-                                    <div class="save-btn-container">
-                                        <button class="btn-save" onclick="saveNotes()">💾 儲存筆記</button>
+                                    <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" multiple onchange="WN_handleFileInput(this)">
+                                    <div class="wn-mode-bar" id="wn-mode-bar" style="display:none">
+                                        <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
+                                        <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
+                                        <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
+                                        <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
+                                        <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
                                     </div>
-                                </div>
-                                <!-- 查看錯題筆記頁面 -->
-                                <div id="view-page" class="page" style="display:none;">
-                                    <div class="filter-bar">
-                                        <select class="filter-select" id="filter-time" onchange="renderViewPage()">
-                                            <option value="all">📁 全部筆記</option>
-                                            <option value="today" selected>☑️ 當日筆記</option>
-                                            <option value="week">📅 當週筆記</option>
-                                        </select>
-                                        <select class="filter-select" id="filter-subject" onchange="renderViewPage()"><option value="">依科目查看</option></select>
-                                        <select class="filter-select" id="filter-volume" onchange="renderViewPage()"><option value="">依冊次查看</option></select>
-                                        <select class="filter-select" id="filter-unit" onchange="renderViewPage()"><option value="">依單元查看</option></select>
-                                        <button class="btn-print" onclick="window.print()">🖨️ 列印</button>
+                                    <div id="wn-crop-area" class="wn-crop-area" style="display:none">
+                                        <img id="wn-crop-img" style="display:block">
                                     </div>
-                                    <div id="view-slots-container"></div>
-                                </div>
-id="wn-clean-upload" style="display:none;margin-top:10px;">
-                                        <div class="wn-drop-zone drop-zone" style="padding:20px" onclick="document.getElementById('wn-clean-input').click()">
+                                    <div id="wn-clean-upload" style="display:none;margin-top:10px;">
+                                        <div class="wn-drop-zone" style="padding:20px" onclick="document.getElementById('wn-clean-input').click()">
                                             <p>📄 上傳「原始乾淨題目」版本（無作答痕跡）</p>
                                         </div>
                                         <input type="file" id="wn-clean-input" style="display:none" accept="image/*" onchange="WN_handleCleanImage(this)">
@@ -3113,7 +3023,10 @@ id="wn-clean-upload" style="display:none;margin-top:10px;">
         function deduplicateLegacyMaster(uid) {
             if (!multiData[uid] || !multiData[uid].master) return 0;
             var removed = 0;
-            
+            function unitKey(u) {
+                if (!u) return '';
+                return 'nse:' + (u.name || '') + ':' + (u.start || '') + ':' + (u.end || '');
+            }
             var master = multiData[uid].master;
             Object.keys(master).forEach(function(sub) {
                 var s = master[sub];
@@ -8294,753 +8207,78 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         // --- 選擇教材名稱後：設定冊次 + 單元 ---
-        function setupDragAndDrop() {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            window.addEventListener(eventName, preventDefaults, false);
-        });
-        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+        function WN_onInstanceChange(prefillVol, prefillUnit) {
+            var subject = document.getElementById('wn-subject').value;
+            var matName = document.getElementById('wn-material').value;
+            var instName = document.getElementById('wn-instance').value;
+            var volSel = document.getElementById('wn-volume');
+            var unitSel = document.getElementById('wn-unit');
+            WN_STATE.currentInstance = instName;
+            volSel.innerHTML = '<option value="">請選擇</option>';
+            unitSel.innerHTML = '<option value="">請選擇</option>';
+            WN_STATE.isVolUnitShared = false;
+            if(!subject || !matName || !instName) return;
+            try {
+                var subjData = (typeof appMaster !== 'undefined' && appMaster) ? (appMaster[subject] || null) : null;
+                if(subjData && subjData.materials && subjData.materials[matName]) {
+                    var instances = subjData.materials[matName].instances || [];
+                    var inst = instances.find(function(i){ return i.name === instName; });
+                    if(inst) {
+                        console.log('[WN] onInstanceChange inst=', instName, 'vols=', inst.vols ? Object.keys(inst.vols) : 'none', 'volOrder=', JSON.stringify(inst.volOrder||[]), 'units=', JSON.stringify(inst.units||[]).slice(0,100));
+                        // 判斷是否為「不分冊」教材：
+                        // 條件A: volOrder=["不分冊"]
+                        // 條件B: volOrder=[]（空）且 vols=null → 所有 units 都是同一冊次（不分冊）
+                        var isNoVol = (inst.volOrder && inst.volOrder.length === 1 && inst.volOrder[0] === '不分冊') ||
+                                     (!inst.volOrder || inst.volOrder.length === 0) && inst.vols === null;
+                        console.log('[WN] isNoVol=', isNoVol, 'volOrder=', JSON.stringify(inst.volOrder||[]), 'vols=', inst.vols ? Object.keys(inst.vols) : 'null');
+                        if(isNoVol) {
+                            // 不分冊：冊次保持「請選擇」(空白)，單元直接顯示所有單元
+                            volSel.innerHTML = '<option value="">請選擇</option>';
+                            volSel.value = '';
+                            WN_STATE.currentVolume = '';
+                            // 直接把所有單元加入 unitSel
+                            (inst.units || []).forEach(function(u){
+                                var name = typeof u === 'object' ? (u.name || u) : u;
+                                unitSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                            });
+                            console.log('[WN] 不分冊單元:', (inst.units||[]).map(function(u){return typeof u==='object'?u.name:u;}));
+                            if(prefillUnit) {
+                                setTimeout(function(){
+                                    var opt = unitSel.querySelector('option[value="'+prefillUnit+'"]');
+                                    if(opt) unitSel.value = prefillUnit;
+                                }, 50);
+                            }
+                            return; // 不繼續跑冊次邏輯
+                        }
+                        // 一般冊次教材：從 vols 讀冊次
+                        else if(inst.vols) {
+                            Object.keys(inst.vols).forEach(function(vol){
+                                volSel.innerHTML += '<option value="'+escapeHtml(vol)+'">'+escapeHtml(vol)+'</option>';
+                            });
+                        }
 
-        const dropZones = document.querySelectorAll('.drop-zone');
-        dropZones.forEach(zone => {
-            zone.addEventListener('dragover', () => zone.classList.add('dragover'));
-            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-            zone.addEventListener('drop', (e) => {
-                zone.classList.remove('dragover');
-                if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    handleFilesForCrop(e.dataTransfer.files);
-                }
-            });
-        });
-    }
-async function handleFilesForCrop(files) {
-        if(!files || files.length === 0) return;
-        
-        const workspace = document.getElementById('wn-crop-workspace');
-        workspace.innerHTML = ''; 
-        document.getElementById('crop-modal').style.display = 'flex';
-        // position:fixed already set by CSS
-        // CRITICAL: Activate stats-wrongnotes so ALL its children (settings-container, note-page, view-page) are visible
-        var statsWN = document.getElementById('stats-wrongnotes');
-        if(statsWN) {
-            statsWN.style.display = 'block';
-            statsWN.classList.add('active');
-        }
-        var wnRoot = document.getElementById('wrongnotes-root');
-        if(wnRoot) {
-            wnRoot.style.display = 'block';
-        }
-        var wnImport = document.getElementById('wn-import');
-        if(wnImport) wnImport.classList.add('active');
-        document.getElementById('manual-edit-pad').style.display = 'none'; 
-        batchCounter++;
-        manualBoxes = []; 
-
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (file.type === "application/pdf") {
-                await renderPDF(file, workspace);
-            } else if (file.type.startsWith("image/")) {
-                await renderImage(file, workspace);
-            }
-        }
-        
-        const fileInput = document.getElementById('wn-file-input');
-        if (fileInput) fileInput.value = ''; 
-    }
-async function renderImage(file, workspace) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.style.width = '100%';
-                img.style.display = 'block';
-                img.onload = () => {
-                    createPageContainer(img, workspace);
-                    resolve();
-                };
-            };
-            reader.readAsDataURL(file);
-        });
-    }
-async function renderPDF(file, workspace) {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-        
-        for(let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({scale: 2.0}); 
-            
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            canvas.style.width = '100%';
-            canvas.style.display = 'block';
-            
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            await page.render({canvasContext: ctx, viewport: viewport}).promise;
-            createPageContainer(canvas, workspace);
-        }
-    }
-function createPageContainer(mediaEl, workspace) {
-        const container = document.createElement('div');
-        container.className = 'page-container';
-        container.appendChild(mediaEl);
-        
-        container.addEventListener('mousedown', function(e) {
-            if (isManualAdding) {
-                if (e.target === container || e.target === mediaEl) {
-                    e.preventDefault();
-                    createNewManualBox(e.offsetX, e.offsetY, container);
-                    isManualAdding = false;
-                    const tip = document.getElementById('manual-tip');
-                    tip.style.color = '#555';
-                    tip.innerText = '✅ 已成功新增。您可點擊「新增框線」繼續，或直接調整藍色框。';
-                }
-            }
-        });
-        
-        workspace.appendChild(container);
-    }
-function createNewManualBox(x, y, container) {
-        const box = document.createElement('div');
-        box.className = 'mock-crop-box';
-        
-        const rect = container.getBoundingClientRect();
-        const topPerc = (y / rect.height) * 100;
-        const leftPerc = (x / rect.width) * 100;
-        
-        box.style.top = `${topPerc}%`;
-        box.style.left = `${leftPerc}%`;
-        box.style.width = `45%`; 
-        box.style.height = `15%`; 
-        
-        const cropId = 'crop_' + Date.now() + Math.random().toString(36).substr(2, 5);
-        box.dataset.cropId = cropId;
-        
-        box.innerHTML = `
-            <div class="delete-box-btn" onclick="deleteBox(this)">✕</div>
-            <div class="resize-handle tl"></div>
-            <div class="resize-handle br"></div>
-            <div class="add-crop-btn" onclick="toggleCroppedQuestion(this, ${batchCounter})">+</div>
-        `;
-        
-        container.appendChild(box);
-        makeDraggableAndResizable(box);
-        manualBoxes.push(box);
-    }
-function makeDraggableAndResizable(box) {
-        let isDragging = false, isResizingTL = false, isResizingBR = false;
-        let startX, startY, startW, startH, startLeft, startTop;
-
-        box.addEventListener('mousedown', (e) => {
-            if (e.target.classList.contains('add-crop-btn') || e.target.classList.contains('delete-box-btn')) return;
-            
-            startX = e.clientX; startY = e.clientY;
-            startLeft = box.offsetLeft; startTop = box.offsetTop;
-            startW = box.offsetWidth; startH = box.offsetHeight;
-            
-            if (e.target.classList.contains('tl')) {
-                isResizingTL = true;
-            } else if (e.target.classList.contains('br')) {
-                isResizingBR = true;
-            } else {
-                isDragging = true;
-            }
-            e.stopPropagation();
-        });
-
-        document.addEventListener('mousemove', (e) => {
-            if (!isDragging && !isResizingTL && !isResizingBR) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-
-            if (isDragging) {
-                box.style.left = `${startLeft + dx}px`;
-                box.style.top = `${startTop + dy}px`;
-            } else if (isResizingBR) {
-                box.style.width = `${startW + dx}px`;
-                box.style.height = `${startH + dy}px`;
-            } else if (isResizingTL) {
-                box.style.left = `${startLeft + dx}px`;
-                box.style.top = `${startTop + dy}px`;
-                box.style.width = `${startW - dx}px`;
-                box.style.height = `${startH - dy}px`;
-            }
-        });
-
-        document.addEventListener('mouseup', () => { 
-            isDragging = false; isResizingTL = false; isResizingBR = false; 
-        });
-    }
-function addMockOCRBoxes(container) {
-        const boxes = [
-            { top: 4, left: 3, width: 45, height: 16 },
-            { top: 22, left: 3, width: 45, height: 16 },
-            { top: 40, left: 3, width: 45, height: 20 },
-            { top: 62, left: 3, width: 45, height: 16 },
-            { top: 80, left: 3, width: 45, height: 16 },
-            { top: 4, left: 51, width: 46, height: 22 },
-            { top: 28, left: 51, width: 46, height: 26 },
-            { top: 56, left: 51, width: 46, height: 22 },
-            { top: 80, left: 51, width: 46, height: 16 }
-        ];
-        
-        boxes.forEach((b) => {
-            const box = document.createElement('div');
-            box.className = 'mock-crop-box';
-            box.style.top = `${b.top}%`;
-            box.style.left = `${b.left}%`;
-            box.style.width = `${b.width}%`;
-            box.style.height = `${b.height}%`;
-            
-            const cropId = 'crop_' + Date.now() + Math.random().toString(36).substr(2, 5);
-            box.dataset.cropId = cropId;
-            
-            box.innerHTML = `
-                <div class="delete-box-btn" onclick="deleteBox(this)">✕</div>
-                <div class="resize-handle tl"></div>
-                <div class="resize-handle br"></div>
-                <div class="add-crop-btn" onclick="toggleCroppedQuestion(this, ${batchCounter})">+</div>
-            `;
-            container.appendChild(box);
-            makeDraggableAndResizable(box);
-        });
-    }
-
-function goToPage(pageId, navBtn) {
-        if (hasUnsavedNotes && pageId !== 'note-page') {
-            if (!confirm("⚠️ 您還有筆記尚未儲存！確定要離開編輯頁面嗎？（未儲存的內容將會遺失）")) return;
-            hasUnsavedNotes = false; 
-        }
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById(pageId).classList.add('active');
-        if(navBtn) {
-            document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
-            navBtn.classList.add('active-nav');
-        }
-        if(pageId === 'view-page') renderViewPage();
-    }
-
-function triggerAutoCrop() {
-        document.querySelectorAll('.page-container').forEach(container => {
-            container.querySelectorAll('.mock-crop-box').forEach(b => b.remove());
-            addMockOCRBoxes(container);
-        });
-        document.getElementById('manual-edit-pad').style.display = 'none';
-        isManualAdding = false;
-    }
-function enableManualCrop() {
-        document.getElementById('manual-edit-pad').style.display = 'block';
-    }
-function startManualBox() {
-        isManualAdding = true;
-        const tip = document.getElementById('manual-tip');
-        tip.style.color = '#e74c3c';
-        tip.innerText = '👉 現在請在考卷上的題號左上角「點擊」一下...';
-    }
-function undoManualBox() {
-        if(manualBoxes.length > 0) {
-            const lastBox = manualBoxes.pop();
-            const btn = lastBox.querySelector('.add-crop-btn');
-            if(btn && btn.classList.contains('selected')) {
-                toggleCroppedQuestion(btn, batchCounter);
-            }
-            lastBox.remove();
-            document.getElementById('manual-tip').innerText = '↺ 已取消上一步新增。';
-        }
-    }
-function deleteBox(btn) {
-        const box = btn.parentElement;
-        const addBtn = box.querySelector('.add-crop-btn');
-        if (addBtn.classList.contains('selected')) {
-            toggleCroppedQuestion(addBtn, batchCounter); 
-        }
-        box.remove();
-    }
-function toggleCroppedQuestion(btn, batchId) {
-        const box = btn.parentElement;
-        const cropId = box.dataset.cropId;
-
-        if (btn.classList.contains('selected')) {
-            btn.classList.remove('selected');
-            btn.innerText = '+';
-            
-            const slider = document.getElementById('cards-slider');
-            const card = slider.querySelector(`.file-card[data-crop-id="${cropId}"]`);
-            if (card) {
-                removeCard(card.querySelector('.delete-card-btn'));
-            }
-        } else {
-            btn.classList.add('selected');
-            btn.innerText = '✓';
-
-            const container = box.parentElement;
-            const mediaEl = container.querySelector('img, canvas');
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-
-            let intrinsicWidth = mediaEl.tagName === 'IMG' ? mediaEl.naturalWidth : mediaEl.width;
-            let intrinsicHeight = mediaEl.tagName === 'IMG' ? mediaEl.naturalHeight : mediaEl.height;
-
-            const scaleX = intrinsicWidth / mediaEl.offsetWidth;
-            const scaleY = intrinsicHeight / mediaEl.offsetHeight;
-
-            const sx = box.offsetLeft * scaleX;
-            const sy = box.offsetTop * scaleY;
-            const sWidth = box.offsetWidth * scaleX;
-            const sHeight = box.offsetHeight * scaleY;
-
-            canvas.width = sWidth; canvas.height = sHeight;
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, sWidth, sHeight);
-            ctx.drawImage(mediaEl, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg');
-            const cardIndex = currentFilesData.length;
-            currentFilesData.push({ imgUrl: dataUrl, batchId: batchId, cropId: cropId });
-
-            const slider = document.getElementById('cards-slider');
-            document.getElementById('settings-container').style.display = 'block';
-            
-            const newCard = createSettingCard(dataUrl, cardIndex, batchId, cropId);
-            slider.appendChild(newCard);
-            
-            handleCardSubjectChange(newCard.querySelector('.subj-sel'), false);
-        }
-    }
-function createSettingCard(imgUrl, index, batchId, cropId) {
-        const div = document.createElement('div');
-        div.className = 'file-card';
-        div.dataset.index = index;
-        div.dataset.batchId = batchId;
-        if(cropId) div.dataset.cropId = cropId;
-        
-        let subjOptions = '<option value="">請選擇科目</option>';
-        Object.keys(syllabusDB).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
-
-        div.innerHTML = `
-            <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
-            <img src="${imgUrl}">
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
-            <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
-            
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：冊次/單元</div>
-            <select class="vol-sel" onchange="handleCardVolumeChange(this, true)" style="display:none;"></select>
-            <select class="unit-sel" onchange="handleCardUnitChange(this, true)"></select>
-
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯題來源</div>
-            <select class="source-sel" onchange="toggleCardSource(this)">
-                <option value="複講">複講</option>
-                <option value="考卷">考卷</option>
-                <option value="其他">其他 (自訂)</option>
-            </select>
-            <input type="text" class="custom-source" placeholder="請填寫來源..." style="display:none;">
-
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：錯誤原因</div>
-            <div class="checkbox-group reasons-group">
-                <label><input type="checkbox" value="觀念模糊"> 觀念模糊</label>
-                <label><input type="checkbox" value="題目陷阱"> 題目陷阱</label>
-                <label><input type="checkbox" value="粗心"> 粗心</label>
-            </div>
-        `;
-        return div;
-    }
-function removeCard(btn) {
-        const card = btn.closest('.file-card');
-        const cropId = card.dataset.cropId;
-        card.remove();
-        
-        const box = document.querySelector(`.mock-crop-box[data-crop-id="${cropId}"]`);
-        if (box) {
-            const addBtn = box.querySelector('.add-crop-btn');
-            if(addBtn) {
-                addBtn.classList.remove('selected');
-                addBtn.innerText = '+';
-            }
-        }
-
-        const slider = document.getElementById('cards-slider');
-        if (slider.children.length === 0) {
-            document.getElementById('settings-container').style.display = 'none';
-        }
-    }
-function handleCardSubjectChange(selectEl, isSync = false) {
-        const card = selectEl.closest('.file-card');
-        const subject = selectEl.value;
-        const volSelect = card.querySelector('.vol-sel');
-        const unitSelect = card.querySelector('.unit-sel');
-        const data = syllabusDB[subject];
-
-        volSelect.innerHTML = ''; unitSelect.innerHTML = '';
-
-        if (data) {
-            if (data.type === 'custom') {
-                volSelect.style.display = 'none';
-                data.units.forEach(u => unitSelect.add(new Option(u, u)));
-            } else {
-                volSelect.style.display = 'block';
-                data.volOrder.forEach(v => volSelect.add(new Option(v, v)));
-                handleCardVolumeChange(volSelect, false);
-            }
-        }
-
-        if (isSync) {
-            const batchId = card.dataset.batchId;
-            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
-                if (otherCard !== card) {
-                    const otherSubjSel = otherCard.querySelector('.subj-sel');
-                    otherSubjSel.value = subject;
-                    handleCardSubjectChange(otherSubjSel, false);
-                }
-            });
-        }
-    }
-function handleCardVolumeChange(volSelect, isSync = false) {
-        const card = volSelect.closest('.file-card');
-        const subject = card.querySelector('.subj-sel').value;
-        const volume = volSelect.value;
-        const unitSelect = card.querySelector('.unit-sel');
-        const data = syllabusDB[subject];
-
-        unitSelect.innerHTML = '';
-        if (data && data.vols && data.vols[volume]) {
-            data.vols[volume].forEach(u => unitSelect.add(new Option(u, u)));
-        }
-
-        if (isSync) {
-            const batchId = card.dataset.batchId;
-            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
-                if (otherCard !== card) {
-                    const otherVolSel = otherCard.querySelector('.vol-sel');
-                    if (otherVolSel.style.display !== 'none') {
-                        otherVolSel.value = volume;
-                        handleCardVolumeChange(otherVolSel, false);
+                        // vols=null 且 volOrder=[] 且 units 沒有 vol 欄位 → 冊次=單元本身（如模擬題本翰林穩贏）
+                        else if(inst.units && inst.units.length > 0) {
+                            console.log('[WN] 冊次=單元 類型: units=', inst.units.map(function(u){return u.name;}));
+                            WN_STATE.isVolUnitShared = true;
+                            inst.units.forEach(function(u){
+                                var name = typeof u === 'object' ? (u.name || u) : u;
+                                volSel.innerHTML += '<option value="'+escapeHtml(name)+'">'+escapeHtml(name)+'</option>';
+                            });
+                        }
                     }
                 }
-            });
-        }
-    }
-function handleCardUnitChange(unitSelect, isSync = false) {
-        if (isSync) {
-            const card = unitSelect.closest('.file-card');
-            const unitVal = unitSelect.value;
-            const batchId = card.dataset.batchId;
-            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
-                if (otherCard !== card) {
-                    otherCard.querySelector('.unit-sel').value = unitVal;
-                }
-            });
-        }
-    }
-function toggleCardSource(selectEl) {
-        const input = selectEl.closest('.file-card').querySelector('.custom-source');
-        input.style.display = selectEl.value === '其他' ? 'block' : 'none';
-    }
-function finishCropping() {
-        document.getElementById('crop-modal').style.display = 'none';
-        // stats-wrongnotes is already visible (activated in handleFilesForCrop)
-        // If cards exist, show settings-container
-        var settingsContainer = document.getElementById('settings-container');
-        var slider = document.getElementById('cards-slider');
-        if(settingsContainer && slider && slider.children.length > 0) {
-            settingsContainer.style.display = 'block';
-            settingsContainer.scrollIntoView({ behavior: 'smooth' });
-        }
-    }
-function cancelCropping() {
-        document.getElementById('crop-modal').style.display = 'none';
-        document.getElementById('wn-crop-workspace').innerHTML = '';
-        
-        const slider = document.getElementById('cards-slider');
-        const cards = slider.querySelectorAll(`.file-card[data-batch-id="${batchCounter}"]`);
-        cards.forEach(card => card.remove());
-        
-        currentFilesData = currentFilesData.filter(item => item.batchId !== batchCounter);
-        
-        if (slider.children.length === 0) {
-            document.getElementById('settings-container').style.display = 'none';
-        }
-    }
-function generateNote() {
-        const cards = document.querySelectorAll('.file-card');
-        if(cards.length === 0) return alert("請先選擇或匯入錯題！");
-
-        const container = document.getElementById('note-slots-container');
-        container.innerHTML = '';
-
-        const today = new Date();
-        const dateStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
-
-        cards.forEach(card => {
-            const imgUrl = card.querySelector('img').src;
-            const subj = card.querySelector('.subj-sel').value || '未分類';
-            const vol = card.querySelector('.vol-sel').style.display !== 'none' ? `[${card.querySelector('.vol-sel').value}]` : '';
-            const unit = card.querySelector('.unit-sel').value || '';
-            
-            let source = card.querySelector('.source-sel').value;
-            if(source === '其他') source = card.querySelector('.custom-source').value || '自訂來源';
-
-            const checkboxes = card.querySelectorAll('.reasons-group input:checked');
-            const reasons = Array.from(checkboxes).map(cb => cb.value);
-
-            const slot = document.createElement('div');
-            slot.className = 'note-slot editable-slot';
-            slot.dataset.date = dateStr;
-            slot.dataset.subject = subj;
-            slot.dataset.volume = card.querySelector('.vol-sel').style.display !== 'none' ? card.querySelector('.vol-sel').value : '';
-            slot.dataset.unit = unit;
-            slot.dataset.source = source;
-            slot.dataset.reasons = JSON.stringify(reasons);
-
-            let reasonHtml = ``;
-            ['觀念模糊', '題目陷阱', '粗心'].forEach(r => {
-                const isChecked = reasons.includes(r) ? 'checked' : '';
-                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" ${isChecked}> ${r}</label>`;
-            });
-
-            slot.innerHTML = `
-                <div class="note-slot-header" style="background:var(--header-aqua-sky);">
-                    <span>📅 ${dateStr}</span>
-                    <span>📖 ${subj} ${vol} ${unit}</span>
-                    <span>🏷️ ${source}</span>
-                </div>
-                <div class="note-slot-body">
-                    <div class="note-left">
-                        <h4>■ 錯誤原因分析</h4>
-                        ${reasonHtml}
-                        <div class="note-action-btns">
-                            <button class="action-btn-small btn-edit-note" onclick="enableDraftEdit(this)">✏️ 編輯</button>
-                            <button class="action-btn-small btn-save-note" style="display:none;" onclick="saveDraftEdit(this)">💾 儲存</button>
-                        </div>
-                    </div>
-                    <div class="note-right">
-                        <div class="note-img-area"><img src="${imgUrl}"></div>
-                        <div class="note-grid-area" contenteditable="false" placeholder="點擊編輯輸入筆記內容..."></div>
-                    </div>
-                </div>
-            `;
-            container.appendChild(slot);
-        });
-
-        hasUnsavedNotes = true;
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.getElementById('note-page').classList.add('active');
-        document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
-    }
-function enableDraftEdit(btn) {
-        const slotBody = btn.closest('.note-slot-body');
-        const gridArea = slotBody.querySelector('.note-grid-area');
-        gridArea.setAttribute('contenteditable', 'true');
-        gridArea.focus();
-        
-        const cbs = slotBody.querySelectorAll('.view-reason-cb');
-        cbs.forEach(cb => cb.removeAttribute('disabled'));
-
-        btn.style.display = 'none';
-        btn.nextElementSibling.style.display = 'block';
-    }
-function saveDraftEdit(btn) {
-        const slotBody = btn.closest('.note-slot-body');
-        const gridArea = slotBody.querySelector('.note-grid-area');
-        gridArea.setAttribute('contenteditable', 'false');
-
-        const cbs = slotBody.querySelectorAll('.view-reason-cb');
-        const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
-        cbs.forEach(cb => cb.setAttribute('disabled', 'true'));
-
-        const slot = btn.closest('.editable-slot');
-        slot.dataset.reasons = JSON.stringify(newReasons);
-
-        btn.style.display = 'none';
-        btn.previousElementSibling.style.display = 'block';
-    }
-function saveNotes() {
-        const slots = document.querySelectorAll('.editable-slot');
-        let savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
-        
-        slots.forEach(slot => {
-            savedNotes.unshift({ 
-                date: slot.dataset.date,
-                timestamp: Date.now() + Math.random(),
-                subject: slot.dataset.subject,
-                volume: slot.dataset.volume,
-                unit: slot.dataset.unit,
-                source: slot.dataset.source,
-                reasons: JSON.parse(slot.dataset.reasons),
-                imgUrl: slot.querySelector('img').src,
-                content: slot.querySelector('.note-grid-area').innerHTML
-            });
-        });
-
-        localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
-        hasUnsavedNotes = false; 
-        
-        alert("✅ 筆記已成功儲存！");
-        document.getElementById('cards-slider').innerHTML = '';
-        document.getElementById('settings-container').style.display = 'none';
-        currentFilesData = [];
-
-        goToPage('view-page', document.getElementById('nav-view'));
-    }
-function renderViewPage() {
-        const container = document.getElementById('view-slots-container');
-        container.innerHTML = '';
-        
-        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
-        if (notes.length === 0) {
-            container.innerHTML = `<h3 class="placeholder-text">目前尚無儲存的錯題筆記喔！</h3>`;
-            return;
-        }
-
-        const timeFilter = document.getElementById('filter-time').value;
-        const subjFilter = document.getElementById('filter-subject').value;
-        const volFilter = document.getElementById('filter-volume').value;
-        const unitFilter = document.getElementById('filter-unit').value;
-
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
-        const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-
-        let filteredNotes = notes.filter(n => {
-            const [year, month, day] = n.date.split('/').map(Number);
-            const nD = new Date(year, month - 1, day);
-            const diffTime = todayDate - nD;
-            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
-            
-            let timeMatch = true;
-            if (timeFilter === 'today') {
-                timeMatch = (n.date === todayStr);
-            } else if (timeFilter === 'week') {
-                timeMatch = (diffDays >= 0 && diffDays <= 7);
-            } else if (timeFilter === 'all') {
-                timeMatch = true;
-            }
-
-            const subjMatch = subjFilter ? n.subject === subjFilter : true;
-            const volMatch = volFilter ? n.volume === volFilter : true;
-            const unitMatch = unitFilter ? n.unit === unitFilter : true;
-
-            return timeMatch && subjMatch && volMatch && unitMatch;
-        });
-
-        if (subjFilter) {
-            const rawSubjNotes = notes.filter(n => n.subject === subjFilter);
-            populateFilterOptions('volume', rawSubjNotes.map(n=>n.volume));
-            if (volFilter) {
-                const rawVolNotes = rawSubjNotes.filter(n => n.volume === volFilter);
-                populateFilterOptions('unit', rawVolNotes.map(n=>n.unit));
-            } else {
-                populateFilterOptions('unit', rawSubjNotes.map(n=>n.unit));
+            } catch(e){ console.log('[WN] onInstanceChange error:', e); }
+            if(prefillVol && prefillVol !== '不分冊') {
+                setTimeout(function(){
+                    if(volSel.querySelector('option[value="'+prefillVol+'"]')) {
+                        volSel.value = prefillVol;
+                        WN_onVolumeChange(prefillUnit);
+                    }
+                }, 50);
             }
         }
 
-        if (filteredNotes.length === 0) {
-            container.innerHTML = `<h3 class="placeholder-text">查無符合條件的筆記。</h3>`;
-            return;
-        }
-
-        filteredNotes.forEach(note => {
-            const slot = document.createElement('div');
-            slot.className = 'note-slot';
-            
-            let reasonHtml = ``;
-            ['觀念模糊', '題目陷阱', '粗心'].forEach(r => {
-                const isChecked = note.reasons.includes(r) ? 'checked' : '';
-                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" ${isChecked}> ${r}</label>`;
-            });
-
-            const volStr = note.volume ? `[${note.volume}]` : '';
-
-            slot.innerHTML = `
-                <div class="note-slot-header" style="background:var(--header-aqua-sky);">
-                    <span>📅 ${note.date}</span>
-                    <span>📖 ${note.subject} ${volStr} ${note.unit}</span>
-                    <span>🏷️ ${note.source}</span>
-                </div>
-                <div class="note-slot-body">
-                    <div class="note-left">
-                        <h4>■ 錯誤原因分析</h4>
-                        ${reasonHtml}
-                        <div class="note-action-btns">
-                            <button class="action-btn-small btn-edit-note" onclick="enableViewEdit('${note.timestamp}', this)">✏️ 編輯</button>
-                            <button class="action-btn-small btn-save-note" style="display:none;" onclick="saveViewEdit('${note.timestamp}', this)">💾 儲存</button>
-                        </div>
-                    </div>
-                    <div class="note-right">
-                        <div class="note-img-area"><img src="${note.imgUrl}"></div>
-                        <div class="note-grid-area" contenteditable="false">${note.content}</div>
-                    </div>
-                </div>
-            `;
-            container.appendChild(slot);
-        });
-    }
-function populateFilterOptions(selectId, dataArray) {
-        const select = document.getElementById(`filter-${selectId}`);
-        const currentVal = select.value;
-        const uniqueValues = [...new Set(dataArray.filter(v => v))]; 
-        
-        select.innerHTML = `<option value="">依${selectId==='volume'?'冊次':'單元'}查看</option>`;
-        uniqueValues.forEach(v => select.add(new Option(v, v)));
-        if(uniqueValues.includes(currentVal)) select.value = currentVal;
-    }
-function enableViewEdit(timestamp, btn) {
-        const slotBody = btn.closest('.note-slot-body');
-        const gridArea = slotBody.querySelector('.note-grid-area');
-        gridArea.setAttribute('contenteditable', 'true');
-        gridArea.focus();
-        
-        const cbs = slotBody.querySelectorAll('.view-reason-cb');
-        cbs.forEach(cb => cb.removeAttribute('disabled'));
-
-        btn.style.display = 'none';
-        btn.nextElementSibling.style.display = 'block';
-    }
-function saveViewEdit(timestamp, btn) {
-        const slotBody = btn.closest('.note-slot-body');
-        const gridArea = slotBody.querySelector('.note-grid-area');
-        gridArea.setAttribute('contenteditable', 'false');
-
-        const cbs = slotBody.querySelectorAll('.view-reason-cb');
-        const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
-        cbs.forEach(cb => cb.setAttribute('disabled', 'true'));
-
-        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
-        const noteIndex = notes.findIndex(n => String(n.timestamp) === String(timestamp));
-        if (noteIndex > -1) {
-            notes[noteIndex].content = gridArea.innerHTML;
-            notes[noteIndex].reasons = newReasons;
-            localStorage.setItem('myStudyNotes', JSON.stringify(notes));
-            alert("筆記更新成功！");
-        }
-
-        btn.style.display = 'none';
-        btn.previousElementSibling.style.display = 'block';
-    }
-    // ===== Old Wrong-Note DB globals =====
-    const syllabusDB = {
-        "國文": { "type": "custom", "units": ["字音","字形","字義","詞語應用","成語總匯","標點符號與工具書檢索","漢字結構與字體演變","詞類與句型","應用文（一）","應用文（二）","文化常識","國學常識","語法辨析","文章表現技巧","文意填空與重組","白話文閱讀單題","文言文閱讀單題","白話文閱讀題組","文言文閱讀題組","多文本對讀","會考寫作攻略"] },
-        "數學": { "type": "volume", "volOrder": ["第一冊","第二冊","第三冊","第四冊","第五冊","第六冊","模擬試題"], "vols": { "第一冊": ["數與數線","標準分解式與分數運算","一元一次方程式","二元一次聯立方程式"], "第二冊": ["直角坐標與二元一次方程式的圖形","比例","一元一次不等式","線對稱與三視圖","統計圖表與資料分析"], "第三冊": ["乘法公式與多項式","平方根與畢氏定理","因式分解與一元二次方程式"], "第四冊": ["數列與級數","線型函數","三角形的基本性質","平行與四邊形"], "第五冊": ["連比與相似形","圓形","推理證明與三角形的心"], "第六冊": ["二次函數","統計與機率","立體圖形"], "模擬試題": ["第1~2冊","第1~4冊","第1~6冊"] } },
-        "英文": { "type": "volume", "volOrder": ["第一冊","第二冊","第1~2冊複習","第三冊","第1~3冊複習","第四冊","第1~4冊複習","第五冊","第1~5冊複習","第六冊","第1~6冊複習"], "vols": { "第一冊": ["U1","U2"],"第二冊": ["U3","U4","U5"],"第1~2冊複習": ["語法統整與高分策略","模擬試題"],"第三冊": ["U6","U7","U8"],"第1~3冊複習": ["語法統整與高分策略","模擬試題"],"第四冊": ["U9","U10","U11"],"第1~4冊複習": ["語法統整與高分策略","模擬試題"],"第五冊": ["U12","U13","U14"],"第1~5冊複習": ["語法統整與高分策略","模擬試題"],"第六冊": ["U15","U16"],"第1~6冊複習": ["語法統整與高分策略","模擬試題"] } }
-    };
-    let currentFilesData = [];
-    let batchCounter = 0;
-    let isManualAdding = false;
-    let manualBoxes = [];
-    let WN_cropModal = null;
-    // ===== End Old Wrong-Note DB globals =
-    // Initialize old wrong-note DB drag/drop
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', setupDragAndDrop);
-    } else {
-        setupDragAndDrop();
-    }
-
-
-        
         function WN_onVolumeChange(prefillUnit) {
             var subject = document.getElementById('wn-subject').value;
             var matName = document.getElementById('wn-material').value;
@@ -9090,10 +8328,251 @@ function saveViewEdit(timestamp, btn) {
         }
 
         // --- 檔案處理 ---
-        
-        
-        function WN_handleFileInput(files) { handleFilesForCrop(files); }
-        
+        function WN_onDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var dz = document.getElementById('wn-drop-zone');
+            if(dz) dz.classList.add('drag-over');
+        }
+        function WN_onDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var dz = document.getElementById('wn-drop-zone');
+            if(dz) dz.classList.remove('drag-over');
+            var files = e.dataTransfer.files;
+            if(files.length > 0) {
+                var dt = new DataTransfer();
+                for(var i=0; i<files.length; i++) dt.items.add(files[i]);
+                document.getElementById('wn-file-input').files = dt.files;
+                WN_handleFileInput(document.getElementById('wn-file-input'));
+            }
+        }
+        function WN_cancelImage() {
+            var cropArea = document.getElementById('wn-crop-area');
+            var dropZone = document.getElementById('wn-drop-zone');
+            var modeBar = document.getElementById('wn-mode-bar');
+            var img = document.getElementById('wn-crop-img');
+            if(cropArea) cropArea.style.display = 'none';
+            if(dropZone) dropZone.style.display = 'block';
+            if(modeBar) modeBar.style.display = 'none';
+            if(img) img.src = '';
+            WN_STATE.importedImage = null;
+            WN_STATE.importedFileName = null;
+            WN_STATE.cropBoxes = [];
+            WN_STATE.eraseBoxes = [];
+            WN_renderBoxes();
+            document.getElementById('wn-file-input').value = '';
+        }
+        function WN_handleFileInput(input) {
+            if(!input.files.length) return;
+            var file = input.files[0];
+            WN_STATE.importedFileName = file.name;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                WN_STATE.importedImage = e.target.result;
+                WN_showCropImage(e.target.result);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function WN_showCropImage(dataUrl) {
+            var cropArea = document.getElementById('wn-crop-area');
+            var img = document.getElementById('wn-crop-img');
+            var modeBar = document.getElementById('wn-mode-bar');
+            img.src = dataUrl;
+            img.onload = function() {
+                cropArea.style.display = 'inline-block';
+                modeBar.style.display = 'flex';
+                var dropZone = document.getElementById('wn-drop-zone');
+                if(dropZone) dropZone.style.display = 'none';
+                WN_STATE.cropBoxes = [];
+                WN_STATE.eraseBoxes = [];
+                WN_STATE.mode = 'add';
+                WN_updateModeButtons();
+                WN_renderBoxes();
+                // 設定 crop area 事件
+                WN_setupCropEvents();
+            };
+        }
+
+        function WN_setupCropEvents() {
+            var cropArea = document.getElementById('wn-crop-area');
+            var isDragging = false, startX, startY, currentBox;
+            cropArea.onmousedown = function(e) {
+                var img = document.getElementById('wn-crop-img');
+                if(e.target !== cropArea && e.target !== img) return;
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
+                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
+                startX = (e.clientX - rect.left) * scaleX;
+                startY = (e.clientY - rect.top) * scaleY;
+                isDragging = true;
+                if(WN_STATE.mode === 'add') {
+                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
+                } else if(WN_STATE.mode === 'erase') {
+                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
+                }
+            };
+            cropArea.onmousemove = function(e) {
+                if(!isDragging || !currentBox) return;
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var img2 = cropArea.querySelector('img');
+                var scaleX = img2.naturalWidth / rect.width;
+                var scaleY = img2.naturalHeight / rect.height;
+                var curX = (e.clientX - rect.left) * scaleX;
+                var curY = (e.clientY - rect.top) * scaleY;
+                currentBox.w = Math.abs(curX - startX);
+                currentBox.h = Math.abs(curY - startY);
+                currentBox.x = Math.min(startX, curX);
+                currentBox.y = Math.min(startY, curY);
+                // Live-preview the box without rebuilding all DOM
+                var existing = cropArea.querySelector('.wn-drag-preview');
+                if(!existing) {
+                    existing = document.createElement('div');
+                    existing.className = 'wn-crop-box wn-drag-preview';
+                    existing.style.pointerEvents = 'none';
+                    cropArea.appendChild(existing);
+                }
+                var sx = rect.width / img2.naturalWidth;
+                var sy = rect.height / img2.naturalHeight;
+                existing.style.left = (currentBox.x * sx) + 'px';
+                existing.style.top = (currentBox.y * sy) + 'px';
+                existing.style.width = (currentBox.w * sx) + 'px';
+                existing.style.height = (currentBox.h * sy) + 'px';
+            };
+            cropArea.onmouseup = function(e) {
+                if(!isDragging) return;
+                isDragging = false;
+                // Remove live preview
+                var preview = cropArea.querySelector('.wn-drag-preview');
+                if(preview) preview.remove();
+                if(currentBox && currentBox.w > 10 && currentBox.h > 10) {
+                    if(WN_STATE.mode === 'add') {
+                        WN_STATE.cropBoxes.push(currentBox);
+                    } else if(WN_STATE.mode === 'erase') {
+                        WN_STATE.eraseBoxes.push(currentBox);
+                        WN_applyErase();
+                    }
+                }
+                currentBox = null;
+                WN_renderBoxes();
+            };
+            cropArea.onmouseleave = function() { if(isDragging && currentBox) { currentBox = null; isDragging = false; } };
+        }
+
+        function WN_renderBoxes() {
+            var cropArea = document.getElementById('wn-crop-area');
+            if(!cropArea) return;
+            // 移除舊框
+            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b){ b.remove(); });
+            var img = document.getElementById('wn-crop-img');
+            var rect = cropArea.getBoundingClientRect();
+            var scaleX = rect.width / img.naturalWidth;
+            var scaleY = rect.height / img.naturalHeight;
+
+            // 繪製裁切框（藍色）
+            WN_STATE.cropBoxes.forEach(function(box, i) {
+                var div = document.createElement('div');
+                div.className = 'wn-crop-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.innerHTML = '<span class="wn-box-num">'+(i+1)+'</span><button class="wn-box-delete" onclick="WN_deleteBox(event, box.id)">✕</button>';
+                div.onmousedown = function(ev) {
+                    ev.stopPropagation();
+                    if(ev.target.classList.contains('wn-box-delete')) return;
+                    ev.preventDefault();
+                    var startX = ev.clientX, startY = ev.clientY;
+                    var origX = box.x, origY = box.y;
+                    function onMove(e) {
+                        var dx = (e.clientX - startX) / scaleX;
+                        var dy = (e.clientY - startY) / scaleY;
+                        box.x = Math.max(0, origX + dx);
+                        box.y = Math.max(0, origY + dy);
+                        div.style.left = (box.x * scaleX) + 'px';
+                        div.style.top = (box.y * scaleY) + 'px';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                };
+                cropArea.appendChild(div);
+            });
+
+            // 繪製消除框（紅色）
+            WN_STATE.eraseBoxes.forEach(function(box, i) {
+                var div = document.createElement('div');
+                div.className = 'wn-erase-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.innerHTML = '<button class="wn-erase-del" onclick="WN_deleteEraseBox(event, box.id)">✕</button>';
+                div.onmousedown = function(ev) {
+                    ev.stopPropagation();
+                    if(ev.target.classList.contains('wn-erase-del')) return;
+                    ev.preventDefault();
+                    var startX = ev.clientX, startY = ev.clientY;
+                    var origX = box.x, origY = box.y;
+                    function onMove(e) {
+                        var dx = (e.clientX - startX) / scaleX;
+                        var dy = (e.clientY - startY) / scaleY;
+                        box.x = Math.max(0, origX + dx);
+                        box.y = Math.max(0, origY + dy);
+                        div.style.left = (box.x * scaleX) + 'px';
+                        div.style.top = (box.y * scaleY) + 'px';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                };
+                cropArea.appendChild(div);
+            });
+        }
+
+        function WN_deleteBox(e, id) {
+            e.stopPropagation();
+            WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== id; });
+            WN_renderBoxes();
+        }
+
+        function WN_deleteEraseBox(e, id) {
+            e.stopPropagation();
+            WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== id; });
+            WN_renderBoxes();
+        }
+
+        function WN_setMode(mode) {
+            WN_STATE.mode = mode;
+            WN_updateModeButtons();
+        }
+
+        function WN_updateModeButtons() {
+            ['add','erase','clean'].forEach(function(m){
+                var btn = document.getElementById('wn-mode-'+m);
+                if(btn) btn.classList.toggle('active', WN_STATE.mode === m);
+            });
+            var cleanUpload = document.getElementById('wn-clean-upload');
+            if(cleanUpload) cleanUpload.style.display = (WN_STATE.mode === 'clean') ? 'block' : 'none';
+        }
+
+        function WN_clearAllBoxes() {
+            WN_STATE.cropBoxes = [];
+            WN_STATE.eraseBoxes = [];
+            WN_STATE.cleanImage = null;
+            WN_renderBoxes();
+        }
+
+        // --- 內容感知填補（消除答案） ---
         function WN_applyErase() {
             if(!WN_STATE.eraseBoxes.length || !WN_STATE.importedImage) return;
             var img = document.getElementById('wn-crop-img');
@@ -9782,9 +9261,51 @@ function saveViewEdit(timestamp, btn) {
 
         // v1.5.205: 樹狀圖點 unit name 跳過來也要高亮該 unit row (#F3B8B1)
         // v1.5.209: 答對率 bar 點擊 → 直接呼叫 jumpToAccuracyForUnit (它已有填 dropdowns + highlight 邏輯)
-        
+        function jumpToAccuracyForUnitHighlight(unitId, unitName) {
+            jumpToAccuracyForUnit(unitId);
+        }
 
-        // v1.5.205 + v1.5.228 fix: 計算某 unit 的最近答對
+        // v1.5.205 + v1.5.228 fix: 計算某 unit 的最近答對率
+        // v1.5.228: 加 subject/typeName/instanceName 三層 context filter (避免 cross-instance 污染)
+        //            例: 生物/麻辣甲/第1回 不該去拉 數學/麻辣甲/第1回 100% 的 records
+        // 用 loose match (雙向 substring): 處理 unit name 不完全相同的情況
+        function getUnitAccuracyRate(unitName, sub, typeName, instanceName) {
+            var records = loadAccuracyRecords();
+            var rates = [];
+            function looseMatch(a, b) {
+                if (!a || !b) return false;
+                return a.indexOf(b) >= 0 || b.indexOf(a) >= 0;
+            }
+            function ctxMatch(r) {
+                if (sub && r.subject !== sub) return false;
+                if (typeName && r.typeName !== typeName) return false;
+                if (instanceName && r.instanceName !== instanceName) return false;
+                return true;
+            }
+            records.forEach(function(r) {
+                if (!ctxMatch(r)) return;
+                // 主考試 (Row 2 metadata) - 用 wrongUnits 雙向 match
+                if (r.wrongUnits && Array.isArray(r.wrongUnits)) {
+                    var mainMatched = r.wrongUnits.some(function(wu) { return looseMatch(wu, unitName); });
+                    if (mainMatched && r.total > 0) rates.push(r.correct / r.total);
+                }
+                // 額外考卷 (chip 區) — 用同一個 ctx 過濾
+                if (r.extraExams && Array.isArray(r.extraExams)) {
+                    r.extraExams.forEach(function(e) {
+                        if (e.subject && sub && e.subject !== sub) return;
+                        if (e.typeName && typeName && e.typeName !== typeName) return;
+                        if (e.instanceName && instanceName && e.instanceName !== instanceName) return;
+                        if (e.name && looseMatch(e.name, unitName) && e.total > 0) {
+                            rates.push(e.correct / e.total);
+                        }
+                    });
+                }
+            });
+            if (rates.length === 0) return null;
+            var sum = 0;
+            for (var i = 0; i < rates.length; i++) sum += rates[i];
+            return sum / rates.length;
+        }
 
         // v1.5.206: 計算某 unit 的排程天數 (從 plan.grid 找此 unit 的不同日期數)
         function getUnitScheduledDays(unitId) {
@@ -14042,33 +13563,5 @@ document.getElementById('import-file').addEventListener('change', function(e) {
         // switchUser 在 initUsers 內部會 setItem( FAMILY) re-write, 不代表 user 改過資料
         setTimeout(function() { clearDirty('init-settled'); }, 2000);
     </script>
-<div class="wn-mode-bar" id="wn-mode-bar" style="display:none">
-                                        <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
-                                        <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
-                                        <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
-                                        <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
-                                        <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
-                                    </div>
-                                    <div id="crop-modal" style="display:none">
-    <div class="crop-header-wrapper">
-        <div class="crop-header">
-            <div>已為您辨識題目。可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</div>
-            <div style="margin-top:15px;display:flex;justify-content:center;gap:15px;">
-                <button class="glass-btn-small" style="background:var(--btn-almost-aqua, #a8edea);" onclick="triggerAutoCrop()">🤖 自動辨識</button>
-                <button class="glass-btn-small" style="background:var(--btn-peach-dust, #ffd6c0);" onclick="enableManualCrop()">✍️ 手動框選</button>
-            </div>
-            <div id="manual-edit-pad" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid rgba(0,0,0,0.1);">
-                <button class="glass-btn-small" style="background:#fff;" onclick="startManualBox()">➕ 新增框線</button>
-                <button class="glass-btn-small" style="background:#fff;" onclick="undoManualBox()">↺ Undo</button>
-                <span style="font-size:14px;margin-left:10px;color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
-            </div>
-        </div>
-    </div>
-    <div class="wn-crop-workspace" id="wn-crop-workspace"></div>
-    <div class="crop-modal-footer">
-        <button class="glass-btn glass-btn-cancel" onclick="cancelCropping()">取消選取</button>
-        <button class="glass-btn glass-btn-complete" onclick="finishCropping()">完成選取</button>
-    </div>
-</div>
 </body>
 </html>
