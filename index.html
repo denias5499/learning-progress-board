@@ -1099,7 +1099,7 @@
         .glass-btn-complete:hover { background:#2980b9; }
         .glass-btn-small { padding:7px 16px; border:1.5px solid rgba(0,0,0,0.15); border-radius:20px; font-size:0.9em; cursor:pointer; background:#fff; transition:all 0.2s; }
         .glass-btn-small:hover { border-color:var(--accent,#3498db); }
-        .page-container { position:relative; display:inline-block; width:100%; }
+        .page-container { position:relative; max-width:800px; width:100%; margin:0 auto; }
 
         .page-container img, .page-container canvas { display:block; width:100%; }
         .mock-crop-box { position:absolute; border:2px solid #3498db; background:rgba(52,152,219,0.15); cursor:move; box-sizing:border-box; display:flex; align-items:center; justify-content:center; z-index:5; }
@@ -8738,14 +8738,13 @@ function toggleCardSource(selectEl) {
     }
 function finishCropping() {
         document.getElementById('crop-modal').style.display = 'none';
-        // position reset not needed
-        // Show settings-container and scroll to it
+        // stats-wrongnotes is already visible (activated in handleFilesForCrop)
+        // If cards exist, show settings-container
         var settingsContainer = document.getElementById('settings-container');
-        if(settingsContainer) {
+        var slider = document.getElementById('cards-slider');
+        if(settingsContainer && slider && slider.children.length > 0) {
             settingsContainer.style.display = 'block';
-            setTimeout(function() {
-                settingsContainer.scrollIntoView({ behavior: 'smooth' });
-            }, 100);
+            settingsContainer.scrollIntoView({ behavior: 'smooth' });
         }
     }
 function cancelCropping() {
