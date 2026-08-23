@@ -13857,8 +13857,15 @@ async function renderImage(file, workspace) {
     return new Promise(function(resolve) {
         var reader = new FileReader();
         reader.onload = function(e) {
-            addImageCardToWorkspace(e.target.result, file.name, workspace);
-            resolve();
+            var img = document.createElement('img');
+            img.src = e.target.result;
+            img.alt = file.name || '';
+            img.style.width = '100%';
+            img.style.display = 'block';
+            img.onload = function() {
+                createPageContainer(img, workspace);
+                resolve();
+            };
         };
         reader.readAsDataURL(file);
     });
@@ -13871,23 +13878,23 @@ async function renderPDF(file, workspace) {
     workspace.appendChild(card);
 }
 
+// Old version approach: image directly in .page-container (max-width 800px)
+function createPageContainer(mediaEl, workspace) {
+    var container = document.createElement('div');
+    container.className = 'page-container';
+    container.appendChild(mediaEl);
+    workspace.appendChild(container);
+}
+
 function addImageCardToWorkspace(dataUrl, fileName, workspace) {
-    var batchId = 'batch_' + batchCounter + '_' + Date.now();
-    var card = document.createElement('div');
-    card.className = 'file-card';
-    card.id = 'card_' + batchId;
-    card.innerHTML = (
-        '<img src="' + dataUrl + '" alt="' + escapeHtml(fileName) + '">' +
-        '<div style="font-size:0.8em;color:#666;word-break:break-all;">' + escapeHtml(fileName) + '</div>' +
-        '<select class="custom-source" onchange="onSourceChange(this)">' +
-            '<option value="">選擇來源</option>' +
-            '<option value="考卷">考卷</option><option value="習作">習作</option>' +
-            '<option value="講義">講義</option><option value="模擬試卷">模擬試卷</option>' +
-            '<option value="線上題庫">線上題庫</option><option value="其他">其他</option>' +
-        '</select>' +
-        '<input type="text" class="custom-source" style="display:none" placeholder="其他來源">'
-    );
-    workspace.appendChild(card);
+    var img = document.createElement('img');
+    img.src = dataUrl;
+    img.alt = fileName || '';
+    img.style.width = '100%';
+    img.style.display = 'block';
+    img.onload = function() {
+        createPageContainer(img, workspace);
+    };
 }
 
 function onSourceChange(selectEl) {
