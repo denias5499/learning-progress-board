@@ -1195,6 +1195,7 @@
             overflow-y: auto;
         }
         .file-card img { width: 100%; border-radius: 6px; object-fit: contain; max-height: 120px; }
+        .crop-mode .file-card img { max-height: none; width: 100%; }
         .file-card .delete-card-btn {
             position: absolute; top: 5px; right: 5px;
             width: 20px; height: 20px;
@@ -13797,6 +13798,7 @@ async function handleFilesForCrop(files) {
     var workspace = document.getElementById('wn-crop-workspace');
     if (!workspace) { console.error('[Phase1] wn-crop-workspace not found'); return; }
     workspace.innerHTML = '';
+    workspace.classList.add('crop-mode');
 
     var modal = document.getElementById('crop-modal');
     if (modal) {
@@ -13972,13 +13974,15 @@ function cancelCropping() {
     var modal = document.getElementById('crop-modal');
     if (modal) modal.style.display = 'none';
     var workspace = document.getElementById('wn-crop-workspace');
-    if (workspace) workspace.innerHTML = '';
+    if (workspace) { workspace.innerHTML = ''; workspace.classList.remove('crop-mode'); }
     manualBoxes = [];
 }
 
 function finishCropping() {
     var modal = document.getElementById('crop-modal');
     if (modal) modal.style.display = 'none';
+    var workspace = document.getElementById('wn-crop-workspace');
+    if (workspace) workspace.classList.remove('crop-mode');
     var settingsContainer = document.getElementById('settings-container');
     var slider = document.getElementById('cards-slider');
     if (settingsContainer && slider && (slider.children.length > 0 || manualBoxes.length > 0)) {
