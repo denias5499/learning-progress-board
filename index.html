@@ -8399,7 +8399,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var cropArea = document.getElementById('wn-crop-area');
             var isDragging = false, startX, startY, currentBox;
             cropArea.onmousedown = function(e) {
-                if(e.target !== cropArea && e.target !== document.getElementById('wn-crop-img')) return;
+                var img = document.getElementById('wn-crop-img');
+                if(e.target !== cropArea && e.target !== img) return;
                 e.preventDefault();
                 var rect = cropArea.getBoundingClientRect();
                 var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
@@ -8417,19 +8418,36 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 if(!isDragging || !currentBox) return;
                 e.preventDefault();
                 var rect = cropArea.getBoundingClientRect();
-                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
-                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
+                var img2 = cropArea.querySelector('img');
+                var scaleX = img2.naturalWidth / rect.width;
+                var scaleY = img2.naturalHeight / rect.height;
                 var curX = (e.clientX - rect.left) * scaleX;
                 var curY = (e.clientY - rect.top) * scaleY;
                 currentBox.w = Math.abs(curX - startX);
                 currentBox.h = Math.abs(curY - startY);
                 currentBox.x = Math.min(startX, curX);
                 currentBox.y = Math.min(startY, curY);
-                WN_renderBoxes();
+                // Live-preview the box without rebuilding all DOM
+                var existing = cropArea.querySelector('.wn-drag-preview');
+                if(!existing) {
+                    existing = document.createElement('div');
+                    existing.className = 'wn-crop-box wn-drag-preview';
+                    existing.style.pointerEvents = 'none';
+                    cropArea.appendChild(existing);
+                }
+                var sx = rect.width / img2.naturalWidth;
+                var sy = rect.height / img2.naturalHeight;
+                existing.style.left = (currentBox.x * sx) + 'px';
+                existing.style.top = (currentBox.y * sy) + 'px';
+                existing.style.width = (currentBox.w * sx) + 'px';
+                existing.style.height = (currentBox.h * sy) + 'px';
             };
             cropArea.onmouseup = function(e) {
                 if(!isDragging) return;
                 isDragging = false;
+                // Remove live preview
+                var preview = cropArea.querySelector('.wn-drag-preview');
+                if(preview) preview.remove();
                 if(currentBox && currentBox.w > 10 && currentBox.h > 10) {
                     if(WN_STATE.mode === 'add') {
                         WN_STATE.cropBoxes.push(currentBox);
@@ -8464,9 +8482,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 div.style.height = (box.h * scaleY) + 'px';
                 div.innerHTML = '<span class="wn-box-num">'+(i+1)+'</span><button class="wn-box-delete" onclick="WN_deleteBox(event, box.id)">✕</button>';
                 div.onmousedown = function(ev) {
+                    ev.stopPropagation();
                     if(ev.target.classList.contains('wn-box-delete')) return;
                     ev.preventDefault();
-                    ev.stopPropagation();
                     var startX = ev.clientX, startY = ev.clientY;
                     var origX = box.x, origY = box.y;
                     function onMove(e) {
@@ -8497,9 +8515,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 div.style.height = (box.h * scaleY) + 'px';
                 div.innerHTML = '<button class="wn-erase-del" onclick="WN_deleteEraseBox(event, box.id)">✕</button>';
                 div.onmousedown = function(ev) {
+                    ev.stopPropagation();
                     if(ev.target.classList.contains('wn-erase-del')) return;
                     ev.preventDefault();
-                    ev.stopPropagation();
                     var startX = ev.clientX, startY = ev.clientY;
                     var origX = box.x, origY = box.y;
                     function onMove(e) {
