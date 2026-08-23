@@ -1195,7 +1195,20 @@
             overflow-y: auto;
         }
         .file-card img { width: 100%; border-radius: 6px; object-fit: contain; max-height: 120px; }
-        .crop-mode .file-card img { max-height: none; width: 100%; }
+        /* Crop mode: file-card fills the full wn-container width */
+        .crop-mode .file-card {
+            flex: 0 0 100%;
+            max-width: 100%;
+            width: 100%;
+            max-height: none;
+            overflow-y: visible;
+        }
+        .crop-mode .file-card img {
+            max-height: none;
+            width: 100%;
+            max-width: 100%;
+            object-fit: contain;
+        }
         .file-card .delete-card-btn {
             position: absolute; top: 5px; right: 5px;
             width: 20px; height: 20px;
