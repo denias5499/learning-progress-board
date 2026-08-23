@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.7]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.5.259]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1543,12 +1543,12 @@
                         .wn-crop-area{position:relative;display:inline-block;max-width:100%;overflow:auto;background:#f0f0f0;border-radius:8px;margin-top:10px}
                         .wn-crop-area img{display:block;max-width:100%}
                         .wn-crop-box{position:absolute;border:2px solid #3498db;background:rgba(52,152,219,0.15);cursor:move;display:flex;align-items:center;justify-content:center}
-                        .wn-crop-box .wn-box-delete{position:absolute;top:-10px;right:-10px;width:22px;height:22px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:22px;text-align:center;pointer-events:all;z-index:10}
+                        .wn-crop-box .wn-box-delete{position:absolute;top:-10px;right:-10px;width:22px;height:22px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:22px;text-align:center}
                         .wn-crop-box .wn-box-num{background:var(--accent);color:white;padding:2px 8px;border-radius:10px;font-size:0.8em;font-weight:bold}
                         .wn-mode-bar{display:flex;gap:10px;margin-bottom:12px;align-items:center;flex-wrap:wrap}
-                        .wn-mode-btn{padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-size:1em;transition:all 0.2s;font-weight:500}
-                        .wn-mode-btn:hover{background:#eef6ff}
-                        .wn-mode-btn.active{background:#2471a3;color:white;border-color:#1a5276;font-weight:bold}
+                        .wn-mode-btn{padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;background:white;cursor:pointer;font-size:0.9em;transition:all 0.2s}
+                        .wn-mode-btn:hover{background:#f0f8ff}
+                        .wn-mode-btn.active{background:var(--accent);color:white;border-color:var(--accent)}
                         .wn-reason-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
                         .wn-reason-tag{padding:5px 12px;border:1.5px solid var(--border);border-radius:20px;cursor:pointer;font-size:0.88em;transition:all 0.2s;background:white}
                         .wn-reason-tag:hover{border-color:var(--accent)}
@@ -1580,7 +1580,7 @@
                         .wn-stat-card.danger .wn-stat-num{color:#e74c3c}
                         .wn-stat-card.success .wn-stat-num{color:#27ae60}
                         .wn-erase-box{position:absolute;border:2px solid #e74c3c;background:rgba(231,76,60,0.15);cursor:move}
-                        .wn-erase-box .wn-erase-del{position:absolute;top:-10px;right:-10px;width:22px;height:22px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:14px;line-height:22px;text-align:center;pointer-events:all;z-index:10}
+                        .wn-erase-box .wn-erase-del{position:absolute;top:-10px;right:-10px;width:20px;height:20px;background:#e74c3c;color:white;border:none;border-radius:50%;cursor:pointer;font-size:12px}
                         </style>
 
                         <div class="wn-container">
@@ -1614,7 +1614,7 @@
                                         <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
                                         <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
                                         <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
-                                        <button class="wn-cancel-btn" onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
+                                        <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
                                         <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
                                     </div>
                                     <div id="wn-crop-area" class="wn-crop-area" style="display:none">
@@ -8341,12 +8341,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if(dz) dz.classList.remove('drag-over');
             var files = e.dataTransfer.files;
             if(files.length > 0) {
-                var input = document.getElementById('wn-file-input');
-                // Transfer files to the hidden input
                 var dt = new DataTransfer();
                 for(var i=0; i<files.length; i++) dt.items.add(files[i]);
-                input.files = dt.files;
-                WN_handleFileInput(input);
+                document.getElementById('wn-file-input').files = dt.files;
+                WN_handleFileInput(document.getElementById('wn-file-input'));
             }
         }
         function WN_cancelImage() {
@@ -8381,18 +8379,12 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var cropArea = document.getElementById('wn-crop-area');
             var img = document.getElementById('wn-crop-img');
             var modeBar = document.getElementById('wn-mode-bar');
-            var dropZone = document.getElementById('wn-drop-zone');
             img.src = dataUrl;
             img.onload = function() {
                 cropArea.style.display = 'inline-block';
-                cropArea.style.border = '2px solid red'; // debug
                 modeBar.style.display = 'flex';
+                var dropZone = document.getElementById('wn-drop-zone');
                 if(dropZone) dropZone.style.display = 'none';
-                var rect = cropArea.getBoundingClientRect();
-                var imgRect = img.getBoundingClientRect();
-                console.log('[WN] cropArea rect:', JSON.stringify({w:Math.round(rect.width),h:Math.round(rect.height)}));
-                console.log('[WN] img rect:', JSON.stringify({w:Math.round(imgRect.width),h:Math.round(imgRect.height),naturalW:img.naturalWidth,naturalH:img.naturalHeight}));
-                console.log('[WN] cropArea children:', cropArea.children.length);
                 WN_STATE.cropBoxes = [];
                 WN_STATE.eraseBoxes = [];
                 WN_STATE.mode = 'add';
@@ -8405,207 +8397,155 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         function WN_setupCropEvents() {
             var cropArea = document.getElementById('wn-crop-area');
-            var imgEl = document.getElementById('wn-crop-img');
-            if(!cropArea || !imgEl) return;
-
-            // === Box mousedown: drag or resize (uses stopPropagation like old code) ===
-            function onBoxMouseDown(e) {
-                if(e.target.classList.contains('wn-box-delete') || e.target.classList.contains('wn-erase-del')) return; // let delete btn work
+            var isDragging = false, startX, startY, currentBox;
+            cropArea.onmousedown = function(e) {
+                if(e.target !== cropArea && e.target !== document.getElementById('wn-crop-img')) return;
                 e.preventDefault();
-                e.stopPropagation();
-
-                var box = e.currentTarget;
-                var isErase = WN_STATE.mode === 'erase';
-
-                // Get current pointer position relative to cropArea
                 var rect = cropArea.getBoundingClientRect();
-                var startX = e.clientX;
-                var startY = e.clientY;
-                var startLeft = box.offsetLeft;
-                var startTop = box.offsetTop;
-                var startW = box.offsetWidth;
-                var startH = box.offsetHeight;
-
-                var isResizing = e.target.classList.contains('resize-tl') || e.target.classList.contains('resize-br');
-
-                function onMouseMove(e) {
-                    var dx = e.clientX - startX;
-                    var dy = e.clientY - startY;
-                    var scaleX = cropArea.offsetWidth / imgEl.offsetWidth;
-                    var scaleY = cropArea.offsetHeight / imgEl.offsetHeight;
-
-                    if(isResizing) {
-                        if(e.target.classList.contains('resize-br')) {
-                            box.style.width = Math.max(30, startW + dx / scaleX) + 'px';
-                            box.style.height = Math.max(20, startH + dy / scaleY) + 'px';
-                        } else if(e.target.classList.contains('resize-tl')) {
-                            var newW = Math.max(30, startW - dx / scaleX);
-                            var newH = Math.max(20, startH - dy / scaleY);
-                            if(newW > 30) { box.style.left = (startLeft + dx / scaleX) + 'px'; box.style.width = newW + 'px'; }
-                            if(newH > 20) { box.style.top = (startTop + dy / scaleY) + 'px'; box.style.height = newH + 'px'; }
-                        }
-                    } else {
-                        // Drag: move box
-                        box.style.left = Math.max(0, startLeft + dx / scaleX) + 'px';
-                        box.style.top = Math.max(0, startTop + dy / scaleY) + 'px';
+                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
+                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
+                startX = (e.clientX - rect.left) * scaleX;
+                startY = (e.clientY - rect.top) * scaleY;
+                isDragging = true;
+                if(WN_STATE.mode === 'add') {
+                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
+                } else if(WN_STATE.mode === 'erase') {
+                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
+                }
+            };
+            cropArea.onmousemove = function(e) {
+                if(!isDragging || !currentBox) return;
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
+                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
+                var curX = (e.clientX - rect.left) * scaleX;
+                var curY = (e.clientY - rect.top) * scaleY;
+                currentBox.w = Math.abs(curX - startX);
+                currentBox.h = Math.abs(curY - startY);
+                currentBox.x = Math.min(startX, curX);
+                currentBox.y = Math.min(startY, curY);
+                WN_renderBoxes();
+            };
+            cropArea.onmouseup = function(e) {
+                if(!isDragging) return;
+                isDragging = false;
+                if(currentBox && currentBox.w > 10 && currentBox.h > 10) {
+                    if(WN_STATE.mode === 'add') {
+                        WN_STATE.cropBoxes.push(currentBox);
+                    } else if(WN_STATE.mode === 'erase') {
+                        WN_STATE.eraseBoxes.push(currentBox);
+                        WN_applyErase();
                     }
                 }
-
-                function onMouseUp(e) {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
-                }
-
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
-            }
-
-            // === Container mousedown: create new box when clicking on background ===
-            cropArea.addEventListener('mousedown', function(e) {
-                // If clicking on existing box, let box's own handler take over
-                if(e.target.closest('.wn-crop-box, .wn-erase-box')) return;
-
-                // Clicking on background or img: create new box at click position
-                e.preventDefault();
-                var rect = cropArea.getBoundingClientRect();
-                var scaleX = imgEl.naturalWidth / imgEl.offsetWidth;
-                var scaleY = imgEl.naturalHeight / imgEl.offsetHeight;
-                var clickX = (e.clientX - rect.left) * scaleX;
-                var clickY = (e.clientY - rect.top) * scaleY;
-
-                var newBox = {
-                    id: Date.now(),
-                    x: clickX - 100,
-                    y: clickY - 50,
-                    w: 200,
-                    h: 100,
-                    isErase: WN_STATE.mode === 'erase'
-                };
-
-                if(WN_STATE.mode === 'add') {
-                    WN_STATE.cropBoxes.push(newBox);
-                } else if(WN_STATE.mode === 'erase') {
-                    WN_STATE.eraseBoxes.push(newBox);
-                    // Immediately apply erase
-                    setTimeout(function() { WN_applyErase(); }, 50);
-                }
+                currentBox = null;
                 WN_renderBoxes();
-            });
-
-            // Attach drag handlers to existing boxes
-            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(box) {
-                box.addEventListener('mousedown', onBoxMouseDown);
-            });
+            };
+            cropArea.onmouseleave = function() { if(isDragging && currentBox) { currentBox = null; isDragging = false; } };
         }
 
         function WN_renderBoxes() {
             var cropArea = document.getElementById('wn-crop-area');
             if(!cropArea) return;
+            // 移除舊框
             cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b){ b.remove(); });
             var img = document.getElementById('wn-crop-img');
-            if(!img) return;
-            var scaleX = img.offsetWidth / img.naturalWidth;
-            var scaleY = img.offsetHeight / img.naturalHeight;
+            var rect = cropArea.getBoundingClientRect();
+            var scaleX = rect.width / img.naturalWidth;
+            var scaleY = rect.height / img.naturalHeight;
 
-            function makeBox(box, isErase) {
+            // 繪製裁切框（藍色）
+            WN_STATE.cropBoxes.forEach(function(box, i) {
                 var div = document.createElement('div');
-                div.className = isErase ? 'wn-erase-box' : 'wn-crop-box';
+                div.className = 'wn-crop-box';
                 div.style.left = (box.x * scaleX) + 'px';
                 div.style.top = (box.y * scaleY) + 'px';
                 div.style.width = (box.w * scaleX) + 'px';
                 div.style.height = (box.h * scaleY) + 'px';
-                div.dataset.id = box.id;
-
-                // Delete button
-                var del = document.createElement('button');
-                del.className = isErase ? 'wn-erase-del' : 'wn-box-delete';
-                del.innerHTML = '✕';
-                del.onclick = function(e) {
-                    e.stopPropagation();
-                    if(isErase) {
-                        WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== box.id; });
-                    } else {
-                        WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== box.id; });
-                    }
-                    WN_renderBoxes();
-                };
-                div.appendChild(del);
-
-                // Resize handles (old style: tl and br)
-                var tl = document.createElement('div');
-                tl.className = 'resize-handle resize-tl';
-                div.appendChild(tl);
-                var br = document.createElement('div');
-                br.className = 'resize-handle resize-br';
-                div.appendChild(br);
-
-                // Number label for crop boxes
-                if(!isErase) {
-                    var num = document.createElement('span');
-                    num.className = 'wn-box-num';
-                    num.style.cssText = 'position:absolute;top:4px;left:4px;background:var(--accent);color:white;padding:2px 8px;border-radius:10px;font-size:0.8em;font-weight:bold;pointer-events:none;';
-                    div.appendChild(num);
-                }
-
-                return div;
-            }
-
-            WN_STATE.cropBoxes.forEach(function(box, i) {
-                var div = makeBox(box, false);
-                div.querySelector('.wn-box-num').textContent = i + 1;
-                cropArea.appendChild(div);
-            });
-            WN_STATE.eraseBoxes.forEach(function(box) {
-                cropArea.appendChild(makeBox(box, true));
-            });
-
-            // Re-attach mousedown handlers (for newly created boxes)
-            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(box) {
-                box.onmousedown = function(e) {
-                    if(e.target.classList.contains('wn-box-delete') || e.target.classList.contains('wn-erase-del')) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var startX = e.clientX, startY = e.clientY;
-                    var startLeft = box.offsetLeft, startTop = box.offsetTop, startW = box.offsetWidth, startH = box.offsetHeight;
-                    var isErase = box.classList.contains('wn-erase-box');
-                    var boxId = parseInt(box.dataset.id);
-
+                div.innerHTML = '<span class="wn-box-num">'+(i+1)+'</span><button class="wn-box-delete" onclick="WN_deleteBox(event, box.id)">✕</button>';
+                div.onmousedown = function(ev) {
+                    if(ev.target.classList.contains('wn-box-delete')) return;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    var startX = ev.clientX, startY = ev.clientY;
+                    var origX = box.x, origY = box.y;
                     function onMove(e) {
-                        var dx = e.clientX - startX, dy = e.clientY - startY;
-                        var scaleX = img.offsetWidth / img.naturalWidth;
-                        var scaleY = img.offsetHeight / img.naturalHeight;
-                        if(e.target.classList.contains('resize-br')) {
-                            box.style.width = Math.max(30, startW + dx / scaleX) + 'px';
-                            box.style.height = Math.max(20, startH + dy / scaleY) + 'px';
-                        } else if(e.target.classList.contains('resize-tl')) {
-                            var newW = Math.max(30, startW - dx / scaleX);
-                            var newH = Math.max(20, startH - dy / scaleY);
-                            if(newW > 30) { box.style.left = (startLeft + dx / scaleX) + 'px'; box.style.width = newW + 'px'; }
-                            if(newH > 20) { box.style.top = (startTop + dy / scaleY) + 'px'; box.style.height = newH + 'px'; }
-                        } else {
-                            box.style.left = Math.max(0, startLeft + dx / scaleX) + 'px';
-                            box.style.top = Math.max(0, startTop + dy / scaleY) + 'px';
-                        }
+                        var dx = (e.clientX - startX) / scaleX;
+                        var dy = (e.clientY - startY) / scaleY;
+                        box.x = Math.max(0, origX + dx);
+                        box.y = Math.max(0, origY + dy);
+                        div.style.left = (box.x * scaleX) + 'px';
+                        div.style.top = (box.y * scaleY) + 'px';
                     }
-                    function onUp(e) {
+                    function onUp() {
                         document.removeEventListener('mousemove', onMove);
                         document.removeEventListener('mouseup', onUp);
-                        // Update box coords in state
-                        var arr = isErase ? WN_STATE.eraseBoxes : WN_STATE.cropBoxes;
-                        var b = arr.find(function(x){ return x.id === boxId; });
-                        if(b) {
-                            b.x = parseFloat(box.style.left) / scaleX;
-                            b.y = parseFloat(box.style.top) / scaleY;
-                            b.w = parseFloat(box.style.width) / scaleX;
-                            b.h = parseFloat(box.style.height) / scaleY;
-                        }
                     }
                     document.addEventListener('mousemove', onMove);
                     document.addEventListener('mouseup', onUp);
                 };
+                cropArea.appendChild(div);
+            });
+
+            // 繪製消除框（紅色）
+            WN_STATE.eraseBoxes.forEach(function(box, i) {
+                var div = document.createElement('div');
+                div.className = 'wn-erase-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.innerHTML = '<button class="wn-erase-del" onclick="WN_deleteEraseBox(event, box.id)">✕</button>';
+                div.onmousedown = function(ev) {
+                    if(ev.target.classList.contains('wn-erase-del')) return;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    var startX = ev.clientX, startY = ev.clientY;
+                    var origX = box.x, origY = box.y;
+                    function onMove(e) {
+                        var dx = (e.clientX - startX) / scaleX;
+                        var dy = (e.clientY - startY) / scaleY;
+                        box.x = Math.max(0, origX + dx);
+                        box.y = Math.max(0, origY + dy);
+                        div.style.left = (box.x * scaleX) + 'px';
+                        div.style.top = (box.y * scaleY) + 'px';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                };
+                cropArea.appendChild(div);
             });
         }
 
+        function WN_deleteBox(e, id) {
+            e.stopPropagation();
+            WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== id; });
+            WN_renderBoxes();
+        }
+
+        function WN_deleteEraseBox(e, id) {
+            e.stopPropagation();
+            WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== id; });
+            WN_renderBoxes();
+        }
+
+        function WN_setMode(mode) {
+            WN_STATE.mode = mode;
+            WN_updateModeButtons();
+        }
+
+        function WN_updateModeButtons() {
+            ['add','erase','clean'].forEach(function(m){
+                var btn = document.getElementById('wn-mode-'+m);
+                if(btn) btn.classList.toggle('active', WN_STATE.mode === m);
+            });
+            var cleanUpload = document.getElementById('wn-clean-upload');
+            if(cleanUpload) cleanUpload.style.display = (WN_STATE.mode === 'clean') ? 'block' : 'none';
+        }
 
         function WN_clearAllBoxes() {
             WN_STATE.cropBoxes = [];
@@ -8615,7 +8555,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         // --- 內容感知填補（消除答案） ---
-        // --- 內容感知填補（消除答案） ---
         function WN_applyErase() {
             if(!WN_STATE.eraseBoxes.length || !WN_STATE.importedImage) return;
             var img = document.getElementById('wn-crop-img');
@@ -8624,98 +8563,31 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             canvas.height = img.naturalHeight;
             var ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0);
-
             WN_STATE.eraseBoxes.forEach(function(box) {
-                var bx = Math.round(box.x), by = Math.round(box.y);
-                var bw = Math.round(box.w), bh = Math.round(box.h);
-                // Pad to avoid border issues
-                var PAD = 12;
-                var sx = Math.max(0, bx - PAD), sy = Math.max(0, by - PAD);
-                var sw = Math.min(canvas.width - sx, bw + PAD*2);
-                var sh = Math.min(canvas.height - sy, bh + PAD*2);
-
-                var imgData = ctx.getImageData(sx, sy, sw, sh);
-                var d = imgData.data;
-                var localW = sw, localH = sh;
-
-                // Build grayscale array for faster access
-                var gray = new Uint16Array(localW * localH);
-                for(var i=0; i<gray.length; i++) {
-                    gray[i] = (d[i*4]*77 + d[i*4+1]*150 + d[i*4+2]*29) >> 8;
-                }
-
-                // Compute 11x11 local median for each pixel (approximate with min filter + threshold)
-                var MED = 11;
-                var HPAD = MED >> 1;
-                var penMask = new Uint8Array(localW * localH);
-
-                for(var y=HPAD; y<localH-HPAD; y++) {
-                    for(var x=HPAD; x<localW-HPAD; x++) {
-                        // Compute local min (darkest pixel in window - pen marks are dark)
-                        var minVal = 255, minCnt = 0, sumVal = 0, sumCnt = 0;
-                        for(var fy=-HPAD; fy<=HPAD; fy++) {
-                            for(var fx=-HPAD; fx<=HPAD; fx++) {
-                                var v = gray[(y+fy)*localW + (x+fx)];
-                                if(v < minVal) minVal = v;
-                                sumVal += v; sumCnt++;
-                            }
-                        }
-                        var localMedian = Math.round(sumVal / sumCnt);
-                        var center = gray[y*localW + x];
-
-                        // Pen candidate: significantly darker than local average
-                        // and not already very dark (to avoid killing print text)
-                        if(center < localMedian - 18 && center > 15) {
-                            penMask[y*localW + x] = 1;
-                        }
-                    }
-                }
-
-                // Replace pen pixels with neighborhood average
-                var REPL = 8; // replacement radius
-                for(var y=HPAD; y<localH-HPAD; y++) {
-                    for(var x=HPAD; x<localW-HPAD; x++) {
-                        if(!penMask[y*localW + x]) continue;
-                        var r=0,g=0,b=0,cnt=0;
-                        outer:
-                        for(var fy=-REPL; fy<=REPL; fy++) {
-                            for(var fx=-REPL; fx<=REPL; fx++) {
-                                var nx=x+fx, ny=y+fy;
-                                if(nx<0||nx>=localW||ny<0||ny>=localH) continue;
-                                if(penMask[ny*localW+nx]) continue; // skip other pen pixels
-                                var idx=(ny*localW+nx)*4;
+                // 內容感知填補：用周圍顏色填補
+                var patchSize = Math.max(box.w, box.h) * 0.5;
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(box.x, box.y, box.w, box.h);
+                // 簡單模糊填補：取周圍平均色彩
+                try {
+                    var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    var d = imgData.data;
+                    var r=0,g=0,b=0,cnt=0;
+                    // 取框外圍邊緣像素平均值
+                    for(var py = Math.max(0,box.y-2); py < Math.min(canvas.height, box.y+box.h+2); py++) {
+                        for(var px = Math.max(0,box.x-2); px < Math.min(canvas.width, box.x+box.w+2); px++) {
+                            if(py < box.y || py >= box.y+box.h || px < box.x || px >= box.x+box.w) {
+                                var idx = (py*canvas.width+px)*4;
                                 r+=d[idx]; g+=d[idx+1]; b+=d[idx+2]; cnt++;
                             }
                         }
-                        if(cnt > 0) {
-                            var idx=(y*localW+x)*4;
-                            d[idx]   = Math.round(r/cnt);
-                            d[idx+1] = Math.round(g/cnt);
-                            d[idx+2] = Math.round(b/cnt);
-                        } else {
-                            // fallback: use surrounding average
-                            var r2=0,g2=0,b2=0,cnt2=0;
-                            for(var fy=-REPL; fy<=REPL; fy++) {
-                                for(var fx=-REPL; fx<=REPL; fx++) {
-                                    var nx=x+fx, ny=y+fy;
-                                    if(nx<0||nx>=localW||ny<0||ny>=localH) continue;
-                                    var idx2=(ny*localW+nx)*4;
-                                    r2+=d[idx2]; g2+=d[idx2+1]; b2+=d[idx2+2]; cnt2++;
-                                }
-                            }
-                            if(cnt2>0) {
-                                var idx=(y*localW+x)*4;
-                                d[idx]   = Math.round(r2/cnt2);
-                                d[idx+1] = Math.round(g2/cnt2);
-                                d[idx+2] = Math.round(b2/cnt2);
-                            }
-                        }
                     }
-                }
-
-                ctx.putImageData(imgData, sx, sy);
+                    if(cnt>0) { r=Math.round(r/cnt); g=Math.round(g/cnt); b=Math.round(b/cnt); }
+                    ctx.fillStyle = 'rgb('+r+','+g+','+b+')';
+                    ctx.fillRect(box.x+1, box.y+1, box.w-2, box.h-2);
+                } catch(err){}
             });
-
+            // 更新顯示
             var newDataUrl = canvas.toDataURL('image/png');
             document.getElementById('wn-crop-img').src = newDataUrl;
             WN_STATE.importedImage = newDataUrl;
