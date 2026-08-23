@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.5.259]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.16]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1078,6 +1078,171 @@
             color: #78350f; font-size: 1.2em; padding: 0 6px;
             line-height: 1;
         }
+
+        /* ===== Phase 1: crop-modal overlay ===== */
+        #crop-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #e8ecef;
+            z-index: 9000;
+            flex-direction: column;
+        }
+        .wn-crop-workspace {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 20px 120px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .crop-header-wrapper {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .crop-header { max-width: 900px; margin: 0 auto; }
+        .crop-modal-footer {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-top: 2px solid #dee2e6;
+            position: sticky;
+            bottom: 0;
+            z-index: 10;
+        }
+        .glass-btn {
+            padding: 10px 28px;
+            border: none;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .glass-btn-cancel { background: #fff; color: #e74c3c; border: 2px solid #e74c3c; }
+        .glass-btn-cancel:hover { background: #e74c3c; color: #fff; }
+        .glass-btn-complete { background: var(--accent, #3498db); color: #fff; }
+        .glass-btn-complete:hover { background: #2980b9; }
+        .glass-btn-small {
+            padding: 7px 16px;
+            border: 1.5px solid rgba(0,0,0,0.15);
+            border-radius: 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            background: #fff;
+            transition: all 0.2s;
+        }
+        .glass-btn-small:hover { border-color: var(--accent, #3498db); }
+        .page-container { position: relative; max-width: 800px; width: 100%; margin: 0 auto; }
+        .page-container img, .page-container canvas { display: block; width: 100%; }
+        /* ===== Old wrong-note DB note page styles (Phase 1) ===== */
+        .mock-crop-box {
+            position: absolute;
+            border: 2px solid #3498db;
+            background: rgba(52,152,219,0.15);
+            cursor: move;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 5;
+        }
+        .delete-box-btn {
+            position: absolute; top: -10px; right: -10px;
+            width: 22px; height: 22px;
+            background: #e74c3c; color: #fff;
+            border: none; border-radius: 50%;
+            cursor: pointer;
+            font-size: 13px; line-height: 22px; text-align: center;
+            z-index: 15;
+        }
+        .resize-handle {
+            position: absolute;
+            width: 12px; height: 12px;
+            background: #e74c3c;
+            border-radius: 50%;
+            z-index: 15;
+        }
+        .resize-handle.tl { top: -6px; left: -6px; cursor: nw-resize; }
+        .resize-handle.br { bottom: -6px; right: -6px; cursor: se-resize; }
+        .add-crop-btn {
+            width: 28px; height: 28px;
+            background: var(--accent, #3498db); color: #fff;
+            border: none; border-radius: 50%;
+            font-size: 18px; line-height: 28px;
+            cursor: pointer; z-index: 10;
+        }
+        .add-crop-btn.selected { background: #27ae60; }
+        .file-card {
+            flex: 0 0 200px;
+            background: #fff;
+            border: 2px solid #dee2e6;
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            max-height: 280px;
+            overflow-y: auto;
+        }
+        .file-card img { width: 100%; border-radius: 6px; object-fit: contain; max-height: 120px; }
+        .file-card .delete-card-btn {
+            position: absolute; top: 5px; right: 5px;
+            width: 20px; height: 20px;
+            background: #e74c3c; color: #fff;
+            border: none; border-radius: 50%;
+            cursor: pointer; font-size: 12px; line-height: 20px;
+        }
+        .file-card select, .file-card input[type="text"] {
+            width: 100%; padding: 5px;
+            border: 1.5px solid #dee2e6;
+            border-radius: 6px; font-size: 0.85em;
+            box-sizing: border-box;
+        }
+        .generate-btn {
+            display: block; margin: 10px auto;
+            padding: 10px 30px;
+            background: var(--accent, #3498db); color: #fff;
+            border: none; border-radius: 25px;
+            font-size: 1em; cursor: pointer;
+        }
+        .generate-btn:hover { background: #2980b9; }
+        .note-slot { background: #fff; border-radius: 12px; margin-bottom: 15px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .note-slot-header { display: flex; gap: 15px; padding: 10px 15px; color: #fff; font-size: 0.9em; flex-wrap: wrap; }
+        .note-slot-body { display: flex; gap: 15px; padding: 15px; }
+        .note-left { flex: 0 0 180px; }
+        .note-right { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .note-img-area img { max-width: 100%; border-radius: 8px; }
+        .note-grid-area {
+            min-height: 60px; padding: 8px;
+            border: 1.5px dashed #dee2e6;
+            border-radius: 8px; font-size: 0.95em;
+            line-height: 1.5; outline: none;
+        }
+        .note-grid-area:focus { border-color: var(--accent, #3498db); }
+        .note-grid-area:empty:before { content: attr(placeholder); color: #aaa; }
+        .note-action-btns { display: flex; gap: 8px; margin-top: 10px; }
+        .action-btn-small { padding: 5px 12px; border: 1.5px solid #dee2e6; background: #fff; border-radius: 6px; cursor: pointer; font-size: 0.85em; }
+        .action-btn-small:hover { border-color: var(--accent, #3498db); }
+        .save-btn-container { text-align: center; padding: 15px; }
+        .btn-save { padding: 10px 30px; background: #27ae60; color: #fff; border: none; border-radius: 25px; font-size: 1em; cursor: pointer; }
+        .btn-save:hover { background: #1e8449; }
+        .filter-bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 10px; }
+        .filter-select { padding: 6px 10px; border: 1.5px solid #dee2e6; border-radius: 8px; font-size: 0.9em; }
+        .btn-print { padding: 6px 14px; background: #fff; border: 1.5px solid #dee2e6; border-radius: 8px; cursor: pointer; font-size: 0.9em; }
+        .placeholder-text { text-align: center; color: #aaa; padding: 40px; font-size: 1.1em; }
+        .checkbox-group label { display: block; padding: 3px 0; font-size: 0.9em; cursor: pointer; }
+        /* ===== End Phase 1 CSS ===== */
+
         </style>
 </head>
 <body>
@@ -1609,7 +1774,7 @@
                                         <p>📁 拖曳圖片或 PDF 到這裡</p>
                                         <p style="font-size:0.85em;color:#95a5a6;">或點擊選擇檔案（支援 jpg, png, webp, pdf）</p>
                                     </div>
-                                    <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" multiple onchange="WN_handleFileInput(this)">
+                                    <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" multiple onchange="handleFilesForCrop(this.files)">
                                     <div class="wn-mode-bar" id="wn-mode-bar" style="display:none">
                                         <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
                                         <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
@@ -1654,6 +1819,45 @@
                                         <button class="wn-btn wn-btn-success" onclick="WN_saveNote()">💾 儲存筆記</button>
                                         <button class="wn-btn wn-btn-secondary" onclick="WN_cancelImport()">取消</button>
                                     </div>
+                                <!-- Phase 1: settings + note page + view page -->
+                                <div id="settings-container" style="display:none; margin-top:15px;">
+                                    <div style="font-weight:bold; color:var(--theme-blue, #3498db); margin-bottom:8px;">Step 2~5：為每個檔案設定詳細資訊</div>
+                                    <div class="slider-container" id="cards-slider"></div>
+                                    <button class="generate-btn" onclick="generateNote()">📝 生成錯題筆記</button>
+                                </div>
+                                <!-- 編輯生成筆記頁面 -->
+                                <div id="note-page" class="page" style="display:none;">
+                                    <div id="note-slots-container"></div>
+                                    <div class="save-btn-container">
+                                        <button class="btn-save" onclick="saveNotes()">💾 儲存筆記</button>
+                                    </div>
+                                </div>
+                                <!-- 查看錯題筆記頁面 -->
+                                <div id="view-page" class="page" style="display:none;">
+                                    <div class="filter-bar">
+                                        <select class="filter-select" id="filter-time" onchange="renderViewPage()">
+                                            <option value="all">📁 全部筆記</option>
+                                            <option value="today" selected>☑️ 當日筆記</option>
+                                            <option value="week">📅 當週筆記</option>
+                                        </select>
+                                        <select class="filter-select" id="filter-subject" onchange="renderViewPage()"><option value="">依科目查看</option></select>
+                                        <select class="filter-select" id="filter-volume" onchange="renderViewPage()"><option value="">依冊次查看</option></select>
+                                        <select class="filter-select" id="filter-unit" onchange="renderViewPage()"><option value="">依單元查看</option></select>
+                                        <button class="btn-print" onclick="window.print()">🖨️ 列印</button>
+                                    </div>
+                                    <div id="view-slots-container"></div>
+                                </div>
+                                <!-- Phase 1 wn-mode-bar (moved outside wn-import) -->
+                                <div id="wn-mode-bar" style="display:none; margin-top:15px;">
+                                    <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
+                                    <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
+                                    <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
+                                    <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
+                                    <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
+                                </div>
+                                <!-- Old wn-crop-area (for backward compat) -->
+                                <div id="wn-crop-area" class="wn-crop-area" style="display:none">
+                                    <img id="wn-crop-img" style="display:block">
                                 </div>
                             </div>
 
@@ -8026,6 +8230,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
         };
 
         // --- Tab 切換 ---
+        
+        // --- Phase 1: Drag & drop file upload (enhancement) ---
+        document.addEventListener('DOMContentLoaded', function() {
+            var zone = document.getElementById('wn-drop-zone');
+            if (zone) {
+                zone.addEventListener('dragover', function() { zone.classList.add('drag-over'); });
+                zone.addEventListener('dragleave', function() { zone.classList.remove('drag-over'); });
+                zone.addEventListener('drop', function(e) {
+                    zone.classList.remove('drag-over');
+                    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                        handleFilesForCrop(e.dataTransfer.files);
+                    }
+                });
+            }
+        });
+
         function WN_switchTab(tab) {
             document.querySelectorAll('.wn-tab').forEach(function(t){ t.classList.remove('active'); });
             document.querySelectorAll('.wn-page').forEach(function(p){ p.classList.remove('active'); });
@@ -13562,6 +13782,504 @@ document.getElementById('import-file').addEventListener('change', function(e) {
         // v1.5.227: clearDirty 到 init 完成後才觸發 (避免 init 內部 setItem 誤觸)
         // switchUser 在 initUsers 內部會 setItem( FAMILY) re-write, 不代表 user 改過資料
         setTimeout(function() { clearDirty('init-settled'); }, 2000);
-    </script>
+    
+// ============================================================
+// Phase 1: Crop/Erase Modal System + Old Wrong-Note DB Functions
+// ============================================================
+
+// --- Phase 1: handleFilesForCrop (entry point for crop flow) ---
+var manualBoxes = [];
+var batchCounter = 0;
+
+async function handleFilesForCrop(files) {
+    if (!files || files.length === 0) return;
+
+    var workspace = document.getElementById('wn-crop-workspace');
+    if (!workspace) { console.error('[Phase1] wn-crop-workspace not found'); return; }
+    workspace.innerHTML = '';
+
+    var modal = document.getElementById('crop-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+    }
+
+    var statsWN = document.getElementById('stats-wrongnotes');
+    if (statsWN) { statsWN.style.display = 'block'; statsWN.classList.add('active'); }
+    var wnRoot = document.getElementById('wrongnotes-root');
+    if (wnRoot) wnRoot.style.display = 'block';
+
+    var wnImport = document.getElementById('wn-import');
+    if (wnImport) {
+        document.querySelectorAll('.wn-tab').forEach(function(t){ t.classList.remove('active'); });
+        document.querySelectorAll('.wn-page').forEach(function(p){ p.classList.remove('active'); });
+        var tBtn = document.querySelector('.wn-tab[data-wntab="import"]');
+        if (tBtn) tBtn.classList.add('active');
+        wnImport.classList.add('active');
+    }
+
+    document.getElementById('manual-edit-pad').style.display = 'none';
+    batchCounter++;
+    manualBoxes = [];
+
+    for (var i = 0; i < files.length; i++) {
+        var file = files[i];
+        if (file.type === "application/pdf") {
+            await renderPDF(file, workspace);
+        } else if (file.type.startsWith("image/")) {
+            await renderImage(file, workspace);
+        }
+    }
+}
+
+async function renderImage(file, workspace) {
+    return new Promise(function(resolve) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            addImageCardToWorkspace(e.target.result, file.name, workspace);
+            resolve();
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+async function renderPDF(file, workspace) {
+    var card = document.createElement('div');
+    card.className = 'file-card';
+    card.innerHTML = '<div style="text-align:center;padding:20px;color:#e74c3c;">📄 PDF: ' + escapeHtml(file.name) + '<br><small>PDF 功能施工中</small></div>';
+    workspace.appendChild(card);
+}
+
+function addImageCardToWorkspace(dataUrl, fileName, workspace) {
+    var batchId = 'batch_' + batchCounter + '_' + Date.now();
+    var card = document.createElement('div');
+    card.className = 'file-card';
+    card.id = 'card_' + batchId;
+    card.innerHTML = (
+        '<img src="' + dataUrl + '" alt="' + escapeHtml(fileName) + '">' +
+        '<div style="font-size:0.8em;color:#666;word-break:break-all;">' + escapeHtml(fileName) + '</div>' +
+        '<select class="custom-source" onchange="onSourceChange(this)">' +
+            '<option value="">選擇來源</option>' +
+            '<option value="考卷">考卷</option><option value="習作">習作</option>' +
+            '<option value="講義">講義</option><option value="模擬試卷">模擬試卷</option>' +
+            '<option value="線上題庫">線上題庫</option><option value="其他">其他</option>' +
+        '</select>' +
+        '<input type="text" class="custom-source" style="display:none" placeholder="其他來源">'
+    );
+    workspace.appendChild(card);
+}
+
+function onSourceChange(selectEl) {
+    var input = selectEl.closest('.file-card').querySelector('.custom-source[type="text"]');
+    if (input) input.style.display = (selectEl.value === '其他') ? 'block' : 'none';
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function enableManualCrop() {
+    document.getElementById('manual-edit-pad').style.display = 'block';
+    manualBoxes = [];
+    renderManualBoxes();
+}
+
+function startManualBox() {
+    var tip = document.getElementById('manual-tip');
+    if (tip) tip.textContent = '正在等待點擊...';
+    var workspace = document.getElementById('wn-crop-workspace');
+    if (!workspace) return;
+    var handler = function(e) {
+        var target = e.target;
+        if (target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'INPUT') return;
+        if (!workspace.contains(target) && target.id !== 'wn-crop-workspace') return;
+        e.preventDefault();
+        workspace.removeEventListener('click', handler);
+        var newBox = {
+            id: 'box_' + Date.now(),
+            x: e.offsetX || (e.clientX - workspace.getBoundingClientRect().left),
+            y: e.offsetY || (e.clientY - workspace.getBoundingClientRect().top),
+            w: 150, h: 80
+        };
+        manualBoxes.push(newBox);
+        renderManualBoxes();
+        var tip2 = document.getElementById('manual-tip');
+        if (tip2) tip2.textContent = '請點擊「新增框線」繼續，或點擊「完成選取」結束。';
+    };
+    workspace.addEventListener('click', handler);
+}
+
+function undoManualBox() {
+    if (manualBoxes.length > 0) { manualBoxes.pop(); renderManualBoxes(); }
+}
+
+function renderManualBoxes() {
+    var workspace = document.getElementById('wn-crop-workspace');
+    if (!workspace) return;
+    workspace.querySelectorAll('.mock-crop-box').forEach(function(b){ b.remove(); });
+    manualBoxes.forEach(function(box) {
+        var div = document.createElement('div');
+        div.className = 'mock-crop-box';
+        div.style.left = box.x + 'px';
+        div.style.top = box.y + 'px';
+        div.style.width = box.w + 'px';
+        div.style.height = box.h + 'px';
+        div.innerHTML = '<button class="delete-box-btn" onclick="deleteManualBox(this.dataset.boxid)" data-boxid="' + box.id + '">✕</button>';
+        div.onmousedown = function(e) {
+            if (e.target.classList.contains('delete-box-btn')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            var startX = e.clientX, startY = e.clientY;
+            var origX = box.x, origY = box.y;
+            function onMove(me) {
+                box.x = origX + (me.clientX - startX);
+                box.y = origY + (me.clientY - startY);
+                div.style.left = box.x + 'px';
+                div.style.top = box.y + 'px';
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        };
+        workspace.appendChild(div);
+    });
+}
+
+function deleteManualBox(boxId) {
+    manualBoxes = manualBoxes.filter(function(b){ return b.id !== boxId; });
+    renderManualBoxes();
+}
+
+function triggerAutoCrop() {
+    var workspace = document.getElementById('wn-crop-workspace');
+    if (!workspace) return;
+    var img = workspace.querySelector('img');
+    if (!img) return;
+    var newBox = { id: 'box_' + Date.now(), x: 50, y: 50, w: 200, h: 100 };
+    manualBoxes.push(newBox);
+    renderManualBoxes();
+}
+
+function cancelCropping() {
+    var modal = document.getElementById('crop-modal');
+    if (modal) modal.style.display = 'none';
+    var workspace = document.getElementById('wn-crop-workspace');
+    if (workspace) workspace.innerHTML = '';
+    manualBoxes = [];
+}
+
+function finishCropping() {
+    var modal = document.getElementById('crop-modal');
+    if (modal) modal.style.display = 'none';
+    var settingsContainer = document.getElementById('settings-container');
+    var slider = document.getElementById('cards-slider');
+    if (settingsContainer && slider && (slider.children.length > 0 || manualBoxes.length > 0)) {
+        settingsContainer.style.display = 'block';
+    }
+}
+
+// ============================================================
+// Old Wrong-Note DB Crop/Box Functions
+// ============================================================
+
+function WN_cancelImage() {
+    WN_STATE.importedImage = null;
+    WN_STATE.importedFileName = null;
+    WN_STATE.cropBoxes = [];
+    WN_STATE.eraseBoxes = [];
+    WN_renderBoxes();
+    document.getElementById('wn-file-input').value = '';
+    var cropArea = document.getElementById('wn-crop-area');
+    var modeBar = document.getElementById('wn-mode-bar');
+    var dropZone = document.getElementById('wn-drop-zone');
+    if (cropArea) cropArea.style.display = 'none';
+    if (modeBar) modeBar.style.display = 'none';
+    if (dropZone) dropZone.style.display = 'block';
+}
+
+function WN_setMode(mode) {
+    WN_STATE.mode = mode;
+    document.querySelectorAll('.wn-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    var btn = document.getElementById('wn-mode-' + mode);
+    if (btn) btn.classList.add('active');
+}
+
+function WN_updateModeButtons() {
+    document.querySelectorAll('.wn-mode-btn').forEach(function(b){ b.classList.remove('active'); });
+    var activeBtn = document.getElementById('wn-mode-' + WN_STATE.mode);
+    if (activeBtn) activeBtn.classList.add('active');
+}
+
+function WN_clearAllBoxes() {
+    WN_STATE.cropBoxes = [];
+    WN_STATE.eraseBoxes = [];
+    WN_STATE.importedImage = null;
+    WN_renderBoxes();
+    var cropArea = document.getElementById('wn-crop-area');
+    var img = document.getElementById('wn-crop-img');
+    if (img) img.src = '';
+    if (cropArea) cropArea.style.display = 'none';
+    var modeBar = document.getElementById('wn-mode-bar');
+    if (modeBar) modeBar.style.display = 'none';
+    var dropZone = document.getElementById('wn-drop-zone');
+    if (dropZone) dropZone.style.display = 'block';
+    document.getElementById('wn-file-input').value = '';
+}
+
+function WN_handleFileInput(input) {
+    if (!input.files || !input.files.length) return;
+    var file = input.files[0];
+    WN_STATE.importedFileName = file.name;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        WN_STATE.importedImage = e.target.result;
+        WN_showCropImage(e.target.result);
+    };
+    reader.readAsDataURL(file);
+}
+
+function WN_showCropImage(dataUrl) {
+    var cropArea = document.getElementById('wn-crop-area');
+    var img = document.getElementById('wn-crop-img');
+    var modeBar = document.getElementById('wn-mode-bar');
+    img.src = dataUrl;
+    img.onload = function() {
+        cropArea.style.display = 'inline-block';
+        modeBar.style.display = 'flex';
+        var dropZone = document.getElementById('wn-drop-zone');
+        if (dropZone) dropZone.style.display = 'none';
+        WN_STATE.cropBoxes = [];
+        WN_STATE.eraseBoxes = [];
+        WN_STATE.mode = 'add';
+        WN_updateModeButtons();
+        WN_renderBoxes();
+        WN_setupCropEvents();
+    };
+}
+
+function WN_setupCropEvents() {
+    var cropArea = document.getElementById('wn-crop-area');
+    if (!cropArea) return;
+    var isDragging = false, startX, startY, currentBox;
+    cropArea.onmousedown = function(e) {
+        var img = document.getElementById('wn-crop-img');
+        if (e.target !== cropArea && e.target !== img) return;
+        e.preventDefault();
+        var rect = cropArea.getBoundingClientRect();
+        var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
+        var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
+        startX = (e.clientX - rect.left) * scaleX;
+        startY = (e.clientY - rect.top) * scaleY;
+        isDragging = true;
+        currentBox = { x: startX, y: startY, w: 0, h: 0, id: Date.now() };
+    };
+    cropArea.onmousemove = function(e) {
+        if (!isDragging || !currentBox) return;
+        e.preventDefault();
+        var rect = cropArea.getBoundingClientRect();
+        var img2 = cropArea.querySelector('img');
+        var scaleX = img2.naturalWidth / rect.width;
+        var scaleY = img2.naturalHeight / rect.height;
+        var curX = (e.clientX - rect.left) * scaleX;
+        var curY = (e.clientY - rect.top) * scaleY;
+        currentBox.w = Math.abs(curX - startX);
+        currentBox.h = Math.abs(curY - startY);
+        currentBox.x = Math.min(startX, curX);
+        currentBox.y = Math.min(startY, curY);
+        var existing = cropArea.querySelector('.wn-drag-preview');
+        if (!existing) {
+            existing = document.createElement('div');
+            existing.className = 'wn-crop-box wn-drag-preview';
+            existing.style.pointerEvents = 'none';
+            cropArea.appendChild(existing);
+        }
+        var sx = rect.width / img2.naturalWidth;
+        var sy = rect.height / img2.naturalHeight;
+        existing.style.left = (currentBox.x * sx) + 'px';
+        existing.style.top = (currentBox.y * sy) + 'px';
+        existing.style.width = (currentBox.w * sx) + 'px';
+        existing.style.height = (currentBox.h * sy) + 'px';
+    };
+    cropArea.onmouseup = function(e) {
+        if (!isDragging) return;
+        isDragging = false;
+        var preview = cropArea.querySelector('.wn-drag-preview');
+        if (preview) preview.remove();
+        if (currentBox && currentBox.w > 10 && currentBox.h > 10) {
+            if (WN_STATE.mode === 'add') WN_STATE.cropBoxes.push(currentBox);
+            else if (WN_STATE.mode === 'erase') { WN_STATE.eraseBoxes.push(currentBox); WN_applyErase(); }
+        }
+        currentBox = null;
+        WN_renderBoxes();
+    };
+    cropArea.onmouseleave = function() { if (isDragging && currentBox) { currentBox = null; isDragging = false; } };
+}
+
+function WN_renderBoxes() {
+    var cropArea = document.getElementById('wn-crop-area');
+    if (!cropArea) return;
+    cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b){ b.remove(); });
+    var img = document.getElementById('wn-crop-img');
+    if (!img) return;
+    var rect = cropArea.getBoundingClientRect();
+    if (rect.width === 0) return;
+    var scaleX = rect.width / img.naturalWidth;
+    var scaleY = rect.height / img.naturalHeight;
+    WN_STATE.cropBoxes.forEach(function(box, i) {
+        var div = document.createElement('div');
+        div.className = 'wn-crop-box';
+        div.style.left = (box.x * scaleX) + 'px';
+        div.style.top = (box.y * scaleY) + 'px';
+        div.style.width = (box.w * scaleX) + 'px';
+        div.style.height = (box.h * scaleY) + 'px';
+        div.innerHTML = '<span class="wn-box-num">' + (i+1) + '</span><button class="wn-box-delete" onclick="WN_deleteBox(event,' + box.id + ')">✕</button>';
+        div.onmousedown = function(ev) {
+            ev.stopPropagation();
+            if (ev.target.classList.contains('wn-box-delete')) return;
+            ev.preventDefault();
+            var startX = ev.clientX, startY = ev.clientY;
+            var origX = box.x, origY = box.y;
+            function onMove(e) {
+                box.x = Math.max(0, origX + (e.clientX - startX) / scaleX);
+                box.y = Math.max(0, origY + (e.clientY - startY) / scaleY);
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+            }
+            function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        };
+        cropArea.appendChild(div);
+    });
+    WN_STATE.eraseBoxes.forEach(function(box, i) {
+        var div = document.createElement('div');
+        div.className = 'wn-erase-box';
+        div.style.left = (box.x * scaleX) + 'px';
+        div.style.top = (box.y * scaleY) + 'px';
+        div.style.width = (box.w * scaleX) + 'px';
+        div.style.height = (box.h * scaleY) + 'px';
+        div.innerHTML = '<button class="wn-erase-del" onclick="WN_deleteEraseBox(event,' + box.id + ')">✕</button>';
+        div.onmousedown = function(ev) {
+            ev.stopPropagation();
+            if (ev.target.classList.contains('wn-erase-del')) return;
+            ev.preventDefault();
+            var startX = ev.clientX, startY = ev.clientY;
+            var origX = box.x, origY = box.y;
+            function onMove(e) {
+                box.x = Math.max(0, origX + (e.clientX - startX) / scaleX);
+                box.y = Math.max(0, origY + (e.clientY - startY) / scaleY);
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+            }
+            function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        };
+        cropArea.appendChild(div);
+    });
+}
+
+function WN_deleteBox(event, boxId) {
+    event.stopPropagation();
+    event.preventDefault();
+    WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== boxId; });
+    WN_renderBoxes();
+}
+
+function WN_deleteEraseBox(event, boxId) {
+    event.stopPropagation();
+    event.preventDefault();
+    WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== boxId; });
+    WN_applyErase();
+}
+
+function WN_applyErase() {
+    if (!WN_STATE.eraseBoxes.length || !WN_STATE.importedImage) return;
+    var img = document.getElementById('wn-crop-img');
+    if (!img || !img.naturalWidth) return;
+    var canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    WN_STATE.eraseBoxes.forEach(function(box) { ctx.clearRect(box.x, box.y, box.w, box.h); });
+    img.src = canvas.toDataURL();
+    WN_STATE.eraseBoxes = [];
+}
+
+function WN_handleCleanImage(input) {
+    if (!input.files || !input.files.length) return;
+    WN_STATE.cleanImage = null;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        WN_STATE.cleanImage = e.target.result;
+        var cleanUpload = document.getElementById('wn-clean-upload');
+        if (cleanUpload) cleanUpload.style.display = 'none';
+        var cleanImg = document.getElementById('wn-clean-img');
+        if (cleanImg) { cleanImg.src = e.target.result; cleanImg.style.display = 'block'; }
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
+// Old WN drag/drop (redirect to new handleFilesForCrop)
+function WN_onDragOver(e) { e.preventDefault(); e.stopPropagation(); }
+function WN_onDrop(e) {
+    e.preventDefault(); e.stopPropagation();
+    var files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+        var dt = new DataTransfer();
+        for (var i = 0; i < files.length; i++) dt.items.add(files[i]);
+        var fileInput = document.getElementById('wn-file-input');
+        if (fileInput) fileInput.files = dt.files;
+        handleFilesForCrop(dt.files);
+    }
+}
+
+// Phase 1 stub note functions
+function generateNote() {
+    var slider = document.getElementById('cards-slider');
+    var count = slider ? slider.children.length : 0;
+    if (count === 0 && manualBoxes.length === 0) { alert('請先上傳圖片'); return; }
+    alert('[Phase 1] 筆記生成功能施工中。');
+}
+function saveNotes() { alert('[Phase 1] 儲存功能施工中。'); }
+function renderViewPage() {
+    var container = document.getElementById('view-slots-container');
+    if (container) container.innerHTML = '<div class="placeholder-text">📖 錯題筆記檢視功能施工中</div>';
+}
+
+</script>
+
+<!-- Phase 1: Crop Modal (full-screen overlay for crop/erase) -->
+<div id="crop-modal" class="wn-crop-area" style="display:none">
+    <div class="crop-header-wrapper">
+        <div class="crop-header">
+            <div>已為您辨識題目。可拖曳藍框調整位置或大小，點擊「+」加入新錯題框。</div>
+            <div style="margin-top:15px;display:flex;justify-content:center;gap:15px;">
+                <button class="glass-btn-small" style="background:var(--btn-almost-aqua, #a8edea);" onclick="triggerAutoCrop()">🤖 自動辨識</button>
+                <button class="glass-btn-small" style="background:var(--btn-peach-dust, #ffd6c0);" onclick="enableManualCrop()">✍️ 手動框選</button>
+            </div>
+            <div id="manual-edit-pad" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid rgba(0,0,0,0.1);">
+                <button class="glass-btn-small" style="background:#fff;" onclick="startManualBox()">➕ 新增框線</button>
+                <button class="glass-btn-small" style="background:#fff;" onclick="undoManualBox()">↺ Undo</button>
+                <span style="font-size:14px;margin-left:10px;color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
+            </div>
+        </div>
+    </div>
+    <div class="wn-crop-workspace" id="wn-crop-workspace"></div>
+    <div class="crop-modal-footer">
+        <button class="glass-btn glass-btn-cancel" onclick="cancelCropping()">取消選取</button>
+        <button class="glass-btn glass-btn-complete" onclick="finishCropping()">完成選取</button>
+    </div>
+</div>
+
 </body>
 </html>
