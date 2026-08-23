@@ -1195,10 +1195,13 @@
             overflow-y: auto;
         }
         .file-card img { width: 100%; border-radius: 6px; object-fit: contain; max-height: 120px; }
-        /* Crop mode: file-card fills the full wn-container width */
+        /* Crop mode: file-card fills page-container width (800px) */
+        .crop-mode .wn-crop-workspace {
+            align-items: stretch;
+        }
         .crop-mode .file-card {
             flex: 0 0 100%;
-            max-width: 100%;
+            max-width: 800px;
             width: 100%;
             max-height: none;
             overflow-y: visible;
@@ -1206,7 +1209,7 @@
         .crop-mode .file-card img {
             max-height: none;
             width: 100%;
-            max-width: 100%;
+            max-width: 800px;
             object-fit: contain;
         }
         .file-card .delete-card-btn {
@@ -1788,7 +1791,7 @@
                                         <p>📁 拖曳圖片或 PDF 到這裡</p>
                                         <p style="font-size:0.85em;color:#95a5a6;">或點擊選擇檔案（支援 jpg, png, webp, pdf）</p>
                                     </div>
-                                    <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" multiple onchange="handleFilesForCrop(this.files)">
+                                    <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" onchange="handleFilesForCrop(this.files)">
                                     <div class="wn-mode-bar" id="wn-mode-bar" style="display:none">
                                         <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
                                         <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
@@ -8578,7 +8581,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 var dt = new DataTransfer();
                 for(var i=0; i<files.length; i++) dt.items.add(files[i]);
                 document.getElementById('wn-file-input').files = dt.files;
-                WN_handleFileInput(document.getElementById('wn-file-input'));
             }
         }
         function WN_cancelImage() {
