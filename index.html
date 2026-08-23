@@ -1080,7 +1080,8 @@
         }
         
         /* ===== Old Wrong-Note DB Styles ===== */
-        .crop-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.7); z-index:9000; flex-direction:column; align-items:center; justify-content:center; overflow:auto; padding:20px; box-sizing:border-box; }
+        /* crop-modal: full-screen overlay (position:fixed set by JS when shown) */
+#crop-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9000; flex-direction:column; align-items:center; justify-content:center; overflow:auto; padding:20px; box-sizing:border-box; }
         .wn-crop-area.wn-crop-area-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; z-index:9000; overflow:auto; padding:20px; box-sizing:border-box; }
         .crop-header-wrapper { background:#f8f9fa; border-bottom:2px solid #dee2e6; padding:15px 20px; position:sticky; top:0; z-index:10; }
         .crop-header { max-width:900px; margin:0 auto; }
@@ -1658,7 +1659,7 @@
                                 </div>
                                 <div class="wn-section">
                                     <div class="wn-section-title">📷 上傳錯題圖片</div>
-                                    <div id="wn-drop-zone" class="wn-drop-zone drop-zone" onclick="document.getElementById('wn-file-input').click()" ondragover="WN_onDragOver(event)" ondrop="WN_onDrop(event)">
+                                    <div id="wn-drop-zone" class="wn-drop-zone drop-zone" onclick="document.getElementById('wn-file-input').click()" >
                                         <p>📁 拖曳圖片或 PDF 到這裡</p>
                                         <p style="font-size:0.85em;color:#95a5a6;">或點擊選擇檔案（支援 jpg, png, webp, pdf）</p>
                                     </div>
@@ -8325,9 +8326,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 async function handleFilesForCrop(files) {
         if(!files || files.length === 0) return;
         
-        const workspace = document.getElementById('crop-workspace');
+        const workspace = document.getElementById('wn-crop-workspace');
         workspace.innerHTML = ''; 
         document.getElementById('crop-modal').style.display = 'flex';
+        document.getElementById('crop-modal').style.position = 'fixed';
         document.getElementById('manual-edit-pad').style.display = 'none'; 
         batchCounter++;
         manualBoxes = []; 
@@ -8341,8 +8343,8 @@ async function handleFilesForCrop(files) {
             }
         }
         
-        document.getElementById('source-image-photos').value = ''; 
-        document.getElementById('source-image-exam').value = ''; 
+        const fileInput = document.getElementById('wn-file-input');
+        if (fileInput) fileInput.value = ''; 
     }
 async function renderImage(file, workspace) {
         return new Promise((resolve) => {
@@ -8744,7 +8746,7 @@ function finishCropping() {
     }
 function cancelCropping() {
         document.getElementById('crop-modal').style.display = 'none';
-        document.getElementById('crop-workspace').innerHTML = '';
+        document.getElementById('wn-crop-workspace').innerHTML = '';
         
         const slider = document.getElementById('cards-slider');
         const cards = slider.querySelectorAll(`.file-card[data-batch-id="${batchCounter}"]`);
