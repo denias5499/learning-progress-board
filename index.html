@@ -1107,7 +1107,7 @@
             top: 0;
             z-index: 10;
         }
-        .crop-header { max-width: 900px; margin: 0 auto; }
+        .crop-header { max-width: 800px; margin: 0 auto; }
         .crop-modal-footer {
             display: flex;
             justify-content: center;
@@ -8580,7 +8580,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if(files.length > 0) {
                 var dt = new DataTransfer();
                 for(var i=0; i<files.length; i++) dt.items.add(files[i]);
-                document.getElementById('wn-file-input').files = dt.files;
+                var fi = document.getElementById('wn-file-input');
+                fi.value = '';
+                fi.files = dt.files;
             }
         }
         function WN_cancelImage() {
@@ -13804,11 +13806,14 @@ document.getElementById('import-file').addEventListener('change', function(e) {
 // ============================================================
 
 // --- Phase 1: handleFilesForCrop (entry point for crop flow) ---
+var _handlingFiles = false;
 var manualBoxes = [];
 var batchCounter = 0;
 
 async function handleFilesForCrop(files) {
     if (!files || files.length === 0) return;
+    if (_handlingFiles) { _handlingFiles = false; return; }
+    _handlingFiles = true;
 
     var workspace = document.getElementById('wn-crop-workspace');
     if (!workspace) { console.error('[Phase1] wn-crop-workspace not found'); return; }
