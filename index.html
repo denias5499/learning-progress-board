@@ -1081,7 +1081,8 @@
         
         /* ===== Old Wrong-Note DB Styles ===== */
         /* crop-modal: full-screen overlay (position:fixed set by JS when shown) */
-#crop-modal { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); z-index:9000; flex-direction:column; align-items:center; justify-content:center; overflow:auto; padding:20px; box-sizing:border-box; }
+/* crop-modal: full-screen overlay - must be isolated from parent stacking contexts */
+#crop-modal { display:none; position:fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:0 !important; width:100vw !important; height:100vh !important; background:rgba(0,0,0,0.95) !important; z-index:99999 !important; flex-direction:column; align-items:center; justify-content:center; overflow:auto; padding:20px; box-sizing:border-box; }
         .wn-crop-area.wn-crop-area-modal { position:fixed; top:0; left:0; right:0; bottom:0; background:#fff; z-index:9000; overflow:auto; padding:20px; box-sizing:border-box; }
         .crop-header-wrapper { background:#f8f9fa; border-bottom:2px solid #dee2e6; padding:15px 20px; position:sticky; top:0; z-index:10; }
         .crop-header { max-width:900px; margin:0 auto; }
@@ -1131,6 +1132,12 @@
         .checkbox-group label { display:block; padding:3px 0; font-size:0.9em; cursor:pointer; }
         /* ===== End Old Wrong-Note DB Styles ===== */
 
+
+
+        /* ===== Old Wrong-Note DB page system ===== */
+        .page { display: none !important; }
+        .page.active { display: block !important; }
+        /* ===== End Old Wrong-Note DB page system =====
 
 </style>
 </head>
@@ -1664,34 +1671,7 @@
                                         <p style="font-size:0.85em;color:#95a5a6;">或點擊選擇檔案（支援 jpg, png, webp, pdf）</p>
                                     </div>
                                     <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" multiple onchange="WN_handleFileInput(this.files)">
-                                    <div class="wn-mode-bar" id="wn-mode-bar" style="display:none">
-                                        <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
-                                        <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
-                                        <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
-                                        <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
-                                        <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
-                                    </div>
-                                    <div id="crop-modal" class="wn-crop-area" style="display:none">
-    <div class="crop-header-wrapper">
-        <div class="crop-header">
-            <div>已為您辨識題目。可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</div>
-            <div style="margin-top:15px;display:flex;justify-content:center;gap:15px;">
-                <button class="glass-btn-small" style="background:var(--btn-almost-aqua, #a8edea);" onclick="triggerAutoCrop()">🤖 自動辨識</button>
-                <button class="glass-btn-small" style="background:var(--btn-peach-dust, #ffd6c0);" onclick="enableManualCrop()">✍️ 手動框選</button>
-            </div>
-            <div id="manual-edit-pad" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid rgba(0,0,0,0.1);">
-                <button class="glass-btn-small" style="background:#fff;" onclick="startManualBox()">➕ 新增框線</button>
-                <button class="glass-btn-small" style="background:#fff;" onclick="undoManualBox()">↺ Undo</button>
-                <span style="font-size:14px;margin-left:10px;color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
-            </div>
-        </div>
-    </div>
-    <div class="wn-crop-workspace" id="wn-crop-workspace"></div>
-    <div class="crop-modal-footer">
-        <button class="glass-btn glass-btn-cancel" onclick="cancelCropping()">取消選取</button>
-        <button class="glass-btn glass-btn-complete" onclick="finishCropping()">完成選取</button>
-    </div>
-</div>
+                                    
                                     <div 
                                 <!-- 設定卡片區 (old wrong-note DB) -->
                                 <div id="settings-container" style="display:none; margin-top:15px;">
@@ -8330,6 +8310,18 @@ async function handleFilesForCrop(files) {
         workspace.innerHTML = ''; 
         document.getElementById('crop-modal').style.display = 'flex';
         document.getElementById('crop-modal').style.position = 'fixed';
+        // CRITICAL: Activate stats-wrongnotes so ALL its children (settings-container, note-page, view-page) are visible
+        var statsWN = document.getElementById('stats-wrongnotes');
+        if(statsWN) {
+            statsWN.style.display = 'block';
+            statsWN.classList.add('active');
+        }
+        var wnRoot = document.getElementById('wrongnotes-root');
+        if(wnRoot) {
+            wnRoot.style.display = 'block';
+        }
+        var wnImport = document.getElementById('wn-import');
+        if(wnImport) wnImport.classList.add('active');
         document.getElementById('manual-edit-pad').style.display = 'none'; 
         batchCounter++;
         manualBoxes = []; 
@@ -8740,8 +8732,21 @@ function toggleCardSource(selectEl) {
     }
 function finishCropping() {
         document.getElementById('crop-modal').style.display = 'none';
-        if(document.getElementById('settings-container').style.display === 'block') {
-            document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth' });
+        document.getElementById('crop-modal').style.position = 'relative';
+        // Show settings-container and scroll to it
+        var settingsContainer = document.getElementById('settings-container');
+        if(settingsContainer) {
+            settingsContainer.style.display = 'block';
+            setTimeout(function() {
+                settingsContainer.scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+        // If no cards were created, just show the upload area
+        var slider = document.getElementById('cards-slider');
+        if(slider && slider.children.length === 0) {
+            // No cards = user uploaded but didn't crop anything
+            // Go to import-page to let them try again or crop
+            if(typeof goToPage === 'function') goToPage('import-page');
         }
     }
 function cancelCropping() {
@@ -14036,5 +14041,33 @@ document.getElementById('import-file').addEventListener('change', function(e) {
         // switchUser 在 initUsers 內部會 setItem( FAMILY) re-write, 不代表 user 改過資料
         setTimeout(function() { clearDirty('init-settled'); }, 2000);
     </script>
+<div class="wn-mode-bar" id="wn-mode-bar" style="display:none">
+                                        <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
+                                        <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
+                                        <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
+                                        <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
+                                        <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
+                                    </div>
+                                    <div id="crop-modal" class="wn-crop-area" style="display:none">
+    <div class="crop-header-wrapper">
+        <div class="crop-header">
+            <div>已為您辨識題目。可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</div>
+            <div style="margin-top:15px;display:flex;justify-content:center;gap:15px;">
+                <button class="glass-btn-small" style="background:var(--btn-almost-aqua, #a8edea);" onclick="triggerAutoCrop()">🤖 自動辨識</button>
+                <button class="glass-btn-small" style="background:var(--btn-peach-dust, #ffd6c0);" onclick="enableManualCrop()">✍️ 手動框選</button>
+            </div>
+            <div id="manual-edit-pad" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid rgba(0,0,0,0.1);">
+                <button class="glass-btn-small" style="background:#fff;" onclick="startManualBox()">➕ 新增框線</button>
+                <button class="glass-btn-small" style="background:#fff;" onclick="undoManualBox()">↺ Undo</button>
+                <span style="font-size:14px;margin-left:10px;color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
+            </div>
+        </div>
+    </div>
+    <div class="wn-crop-workspace" id="wn-crop-workspace"></div>
+    <div class="crop-modal-footer">
+        <button class="glass-btn glass-btn-cancel" onclick="cancelCropping()">取消選取</button>
+        <button class="glass-btn glass-btn-complete" onclick="finishCropping()">完成選取</button>
+    </div>
+</div>
 </body>
 </html>
