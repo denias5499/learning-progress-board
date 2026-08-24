@@ -12344,10 +12344,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 var doneCount = 0, totalCount = 0;
                 var isUnitBasedTree = false;  // v1.5.146: subject 為 unit-based
 
-                // 先算總數
+                // 先算總數 (v1.6.33: 移除 allowedUnitIds 過濾, 讓 tree view 和 dashboard 算出一樣的數字)
                 function countUnits(arr) {
                     arr.forEach(u => {
-                        if (allowedUnitIds && !allowedUnitIds.has(u.id)) return;
                         var ctx = findUnitContext(u.id);
                         var typeObj = ctx ? ctx.typeObj : null;
                         var total = getUnitTotalCount(u, typeObj);
