@@ -1181,7 +1181,9 @@
             z-index: 15;
         }
         .resize-handle.tl { top: -6px; left: -6px; cursor: nw-resize; }
+        .resize-handle.tr { top: -6px; right: -6px; cursor: ne-resize; }
         .resize-handle.br { bottom: -6px; right: -6px; cursor: se-resize; }
+        .resize-handle.bl { bottom: -6px; left: -6px; cursor: sw-resize; }
         .add-crop-btn {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 36px; height: 36px; background: #007aff; color: white; border-radius: 50%;
@@ -13909,8 +13911,8 @@ function createPageContainer(mediaEl, workspace) {
 
         var newBox = {
             id: 'box_' + Date.now(),
-            x: xPerc,   // click X position (top-left)
-            y: yPerc,   // click Y position (top-left)
+            x: 0,       // always start from left edge, matching image width
+            y: yPerc,   // click Y position (top)
             w: 100,     // image box width (100%)
             h: 12,      // height 12% of image
             targetPageIndex: container.dataset.pageIndex ? parseInt(container.dataset.pageIndex) : 0
@@ -13976,21 +13978,61 @@ function renderManualBoxes() {
         div.style.top = box.y + '%';
         div.style.width = box.w + '%';
         div.style.height = box.h + '%';
-        div.innerHTML = '<button class="delete-box-btn" onclick="deleteManualBox(this.dataset.boxid)" data-boxid="' + box.id + '">✕</button>';
+        div.innerHTML = '<button class="delete-box-btn" onclick="deleteManualBox(this.dataset.boxid)" data-boxid="' + box.id + '">✕</button><div class="resize-handle tl" data-corner="tl"></div><div class="resize-handle tr" data-corner="tr"></div><div class="resize-handle br" data-corner="br"></div><div class="resize-handle bl" data-corner="bl"></div>';
         div.onmousedown = function(e) {
             if (e.target.classList.contains('delete-box-btn')) return;
             e.preventDefault();
             e.stopPropagation();
             var startX = e.clientX, startY = e.clientY;
-            var origX = box.x, origY = box.y;
-            var container = document.querySelector('.page-container');
+            var origX = box.x, origY = box.y, origW = box.w, origH = box.h;
+            var container = div.parentElement; // box is now appended to page-container
             var cW = container ? container.offsetWidth : 800;
             var cH = container ? container.offsetHeight : 600;
+
+            // Detect if click is on a resize handle
+            var corner = e.target.dataset && e.target.dataset.corner;
+            var isResize = !!corner;
+
             function onMove(me) {
-                box.x = origX + ((me.clientX - startX) / cW) * 100;
-                box.y = origY + ((me.clientY - startY) / cH) * 100;
-                div.style.left = box.x + '%';
-                div.style.top = box.y + '%';
+                var dx = ((me.clientX - startX) / cW) * 100;
+                var dy = ((me.clientY - startY) / cH) * 100;
+
+                if (isResize) {
+                    // Resize from corner
+                    if (corner === 'br') {
+                        // Bottom-right: increase width and height
+                        box.w = Math.max(5, origW + dx);
+                        box.h = Math.max(5, origH + dy);
+                    } else if (corner === 'tr') {
+                        // Top-right: increase width, decrease height from top
+                        box.w = Math.max(5, origW + dx);
+                        box.h = Math.max(5, origH - dy);
+                        box.y = origY + dy;
+                        div.style.top = box.y + '%';
+                    } else if (corner === 'bl') {
+                        // Bottom-left: decrease width, increase height
+                        box.w = Math.max(5, origW - dx);
+                        box.h = Math.max(5, origH + dy);
+                        box.x = origX + dx;
+                        div.style.left = box.x + '%';
+                    } else if (corner === 'tl') {
+                        // Top-left: decrease width and height from top
+                        box.w = Math.max(5, origW - dx);
+                        box.h = Math.max(5, origH - dy);
+                        box.x = origX + dx;
+                        box.y = origY + dy;
+                        div.style.left = box.x + '%';
+                        div.style.top = box.y + '%';
+                    }
+                    div.style.width = box.w + '%';
+                    div.style.height = box.h + '%';
+                } else {
+                    // Drag (move)
+                    box.x = origX + dx;
+                    box.y = origY + dy;
+                    div.style.left = box.x + '%';
+                    div.style.top = box.y + '%';
+                }
             }
             function onUp() {
                 document.removeEventListener('mousemove', onMove);
