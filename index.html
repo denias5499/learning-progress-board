@@ -1106,6 +1106,7 @@
             padding-top: 15px;
         }
         .crop-header {
+            max-width: 1096px;
             width: 100%;
             box-sizing: border-box;
             background: #FDE4CF;
@@ -1149,7 +1150,7 @@
             transition: all 0.2s;
         }
         .glass-btn-small:hover { border-color: var(--accent, #3498db); }
-        .page-container { position: relative; width: 100%; margin: 0; }
+        .page-container { position: relative; max-width: 1096px; width: 100%; margin: 0 auto; }
         .page-container img, .page-container canvas { display: block; width: 100%; }
         /* ===== Old wrong-note DB note page styles (Phase 1) ===== */
         .mock-crop-box {
@@ -13908,11 +13909,18 @@ function createPageContainer(mediaEl, workspace) {
 
         var newBox = {
             id: 'box_' + Date.now(),
-            x: 0,       // always start from left, full width
-            y: yPerc,   // click position (vertical)
-            w: 100,     // full width to match header
-            h: 12       // height 12% of image
+            x: xPerc,   // click X position (top-left)
+            y: yPerc,   // click Y position (top-left)
+            w: 100,     // image box width (100%)
+            h: 12,      // height 12% of image
+            targetPageIndex: container.dataset.pageIndex ? parseInt(container.dataset.pageIndex) : 0
         };
+        if (!container.dataset.pageIndex) {
+            var pcs = workspace.querySelectorAll('.page-container');
+            for (var pi = 0; pi < pcs.length; pi++) {
+                if (pcs[pi] === container) { container.dataset.pageIndex = pi; break; }
+            }
+        }
         manualBoxes.push(newBox);
         renderManualBoxes();
         window._isManualAdding = false;
@@ -13960,7 +13968,7 @@ function undoManualBox() {
 function renderManualBoxes() {
     var workspace = document.getElementById('wn-crop-workspace');
     if (!workspace) return;
-    workspace.querySelectorAll('.mock-crop-box').forEach(function(b){ b.remove(); });
+    workspace.querySelectorAll('.page-container .mock-crop-box').forEach(function(b){ b.remove(); });
     manualBoxes.forEach(function(box) {
         var div = document.createElement('div');
         div.className = 'mock-crop-box';
@@ -13991,7 +13999,13 @@ function renderManualBoxes() {
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
         };
-        workspace.appendChild(div);
+        // Find the page-container that matches this box's targetPageIndex
+        var container = workspace.querySelectorAll('.page-container')[box.targetPageIndex || 0];
+        if (container) {
+            container.appendChild(div);
+        } else {
+            workspace.appendChild(div);
+        }
     });
 }
 
