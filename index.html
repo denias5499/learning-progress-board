@@ -13978,7 +13978,7 @@ function renderManualBoxes() {
         div.style.top = box.y + '%';
         div.style.width = box.w + '%';
         div.style.height = box.h + '%';
-        div.innerHTML = '<button class="delete-box-btn" onclick="deleteManualBox(this.dataset.boxid)" data-boxid="' + box.id + '">✕</button><div class="resize-handle tl" data-corner="tl"></div><div class="resize-handle tr" data-corner="tr"></div><div class="resize-handle br" data-corner="br"></div><div class="resize-handle bl" data-corner="bl"></div>';
+        div.innerHTML = '<button class="delete-box-btn" onclick="deleteManualBox(this.dataset.boxid)" data-boxid="' + box.id + '">✕</button><div class="add-crop-btn" onclick="toggleCroppedQuestion(this)" data-boxid="' + box.id + '">+</div><div class="resize-handle tl" data-corner="tl"></div><div class="resize-handle tr" data-corner="tr"></div><div class="resize-handle br" data-corner="br"></div><div class="resize-handle bl" data-corner="bl"></div>';
         div.onmousedown = function(e) {
             if (e.target.classList.contains('delete-box-btn')) return;
             e.preventDefault();
@@ -14054,6 +14054,18 @@ function renderManualBoxes() {
 function deleteManualBox(boxId) {
     manualBoxes = manualBoxes.filter(function(b){ return b.id !== boxId; });
     renderManualBoxes();
+}
+
+function toggleCroppedQuestion(btn) {
+    if (btn.classList.contains('selected')) {
+        btn.classList.remove('selected');
+        btn.innerText = '+';
+        btn.style.background = '#007aff';
+    } else {
+        btn.classList.add('selected');
+        btn.innerText = '✓';
+        btn.style.background = '#34c759';
+    }
 }
 
 function triggerAutoCrop() {
@@ -14338,8 +14350,11 @@ function WN_onDrop(e) {
         var dt = new DataTransfer();
         for (var i = 0; i < files.length; i++) dt.items.add(files[i]);
         var fileInput = document.getElementById('wn-file-input');
-        if (fileInput) fileInput.files = dt.files;
-        handleFilesForCrop(dt.files);
+        if (fileInput) {
+            fileInput.value = '';  // Clear value first to ensure onchange fires
+            fileInput.files = dt.files;
+        }
+        // Don't call handleFilesForCrop directly - the onchange will fire and call it once
     }
 }
 
