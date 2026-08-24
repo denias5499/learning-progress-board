@@ -1109,7 +1109,7 @@
             max-width: 1096px;
             width: 100%;
             box-sizing: border-box;
-            background: #BCC6C9;
+            background: #fbaf95;
             padding: 15px 20px;
             text-align: center;
             font-size: 16px;
@@ -1129,17 +1129,18 @@
             z-index: 10;
         }
         .glass-btn {
-            padding: 10px 28px;
+            padding: 14px 40px;
             border: none;
             border-radius: 25px;
-            font-size: 1em;
+            font-size: 1.1em;
+            font-weight: bold;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .glass-btn-cancel { background: #fff; color: #e74c3c; border: 2px solid #e74c3c; }
-        .glass-btn-cancel:hover { background: #e74c3c; color: #fff; }
-        .glass-btn-complete { background: var(--accent, #3498db); color: #fff; }
-        .glass-btn-complete:hover { background: #2980b9; }
+        .glass-btn-cancel { background: #E7E9FF; color: #000; border: none; }
+        .glass-btn-cancel:hover { background: #d0d4ff; color: #000; }
+        .glass-btn-complete { background: #FDFFB6; color: #000; border: none; }
+        .glass-btn-complete:hover { background: #f0ff9e; color: #000; }
         .glass-btn-small {
             padding: 12px 28px;
             border: 1.5px solid rgba(0,0,0,0.15);
@@ -1802,7 +1803,7 @@
                                     </div>
                                     <input type="file" id="wn-file-input" style="display:none" accept="image/*,application/pdf" onchange="handleFilesForCrop(this.files)">
                                     <div class="wn-mode-bar" id="wn-mode-bar" style="display:none">
-                                        <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
+                                        <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 標記題目</button>
                                         <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
                                         <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
                                         <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
@@ -1875,7 +1876,7 @@
                                 </div>
                                 <!-- Phase 1 wn-mode-bar (moved outside wn-import) -->
                                 <div id="wn-mode-bar" style="display:none; margin-top:15px;">
-                                    <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 選手動框選</button>
+                                    <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 標記題目</button>
                                     <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
                                     <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
                                     <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
@@ -13815,14 +13816,11 @@ document.getElementById('import-file').addEventListener('change', function(e) {
 // ============================================================
 
 // --- Phase 1: handleFilesForCrop (entry point for crop flow) ---
-var _handlingFiles = false;
 var manualBoxes = [];
 var batchCounter = 0;
 
 async function handleFilesForCrop(files) {
     if (!files || files.length === 0) return;
-    if (_handlingFiles) { _handlingFiles = false; return; }
-    _handlingFiles = true;
 
     var workspace = document.getElementById('wn-crop-workspace');
     if (!workspace) { console.error('[Phase1] wn-crop-workspace not found'); return; }
@@ -13853,7 +13851,6 @@ async function handleFilesForCrop(files) {
         wnImport.classList.add('active');
     }
 
-    document.getElementById('manual-edit-pad').style.display = 'none';
     batchCounter++;
     manualBoxes = [];
 
@@ -13892,11 +13889,40 @@ async function renderPDF(file, workspace) {
     workspace.appendChild(card);
 }
 
-// Old version approach: image directly in .page-container (max-width 800px)
+// Old version approach: image directly in .page-container
+// Click on container fires createNewManualBox at click position (percentage-based)
 function createPageContainer(mediaEl, workspace) {
     var container = document.createElement('div');
     container.className = 'page-container';
     container.appendChild(mediaEl);
+
+    // Listen on container (not workspace) so e.offsetX/Y is relative to image area
+    container.addEventListener('mousedown', function(e) {
+        if (!window._isManualAdding) return;
+        if (e.target.tagName === 'BUTTON') return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Use e.offsetX/Y (relative to container) → convert to percentage
+        var rect = container.getBoundingClientRect();
+        var xPerc = (e.offsetX / rect.width) * 100;
+        var yPerc = (e.offsetY / rect.height) * 100;
+
+        var newBox = {
+            id: 'box_' + Date.now(),
+            x: xPerc,   // percentage
+            y: yPerc,   // percentage
+            w: 45,      // percentage
+            h: 15       // percentage
+        };
+        manualBoxes.push(newBox);
+        renderManualBoxes();
+        window._isManualAdding = false;
+
+        var tip = document.getElementById('manual-tip');
+        if (tip) tip.textContent = '✅ 已新增，可拖曳調整或繼續新增';
+    });
+
     workspace.appendChild(container);
 }
 
@@ -13921,35 +13947,12 @@ function escapeHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function enableManualCrop() {
-    document.getElementById('manual-edit-pad').style.display = 'block';
-    manualBoxes = [];
-    renderManualBoxes();
-}
+// enableManualCrop removed - buttons always visible
 
 function startManualBox() {
+    window._isManualAdding = true;
     var tip = document.getElementById('manual-tip');
-    if (tip) tip.textContent = '正在等待點擊...';
-    var workspace = document.getElementById('wn-crop-workspace');
-    if (!workspace) return;
-    var handler = function(e) {
-        var target = e.target;
-        if (target.tagName === 'BUTTON' || target.tagName === 'SELECT' || target.tagName === 'INPUT') return;
-        if (!workspace.contains(target) && target.id !== 'wn-crop-workspace') return;
-        e.preventDefault();
-        workspace.removeEventListener('click', handler);
-        var newBox = {
-            id: 'box_' + Date.now(),
-            x: e.clientX - workspace.getBoundingClientRect().left,
-            y: e.clientY - workspace.getBoundingClientRect().top,
-            w: 150, h: 80
-        };
-        manualBoxes.push(newBox);
-        renderManualBoxes();
-        var tip2 = document.getElementById('manual-tip');
-        if (tip2) tip2.textContent = '請點擊「新增框線」繼續，或點擊「完成選取」結束。';
-    };
-    workspace.addEventListener('click', handler);
+    if (tip) tip.textContent = '👉 請在圖片上點擊以新增題框';
 }
 
 function undoManualBox() {
@@ -13963,10 +13966,10 @@ function renderManualBoxes() {
     manualBoxes.forEach(function(box) {
         var div = document.createElement('div');
         div.className = 'mock-crop-box';
-        div.style.left = box.x + 'px';
-        div.style.top = box.y + 'px';
-        div.style.width = box.w + 'px';
-        div.style.height = box.h + 'px';
+        div.style.left = box.x + '%';
+        div.style.top = box.y + '%';
+        div.style.width = box.w + '%';
+        div.style.height = box.h + '%';
         div.innerHTML = '<button class="delete-box-btn" onclick="deleteManualBox(this.dataset.boxid)" data-boxid="' + box.id + '">✕</button>';
         div.onmousedown = function(e) {
             if (e.target.classList.contains('delete-box-btn')) return;
@@ -13974,11 +13977,14 @@ function renderManualBoxes() {
             e.stopPropagation();
             var startX = e.clientX, startY = e.clientY;
             var origX = box.x, origY = box.y;
+            var container = document.querySelector('.page-container');
+            var cW = container ? container.offsetWidth : 800;
+            var cH = container ? container.offsetHeight : 600;
             function onMove(me) {
-                box.x = origX + (me.clientX - startX);
-                box.y = origY + (me.clientY - startY);
-                div.style.left = box.x + 'px';
-                div.style.top = box.y + 'px';
+                box.x = origX + ((me.clientX - startX) / cW) * 100;
+                box.y = origY + ((me.clientY - startY) / cH) * 100;
+                div.style.left = box.x + '%';
+                div.style.top = box.y + '%';
             }
             function onUp() {
                 document.removeEventListener('mousemove', onMove);
@@ -14302,15 +14308,12 @@ function renderViewPage() {
 <div id="crop-modal" class="wn-crop-area" style="display:none">
     <div class="crop-header-wrapper">
         <div class="crop-header">
-            <div>已為您辨識題目。可拖曳藍框調整位置或大小，點擊「+」加入新錯題框。</div>
+            <div style="font-size:1.2em;font-weight:bold;">已為您辨識題目。可拖曳藍框調整位置或大小，點擊「+」加入新錯題框。</div>
             <div style="margin-top:15px;display:flex;justify-content:center;gap:15px;">
-                <button class="glass-btn-small" style="background:var(--btn-peach-dust, #ffd6c0);" onclick="enableManualCrop()">✍️ 手動框選</button>
+                <button class="glass-btn-small" style="background:#CAF0F8;color:#000;font-weight:bold;font-size:1.1em;" onclick="startManualBox()">➕ 新增框線</button>
+                <button class="glass-btn-small" style="background:#FFD600;color:#000;font-weight:bold;font-size:1.1em;" onclick="undoManualBox()">↺ Undo</button>
             </div>
-            <div id="manual-edit-pad" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid rgba(0,0,0,0.1);">
-                <button class="glass-btn-small" style="background:#007aff;color:#fff;font-weight:bold;font-size:1.1em;border:none;" onclick="startManualBox()">➕ 新增框線</button>
-                <button class="glass-btn-small" style="background:#007aff;color:#fff;font-weight:bold;font-size:1.1em;border:none;" onclick="undoManualBox()">↺ Undo</button>
-                <span style="font-size:14px;margin-left:10px;color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
-            </div>
+            <div style="margin-top:10px;font-size:14px;color:#555;" id="manual-tip">請在圖片上點擊以新增題框</div>
         </div>
     </div>
     <div class="wn-crop-workspace" id="wn-crop-workspace"></div>
