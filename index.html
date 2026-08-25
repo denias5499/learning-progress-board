@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.44]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.45]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -13113,9 +13113,9 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                             var isActuallyDone = false;
                             if (pDone >= pTotal) {
                                 if (isUnitBasedType(typeObj)) {
-                                    isActuallyDone = pDone === 1;
+                                    isActuallyDone = pDone === 1 && getUnitLastDoneDate(u.id) !== null;
                                 } else {
-                                    isActuallyDone = true;  // 信任 overlapData 算出的 pDone
+                                    isActuallyDone = getUnitLastDoneDate(u.id) !== null;  // 必須月曆有勾完成才算 算出的 pDone
                                 }
                             }
 
