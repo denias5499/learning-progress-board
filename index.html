@@ -9529,13 +9529,13 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         // v1.5.216: jumpToAccuracyForUnitHighlight 廢棄, 統一用 jumpToAccuracyForUnit
         function jumpToAccuracyForUnitHighlight(unitId, unitName) {
-            jumpToAccuracyForUnit(unitId);
+            jumpToAccuracyForUnit(unitId, unitName);
         }
 
         // v1.5.205: 樹狀圖點 unit name 跳過來也要高亮該 unit row (#F3B8B1)
         // v1.5.209: 答對率 bar 點擊 → 直接呼叫 jumpToAccuracyForUnit (它已有填 dropdowns + highlight 邏輯)
         function jumpToAccuracyForUnitHighlight(unitId, unitName) {
-            jumpToAccuracyForUnit(unitId);
+            jumpToAccuracyForUnit(unitId, unitName);
         }
 
         // v1.5.205 + v1.5.228 fix: 計算某 unit 的最近答對率
@@ -12963,7 +12963,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var suInfo = window._treeScheduledUnits && window._treeScheduledUnits[unitId];
             
             // v1.5.186: 若此單元沒有任何排程任務, 提示「進度待安排」, 不跳月曆
-            if (!suInfo || !suInfo.totalTasks || suInfo.totalTasks === 0) {
+            if (!suInfo || suInfo.totalTasks === 0 && suInfo.donePages === 0) {
                 alert('📌 此單元尚未排程\n請先到「🪄 建立智慧排程」新增任務');
                 return;
             }
