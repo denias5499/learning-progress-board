@@ -12527,8 +12527,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + accStr + ' ' + accPct + '%</span>';
                         }
                         // v1.5.212: grid 5 欄對齊 header
-                        var rowHtml = '<li class="tree-unit" onclick="jumpToUnitCalendar(\'\' + u.id + \', \'' + escapeHtml(cat4jump) + \', \'' + escapeHtml(mis4jump) + \');" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;'>';
-ashed #e2e8f0;;
+                        var rowHtml = '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')"  style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;">';
                         rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
                         rowHtml += '<span class="tree-dot ' + dotClass + '" style="display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; background:' + (st === 'done' ? '#27ae60' : (st === 'progress' ? '#f39c12' : '#e5e7eb')) + ';"></span>';
                         rowHtml += escapeHtml(u.name);
