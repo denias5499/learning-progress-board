@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.52]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.53]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -12288,51 +12288,56 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 return 'todo';
             }
 
-            // v1.5.102: 改用 logDataAll 算 donePages (跟首頁一致, 支援跨單元任務)
-            window._treeScheduledUnits = {};
-            // 先收集 task 資料 (給 getStatus / covered / totalTasks 用)
-            if (Array.isArray(appPlans)) {
-                appPlans.forEach(function(plan) {
-                    if (!plan.grid) return;
-                    Object.keys(plan.grid).forEach(function(dStr) {
-                        var tasks = plan.grid[dStr];
-                        if (!Array.isArray(tasks)) return;
-                        tasks.forEach(function(t) {
-                            if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
-                            if (!window._treeScheduledUnits[t.unitId]) {
-                                window._treeScheduledUnits[t.unitId] = {
-                                    covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                                    firstCat: t.cat, firstMis: t.mis || plan.name || '',
-                                    firstPlanId: plan.id
-                                };
-                            }
-                            var pages = t.endPage - t.startPage + 1;
-                            window._treeScheduledUnits[t.unitId].covered += pages;
-                            window._treeScheduledUnits[t.unitId].totalTasks += 1;
-                            if (t.isDone) {
-                                window._treeScheduledUnits[t.unitId].doneTasks += 1;
-                            }
+            // v1.6.53: 抽出為可重用函式，確保每次 renderTreeView 都用最新的 appPlans 計算
+            window.refreshTreeScheduledUnits = function() {
+                window._treeScheduledUnits = {};
+                if (Array.isArray(appPlans)) {
+                    appPlans.forEach(function(plan) {
+                        if (!plan.grid) return;
+                        Object.keys(plan.grid).forEach(function(dStr) {
+                            var tasks = plan.grid[dStr];
+                            if (!Array.isArray(tasks)) return;
+                            tasks.forEach(function(t) {
+                                if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
+                                if (!window._treeScheduledUnits[t.unitId]) {
+                                    window._treeScheduledUnits[t.unitId] = {
+                                        covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                                        firstCat: t.cat, firstMis: t.mis || plan.name || '',
+                                        firstPlanId: plan.id
+                                    };
+                                }
+                                var pages = t.endPage - t.startPage + 1;
+                                window._treeScheduledUnits[t.unitId].covered += pages;
+                                window._treeScheduledUnits[t.unitId].totalTasks += 1;
+                                if (t.isDone) {
+                                    window._treeScheduledUnits[t.unitId].doneTasks += 1;
+                                }
+                            });
                         });
                     });
-                });
-            }
-            // v1.5.106: 簡化, 用 getUnitDonePagesByOverlap() 算 donePages (跨單元自動處理)
-            var overlapDone = getUnitDonePagesByOverlap();
-            Object.keys(overlapDone).forEach(function(uid) {
-                if (!window._treeScheduledUnits[uid]) {
-                    window._treeScheduledUnits[uid] = {
-                        covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                        firstCat: '', firstMis: '', firstPlanId: null
-                    };
                 }
-                window._treeScheduledUnits[uid].donePages += overlapDone[uid];
-            });
+                // v1.5.106 + v1.6.50: overlap 計算（只對有排程的單元）
+                var overlapDone = getUnitDonePagesByOverlap();
+                Object.keys(overlapDone).forEach(function(uid) {
+                    if (!window._treeScheduledUnits[uid]) {
+                        window._treeScheduledUnits[uid] = {
+                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                            firstCat: '', firstMis: '', firstPlanId: null
+                        };
+                    }
+                    window._treeScheduledUnits[uid].donePages += overlapDone[uid];
+                });
+            };
+            // v1.6.53: 一開始就計算一次（頁面載入時）
+            window.refreshTreeScheduledUnits();
 
             function totalOf(u) {
                 var t = ((u.end || 0) - (u.start || 0) + 1);
                 return (t > 0) ? t : 1;
             }
 
+            // v1.6.53: 每次renderTreeView都重新從appPlans計算，確保包含手動新增的任務
+            window.refreshTreeScheduledUnits();
             var html = '<div class="tree-container">';
 
             Object.keys(treeSubjects).forEach(function(key) {
