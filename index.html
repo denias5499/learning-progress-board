@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.43]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.44]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -13127,8 +13127,21 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                                 doneUnits.push({
                                     id: u.id,
                                     name: u.name,
-                                    days: logData[u.id] ? logData[u.id].dates.size : 1,
-                                    finishDate: logData[u.id] ? logData[u.id].lastDate : '未知'
+                                    days: (function() {
+                                        var days = new Set();
+                                        if (Array.isArray(appPlans)) {
+                                            appPlans.forEach(function(p) {
+                                                if (!p.grid) return;
+                                                Object.keys(p.grid).forEach(function(d) {
+                                                    (p.grid[d] || []).forEach(function(t) {
+                                                        if (t && t.isDone && t.unitId === u.id) days.add(d);
+                                                    });
+                                                });
+                                            });
+                                        }
+                                        return days.size > 0 ? days.size : 1;
+                                    })(),
+                                    finishDate: getUnitLastDoneDate(u.id) || '未知' 
                                 });
                             } else {
                                 // v1.5.149: 如果是 unit-based 但 task 實際沒 isDone, 重設 pDone
