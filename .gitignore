@@ -1,0 +1,19 @@
+# OS
+.DS_Store
+Thumbs.db
+._*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Backup files (如果之後在這裡編輯會自動產生)
+*.bak
+*.orig
+*~
+
+# Node
+node_modules/
+package-lock.json
