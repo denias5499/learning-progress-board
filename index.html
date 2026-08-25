@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.48]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.49]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -12508,7 +12508,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         rowHtml += '</span>';
                         rowHtml += '<span class="tree-unit-range" style="font-family:monospace; font-size:0.85em; color:var(--secondary);">' + escapeHtml(range || '-') + '</span>';
                         rowHtml += '<span style="font-size:0.85em;">' + accuracyBarHtml + '</span>';
-                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">' + barStr + ' ' + coveredPages + '/' + totalPages + ' (' + pct + '%)</span>';
+                        var progressTxt = isDoneForTree ? (coveredPages + '/' + totalPages + ' (' + pct + '%)') : '—';
+                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">' + barStr + ' ' + progressTxt + '</span>';
                         rowHtml += '<span style="font-size:0.85em;">';
                         if (scheduledDays > 0) {
                             rowHtml += '<span class="tree-unit-clock" onclick="event.stopPropagation(); jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="cursor:pointer; font-size:0.85em; white-space:nowrap;" title="已排 ' + scheduledDays + ' 天, 點擊跳到月曆">📅 ' + scheduledDays + '天</span>';
