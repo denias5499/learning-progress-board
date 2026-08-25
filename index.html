@@ -3913,6 +3913,28 @@ loadBoardHeader();
             appMissions = user.missions || {};
             appLogs = user.logs || [];
             appPlans = user.plans || [];
+
+            // v1.6.38: remap plan tasks to current masters unitIds (unitName → current id)
+            {var _oldPlans = appPlans.slice(); appPlans.length = 0;
+            _oldPlans.forEach(function(p) {
+                var np = Object.assign({}, p, {grid: {}});
+                if(p.grid) Object.keys(p.grid).forEach(function(d) {
+                    np.grid[d] = (p.grid[d]||[]).slice();
+                });
+                appPlans.push(np);
+                Object.keys(np.grid).forEach(function(d) {
+                    (np.grid[d]||[]).forEach(function(t) {
+                        if(!t || !t.unitName || !t.cat) return;
+                        var masterEntry = (multiData[currentUserId].masters[t.cat]||{})[t.subject||''];
+                        if(!masterEntry) return;
+                        var allUnits = _collectSubjectUnits(masterEntry);
+                        var match = allUnits.find(function(u){ return u.name === t.unitName; });
+                        if(match && match.id !== t.unitId) {
+                            t.unitId = match.id;
+                        }
+                    });
+                });
+            });}
             var cats = Object.keys(user.masters || {});
             if (cats.length === 0) {
                 appCurrentCat = '';
