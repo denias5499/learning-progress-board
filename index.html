@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.51]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.52]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5704,8 +5704,8 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
                     var u = missionUnitMap[uid];
                     if (!u || u.start === undefined || u.end === undefined) return;
                     if (u.sub !== taskSub) return;
-                    // v1.6.50: skip overlap if this unit was never directly scheduled (no tasks in appPlans)
-                    if (!window._treeScheduledUnits[uid] || window._treeScheduledUnits[uid].totalTasks === 0) return;
+                    // v1.6.51: skip overlap if this unit was never directly scheduled (no tasks in appPlans)
+                    if (!window._treeScheduledUnits || !window._treeScheduledUnits[uid] || window._treeScheduledUnits[uid].totalTasks === 0) return;
                     var us = Math.max(s, u.start);
                     var ue = Math.min(e, u.end);
                     if (ue >= us) addPageSet(uid, us, ue);
@@ -5788,9 +5788,9 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                     if (taskUnitInfo && uid !== t.unitId && u.start === taskUnitInfo.start && u.end === taskUnitInfo.end) {
                         return;
                     }
-                    // v1.6.50: skip overlap if this unit was never directly scheduled (no tasks in appPlans)
+                    // v1.6.51: skip overlap if this unit was never directly scheduled (no tasks in appPlans)
                     // This prevents units that were never scheduled from showing false donePages via cross-unit overlap
-                    if (!window._treeScheduledUnits[uid] || window._treeScheduledUnits[uid].totalTasks === 0) return;
+                    if (!window._treeScheduledUnits || !window._treeScheduledUnits[uid] || window._treeScheduledUnits[uid].totalTasks === 0) return;
                     var s = t.startPage > u.start ? t.startPage : u.start;
                     var e = t.endPage < u.end ? t.endPage : u.end;
                     if (e >= s) {
