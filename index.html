@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.45]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.46]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3163,37 +3163,7 @@
                                 }
                             });
                         });
-                        // 2. 跨 instance dedup: 整體只保留「第一個出現的 instance」內的 unit
-                        //    找出每個 key 的 first instance index, 只在該 instance 保留
-                        var firstInstanceForKey = {};
-                        typeObj.instances.forEach(function(ins, idx) {
-                            if (!ins || !ins.vols) return;
-                            Object.keys(ins.vols).forEach(function(volName) {
-                                (ins.vols[volName] || []).forEach(function(u) {
-                                    var key = unitKey(u);
-                                    if (key && firstInstanceForKey[key] === undefined) {
-                                        firstInstanceForKey[key] = idx;
-                                    }
-                                });
-                            });
-                        });
-                        typeObj.instances.forEach(function(ins, idx) {
-                            if (!ins || !ins.vols) return;
-                            Object.keys(ins.vols).forEach(function(volName) {
-                                var arr = ins.vols[volName];
-                                if (!Array.isArray(arr)) return;
-                                var filtered = arr.filter(function(u) {
-                                    var key = unitKey(u);
-                                    if (!key) return true;  // 無 key 保留
-                                    return firstInstanceForKey[key] === idx;  // 只在 first instance 保留
-                                });
-                                if (filtered.length !== arr.length) {
-                                    removed += (arr.length - filtered.length);
-                                    ins.vols[volName] = filtered;
-                                }
-                            });
-                        });
-                    });
+                                            });
                 });
             });
             return removed;
