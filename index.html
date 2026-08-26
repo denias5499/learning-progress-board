@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.53]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.55]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -12316,16 +12316,28 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         });
                     });
                 }
-                // v1.5.106 + v1.6.50: overlap 計算（只對有排程的單元）
-                var overlapDone = getUnitDonePagesByOverlap();
-                Object.keys(overlapDone).forEach(function(uid) {
+                // v1.6.55: 同時算 filtered + unfiltered overlap
+                // filtered (respects current mission filter) -> donePages
+                var overlapFiltered = getUnitDonePagesByOverlap();
+                Object.keys(overlapFiltered).forEach(function(uid) {
                     if (!window._treeScheduledUnits[uid]) {
                         window._treeScheduledUnits[uid] = {
                             covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
                             firstCat: '', firstMis: '', firstPlanId: null
                         };
                     }
-                    window._treeScheduledUnits[uid].donePages += overlapDone[uid];
+                    window._treeScheduledUnits[uid].donePages += overlapFiltered[uid] || 0;
+                });
+                // unfiltered (ALL missions) -> totalDonePages (for display only)
+                var overlapUnfiltered = getUnitDonePagesByOverlap('ALL', 'ALL');
+                Object.keys(overlapUnfiltered).forEach(function(uid) {
+                    if (!window._treeScheduledUnits[uid]) {
+                        window._treeScheduledUnits[uid] = {
+                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                            firstCat: '', firstMis: '', firstPlanId: null
+                        };
+                    }
+                    window._treeScheduledUnits[uid].totalDonePages = overlapUnfiltered[uid] || 0;
                 });
             };
             // v1.6.53: 一開始就計算一次（頁面載入時）
@@ -12490,7 +12502,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
                         var totalPages = u.end - u.start + 1;
                         var suInfo = window._treeScheduledUnits[u.id];
-                        var coveredPages = suInfo ? suInfo.donePages : 0;
+                        // v1.6.55: use totalDonePages (unfiltered ALL missions) for display
+                        var coveredPages = suInfo ? (suInfo.totalDonePages || suInfo.donePages) : 0;
                         var isDoneForTree = getUnitLastDoneDate(u.id) !== null;
                         var pct = (!isDoneForTree || totalPages === 0) ? 0 : Math.min(100, Math.round(coveredPages / totalPages * 100));
                         var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
