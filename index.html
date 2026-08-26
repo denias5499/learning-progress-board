@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.57]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.53]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4462,74 +4462,9 @@ loadBoardHeader();
             return result;
         }
 
-        // v1.6.57: 只取某科目中「複習講義」的單元（用於首頁進度 bar）
-        // 支援新架構 materials['複習講義'].instances，也支援 legacy vols 格式
-        function collectReviewLectureUnits(subj) {
-            if (!subj) return [];
-            var instances = [];
-            // 新架構: subj.materials['複習講義'].instances
-            if (subj.materials && subj.materials['複習講義'] && Array.isArray(subj.materials['複習講義'].instances)) {
-                instances = subj.materials['複習講義'].instances;
-            }
-            // legacy 格式: subj.vols (直接是 vols map)
-            else if (subj.vols && typeof subj.vols === 'object') {
-                // 每個 vol 的 units 就是 instance
-                var seen = {};
-                Object.keys(subj.vols).forEach(function(volName) {
-                    (subj.vols[volName] || []).forEach(function(u) {
-                        if (u && u.id && !seen[u.id]) {
-                            seen[u.id] = true;
-                            instances.push(u);
-                        }
-                    });
-                });
-                return instances.map(function(u) {
-                    return Object.assign({}, u, { vol: u.vol || 'custom', _typeName: '複習講義', _instanceName: '' });
-                });
-            }
-            var out = [];
-            var seen = {};
-            instances.forEach(function(ins) {
-                if (!ins) return;
-                // 新架構: ins.vols (vol-based instance)
-                if (ins.vols && typeof ins.vols === 'object') {
-                    (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
-                        (ins.vols[volName] || []).forEach(function(u) {
-                            if (u && u.id && !seen[u.id]) {
-                                seen[u.id] = true;
-                                out.push(Object.assign({}, u, { vol: volName, _typeName: '複習講義', _instanceName: ins.name || '' }));
-                            }
-                        });
-                    });
-                }
-                // 新架構: ins.units (no-vol instance)
-                else if (Array.isArray(ins.units)) {
-                    ins.units.forEach(function(u) {
-                        if (u && u.id && !seen[u.id]) {
-                            seen[u.id] = true;
-                            out.push(Object.assign({}, u, {
-                                vol: (ins.type === 'volume' ? (u.vol || 'custom') : 'custom'),
-                                _typeName: '複習講義',
-                                _instanceName: ins.name || ''
-                            }));
-                        }
-                    });
-                }
-                // fallback: ins 本身就是 unit
-                else if (ins.id) {
-                    var k = ins.id;
-                    if (!seen[k]) {
-                        seen[k] = true;
-                        out.push(Object.assign({}, ins, { vol: ins.vol || 'custom', _typeName: '複習講義', _instanceName: ins.instanceName || ins.name || '' }));
-                    }
-                }
-            });
-            return out;
-        }
-
-        function openPlanner() {
-            showPage('page-planner');
-            updatePlannerSelector();
+        function openPlanner() { 
+            showPage('page-planner'); 
+            updatePlannerSelector(); 
         }
 
         function updatePlannerSelector() {
@@ -12076,8 +12011,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                                 if (Array.isArray(subj.vols[v])) subj.vols[v].forEach(accUnit);
                             });
                         } else {
-                            // v1.6.55: 只算「複習講義」的進度
-                            (subj.materials && subj.materials['複習講義'] ? collectReviewLectureUnits(subj) : _collectSubjectUnits(subj)).forEach(accUnit);
+                            _collectSubjectUnits(subj).forEach(accUnit);
                         }
                         if (totalUnits <= 0) return;
                         var pct = Math.round((doneUnits / totalUnits) * 100);
@@ -12364,16 +12298,15 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             var tasks = plan.grid[dStr];
                             if (!Array.isArray(tasks)) return;
                             tasks.forEach(function(t) {
-                                if (!t || !t.unitId) return;
+                                if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
                                 if (!window._treeScheduledUnits[t.unitId]) {
                                     window._treeScheduledUnits[t.unitId] = {
                                         covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                                        firstCat: t.cat || '', firstMis: t.mis || plan.name || '',
+                                        firstCat: t.cat, firstMis: t.mis || plan.name || '',
                                         firstPlanId: plan.id
                                     };
                                 }
-                                // v1.6.57: 沒有 startPage/endPage 的任務也能計入（用預設 1 頁）
-                                var pages = (t.startPage && t.endPage && t.endPage >= t.startPage) ? (t.endPage - t.startPage + 1) : 1;
+                                var pages = t.endPage - t.startPage + 1;
                                 window._treeScheduledUnits[t.unitId].covered += pages;
                                 window._treeScheduledUnits[t.unitId].totalTasks += 1;
                                 if (t.isDone) {
@@ -12383,28 +12316,16 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         });
                     });
                 }
-                // v1.5.106 + v1.6.50 + v1.6.55: overlap 計算（只對有排程的單元）
-                // v1.6.55: 先算 unfiltered (ALL missions) 存 totalDonePages，再用 filtered 存 donePages
-                var overlapUnfiltered = getUnitDonePagesByOverlap('ALL', 'ALL');
-                Object.keys(overlapUnfiltered).forEach(function(uid) {
+                // v1.5.106 + v1.6.50: overlap 計算（只對有排程的單元）
+                var overlapDone = getUnitDonePagesByOverlap();
+                Object.keys(overlapDone).forEach(function(uid) {
                     if (!window._treeScheduledUnits[uid]) {
                         window._treeScheduledUnits[uid] = {
                             covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
                             firstCat: '', firstMis: '', firstPlanId: null
                         };
                     }
-                    window._treeScheduledUnits[uid].totalDonePages = overlapUnfiltered[uid] || 0;
-                });
-                // filtered donePages (respects current mission filter)
-                var overlapFiltered = getUnitDonePagesByOverlap();
-                Object.keys(overlapFiltered).forEach(function(uid) {
-                    if (!window._treeScheduledUnits[uid]) {
-                        window._treeScheduledUnits[uid] = {
-                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                            firstCat: '', firstMis: '', firstPlanId: null, totalDonePages: 0
-                        };
-                    }
-                    window._treeScheduledUnits[uid].donePages += overlapFiltered[uid] || 0;
+                    window._treeScheduledUnits[uid].donePages += overlapDone[uid];
                 });
             };
             // v1.6.53: 一開始就計算一次（頁面載入時）
@@ -12569,8 +12490,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
                         var totalPages = u.end - u.start + 1;
                         var suInfo = window._treeScheduledUnits[u.id];
-                        // v1.6.55: use totalDonePages (ALL missions unfiltered) for display, not filtered donePages
-                        var coveredPages = suInfo ? (suInfo.totalDonePages || suInfo.donePages) : 0;
+                        var coveredPages = suInfo ? suInfo.donePages : 0;
                         var isDoneForTree = getUnitLastDoneDate(u.id) !== null;
                         var pct = (!isDoneForTree || totalPages === 0) ? 0 : Math.min(100, Math.round(coveredPages / totalPages * 100));
                         var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
