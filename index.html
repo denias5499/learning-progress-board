@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.59]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.60]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3315,23 +3315,23 @@
                         });
                         console.log('v1.5.3: ✅ 從備份復原 plans (' + user.plans.length + ' 個 plan)');
                     }
-                    // v1.6.59: 麻辣甲單元任務unitId被錯寫成複習講義id，修復任務unitId
-                    user.plans.forEach(function(plan) {
-                        if (!plan.grid) return;
-                        Object.keys(plan.grid).forEach(function(dStr) {
-                            var tasks = plan.grid[dStr];
-                            if (!Array.isArray(tasks)) return;
-                            tasks.forEach(function(t) {
-                                if (!t || !t.cat) return;
-                                if (t.unitId === 'id_c9bxkq188') t.unitId = 'id_f5b8j07kd';
-                                if (t.unitId === 'id_cf1tdcoxf') t.unitId = 'id_xb7foqf3b';
-                            });
-                        });
-                    });
                 } catch(e) {
                     console.error('v1.5.3: ❌ 備份復原失敗:', e);
                 }
             }
+            // v1.6.60: 麻辣甲單元任務unitId被錯寫成複習講義id，無論是否還原備份，每次都修復
+            user.plans.forEach(function(plan) {
+                if (!plan.grid) return;
+                Object.keys(plan.grid).forEach(function(dStr) {
+                    var tasks = plan.grid[dStr];
+                    if (!Array.isArray(tasks)) return;
+                    tasks.forEach(function(t) {
+                        if (!t || !t.cat) return;
+                        if (t.unitId === 'id_c9bxkq188') t.unitId = 'id_f5b8j07kd';
+                        if (t.unitId === 'id_cf1tdcoxf') t.unitId = 'id_xb7foqf3b';
+                    });
+                });
+            });
         }
 
         // ============================================================
