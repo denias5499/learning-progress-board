@@ -3924,6 +3924,21 @@ loadBoardHeader();
                     });
                 });
             });}
+
+            // v1.6.61: 麻辣甲P.1-1任務被v1.6.38錯誤remap成複習講義unitId，在此修正
+            // (在switchUser流程中，v1.6.38基於unitName比對，但name重複導致錯配，這裡只修P.1-1)
+            (appPlans||[]).forEach(function(plan){
+                Object.keys(plan.grid||{}).forEach(function(d){
+                    (plan.grid[d]||[]).forEach(function(t){
+                        if(!t||!t.cat||!t.unitName) return;
+                        if(t.cat!=='會考複習') return;
+                        if(t.startPage!==1||t.endPage!==1) return;
+                        if(t.unitName==='一元一次方程式'&&t.unitId==='id_c9bxkq188'){t.unitId='id_f5b8j07kd';}
+                        if(t.unitName==='二元一次聯立方程式'&&t.unitId==='id_cf1tdcoxf'){t.unitId='id_xb7foqf3b';}
+                    });
+                });
+            });
+
             var cats = Object.keys(user.masters || {});
             if (cats.length === 0) {
                 appCurrentCat = '';
