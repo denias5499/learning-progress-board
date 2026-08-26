@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.62]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.63]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3319,25 +3319,6 @@
                     console.error('v1.5.3: ❌ 備份復原失敗:', e);
                 }
             }
-            // v1.6.62: (保留修麻辣甲P.1-1)P.1-1任務的unitId（其他頁數不動）
-            user.plans.forEach(function(plan) {
-                if (!plan.grid) return;
-                Object.keys(plan.grid).forEach(function(dStr) {
-                    var tasks = plan.grid[dStr];
-                    if (!Array.isArray(tasks)) return;
-                    tasks.forEach(function(t) {
-                        if (!t || !t.cat || !t.unitName) return;
-                        if (t.cat !== '會考複習') return;
-                        if (t.startPage !== 1 || t.endPage !== 1) return;
-                        if (t.unitName === '一元一次方程式' && t.unitId === 'id_c9bxkq188') {
-                            t.unitId = 'id_f5b8j07kd';
-                        }
-                        if (t.unitName === '二元一次聯立方程式' && t.unitId === 'id_cf1tdcoxf') {
-                            t.unitId = 'id_xb7foqf3b';
-                        }
-                    });
-                });
-            });
         }
 
         // ============================================================
