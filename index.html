@@ -3319,16 +3319,22 @@
                     console.error('v1.5.3: ❌ 備份復原失敗:', e);
                 }
             }
-            // v1.6.60: 麻辣甲單元任務unitId被錯寫成複習講義id，無論是否還原備份，每次都修復
+            // v1.6.61: 只修麻辣甲P.1-1任務的unitId（其他頁數不動）
             user.plans.forEach(function(plan) {
                 if (!plan.grid) return;
                 Object.keys(plan.grid).forEach(function(dStr) {
                     var tasks = plan.grid[dStr];
                     if (!Array.isArray(tasks)) return;
                     tasks.forEach(function(t) {
-                        if (!t || !t.cat) return;
-                        if (t.unitId === 'id_c9bxkq188') t.unitId = 'id_f5b8j07kd';
-                        if (t.unitId === 'id_cf1tdcoxf') t.unitId = 'id_xb7foqf3b';
+                        if (!t || !t.cat || !t.unitName) return;
+                        if (t.cat !== '會考複習') return;
+                        if (t.startPage !== 1 || t.endPage !== 1) return;
+                        if (t.unitName === '一元一次方程式' && t.unitId === 'id_c9bxkq188') {
+                            t.unitId = 'id_f5b8j07kd';
+                        }
+                        if (t.unitName === '二元一次聯立方程式' && t.unitId === 'id_cf1tdcoxf') {
+                            t.unitId = 'id_xb7foqf3b';
+                        }
                     });
                 });
             });
