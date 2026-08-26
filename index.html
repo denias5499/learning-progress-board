@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.54]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.53]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -11989,8 +11989,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         var doneUnits = 0;
                         var isUnitBasedSubject = false;  // v1.5.146: subject 內所有 unit 都 unit-based = true
                         var isUnitBasedSubjectSet = false;
-                        // v1.5.106 + v1.6.54: 用 ALL missions 的 overlap 算進度（不受 filter影響）
-                    var overlapDonePages = getUnitDonePagesByOverlap('ALL', 'ALL');
+                        // v1.5.106: 改用 task 重疊頁數算法 (跨單元任務自動算到每個被涵蓋的 unit)
+                    var overlapDonePages = getUnitDonePagesByOverlap();
                     function accUnit(u) {
                             var ctx = findUnitContext(u.id);
                             var typeObj = ctx ? ctx.typeObj : null;
@@ -12328,19 +12328,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     window._treeScheduledUnits[uid].donePages += overlapDone[uid];
                 });
             };
-            // v1.6.54: also compute unfiltered donePages (ALL missions) for progress bar display
-            var totalOverlapDone = getUnitDonePagesByOverlap('ALL', 'ALL');
-            Object.keys(totalOverlapDone).forEach(function(uid) {
-                if (!window._treeScheduledUnits[uid]) return;
-                window._treeScheduledUnits[uid].totalDonePages = totalOverlapDone[uid] || 0;
-            });
-            // ensure totalDonePages >= donePages
-            Object.keys(window._treeScheduledUnits).forEach(function(uid) {
-                var su = window._treeScheduledUnits[uid];
-                if (!su.totalDonePages || su.totalDonePages < su.donePages) {
-                    su.totalDonePages = su.donePages;
-                }
-            });
             // v1.6.53: 一開始就計算一次（頁面載入時）
             window.refreshTreeScheduledUnits();
 
@@ -12503,8 +12490,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
                         var totalPages = u.end - u.start + 1;
                         var suInfo = window._treeScheduledUnits[u.id];
-                        // v1.6.54: use totalDonePages (ALL missions) for display, but donePages (filtered) for status
-                        var coveredPages = suInfo ? (suInfo.totalDonePages || suInfo.donePages) : 0;
+                        var coveredPages = suInfo ? suInfo.donePages : 0;
                         var isDoneForTree = getUnitLastDoneDate(u.id) !== null;
                         var pct = (!isDoneForTree || totalPages === 0) ? 0 : Math.min(100, Math.round(coveredPages / totalPages * 100));
                         var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
