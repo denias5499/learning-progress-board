@@ -3903,7 +3903,8 @@ loadBoardHeader();
             appLogs = user.logs || [];
             appPlans = user.plans || [];
 
-            // v1.6.38: remap plan tasks to current masters unitIds (unitName → current id)
+            // v1.6.63: remap plan tasks to current masters unitIds
+            // 新任務有 typeName+instanceName → 精確配對；舊任務靠 unitName + page range
             {var _oldPlans = appPlans.slice(); appPlans.length = 0;
             _oldPlans.forEach(function(p) {
                 var np = Object.assign({}, p, {grid: {}});
@@ -3917,16 +3918,23 @@ loadBoardHeader();
                         var masterEntry = (multiData[currentUserId].masters[t.cat]||{})[t.subject||''];
                         if(!masterEntry) return;
                         var allUnits = _collectSubjectUnits(masterEntry);
-                        // v1.6.62: 同名單元（例：一元一次方程式同時存在於複習講義和麻辣甲），
-                        // 只靠 unitName 會配對錯誤。改用 startPage+endPage 輔助判斷。
-                        var match = allUnits.find(function(u){
-                            if(u.name !== t.unitName) return false;
-                            // 頁數有值才比對（避免 tasks 沒 startPage/endPage 的舊資料）
-                            if(t.startPage != null && t.endPage != null && u.start != null && u.end != null) {
-                                return u.start === t.startPage && u.end === t.endPage;
-                            }
-                            return true;
-                        });
+                        var match = null;
+                        if(t.typeName && t.instanceName) {
+                            // 新任務：依 typeName + instanceName + unitName 精確配對
+                            match = allUnits.find(function(u){
+                                return u.name === t.unitName && u._typeName === t.typeName && u._instanceName === t.instanceName;
+                            });
+                        }
+                        if(!match) {
+                            // 舊任務：退階用 unitName + 頁數範圍
+                            match = allUnits.find(function(u){
+                                if(u.name !== t.unitName) return false;
+                                if(t.startPage != null && t.endPage != null && u.start != null && u.end != null) {
+                                    return u.start === t.startPage && u.end === t.endPage;
+                                }
+                                return true;
+                            });
+                        }
                         if(match && match.id !== t.unitId) {
                             t.unitId = match.id;
                         }
@@ -3934,19 +3942,7 @@ loadBoardHeader();
                 });
             });}
 
-            // v1.6.61: 麻辣甲P.1-1任務被v1.6.38錯誤remap成複習講義unitId，在此修正
-            // (在switchUser流程中，v1.6.38基於unitName比對，但name重複導致錯配，這裡只修P.1-1)
-            (appPlans||[]).forEach(function(plan){
-                Object.keys(plan.grid||{}).forEach(function(d){
-                    (plan.grid[d]||[]).forEach(function(t){
-                        if(!t||!t.cat||!t.unitName) return;
-                        if(t.cat!=='會考複習') return;
-                        if(t.startPage!==1||t.endPage!==1) return;
-                        if(t.unitName==='一元一次方程式'&&t.unitId==='id_c9bxkq188'){t.unitId='id_f5b8j07kd';}
-                        if(t.unitName==='二元一次聯立方程式'&&t.unitId==='id_cf1tdcoxf'){t.unitId='id_xb7foqf3b';}
-                    });
-                });
-            });
+            // v1.6.63: 麻辣甲/大滿貫等與講義同名單元的 remap 由上方的 typeName+instanceName 邏輯處理
 
             var cats = Object.keys(user.masters || {});
             if (cats.length === 0) {
@@ -6239,6 +6235,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             unitId: u.id,
                             vol: volName,
                             unitName: u.name,
+                            typeName: availU.typeName || '',
+                            instanceName: availU.instanceName || '',
                             prefix: prefix,
                             startPage: (totalPages > 0) ? Math.round(cStart) : '',
                             endPage: (totalPages > 0) ? Math.round(cEnd) : '',
@@ -6398,6 +6396,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             isDone: false,
                             cat: el('wz-cat').value, mis: el('wz-mis').value,
                             unitId: item.unitId, vol: item.vol, unitName: item.unitName,
+                            typeName: item.typeName || '',
+                            instanceName: item.instanceName || '',
                             postponeCount: 0,
                             isAuto: true,
                             wizardRunId: 'w_' + Date.now(),  // v1.5.102: 標記是哪次 wizard 跑的
@@ -7450,16 +7450,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var uObj = Object.assign({}, u, { vol: vol, typeName: x.typeName, instanceName: x.instanceName, misMaxEnd: status.misMaxEnd });
             return renderUnitRowHtml(uObj, {
                 isChecked: !!isChecked,
-                onChange: "toggleAeUnitSelection('" + safeSub + "', '" + (u.start||'') + "', '" + (u.end||'') + "', '" + safeName + "', '" + u.id + "', '" + safeVol + "', this.checked)",
+                onChange: "toggleAeUnitSelection('" + safeSub + "', '" + (u.start||'') + "', '" + (u.end||'') + "', '" + safeName + "', '" + u.id + "', '" + safeVol + "', '" + (x.typeName||'') + "', '" + (x.instanceName||'') + "', this.checked)",
                 showQuickRead: false,
                 displayMode: displayMode
             });
         }
 
-        function toggleAeUnitSelection(sub, start, end, name, unitId, vol, isChecked) {
+        function toggleAeUnitSelection(sub, start, end, name, unitId, vol, typeName, instanceName, isChecked) {
             if (isChecked) {
                 if (!window.aeSelectedItems.find(item => item.unitId === unitId)) {
-                    window.aeSelectedItems.push({sub, start, end, name, unitId, vol, origEnd: end});
+                    window.aeSelectedItems.push({sub, start, end, name, unitId, vol, typeName, instanceName, origEnd: end});
                 }
             } else {
                 window.aeSelectedItems = window.aeSelectedItems.filter(item => item.unitId !== unitId);
@@ -7578,6 +7578,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         unitId: item.unitId,
                         vol: item.vol,
                         unitName: txt,
+                        typeName: item.typeName || '',
+                        instanceName: item.instanceName || '',
                         postponeCount: 0
                     });
                 });
@@ -7604,6 +7606,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 unitId: item.unitId,
                                 vol: item.vol,
                                 unitName: item.name,
+                                typeName: item.typeName || '',
+                                instanceName: item.instanceName || '',
                                 postponeCount: 0
                             });
                         });
