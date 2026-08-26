@@ -12301,6 +12301,36 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // v1.6.53: 抽出為可重用函式，確保每次 renderTreeView 都用最新的 appPlans 計算
             window.refreshTreeScheduledUnits = function() {
                 window._treeScheduledUnits = {};
+                // v1.6.58: 建立 master page-range lookup (cat|start|end) => unitInfo
+                // 解決任務的 unitId 可能是舊版/錯誤版的問題
+                var masterPageMap = {};  // key: cat+'|'+start+'|'+end => {id, name, subj, type}
+                var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
+                if (masters) {
+                    Object.keys(masters).forEach(function(cat) {
+                        Object.keys(masters[cat] || {}).forEach(function(sub) {
+                            var subj = masters[cat][sub];
+                            if (!subj || !subj.materials) return;
+                            Object.keys(subj.materials).forEach(function(tn) {
+                                var to = subj.materials[tn];
+                                if (!to || !to.instances) return;
+                                to.instances.forEach(function(ins) {
+                                    if (!ins || !ins.vols) return;
+                                    Object.keys(ins.vols).forEach(function(volName) {
+                                        (ins.vols[volName] || []).forEach(function(u) {
+                                            if (u && u.id && u.start != null && u.end != null) {
+                                                var key = cat + '|' + u.start + '|' + u.end;
+                                                if (!masterPageMap[key]) {
+                                                    masterPageMap[key] = { id: u.id, name: u.name, subj: sub, type: tn, cat: cat };
+                                                }
+                                            }
+                                        });
+                                    });
+                                });
+                            });
+                        });
+                    });
+                }
+                // v1.6.58: 用 page-range 找對應的 master unitId，存入 _treeScheduledUnits
                 if (Array.isArray(appPlans)) {
                     appPlans.forEach(function(plan) {
                         if (!plan.grid) return;
@@ -12308,19 +12338,22 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             var tasks = plan.grid[dStr];
                             if (!Array.isArray(tasks)) return;
                             tasks.forEach(function(t) {
-                                if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
-                                if (!window._treeScheduledUnits[t.unitId]) {
-                                    window._treeScheduledUnits[t.unitId] = {
+                                if (!t || !t.unitId || t.startPage == null || t.endPage == null || !t.cat) return;
+                                var key = t.cat + '|' + t.startPage + '|' + t.endPage;
+                                var unitInfo = masterPageMap[key];
+                                var correctUnitId = unitInfo ? unitInfo.id : t.unitId;
+                                if (!window._treeScheduledUnits[correctUnitId]) {
+                                    window._treeScheduledUnits[correctUnitId] = {
                                         covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
                                         firstCat: t.cat, firstMis: t.mis || plan.name || '',
                                         firstPlanId: plan.id
                                     };
                                 }
                                 var pages = t.endPage - t.startPage + 1;
-                                window._treeScheduledUnits[t.unitId].covered += pages;
-                                window._treeScheduledUnits[t.unitId].totalTasks += 1;
+                                window._treeScheduledUnits[correctUnitId].covered += pages;
+                                window._treeScheduledUnits[correctUnitId].totalTasks += 1;
                                 if (t.isDone) {
-                                    window._treeScheduledUnits[t.unitId].doneTasks += 1;
+                                    window._treeScheduledUnits[correctUnitId].doneTasks += 1;
                                 }
                             });
                         });
