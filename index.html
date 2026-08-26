@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.55]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.58]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5723,7 +5723,7 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
     if (!appPlans || appPlans.length === 0) return result;
     var allUnits = {};
     var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
-    function collectUnits(s, subj) {
+    function collectUnits(s, subj, cat) {
         if (!s || !s.materials) return;
         Object.keys(s.materials).forEach(function(mt) {
             var mat = s.materials[mt];
@@ -5734,7 +5734,7 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                     Object.keys(inst.vols).forEach(function(volName) {
                         (inst.vols[volName] || []).forEach(function(u) {
                             if (u && u.id && !allUnits[u.id]) {
-                                allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
+                                allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj, cat: cat};
                             }
                         });
                     });
@@ -5742,7 +5742,7 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                 if (inst.units && Array.isArray(inst.units)) {
                     inst.units.forEach(function(u) {
                         if (u && u.id && !allUnits[u.id]) {
-                            allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
+                            allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj, cat: cat};
                         }
                     });
                 }
@@ -5754,14 +5754,14 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
             var catSubjects = masters[cat];
             if (!catSubjects) return;
             Object.keys(catSubjects).forEach(function(subj) {
-                collectUnits(catSubjects[subj], subj);
+                collectUnits(catSubjects[subj], subj, cat);
             });
         });
     }
     // fallback 用 appMaster
     if (Object.keys(allUnits).length === 0 && appMaster) {
         Object.keys(appMaster).forEach(function(subj) {
-            collectUnits(appMaster[subj], subj);
+                collectUnits(appMaster[subj], subj, null);
         });
     }
     // v1.5.187 fix: 完全還原 v1.5.174 跨單元任務邏輯 (cross-unit overlap + 跨 sub 過濾 + Set 去重)
@@ -5777,7 +5777,17 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                 if (!t || !t.isDone || !t.startPage || !t.endPage) return;
                 if (filterCat && filterCat !== 'ALL' && t.cat !== filterCat) return;
                 if (filterMis && filterMis !== 'ALL' && t.mis !== filterMis) return;
-                var taskUnitInfo = allUnits[t.unitId];
+                // v1.6.58: 如果 task.unitId 在目前 master 找不到, 用 cat+頁碼範圍找對應的單元
+                var effectiveUnitId = t.unitId;
+                if (!allUnits[effectiveUnitId] && t.cat && t.startPage != null && t.endPage != null) {
+                    Object.keys(allUnits).forEach(function(uid) {
+                        var uinfo = allUnits[uid];
+                        if (uinfo.cat === t.cat && uinfo.start === t.startPage && uinfo.end === t.endPage) {
+                            effectiveUnitId = uid;
+                        }
+                    });
+                }
+                var taskUnitInfo = allUnits[effectiveUnitId];
                 var taskSub = taskUnitInfo ? taskUnitInfo.subj : null;
                 Object.keys(allUnits).forEach(function(uid) {
                     var u = allUnits[uid];
