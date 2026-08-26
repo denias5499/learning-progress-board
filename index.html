@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.55]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.56]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4462,9 +4462,44 @@ loadBoardHeader();
             return result;
         }
 
-        function openPlanner() { 
-            showPage('page-planner'); 
-            updatePlannerSelector(); 
+        // v1.6.55: 只取某科目中「複習講義」的單元（用於首頁進度 bar）
+        function collectReviewLectureUnits(subj) {
+            if (!subj || !subj.materials) return [];
+            var mat = subj.materials['複習講義'];
+            if (!mat || !Array.isArray(mat.instances)) return [];
+            var out = [];
+            var seen = {};
+            mat.instances.forEach(function(ins) {
+                if (!ins) return;
+                if (ins.vols && typeof ins.vols === 'object') {
+                    (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
+                        (ins.vols[volName] || []).forEach(function(u) {
+                            if (u && u.id && !seen[u.id]) {
+                                seen[u.id] = true;
+                                out.push(Object.assign({}, u, { vol: volName, _typeName: '複習講義', _instanceName: ins.name }));
+                            }
+                        });
+                    });
+                }
+                if (Array.isArray(ins.units)) {
+                    ins.units.forEach(function(u) {
+                        if (u && u.id && !seen[u.id]) {
+                            seen[u.id] = true;
+                            out.push(Object.assign({}, u, {
+                                vol: ins.type === 'volume' ? (u.vol || 'custom') : '複習講義|看記',
+                                _typeName: '複習講義',
+                                _instanceName: ins.name
+                            }));
+                        }
+                    });
+                }
+            });
+            return out;
+        }
+
+        function openPlanner() {
+            showPage('page-planner');
+            updatePlannerSelector();
         }
 
         function updatePlannerSelector() {
@@ -12011,7 +12046,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                                 if (Array.isArray(subj.vols[v])) subj.vols[v].forEach(accUnit);
                             });
                         } else {
-                            _collectSubjectUnits(subj).forEach(accUnit);
+                            // v1.6.55: 只算「複習講義」的進度
+                            (subj.materials && subj.materials['複習講義'] ? collectReviewLectureUnits(subj) : _collectSubjectUnits(subj)).forEach(accUnit);
                         }
                         if (totalUnits <= 0) return;
                         var pct = Math.round((doneUnits / totalUnits) * 100);
