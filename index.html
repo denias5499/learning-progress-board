@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.61]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.62]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3319,7 +3319,7 @@
                     console.error('v1.5.3: ❌ 備份復原失敗:', e);
                 }
             }
-            // v1.6.61: 只修麻辣甲P.1-1任務的unitId（其他頁數不動）
+            // v1.6.62: (保留修麻辣甲P.1-1)P.1-1任務的unitId（其他頁數不動）
             user.plans.forEach(function(plan) {
                 if (!plan.grid) return;
                 Object.keys(plan.grid).forEach(function(dStr) {
@@ -3917,7 +3917,16 @@ loadBoardHeader();
                         var masterEntry = (multiData[currentUserId].masters[t.cat]||{})[t.subject||''];
                         if(!masterEntry) return;
                         var allUnits = _collectSubjectUnits(masterEntry);
-                        var match = allUnits.find(function(u){ return u.name === t.unitName; });
+                        // v1.6.62: 同名單元（例：一元一次方程式同時存在於複習講義和麻辣甲），
+                        // 只靠 unitName 會配對錯誤。改用 startPage+endPage 輔助判斷。
+                        var match = allUnits.find(function(u){
+                            if(u.name !== t.unitName) return false;
+                            // 頁數有值才比對（避免 tasks 沒 startPage/endPage 的舊資料）
+                            if(t.startPage != null && t.endPage != null && u.start != null && u.end != null) {
+                                return u.start === t.startPage && u.end === t.endPage;
+                            }
+                            return true;
+                        });
                         if(match && match.id !== t.unitId) {
                             t.unitId = match.id;
                         }
@@ -3933,8 +3942,8 @@ loadBoardHeader();
                         if(!t||!t.cat||!t.unitName) return;
                         if(t.cat!=='會考複習') return;
                         if(t.startPage!==1||t.endPage!==1) return;
-                        if(t.unitName==='一元一次方程式'&&t.unitId==='id_c9bxkq188'){t.unitId='id_f5b8j07kd';console.log('v1.6.61修複:一元一次方程式P.1-1→id_f5b8j07kd');}
-                        if(t.unitName==='二元一次聯立方程式'&&t.unitId==='id_cf1tdcoxf'){t.unitId='id_xb7foqf3b';console.log('v1.6.61修複:二元一次聯立方程式P.1-1→id_xb7foqf3b');}
+                        if(t.unitName==='一元一次方程式'&&t.unitId==='id_c9bxkq188'){t.unitId='id_f5b8j07kd';}
+                        if(t.unitName==='二元一次聯立方程式'&&t.unitId==='id_cf1tdcoxf'){t.unitId='id_xb7foqf3b';}
                     });
                 });
             });
