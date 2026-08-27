@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.63]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.64]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2386,6 +2386,109 @@
 
     <script>
         function genId() { return 'id_' + Math.random().toString(36).substr(2, 9); }
+
+        // v1.6.64: 自動補 typeName/instanceName + 用 within-match 修 remap
+        window._v164Migrate = function _v164Migrate(uid) {
+            var user = multiData[uid];
+            if (!user || !user.masters) return;
+
+            // Build uid_map (unitId → [typeName, instanceName])
+            var uidMap = {};
+            Object.keys(user.masters).forEach(function(cat) {
+                var subjects = user.masters[cat];
+                if (typeof subjects !== 'object') return;
+                Object.keys(subjects).forEach(function(sub) {
+                    var subData = subjects[sub];
+                    if (!subData || !subData.materials) return;
+                    Object.keys(subData.materials).forEach(function(typeName) {
+                        var typeObj = subData.materials[typeName];
+                        if (!typeObj || !typeObj.instances) return;
+                        typeObj.instances.forEach(function(ins) {
+                            if (!ins) return;
+                            var insName = ins.name || '';
+                            (ins.units || []).forEach(function(u) {
+                                if (u && u.id) uidMap[u.id] = [typeName, insName];
+                            });
+                            Object.keys(ins.vols || {}).forEach(function(vol) {
+                                (ins.vols[vol] || []).forEach(function(u) {
+                                    if (u && u.id) uidMap[u.id] = [typeName, insName];
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+
+            // Backfill typeName + instanceName for tasks that don't have them
+            var bfCount = 0;
+            // Also re-run remap with within-match to fix wrong unitIds
+            var remapCount = 0;
+            (user.plans || []).forEach(function(plan) {
+                if (!plan.grid) return;
+                Object.keys(plan.grid).forEach(function(dateStr) {
+                    (plan.grid[dateStr] || []).forEach(function(t) {
+                        if (!t || !t.unitName || !t.cat || !t.subject) return;
+
+                        // 1. Backfill typeName/instanceName
+                        if ((!t.typeName || !t.instanceName) && uidMap[t.unitId]) {
+                            t.typeName = uidMap[t.unitId][0];
+                            t.instanceName = uidMap[t.unitId][1];
+                            bfCount++;
+                        }
+
+                        // 2. v1.6.64 within-match remap (fix wrong unitIds)
+                        var masterEntry = (user.masters[t.cat] || {})[t.subject];
+                        if (!masterEntry) return;
+                        var allUnits = _collectSubjectUnits(masterEntry);
+                        var match = null;
+                        // v1.6.64: 先 within-match (找頁範圍涵蓋 task 的 unit)
+                        var withinMatch = allUnits.find(function(u) {
+                            if (u.name !== t.unitName) return false;
+                            if (t.startPage != null && t.endPage != null &&
+                                u.start != null && u.end != null) {
+                                return u.start <= t.startPage && u.end >= t.endPage;
+                            }
+                            return true;
+                        });
+                        if (t.typeName && t.instanceName) {
+                            // 精確比對
+                            match = allUnits.find(function(u) {
+                                return u.name === t.unitName &&
+                                       u._typeName === t.typeName &&
+                                       u._instanceName === t.instanceName;
+                            });
+                            // v1.6.64: 如果精確比對的 unit 頁範圍不涵蓋 task (例如麻辣甲 P.1 vs task P.39-42),
+                            // 但有 within-match 的 unit 涵蓋, 用 within-match
+                            if (match && withinMatch && match.id !== withinMatch.id) {
+                                var matchCovers = match.start <= t.startPage && match.end >= t.endPage;
+                                if (!matchCovers) {
+                                    match = withinMatch;
+                                }
+                            }
+                        } else {
+                            match = withinMatch;
+                        }
+                        if (match && match.id !== t.unitId) {
+                            t.unitId = match.id;
+                            if (match._typeName) t.typeName = match._typeName;
+                            if (match._instanceName) t.instanceName = match._instanceName;
+                            remapCount++;
+                        }
+                    });
+                });
+            });
+
+            if (bfCount > 0) {
+                console.log('v1.6.64: ✅ backfill ' + bfCount + ' 個 task 的 typeName/instanceName');
+            } else {
+                console.log('v1.6.64: 所有 task 都有 typeName/instanceName (無需 backfill)');
+            }
+            if (remapCount > 0) {
+                console.log('v1.6.64: ✅ within-match remap 修了 ' + remapCount + ' 個 task 的 unitId');
+            } else {
+                console.log('v1.6.64: within-match remap 無需修正');
+            }
+        };
         function el(id) { return document.getElementById(id); }
         function getLocalDateString(d) { var year = d.getFullYear(); var month = String(d.getMonth() + 1).padStart(2, '0'); var day = String(d.getDate()).padStart(2, '0'); return year + '-' + month + '-' + day; }
 
@@ -3556,6 +3659,7 @@ function _v1534Migrate(uid) {
             }
         }
 
+
         // v1.5.144: Migration - 為現有 material type 加 unitBased flag + 為 instance 加 alias
         (function migrateUnitBasedAndAlias() {
             const unitBasedTypes = { '複習卷': true, '數字題本': true, '模擬題本': true, '考古題': true };
@@ -3629,6 +3733,9 @@ loadBoardHeader();
 
                     // v1.5.34: 統一教材類型順序為 defaultTypes 順序
                     _v1534Migrate(uid);
+
+                    // v1.6.64: 自動補 typeName/instanceName + within-match remap
+                    _v164Migrate(uid);
 
                     // v1.5.2: migrate - 重新設計為 3 層架構 (Material Type + Instance + Units)
                     // 從 v1.5.1 升級: 把主教材 units 搬到「複習講義」的第一個 instance「(原主教材)」
@@ -3907,11 +4014,11 @@ loadBoardHeader();
                             });
                         }
                         if(!match) {
-                            // 舊任務：退階用 unitName + 頁數範圍
+                            // v1.6.64: 退階用 within-match (task 範圍在 unit 範圍內)
                             match = allUnits.find(function(u){
                                 if(u.name !== t.unitName) return false;
                                 if(t.startPage != null && t.endPage != null && u.start != null && u.end != null) {
-                                    return u.start === t.startPage && u.end === t.endPage;
+                                    return u.start <= t.startPage && u.end >= t.endPage;
                                 }
                                 return true;
                             });
@@ -3923,7 +4030,7 @@ loadBoardHeader();
                 });
             });}
 
-            // v1.6.63: 麻辣甲/大滿貫等與講義同名單元的 remap 由上方的 typeName+instanceName 邏輯處理
+            // v1.6.64: within-match fallback 已涵蓋 partial coverage (e.g., 大滿貫 P.39-50 任務 P.39-42)
 
             var cats = Object.keys(user.masters || {});
             if (cats.length === 0) {
