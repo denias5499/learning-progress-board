@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.64]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.65]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -13182,6 +13182,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             
             // v1.5.163: 簡單對應算法 (task.unitId 對應 unit), 不用 overlap 跨單元分布
             var simpleDone = getUnitDonePagesByUnitIdMatch(filterCat, filterMis);
+            // v1.6.65: 不過濾 mission 的 done 計算 (mission 只決定 unit 範圍,不限制哪些 mission 的 task 算 done)
+            var simpleDoneAllMissions = getUnitDonePagesByUnitIdMatch(null, null);
             var logData = {};
             appLogs.forEach(l => {
                 if(l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
@@ -13236,7 +13238,8 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                             var pTotal = getUnitTotalCount(u, typeObj);
                             // v1.5.159: page-based 改用 overlapData 算 done pages (跨單元任務會按 overlap 分布到每個 unit)
                             // unit-based 用 getUnitDoneCount (scan task.isDone)
-                            var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, filterCat, filterMis) : (cardSimpleDone[u.id] || 0);
+                            // v1.6.65: done 從所有 mission 算 (不限 dropdown mission), 避免一模 done 在二模 view 看不到
+                            var pDone = isUnitBasedType(typeObj) ? getUnitDoneCount(u, typeObj, null, null) : (simpleDoneAllMissions[u.id] || 0);
                             if (pDone > pTotal) pDone = pTotal;
 
                             // v1.5.162: page-based 改用 overlapData 判斷 done (v1.5.159 後 overlapData 已是權威來源)
