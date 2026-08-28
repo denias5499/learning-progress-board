@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.67]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.68]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -829,11 +829,13 @@
         .input-emoji-btn:hover { background: #e2e8f0; border-color: var(--accent); transform: scale(1.1); }
 
         /* v1.5.110: print-area 預設隱藏, @media print 才顯示 */
-        .print-area, #print-area { display: none; }
+        #print-area { display: none; }
         @media print {
             @page { size: A4 landscape; margin: 0; }
             body { background: white; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            body > *:not(#print-area) { display: none !important; }
+            /* v1.6.68: 更明確隱藏規則 (避免 body > * 太廣) */
+            body > *:not(#print-area) { display: none !important; visibility: hidden !important; }
+            #print-area, #print-area * { display: revert !important; visibility: visible !important; }
             #print-area { display: block !important; width: 100%; }
             /* v1.5.138: print-page min-height + flex column (內容撐高, 內容少時靠 min-height) */
             .print-page { width: 297mm; min-height: 194mm; padding: 8mm 10mm; box-sizing: border-box; display: flex; flex-direction: column; page-break-after: always; }
