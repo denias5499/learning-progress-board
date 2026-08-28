@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.66]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.67]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -11991,6 +11991,13 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         function renderDashSummary() {
+            // v1.6.67: 強制 refresh (避免 stale appPlans / cache)
+            if (multiData && multiData[currentUserId]) {
+                appPlans = multiData[currentUserId].plans || [];
+            }
+            if (typeof _collectSubjectUnitsCache !== 'undefined') {
+                _collectSubjectUnitsCache = new WeakMap();
+            }
             // v1.1: 統計 + 7-day bar chart
             var studentCount = Object.keys(multiData || {}).length;
             var studentNames = Object.keys(multiData || {}).map(uid => multiData[uid].name).filter(Boolean);
@@ -13175,6 +13182,13 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
         
         function renderDashboard() { 
+            // v1.6.67: 強制 sync appPlans 跟清 cache
+            if (multiData && multiData[currentUserId]) {
+                appPlans = multiData[currentUserId].plans || [];
+            }
+            if (typeof _collectSubjectUnitsCache !== 'undefined') {
+                _collectSubjectUnitsCache = new WeakMap();
+            }
             var root = el('dashboard-root'); root.innerHTML = ''; 
             root.innerHTML += renderDashSummary();
             // v1.5.77: 單元進度總覽已整合到樹狀圖 (renderTreeView),不再單獨顯示
