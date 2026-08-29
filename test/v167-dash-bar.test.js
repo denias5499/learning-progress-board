@@ -1,58 +1,9 @@
-// v1.6.67 hotfix: renderDashSummary 應該回傳 bar cards (修掉過早 return)
+// v1.6.68: dashboard 「各科整體進度 (按 Category 分組)」移除
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadIndex } = require('./helpers');
 
-test('renderDashSummary 模擬: 設定 user data 後應回傳 bar cards', () => {
-    const win = loadIndex();
-    win.eval(`
-        currentUserId = 'user_A';
-        multiData = {
-            user_A: {
-                name: 'Denias',
-                masters: {
-                    '會考複習': {
-                        '數學': {
-                            type: 'normal',
-                            materials: {
-                                '複習講義': {
-                                    instances: [{
-                                        name: '大滿貫',
-                                        vols: { '第一冊': [{id: 'u1', name: '一元一次', start:1, end:10}] }
-                                    }]
-                                }
-                            }
-                        }
-                    }
-                },
-                plans: [],
-                logs: [],
-                avatar: ''
-            }
-        };
-        appMaster = multiData.user_A.masters['會考複習'];
-        _collectSubjectUnitsCache = new WeakMap();
-    `);
-    const result = win.eval('renderDashSummary()');
-    assert.ok(result.includes('dash-subject-bar-card'), '應包含 bar card');
-    assert.ok(result.includes('數學'), '應包含 數學');
-    assert.ok(result.includes('dash-subject-bar-done'), '應包含 done bar');
-});
-
-test('renderDashSummary: 空 masters 不應 crash', () => {
-    const win = loadIndex();
-    win.eval(`
-        currentUserId = 'user_A';
-        multiData = { user_A: { name: 'D', masters: {}, plans: [], logs: [], avatar: '' } };
-        appMaster = {};
-        _collectSubjectUnitsCache = new WeakMap();
-    `);
-    const result = win.eval('renderDashSummary()');
-    assert.ok(result.includes('dash-summary'), '應有 summary');
-    assert.ok(!result.includes('dash-subject-bar-card'), '空 masters 不應有 bar');
-});
-
-test('renderDashSummary: 多科目應顯示多個 bar', () => {
+test('renderDashSummary 不應包含「各科整體進度」section (v1.6.68 移除)', () => {
     const win = loadIndex();
     win.eval(`
         currentUserId = 'user_A';
@@ -66,11 +17,54 @@ test('renderDashSummary: 多科目應顯示多個 bar', () => {
                             materials: {
                                 'M1': { instances: [{ name: 'i1', vols: { 'V1': [{id: 'm1', name: 'n1', start:1, end:10}] } }] }
                             }
-                        },
-                        '英文': {
+                        }
+                    }
+                },
+                plans: [],
+                logs: [],
+                avatar: ''
+            }
+        };
+        appMaster = multiData.user_A.masters['會考複習'];
+        _collectSubjectUnitsCache = new WeakMap();
+    `);
+    const result = win.eval('renderDashSummary()');
+    assert.ok(!result.includes('dash-subject-bar-card'), '不應包含 bar card (已移除)');
+    assert.ok(!result.includes('按進度大分類分組'), '不應包含舊標題');
+    assert.ok(!result.includes('按 Category 分組'), '不應包含舊註解');
+});
+
+test('renderDashSummary 仍應包含 stat cards + 7 日圖', () => {
+    const win = loadIndex();
+    win.eval(`
+        currentUserId = 'user_A';
+        multiData = { user_A: { name: 'D', masters: {}, plans: [], logs: [], avatar: '' } };
+        appMaster = {};
+        _collectSubjectUnitsCache = new WeakMap();
+    `);
+    const result = win.eval('renderDashSummary()');
+    assert.ok(result.includes('dash-summary'), '應有 summary');
+    assert.ok(result.includes('學生人數'), '應有 學生人數 stat card');
+    assert.ok(result.includes('任務總數'), '應有 任務總數 stat card');
+    assert.ok(result.includes('學習活動'), '應有 學習活動 stat card');
+    assert.ok(result.includes('本週學習'), '應有 本週學習 stat card');
+    assert.ok(result.includes('dash-weekly-chart'), '應有 7 日圖');
+    assert.ok(result.includes('近 7 日學習量'), '應有 7 日圖標題');
+});
+
+test('renderDashSummary 不應 crash 即使有 masters 資料', () => {
+    const win = loadIndex();
+    win.eval(`
+        currentUserId = 'user_A';
+        multiData = {
+            user_A: {
+                name: 'D',
+                masters: {
+                    '會考複習': {
+                        '數學': {
                             type: 'normal',
                             materials: {
-                                'E1': { instances: [{ name: 'i2', vols: { 'V1': [{id: 'e1', name: 'n2', start:1, end:5}] } }] }
+                                'M1': { instances: [{ name: 'i1', vols: { 'V1': [{id: 'm1', name: 'n1', start:1, end:10}] } }] }
                             }
                         }
                     }
@@ -84,6 +78,6 @@ test('renderDashSummary: 多科目應顯示多個 bar', () => {
         _collectSubjectUnitsCache = new WeakMap();
     `);
     const result = win.eval('renderDashSummary()');
-    const barCount = (result.match(/dash-subject-bar-card/g) || []).length;
-    assert.equal(barCount, 2, '應有 2 個 bar cards');
+    assert.ok(result.includes('dash-summary'), '不應 crash');
+    assert.ok(!result.includes('dash-subject-bar-card'), '不應有 bar');
 });
