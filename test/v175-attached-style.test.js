@@ -55,5 +55,5 @@ test('v1.6.75: WN_initDragDrop 用正確的 id (wn-source-zone)', () => {
 });
 
 test('v1.6.75: title 更新為 [v1.6.75]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.75\]<\/title>/.test(html));
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.76]<\/title>/.test(html));
 });
