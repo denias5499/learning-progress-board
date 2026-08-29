@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.70.2]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.70.3]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1335,7 +1335,7 @@
                     <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;">📊 學習統計分析</button>
                     <button id="nav-btn-wrongnotes" class="nav-btn nav-btn-5" onclick="openWrongNotes()" style="background-color:#e8d5e8 !important;">📚 錯題資料庫</button>
                     <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
-                    <button id="nav-btn-backup" class="nav-btn nav-btn-backup" onclick="exportDataToFile()" title="立即匯出全機備份 .json" style="background-color:#a8d8a8 !important;">📥 備份</button>
+                    <button id="nav-btn-backup" class="nav-btn" data-action="export-backup" title="立即匯出全機備份 .json" style="background-color:#a8d8a8 !important;">備份</button>
                 </div>
             </div>
         </div>
@@ -1752,10 +1752,10 @@
                 </div>
                 <!-- 4 個 nav pages -->
                 <div class="wn-tabs" style="display:flex;gap:8px;margin:15px 0;flex-wrap:wrap;">
-                    <button class="wn-tab active" data-wntab="import" onclick="switchWrongNotesView('import')">📤 匯入錯題</button>
-                    <button class="wn-tab" data-wntab="notes" onclick="switchWrongNotesView('notes')">📖 查看錯題筆記</button>
-                    <button class="wn-tab" data-wntab="stats" onclick="switchWrongNotesView('stats')">📊 錯題數據分析</button>
-                    <button class="wn-tab" data-wntab="practice" onclick="switchWrongNotesView('practice')">✏️ 錯題再練</button>
+                    <button class="wn-tab active" data-wntab="import">📤 匯入錯題</button>
+                    <button class="wn-tab" data-wntab="notes">📖 查看錯題筆記</button>
+                    <button class="wn-tab" data-wntab="stats">📊 錯題數據分析</button>
+                    <button class="wn-tab" data-wntab="practice">✏️ 錯題再練</button>
                 </div>
 
                 <div id="wn-page-import" class="wn-page active">
@@ -8203,6 +8203,26 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!localStorage.getItem('StudyMap_WrongNotes_DisclaimerAck')) {
                 alert('📂 第一次使用錯題資料庫：\n\n請先在瀏覽器下載資料夾下建立「學習進度看板」資料夾，\n並將瀏覽器的下載位置設定到這個資料夾。\n\n之後上傳的錯題圖片會自動下載到此資料夾。');
                 localStorage.setItem('StudyMap_WrongNotes_DisclaimerAck', '1');
+            }
+            // v1.6.70.3: 用 addEventListener 綁定 (Safari 兼容)
+            if (!window._wrongNotesTabsBound) {
+                window._wrongNotesTabsBound = true;
+                document.querySelectorAll('[data-wntab]').forEach(function(tab) {
+                    tab.addEventListener('click', function() {
+                        switchWrongNotesView(this.getAttribute('data-wntab'));
+                    });
+                });
+            }
+            // v1.6.70.3: 備份按鈕 addEventListener
+            if (!window._backupBtnBound) {
+                window._backupBtnBound = true;
+                var backupBtn = document.getElementById('nav-btn-backup');
+                if (backupBtn) {
+                    backupBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        exportDataToFile();
+                    });
+                }
             }
             // 預設顯示匯入頁
             switchWrongNotesView('import');
