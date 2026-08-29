@@ -87,8 +87,8 @@ test('v1.6.71: 4 個 crop 模式函式都存在', () => {
 });
 
 test('v1.6.71: HTML 有上傳 + crop 區域', () => {
-    assert.ok(/id="wn-upload-zone"/.test(html), 'wn-upload-zone 應存在');
-    assert.ok(/id="wn-file-input"/.test(html), 'wn-file-input 應存在');
+    assert.ok(/id="wn-source-zone"/.test(html), 'wn-upload-zone 應存在');
+    assert.ok(/id="wn-source-input"/.test(html), 'wn-file-input 應存在');
     assert.ok(/id="wn-crop-area"/.test(html), 'wn-crop-area 應存在');
     assert.ok(/id="wn-crop-img"/.test(html), 'wn-crop-img 應存在');
     assert.ok(/id="wn-crop-overlay"/.test(html), 'wn-crop-overlay 應存在');
