@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.76]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.77]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1332,9 +1332,26 @@
         .wn-drop-zone:hover { background: #f3e8f5; border-color: #9163a8; }
         .wn-drop-zone.dragover { background: #f3e8f5; border-color: #9163a8; transform: scale(1.02); }
         .wn-crop-area { background: white; border-radius: 12px; padding: 12px; }
-        .wn-crop-box { position: absolute; border: 2px solid #b78fb7; background: rgba(183, 143, 183, 0.2); cursor: move; }
-        .wn-crop-box .wn-crop-label { position: absolute; top: -22px; left: 0; background: #b78fb7; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; }
-        .wn-crop-box .wn-crop-delete { position: absolute; top: -22px; right: 0; background: #e74c3c; color: white; width: 20px; height: 20px; border-radius: 50%; text-align: center; line-height: 18px; cursor: pointer; font-size: 0.9em; }
+        .wn-crop-box {
+            position: absolute;
+            border: 3px solid #1a82e2;
+            background: rgba(26, 130, 226, 0.15);
+            cursor: move;
+            box-sizing: border-box;
+        }
+        .wn-crop-box.selected {
+            border-color: #1565c0;
+            background: rgba(21, 101, 192, 0.2);
+            box-shadow: 0 0 0 2px rgba(255, 200, 0, 0.5);
+        }
+        .wn-crop-box .wn-crop-label { position: absolute; top: -24px; left: 0; background: #1a82e2; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .wn-crop-box .wn-crop-delete { position: absolute; top: -10px; right: -10px; background: #e74c3c; color: white; width: 22px; height: 22px; border-radius: 50%; text-align: center; line-height: 22px; cursor: pointer; font-size: 1em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10; }
+        .wn-crop-box .wn-resize-tl { position: absolute; top: -8px; left: -8px; width: 16px; height: 16px; background: #1a82e2; cursor: nwse-resize; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10; }
+        .wn-crop-box .wn-resize-tl::after { content: '↖'; color: white; font-size: 10px; font-weight: bold; position: absolute; top: 1px; left: 3px; }
+        .wn-crop-box .wn-resize-br { position: absolute; bottom: -8px; right: -8px; width: 16px; height: 16px; background: #1a82e2; cursor: nwse-resize; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10; }
+        .wn-crop-box .wn-resize-br::after { content: '↘'; color: white; font-size: 10px; font-weight: bold; position: absolute; bottom: 1px; right: 3px; }
+        .wn-crop-box .wn-add-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 24px; height: 24px; background: #1a82e2; color: white; border-radius: 50%; text-align: center; line-height: 24px; cursor: pointer; font-size: 1.1em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10; }
+        .wn-crop-box .wn-add-btn:hover { background: #1565c0; }
         .wn-crop-card { background: white; border: 1.5px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
         .wn-crop-card-title { font-weight: bold; color: #b78fb7; margin-bottom: 8px; }
         .wn-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: white; cursor: pointer; font-size: 0.95em; transition: all 0.2s; }
@@ -1825,18 +1842,23 @@
                         </div>
                         <input type="file" id="wn-paper-input" style="display:none" accept="image/*">
 
-                        <!-- 預覽 + Crop 區 (從原圖獨立區域) -->
+                        <!-- 預覽 + Crop 區 -->
                         <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:18px;">
                             <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
                                 <button class="wn-btn wn-btn-success" onclick="WN_setCropMode('add')">➕ 框選</button>
                                 <button class="wn-btn wn-btn-secondary" onclick="WN_setCropMode('erase')">🧹 擦除</button>
                                 <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
                             </div>
-                            <div style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;">
+                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;">
                                 <img id="wn-crop-img" style="display:block;max-width:100%;">
                                 <div id="wn-crop-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;user-select:none;"></div>
                             </div>
-                            <p style="font-size:0.85em;color:#666;margin-top:8px;">💡 框選一個錯題區域 (最多 10 個, 用相對座標判斷)</p>
+                            <p style="font-size:0.85em;color:#666;margin-top:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個, 用相對座標判斷)</p>
+                            <!-- 取消選取 + 完成選取 按鈕 (在最下方) -->
+                            <div style="display:flex;gap:14px;justify-content:center;margin-top:18px;">
+                                <button class="wn-btn" onclick="WN_cancelSelection()" style="padding:12px 32px;font-size:1.05em;background:#c9b8d9;color:#333;border:none;border-radius:24px;cursor:pointer;">取消選取</button>
+                                <button class="wn-btn" onclick="WN_completeSelection()" style="padding:12px 32px;font-size:1.05em;background:#f0d040;color:#333;border:none;border-radius:24px;cursor:pointer;font-weight:bold;">完成選取</button>
+                            </div>
                         </div>
 
                         <!-- 教材選擇 (逐個 crop box 設定) -->
@@ -8354,11 +8376,139 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v1.6.72: Crop drawing (mousedown/mousemove/mouseup)
         var WN_CROP_DRAW_STATE = { drawing: false, startX: 0, startY: 0, currentBox: null };
 
+        // v1.6.77: 取消選取 - 清空所有 crop boxes, 回到初始狀態
+        function WN_cancelSelection() {
+            if (!confirm('確定要取消選取嗎？所有已框選的錯題將清除。')) return;
+            WN_PHASE2_STATE.cropBoxes = [];
+            WN_PHASE2_STATE.uploadedImg = null;
+            document.getElementById('wn-crop-img').src = '';
+            document.getElementById('wn-crop-area').style.display = 'none';
+            document.getElementById('wn-crop-list').style.display = 'none';
+            document.getElementById('wn-source-input').value = '';
+        }
+
+        // v1.6.77: 完成選取 - 顯示教材選擇表單 (不直接儲存)
+        function WN_completeSelection() {
+            if (WN_PHASE2_STATE.cropBoxes.length === 0) {
+                alert('請先框選至少一個錯題');
+                return;
+            }
+            document.getElementById('wn-crop-list').style.display = 'block';
+            WN_renderCropCards();
+            // 滾動到表單
+            document.getElementById('wn-crop-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+
+        // v1.6.77: 拖拉移動 crop box
+        function WN_startMove(e, idx) {
+            e.preventDefault();
+            e.stopPropagation();
+            var box = WN_PHASE2_STATE.cropBoxes[idx];
+            var startX = e.clientX;
+            var startY = e.clientY;
+            var origX = box.x;
+            var origY = box.y;
+            var img = document.getElementById('wn-crop-img');
+            var overlay = document.getElementById('wn-crop-overlay');
+            var rect = overlay.getBoundingClientRect();
+            var scaleX = img.naturalWidth / rect.width;
+            var scaleY = img.naturalHeight / rect.height;
+            function onMove(ev) {
+                var dx = (ev.clientX - startX) * scaleX;
+                var dy = (ev.clientY - startY) * scaleY;
+                box.x = Math.max(0, Math.min(img.naturalWidth - box.w, origX + dx));
+                box.y = Math.max(0, Math.min(img.naturalHeight - box.h, origY + dy));
+                WN_renderCropBoxes();
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+
+        // v1.6.77: 拖拉 resize (左上角 / 右下角)
+        function WN_startResize(e, idx, corner) {
+            e.preventDefault();
+            e.stopPropagation();
+            var box = WN_PHASE2_STATE.cropBoxes[idx];
+            var startX = e.clientX;
+            var startY = e.clientY;
+            var origX = box.x, origY = box.y, origW = box.w, origH = box.h;
+            var img = document.getElementById('wn-crop-img');
+            var overlay = document.getElementById('wn-crop-overlay');
+            var rect = overlay.getBoundingClientRect();
+            var scaleX = img.naturalWidth / rect.width;
+            var scaleY = img.naturalHeight / rect.height;
+            function onMove(ev) {
+                var dx = (ev.clientX - startX) * scaleX;
+                var dy = (ev.clientY - startY) * scaleY;
+                if (corner === 'br') {
+                    box.w = Math.max(20, origW + dx);
+                    box.h = Math.max(20, origH + dy);
+                } else if (corner === 'tl') {
+                    var newW = Math.max(20, origW - dx);
+                    var newH = Math.max(20, origH - dy);
+                    box.x = origX + (origW - newW);
+                    box.y = origY + (origH - newH);
+                    box.w = newW;
+                    box.h = newH;
+                }
+                WN_renderCropBoxes();
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+
+        // v1.6.77: 從 crop box 中央 + 按鈕新增 crop
+        function WN_addCropFromCenter(idx) {
+            var srcBox = WN_PHASE2_STATE.cropBoxes[idx];
+            var img = document.getElementById('wn-crop-img');
+            var newBox = {
+                x: Math.min(srcBox.x + srcBox.w + 10, img.naturalWidth - 50),
+                y: srcBox.y,
+                w: srcBox.w,
+                h: srcBox.h
+            };
+            WN_PHASE2_STATE.cropBoxes.push(newBox);
+            WN_renderCropBoxes();
+        }
+
         function WN_initCropDrawing() {
             var overlay = document.getElementById('wn-crop-overlay');
             if (!overlay || overlay._wnInit) return;
             overlay._wnInit = true;
 
+            // v1.6.77: double click 在圖片上任一位置新增 crop box
+            overlay.addEventListener('dblclick', function(e) {
+                if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
+                    alert('最多只能框選 10 個錯題');
+                    return;
+                }
+                e.preventDefault();
+                var rect = overlay.getBoundingClientRect();
+                var img = document.getElementById('wn-crop-img');
+                var scaleX = img.naturalWidth / rect.width;
+                var scaleY = img.naturalHeight / rect.height;
+                var clickX = (e.clientX - rect.left) * scaleX;
+                var clickY = (e.clientY - rect.top) * scaleY;
+                // 預設 100x100 box 在 click 位置 (居中)
+                var boxW = Math.min(100, img.naturalWidth * 0.2);
+                var boxH = Math.min(100, img.naturalHeight * 0.2);
+                var newBox = {
+                    x: Math.max(0, Math.min(img.naturalWidth - boxW, clickX - boxW / 2)),
+                    y: Math.max(0, Math.min(img.naturalHeight - boxH, clickY - boxH / 2)),
+                    w: boxW,
+                    h: boxH
+                };
+                WN_PHASE2_STATE.cropBoxes.push(newBox);
+                WN_renderCropBoxes();
+            });
             overlay.addEventListener('mousedown', function(e) {
                 if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
                     alert('最多只能框選 10 個錯題');
@@ -8440,7 +8590,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
         }
 
-        // Crop 渲染
+        // Crop 渲染 (含 resize handles + delete + add 按鈕)
         function WN_renderCropBoxes() {
             var overlay = document.getElementById('wn-crop-overlay');
             if (!overlay) return;
@@ -8448,13 +8598,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
             WN_PHASE2_STATE.cropBoxes.forEach(function(box, idx) {
                 var div = document.createElement('div');
                 div.className = 'wn-crop-box';
+                div.setAttribute('data-idx', idx);
                 div.style.left = box.x + 'px';
                 div.style.top = box.y + 'px';
                 div.style.width = box.w + 'px';
                 div.style.height = box.h + 'px';
                 div.innerHTML =
                     '<div class="wn-crop-label">#' + (idx + 1) + '</div>' +
-                    '<div class="wn-crop-delete" onclick="WN_deleteCropBox(' + idx + ')">×</div>';
+                    '<div class="wn-crop-delete" onclick="WN_deleteCropBox(' + idx + ')">×</div>' +
+                    '<div class="wn-resize-tl" onmousedown="WN_startResize(event, ' + idx + ', ' + chr(39) + 'tl' + chr(39) + ')"></div>' +
+                    '<div class="wn-resize-br" onmousedown="WN_startResize(event, ' + idx + ', ' + chr(39) + 'br' + chr(39) + ')"></div>' +
+                    '<div class="wn-add-btn" onclick="WN_addCropFromCenter(' + idx + ')">+</div>';
+                // 拖拉移動 crop box
+                div.addEventListener('mousedown', function(e) {
+                    if (e.target.classList.contains('wn-resize-tl') || e.target.classList.contains('wn-resize-br') || e.target.classList.contains('wn-crop-delete') || e.target.classList.contains('wn-add-btn')) return;
+                    WN_startMove(event, idx);
+                });
                 overlay.appendChild(div);
             });
             // 顯示教材選擇 (如果有 crop boxes)
