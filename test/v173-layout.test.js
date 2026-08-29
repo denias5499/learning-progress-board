@@ -74,5 +74,5 @@ test('v1.6.73: 整合測試 - crop 相對座標邏輯', () => {
   });
 
 test('v1.6.73: title 更新為 [v1.6.73]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.73\]<\/title>/.test(html));
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.74]<\/title>/.test(html));
 });
