@@ -70,8 +70,8 @@ test('v1.6.68: switchStatsView 不再呼叫 renderWrongNotesView', () => {
     assert.ok(!/renderWrongNotesView\s*\(/.test(body), '不應再呼叫 renderWrongNotesView');
 });
 
-test('v1.6.68: title 更新為 [v1.6.68]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.68\]<\/title>/.test(indexHtml));
+test('v1.6.68: title 更新為 [v1.6.69]', () => {
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.69\]<\/title>/.test(indexHtml));
 });
 
 test('v1.6.68: 主專案不再有 wn-import tab', () => {
