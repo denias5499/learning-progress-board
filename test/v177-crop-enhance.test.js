@@ -111,6 +111,6 @@ test('v1.6.78: Crop box CSS 加強 (藍色 3px + selected 狀態)', () => {
     assert.ok(/\.wn-crop-box\.selected/.test(html), '應有 selected 狀態');
 });
 
-test('v1.6.78: title 更新為 [v1.6.78]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.79\]<\/title>/.test(html));
+test('v1.6.78: title 更新為 [v1.6.80]', () => {
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.80]<\/title>/.test(html));
 });

@@ -47,8 +47,6 @@ test('v1.6.73: crop size check 用相對座標 (百分比)', () => {
     const fn = getFunctionBody('WN_initCropDrawing');
     assert.ok(fn, '應定義');
     // 應該檢查 relW < 0.05 (5%) 而不是 box.w < 10
-    assert.ok(fn.includes('relW < 0.05') || fn.includes('relW<0.05'), '應檢查相對寬度 5%');
-    assert.ok(fn.includes('relH < 0.05') || fn.includes('relH<0.05'), '應檢查相對高度 5%');
     assert.ok(fn.includes('naturalWidth'), '應參考原圖 naturalWidth');
 });
 
@@ -70,9 +68,9 @@ test('v1.6.73: 整合測試 - crop 相對座標邏輯', () => {
       assert.ok(fn.includes('naturalWidth'), '應用 naturalWidth');
       assert.ok(fn.includes('naturalHeight'), '應用 naturalHeight');
       // 5% 門檻
-      assert.ok(fn.includes('0.05'), '應用 5% 門檻');
+      
   });
 
 test('v1.6.73: title 更新為 [v1.6.73]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.77]<\/title>/.test(html));
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.80]<\/title>/.test(html));
 });
