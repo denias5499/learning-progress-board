@@ -12043,6 +12043,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if (typeof _collectSubjectUnitsCache !== 'undefined') {
                 _collectSubjectUnitsCache = new WeakMap();
             }
+            var subjectBarsHtml = '';  // v1.6.67 hotfix: hoisted to top
             // v1.1: 統計 + 7-day bar chart
             var studentCount = Object.keys(multiData || {}).length;
             var studentNames = Object.keys(multiData || {}).map(uid => multiData[uid].name).filter(Boolean);
@@ -12108,45 +12109,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var studentsLine = studentNames.length > 0 ? studentNames.join('、') : '尚未建立';
             if (studentsLine.length > 30) studentsLine = studentsLine.substring(0, 30) + '…';
             
-            return '<div class="dash-summary">' +
-                '<div class="dash-stat-card accent">' +
-                    '<div class="stat-label">👥 學生人數</div>' +
-                    '<div class="stat-value">' + studentCount + '</div>' +
-                    '<div class="stat-sub">' + studentsLine + '</div>' +
-                '</div>' +
-                '<div class="dash-stat-card purple">' +
-                    '<div class="stat-label">🎯 任務總數</div>' +
-                    '<div class="stat-value">' + missionCount + '</div>' +
-                    '<div class="stat-sub">' + catCount + ' 個分類</div>' +
-                '</div>' +
-                '<div class="dash-stat-card success">' +
-                    '<div class="stat-label">📚 學習活動</div>' +
-                    '<div class="stat-value">' + totalLogs + '</div>' +
-                    '<div class="stat-sub">歷史紀錄筆數</div>' +
-                '</div>' +
-                '<div class="dash-stat-card warning">' +
-                    '<div class="stat-label">📅 本週學習</div>' +
-                    '<div class="stat-value">' + weekPages + '</div>' +
-                    '<div class="stat-sub">本月 ' + monthPages + ' 頁</div>' +
-                '</div>' +
-            '</div>' +
-            '<div class="dash-weekly-chart">' +
-                '<div class="dash-week-header">' +
-                    '<h3>📊 近 7 日學習量 <span class="dash-week-unit">（頁）</span></h3>' +
-                    '<div class="dash-week-total">' +
-                        '<span class="dash-week-total-label">總計</span>' +
-                        '<span class="dash-week-total-value">' + weekPages + '</span>' +
-                        '<span class="dash-week-total-unit">頁</span>' +
-                    '</div>' +
-                '</div>' +
-                '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
-                '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
-            '</div>';
-
             // v1.5.8: 各科整體進度條 — 按 Category (進度大分類) 分組顯示
             // 原因: Denias 02:06 確認「首頁整體 bar 按 Category 分組」
             // 會考複習 + 段考複習 各一個 section
-            var subjectBarsHtml = '';
             var userForBars = multiData[currentUserId];
             if (userForBars && userForBars.masters && Object.keys(userForBars.masters).length > 0) {
                 // logData: 各 unitId 已做頁數
