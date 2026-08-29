@@ -85,7 +85,7 @@ test('v1.6.70: stats-wrongnotes 保留為空殼 (向後相容)', () => {
 });
 
 test('v1.6.70: title 更新為 [v1.6.70]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.71]<\/title>/.test(html));
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.72]<\/title>/.test(html));
 });
 
 test('v1.6.70: CSS 樣式存在 (wn-tab, wn-page)', () => {
