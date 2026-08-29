@@ -31,6 +31,6 @@ test('v1.6.78: 💡 提示文字在圖片之前', () => {
     assert.ok(tipIdx < imgIdx, '提示文字應在圖片之前');
 });
 
-test('v1.6.78: title 更新為 [v1.6.78]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.79\]<\/title>/.test(html));
+test('v1.6.78: title 更新為 [v1.6.80]', () => {
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.80]<\/title>/.test(html));
 });

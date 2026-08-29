@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.79]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.80]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8509,23 +8509,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 WN_PHASE2_STATE.cropBoxes.push(newBox);
                 WN_renderCropBoxes();
             });
+            // v1.6.80: mousedown 立即新增 150x150 box (點擊直接觸發)
             overlay.addEventListener('mousedown', function(e) {
                 if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
                     alert('最多只能框選 10 個錯題');
                     return;
                 }
                 e.preventDefault();
+                e.stopPropagation();
                 var rect = overlay.getBoundingClientRect();
                 var img = document.getElementById('wn-crop-img');
                 var scaleX = img.naturalWidth / rect.width;
                 var scaleY = img.naturalHeight / rect.height;
-                WN_CROP_DRAW_STATE.startX = (e.clientX - rect.left) * scaleX;
-                WN_CROP_DRAW_STATE.startY = (e.clientY - rect.top) * scaleY;
-                // v1.6.79: 記錄 mousedown 位置 (用於 click vs drag 判斷)
-                WN_CROP_DRAW_STATE.mouseDownX = e.clientX;
-                WN_CROP_DRAW_STATE.mouseDownY = e.clientY;
-                WN_CROP_DRAW_STATE.drawing = true;
-                WN_CROP_DRAW_STATE.currentBox = { x: WN_CROP_DRAW_STATE.startX, y: WN_CROP_DRAW_STATE.startY, w: 0, h: 0 };
+                var clickX = (e.clientX - rect.left) * scaleX;
+                var clickY = (e.clientY - rect.top) * scaleY;
+                // 自動新增 150x150 box 在 click 位置 (居中)
+                var boxW = Math.min(150, img.naturalWidth * 0.15);
+                var boxH = Math.min(150, img.naturalHeight * 0.15);
+                var newBox = {
+                    x: Math.max(0, Math.min(img.naturalWidth - boxW, clickX - boxW / 2)),
+                    y: Math.max(0, Math.min(img.naturalHeight - boxH, clickY - boxH / 2)),
+                    w: boxW,
+                    h: boxH
+                };
+                WN_PHASE2_STATE.cropBoxes.push(newBox);
+                WN_renderCropBoxes();
             });
 
             overlay.addEventListener('mousemove', function(e) {
@@ -8544,43 +8552,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 WN_renderCropDrawingPreview();
             });
 
+            // v1.6.80: mouseup 不需要做事 (mousedown 已經直接新增 box)
             overlay.addEventListener('mouseup', function(e) {
-                if (!WN_CROP_DRAW_STATE.drawing || !WN_CROP_DRAW_STATE.currentBox) return;
-                e.preventDefault();
-                var box = WN_CROP_DRAW_STATE.currentBox;
-                // v1.6.79: 判斷是 click 還是 drag
-                // - click: 滑鼠沒移動 (< 5px) → 直接新增 100x100 box
-                // - drag: 滑鼠有移動 → 用戶框選的尺寸
-                var dx = Math.abs(e.clientX - WN_CROP_DRAW_STATE.mouseDownX);
-                var dy = Math.abs(e.clientY - WN_CROP_DRAW_STATE.mouseDownY);
-                var isClick = (dx < 5 && dy < 5);
-                var imgEl = document.getElementById('wn-crop-img');
-                if (isClick) {
-                    // 點擊: 在 mousedown 位置自動新增 100x100 box (居中)
-                    var boxW = Math.min(150, imgEl.naturalWidth * 0.15);
-                    var boxH = Math.min(150, imgEl.naturalHeight * 0.15);
-                    box.x = Math.max(0, Math.min(imgEl.naturalWidth - boxW, WN_CROP_DRAW_STATE.startX - boxW / 2));
-                    box.y = Math.max(0, Math.min(imgEl.naturalHeight - boxH, WN_CROP_DRAW_STATE.startY - boxH / 2));
-                    box.w = boxW;
-                    box.h = boxH;
-                    WN_PHASE2_STATE.cropBoxes.push(box);
-                } else {
-                    // 拖曳: 檢查大小 (相對座標 5%)
-                    var relW = box.w / imgEl.naturalWidth;
-                    var relH = box.h / imgEl.naturalHeight;
-                    if (relW < 0.05 || relH < 0.05) {
-                        alert('框選區域太小 (請至少框 5% 寬度), 請拖大一點');
-                        WN_CROP_DRAW_STATE.drawing = false;
-                        WN_CROP_DRAW_STATE.currentBox = null;
-                        WN_renderCropDrawingPreview();
-                        return;
-                    }
-                    WN_PHASE2_STATE.cropBoxes.push(box);
-                }
-                WN_CROP_DRAW_STATE.drawing = false;
-                WN_CROP_DRAW_STATE.currentBox = null;
-                WN_renderCropBoxes();
-                WN_renderCropDrawingPreview();
+                // no-op (v1.6.80 簡化)
             });
         }
 
