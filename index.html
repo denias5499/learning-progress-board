@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.68]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.69]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -12167,6 +12167,59 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             });
         }
 
+        // v1.6.69: 搬到全域 (原本在 renderTreeView 內, 造成首頁重整後 mission tree 顯示白色)
+        window.refreshTreeScheduledUnits = function() {
+            window._treeScheduledUnits = {};
+            if (Array.isArray(appPlans)) {
+                appPlans.forEach(function(plan) {
+                    if (!plan.grid) return;
+                    Object.keys(plan.grid).forEach(function(dStr) {
+                        var tasks = plan.grid[dStr];
+                        if (!Array.isArray(tasks)) return;
+                        tasks.forEach(function(t) {
+                            if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
+                            if (!window._treeScheduledUnits[t.unitId]) {
+                                window._treeScheduledUnits[t.unitId] = {
+                                    covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                                    firstCat: t.cat, firstMis: t.mis || plan.name || '',
+                                    firstPlanId: plan.id
+                                };
+                            }
+                            var pages = t.endPage - t.startPage + 1;
+                            window._treeScheduledUnits[t.unitId].covered += pages;
+                            window._treeScheduledUnits[t.unitId].totalTasks += 1;
+                            if (t.isDone) {
+                                window._treeScheduledUnits[t.unitId].doneTasks += 1;
+                            }
+                        });
+                    });
+                });
+            }
+            // v1.6.55: 同時算 filtered + unfiltered overlap
+            // filtered (respects current mission filter) -> donePages
+            var overlapFiltered = getUnitDonePagesByOverlap();
+            Object.keys(overlapFiltered).forEach(function(uid) {
+                if (!window._treeScheduledUnits[uid]) {
+                    window._treeScheduledUnits[uid] = {
+                        covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                        firstCat: '', firstMis: '', firstPlanId: null
+                    };
+                }
+                window._treeScheduledUnits[uid].donePages += overlapFiltered[uid] || 0;
+            });
+            // unfiltered (ALL missions) -> totalDonePages (for display only)
+            var overlapUnfiltered = getUnitDonePagesByOverlap('ALL', 'ALL');
+            Object.keys(overlapUnfiltered).forEach(function(uid) {
+                if (!window._treeScheduledUnits[uid]) {
+                    window._treeScheduledUnits[uid] = {
+                        covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
+                        firstCat: '', firstMis: '', firstPlanId: null
+                    };
+                }
+                window._treeScheduledUnits[uid].totalDonePages = overlapUnfiltered[uid] || 0;
+            });
+        };
+
         function renderTreeView() {
             var root = el('starmap-root');
             if (!root) return;
@@ -12353,58 +12406,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 return 'todo';
             }
 
-            // v1.6.53: 抽出為可重用函式，確保每次 renderTreeView 都用最新的 appPlans 計算
-            window.refreshTreeScheduledUnits = function() {
-                window._treeScheduledUnits = {};
-                if (Array.isArray(appPlans)) {
-                    appPlans.forEach(function(plan) {
-                        if (!plan.grid) return;
-                        Object.keys(plan.grid).forEach(function(dStr) {
-                            var tasks = plan.grid[dStr];
-                            if (!Array.isArray(tasks)) return;
-                            tasks.forEach(function(t) {
-                                if (!t || !t.unitId || !t.startPage || !t.endPage || !t.cat) return;
-                                if (!window._treeScheduledUnits[t.unitId]) {
-                                    window._treeScheduledUnits[t.unitId] = {
-                                        covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                                        firstCat: t.cat, firstMis: t.mis || plan.name || '',
-                                        firstPlanId: plan.id
-                                    };
-                                }
-                                var pages = t.endPage - t.startPage + 1;
-                                window._treeScheduledUnits[t.unitId].covered += pages;
-                                window._treeScheduledUnits[t.unitId].totalTasks += 1;
-                                if (t.isDone) {
-                                    window._treeScheduledUnits[t.unitId].doneTasks += 1;
-                                }
-                            });
-                        });
-                    });
-                }
-                // v1.6.55: 同時算 filtered + unfiltered overlap
-                // filtered (respects current mission filter) -> donePages
-                var overlapFiltered = getUnitDonePagesByOverlap();
-                Object.keys(overlapFiltered).forEach(function(uid) {
-                    if (!window._treeScheduledUnits[uid]) {
-                        window._treeScheduledUnits[uid] = {
-                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                            firstCat: '', firstMis: '', firstPlanId: null
-                        };
-                    }
-                    window._treeScheduledUnits[uid].donePages += overlapFiltered[uid] || 0;
-                });
-                // unfiltered (ALL missions) -> totalDonePages (for display only)
-                var overlapUnfiltered = getUnitDonePagesByOverlap('ALL', 'ALL');
-                Object.keys(overlapUnfiltered).forEach(function(uid) {
-                    if (!window._treeScheduledUnits[uid]) {
-                        window._treeScheduledUnits[uid] = {
-                            covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
-                            firstCat: '', firstMis: '', firstPlanId: null
-                        };
-                    }
-                    window._treeScheduledUnits[uid].totalDonePages = overlapUnfiltered[uid] || 0;
-                });
-            };
             // v1.6.53: 一開始就計算一次（頁面載入時）
             window.refreshTreeScheduledUnits();
 
@@ -13106,6 +13107,11 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             }
             if (typeof _collectSubjectUnitsCache !== 'undefined') {
                 _collectSubjectUnitsCache = new WeakMap();
+            }
+            // v1.6.69: refresh _treeScheduledUnits 讓 mission tree 立刻有正確資料
+            // 修首頁重整後 mission tree 全白的 bug
+            if (typeof window.refreshTreeScheduledUnits === 'function') {
+                window.refreshTreeScheduledUnits();
             }
             var root = el('dashboard-root'); root.innerHTML = ''; 
             root.innerHTML += renderDashSummary();
