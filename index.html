@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.70]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.70.1]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1322,12 +1322,7 @@
         <div class="header">
             <h1 id="main-app-title" title="🏠 點擊回到首頁" onclick="returnToHome()" style="cursor: pointer; user-select: none;"></h1>
             <div class="header-controls">
-                <!-- v1.5.226: 全機備份狀態指示 (B1, 3 天閾值) -->
-                <span id="backup-status-bar" class="backup-status-bar" title="點這顆按鈕立即匯出全機備份">
-                    <span id="backup-status-icon">⏳</span>
-                    <span id="backup-status-text">備份狀態檢查中…</span>
-                    <button class="bk-btn" type="button" onclick="exportDataToFile()" title="立即匯出全機備份 .json">📥 備份</button>
-                </span>
+
                 <div class="btn-group" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                     <div class="user-selector-container" style="display:flex;align-items:center;gap:4px;">
                         <img id="current-user-avatar" class="user-avatar-small" src="" style="display:none;" title="使用者頭貼">
@@ -1340,6 +1335,7 @@
                     <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;">📊 學習統計分析</button>
                     <button id="nav-btn-wrongnotes" class="nav-btn nav-btn-5" onclick="openWrongNotes()" style="background-color:#e8d5e8 !important;">📚 錯題資料庫</button>
                     <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
+                    <button id="nav-btn-backup" class="nav-btn nav-btn-backup" onclick="exportDataToFile()" title="立即匯出全機備份 .json" style="background-color:#a8d8a8 !important;">📥 備份</button>
                 </div>
             </div>
         </div>
@@ -13930,20 +13926,8 @@ document.getElementById('import-file').addEventListener('change', function(e) {
         }
 
         function updateBackupIndicator() {
-            var bar = el('backup-status-bar');
-            if (!bar) return;
-            var info = getBackupStatusInfo();
-            bar.classList.remove('ok', 'warn', 'never');
-            bar.classList.add(info.cls);
-            var iconEl = el('backup-status-icon');
-            var textEl = el('backup-status-text');
-            if (iconEl) iconEl.textContent = info.cls === 'ok' ? '✅' : (info.cls === 'warn' ? '⚠️' : '⚠️');
-            if (textEl) textEl.textContent = info.label;
-            if (info.lastIso) {
-                bar.title = '上次匯出: ' + info.lastIso + '\n閾值: ' + BACKUP_WARN_DAYS + ' 天';
-            } else {
-                bar.title = '本研究目前尚未匯出過備份, 建議點「📥 備份」立即做第一次';
-            }
+            // v1.6.70.1: backup-status-bar/icon/text 已移除 (改為獨立按鈕)
+            // 保留函式但 no-op, 避免其他呼叫 crash
         }
 
         // 每分鐘重新計算備份狀態 (跨日或時間流逝時刷新指示器)
