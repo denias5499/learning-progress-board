@@ -1814,6 +1814,17 @@
 
                             <div id="wn-import" class="wn-page active">
                                 <div class="wn-section">
+                                    <div class="wn-section-title">📋 基本資料</div>
+                                    <div class="wn-row wn-row-2fields">
+                                        <div class="wn-field-group"><span class="wn-label">學生</span><select id="wn-student" class="wn-select" onchange="WN_onStudentChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">科目</span><select id="wn-subject" class="wn-select" onchange="WN_onSubjectChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">教材類型</span><select id="wn-material" class="wn-select" onchange="WN_onMaterialChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">教材名</span><select id="wn-instance" class="wn-select" onchange="WN_onInstanceChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">冊次</span><select id="wn-volume" class="wn-select" onchange="WN_onVolumeChange()"><option value="">請選擇</option></select></div>
+                                        <div class="wn-field-group"><span class="wn-label">單元</span><select id="wn-unit" class="wn-select"><option value="">請選擇</option></select></div>
+                                    </div>
+                                </div>
+                                <div class="wn-section">
                                     <div class="wn-section-title">📷 上傳錯題圖片</div>
                                     <div id="wn-drop-zone" class="wn-drop-zone" onclick="document.getElementById('wn-file-input').click()" ondragover="WN_onDragOver(event)" ondrop="WN_onDrop(event)">
                                         <p>📁 拖曳圖片或 PDF 到這裡</p>
@@ -1824,7 +1835,6 @@
                                         <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 標記題目</button>
                                         <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
                                         <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
-                                        <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
                                         <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
                                     </div>
                                     <div id="wn-crop-area" class="wn-crop-area" style="display:none">
@@ -1837,7 +1847,67 @@
                                         <input type="file" id="wn-clean-input" style="display:none" accept="image/*" onchange="WN_handleCleanImage(this)">
                                     </div>
                                 </div>
-                                <div id="wn-flow-area">
+                                <div id="wn-setting-area" class="wn-section" style="display:none">
+                                    <div class="wn-section-title">⚙️ 錯題設定</div>
+                                    <div class="wn-row">
+                                        <span class="wn-label">錯題來源:</span>
+                                        <select id="wn-source" class="wn-select">
+                                            <option value="考卷">考卷</option><option value="習作">習作</option>
+                                            <option value="講義">講義</option><option value="模擬試卷">模擬試卷</option>
+                                            <option value="線上題庫">線上題庫</option><option value="其他">其他</option>
+                                        </select>
+                                    </div>
+                                    <div class="wn-row">
+                                        <span class="wn-label">錯題原因:</span>
+                                        <div class="wn-reason-tags">
+                                            <span class="wn-reason-tag" data-reason="計算錯誤" onclick="WN_toggleReason(this)">計算錯誤</span>
+                                            <span class="wn-reason-tag" data-reason="概念不清" onclick="WN_toggleReason(this)">概念不清</span>
+                                            <span class="wn-reason-tag" data-reason="讀題錯誤" onclick="WN_toggleReason(this)">讀題錯誤</span>
+                                            <span class="wn-reason-tag" data-reason="粗心" onclick="WN_toggleReason(this)">粗心</span>
+                                            <span class="wn-reason-tag" data-reason="考試緊張" onclick="WN_toggleReason(this)">考試緊張</span>
+                                            <span class="wn-reason-tag" data-reason="其他" onclick="WN_toggleReason(this)">其他</span>
+                                        </div>
+                                    </div>
+                                    <div class="wn-row"><span class="wn-label">筆記內容:</span></div>
+                                    <textarea id="wn-note-content" class="wn-textarea" placeholder="記錄這題的正確解法、重點觀念等..."></textarea>
+                                    <div style="margin-top:12px;display:flex;gap:10px">
+                                        <button class="wn-btn wn-btn-success" onclick="WN_saveNote()">💾 儲存筆記</button>
+                                        <button class="wn-btn wn-btn-secondary" onclick="WN_cancelImport()">取消</button>
+                                    </div>
+                                </div>
+
+                                <!-- 查看錯題筆記頁面 -->
+                                <div id="view-page" class="page" style="display:none;">
+                                    <div class="filter-bar">
+                                        <select class="filter-select" id="filter-time" onchange="renderViewPage()">
+                                            <option value="all">📁 全部筆記</option>
+                                            <option value="today" selected>☑️ 當日筆記</option>
+                                            <option value="week">📅 當週筆記</option>
+                                        </select>
+                                        <select class="filter-select" id="filter-subject" onchange="renderViewPage()"><option value="">依科目查看</option></select>
+                                        <select class="filter-select" id="filter-volume" onchange="renderViewPage()"><option value="">依冊次查看</option></select>
+                                        <select class="filter-select" id="filter-unit" onchange="renderViewPage()"><option value="">依單元查看</option></select>
+                                        <button class="btn-print" onclick="window.print()">🖨️ 列印</button>
+                                    </div>
+                                    <div id="view-slots-container"></div>
+                                </div>
+                                <!-- Phase 1 wn-mode-bar (moved outside wn-import) -->
+                                <div id="wn-mode-bar" style="display:none; margin-top:15px;">
+                                    <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 標記題目</button>
+                                    <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
+                                    <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
+                                    <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
+                                    <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
+                                </div>
+                                <!-- Old wn-crop-area (for backward compat) -->
+                                <div id="wn-crop-area" class="wn-crop-area" style="display:none">
+                                    <img id="wn-crop-img" style="display:block">
+                                </div>
+                            </div>
+
+<!-- v1.6.66: 7-step flow modal (multi-file wrong note) -->
+<div id="wn-flow-modal" class="wn-crop-area" style="display:none">
+    <div id="wn-flow-area">
                                     <!-- v1.6.66: 7-step flow: Step 2~6 (form) → Step 7 (reasons) → Note page -->
                                     <div id="wn-step-form" class="wn-section wn-flow-step" style="display:none">
                                         <div class="wn-section-title">📝 Step 2~6：為每張錯題設定詳細資訊</div>
@@ -1905,33 +1975,8 @@
                                         </div>
                                     </div>
                                 </div>
-                                <!-- 查看錯題筆記頁面 -->
-                                <div id="view-page" class="page" style="display:none;">
-                                    <div class="filter-bar">
-                                        <select class="filter-select" id="filter-time" onchange="renderViewPage()">
-                                            <option value="all">📁 全部筆記</option>
-                                            <option value="today" selected>☑️ 當日筆記</option>
-                                            <option value="week">📅 當週筆記</option>
-                                        </select>
-                                        <select class="filter-select" id="filter-subject" onchange="renderViewPage()"><option value="">依科目查看</option></select>
-                                        <select class="filter-select" id="filter-volume" onchange="renderViewPage()"><option value="">依冊次查看</option></select>
-                                        <select class="filter-select" id="filter-unit" onchange="renderViewPage()"><option value="">依單元查看</option></select>
-                                        <button class="btn-print" onclick="window.print()">🖨️ 列印</button>
-                                    </div>
-                                    <div id="view-slots-container"></div>
-                                </div>
-                                <!-- Phase 1 wn-mode-bar (moved outside wn-import) -->
-                                <div id="wn-mode-bar" style="display:none; margin-top:15px;">
-                                    <button class="wn-mode-btn active" id="wn-mode-add" onclick="WN_setMode('add')">➕ 標記題目</button>
-                                    <button class="wn-mode-btn" id="wn-mode-erase" onclick="WN_setMode('erase')">🧹 消除答案</button>
-                                    <button class="wn-mode-btn" id="wn-mode-clean" onclick="WN_setMode('clean')">📄 上傳乾淨版</button>
-                                    <button onclick="WN_cancelImage()" style="margin-left:auto;padding:7px 14px;border:1.5px solid #e74c3c;border-radius:8px;background:white;color:#e74c3c;cursor:pointer;font-size:0.9em">✕ 取消插入</button>
-                                    <button class="wn-btn wn-btn-danger" style="margin-left:auto" onclick="WN_clearAllBoxes()">🗑 清除全部</button>
-                                </div>
-                                <!-- Old wn-crop-area (for backward compat) -->
-                                <div id="wn-crop-area" class="wn-crop-area" style="display:none">
-                                    <img id="wn-crop-img" style="display:block">
-                                </div>
+</div>
+
                             </div>
 
                             <div id="wn-notes" class="wn-page">
@@ -9128,8 +9173,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 return { student: '', subject: '', material: '', instance: '', volume: '', unit: '', reasons: [], content: '' };
             });
             WN_STATE.flowCurrentIdx = 0;
-            // 關閉 crop modal, 顯示 step form
+            // 關閉 crop modal, 顯示 flow modal + step form
             document.getElementById('crop-modal').style.display = 'none';
+            var flowModal = document.getElementById('wn-flow-modal');
+            if (flowModal) flowModal.style.display = 'block';
             WN_showStepForm();
         }
 
