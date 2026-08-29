@@ -42,5 +42,5 @@ test('v1.6.74: tab active 有向下箭頭 ::after', () => {
 });
 
 test('v1.6.74: title 更新為 [v1.6.74]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.74\]<\/title>/.test(html));
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.75]<\/title>/.test(html));
 });
