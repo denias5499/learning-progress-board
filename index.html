@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.67]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.68]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -12043,7 +12043,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if (typeof _collectSubjectUnitsCache !== 'undefined') {
                 _collectSubjectUnitsCache = new WeakMap();
             }
-            var subjectBarsHtml = '';  // v1.6.67 hotfix: hoisted to top
             // v1.1: 統計 + 7-day bar chart
             var studentCount = Object.keys(multiData || {}).length;
             var studentNames = Object.keys(multiData || {}).map(uid => multiData[uid].name).filter(Boolean);
@@ -12109,96 +12108,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var studentsLine = studentNames.length > 0 ? studentNames.join('、') : '尚未建立';
             if (studentsLine.length > 30) studentsLine = studentsLine.substring(0, 30) + '…';
             
-            // v1.5.8: 各科整體進度條 — 按 Category (進度大分類) 分組顯示
-            // 原因: Denias 02:06 確認「首頁整體 bar 按 Category 分組」
-            // 會考複習 + 段考複習 各一個 section
-            var userForBars = multiData[currentUserId];
-            if (userForBars && userForBars.masters && Object.keys(userForBars.masters).length > 0) {
-                // logData: 各 unitId 已做頁數
-                var logDataAll = {};
-                appLogs.forEach(l => {
-                    if (!l.unitId) return;
-                    if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
-                    if (!logDataAll[l.unitId]) logDataAll[l.unitId] = { pages: 0 };
-                    logDataAll[l.unitId].pages += (l.pages || 0);
-                });
-
-                // subject 排序 (跟 Denias 主科順序一致)
-                var subOrder = ['國文','英文','數學','歷史','地理','公民','理化','生物','地科'];
-
-                // iterate 全部 Category, 每個一個 section
-                var catSectionsHtml = '';
-                Object.keys(userForBars.masters).forEach(function(catName) {
-                    var catSubjects = userForBars.masters[catName];
-                    if (!catSubjects || Object.keys(catSubjects).length === 0) return;
-
-                    var subKeys = Object.keys(catSubjects).sort((a, b) => {
-                        var ia = subOrder.indexOf(a); if (ia === -1) ia = 999;
-                        var ib = subOrder.indexOf(b); if (ib === -1) ib = 999;
-                        return ia - ib;
-                    });
-
-                    var catCards = '';
-                    subKeys.forEach(function(sub) {
-                        var subj = catSubjects[sub];
-                        if (!subj) return;
-                        var totalUnits = 0;
-                        var doneUnits = 0;
-                        var isUnitBasedSubject = false;  // v1.5.146: subject 內所有 unit 都 unit-based = true
-                        var isUnitBasedSubjectSet = false;
-                        // v1.5.106: 改用 task 重疊頁數算法 (跨單元任務自動算到每個被涵蓋的 unit)
-                    var overlapDonePages = getUnitDonePagesByOverlap();
-                    function accUnit(u) {
-                            var ctx = findUnitContext(u.id);
-                            var typeObj = ctx ? ctx.typeObj : null;
-                            var total = getUnitTotalCount(u, typeObj);
-                            var done = getUnitDoneCount(u, typeObj, null, null);
-                            if (total > done) total = done + (total > done ? (total - done) : 0);
-                            totalUnits += total;
-                            doneUnits += done;
-                            if (typeObj) {
-                                if (isUnitBasedType(typeObj)) isUnitBasedSubject = true;
-                                isUnitBasedSubjectSet = true;
-                            }
-                        }
-                        if (subj.type === 'custom' && Array.isArray(subj.units)) {
-                            subj.units.forEach(accUnit);
-                        } else if (subj.vols) {
-                            Object.keys(subj.vols).forEach(v => {
-                                if (Array.isArray(subj.vols[v])) subj.vols[v].forEach(accUnit);
-                            });
-                        } else {
-                            _collectSubjectUnits(subj).forEach(accUnit);
-                        }
-                        if (totalUnits <= 0) return;
-                        var pct = Math.round((doneUnits / totalUnits) * 100);
-                        var pctRemain = 100 - pct;
-                        var unitLabel = isUnitBasedSubject ? 'units' : '頁';
-                        catCards += '<div class="dash-subject-bar-card">' +
-                            '<div class="dash-subject-bar-label"><span class="dash-subject-name">📌 ' + sub + '</span><span class="dash-subject-pct">' + doneUnits + '/' + totalUnits + ' ' + unitLabel + ' (' + pct + '%)</span></div>' +
-                            '<div class="dash-subject-bar">' +
-                                '<div class="dash-subject-bar-done" style="width:' + pct + '%;">' + (pct > 4 ? pct + '%' : '') + '</div>' +
-                                '<div class="dash-subject-bar-remain" style="width:' + pctRemain + '%;">' + (pctRemain > 8 ? pctRemain + '%' : '') + '</div>' +
-                            '</div>' +
-                        '</div>';
-                    });
-
-                    if (catCards) {
-                        catSectionsHtml += '<div class="dash-subject-bars-cat">' +
-                            '<h4 class="dash-subject-bars-cat-title">📁 ' + catName + '</h4>' +
-                            '<div class="dash-subject-bars-grid">' + catCards + '</div>' +
-                        '</div>';
-                    }
-                });
-
-                if (catSectionsHtml) {
-                    subjectBarsHtml = '<div class="dash-subject-bars">' +
-                        '<h3>📊 各科整體進度 <span class="dash-subject-bars-subtitle">(按進度大分類分組)</span></h3>' +
-                        catSectionsHtml +
-                    '</div>';
-                }
-            }
-
             return '<div class="dash-summary">' +
                 '<div class="dash-stat-card accent">' +
                     '<div class="stat-label">👥 學生人數</div>' +
@@ -12232,8 +12141,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 '</div>' +
                 '<div class="dash-week-avg-row">7 日平均 <span class="avg-num">' + avgPages + '</span> 頁/天</div>' +
                 '<div class="dash-week-bars">' + weekBarsHtml + '</div>' +
-            '</div>' +
-            subjectBarsHtml;
+            '</div>';
         }
 
         function escapeHtml(s) {
