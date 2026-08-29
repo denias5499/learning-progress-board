@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.71]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.72]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1300,7 +1300,15 @@
         /* v1.6.70: 錯題資料庫 4 個 nav pages 樣式 */
         .wn-tab { padding: 8px 18px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 0.95em; transition: all 0.2s; color: var(--secondary); }
         .wn-tab:hover { background: #f3e8f5; }
-        .wn-tab.active { background: #b78fb7; color: white; border-color: #b78fb7; font-weight: bold; }
+        .wn-tab.active {
+            background: #b78fb7 !important;
+            color: white !important;
+            border-color: #9163a8 !important;
+            font-weight: bold;
+            transform: scale(1.15) translateY(-3px);
+            box-shadow: 0 6px 12px rgba(145, 99, 168, 0.4), inset 0 -2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
         .wn-page { display: none; padding: 15px 0; }
         .wn-page.active { display: block; }
 
@@ -1798,7 +1806,7 @@
                             </div>
                             <div style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;">
                                 <img id="wn-crop-img" style="display:block;max-width:100%;">
-                                <div id="wn-crop-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;"></div>
+                                <div id="wn-crop-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;user-select:none;"></div>
                             </div>
                             <p style="font-size:0.85em;color:#666;margin-top:8px;">💡 框選一個錯題區域 (最多 10 個)</p>
                         </div>
@@ -8271,26 +8279,38 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     document.getElementById('wn-crop-area').style.display = 'block';
                     WN_PHASE2_STATE.cropBoxes = [];
                     WN_renderCropBoxes();
+                    WN_initCropDrawing();  // v1.6.72: 初始化 crop drawing
                 };
                 img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-        function WN_onDragOver(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.currentTarget.classList.add('dragover');
-        }
-
-        function WN_onDrop(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            e.currentTarget.classList.remove('dragover');
-            var files = e.dataTransfer.files;
-            if (files && files.length > 0) {
-                WN_handleFileUpload(files[0]);
-            }
+        // v1.6.72: drag & drop 用 addEventListener 確保觸發
+        var WN_DRAG_INIT_DONE = false;
+        function WN_initDragDrop() {
+            if (WN_DRAG_INIT_DONE) return;
+            WN_DRAG_INIT_DONE = true;
+            var zone = document.getElementById('wn-upload-zone');
+            if (!zone) return;
+            zone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('dragover');
+            });
+            zone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                zone.classList.remove('dragover');
+            });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('dragover');
+                var files = e.dataTransfer.files;
+                if (files && files.length > 0) {
+                    WN_handleFileUpload(files[0]);
+                }
+            });
         }
 
         function WN_setCropMode(mode) {
@@ -8301,6 +8321,91 @@ function renderWizardUnitRowHtml(ws, i, u) {
             WN_PHASE2_STATE.cropBoxes = [];
             WN_renderCropBoxes();
             document.getElementById('wn-crop-list').style.display = 'none';
+        }
+
+        // v1.6.72: Crop drawing (mousedown/mousemove/mouseup)
+        var WN_CROP_DRAW_STATE = { drawing: false, startX: 0, startY: 0, currentBox: null };
+
+        function WN_initCropDrawing() {
+            var overlay = document.getElementById('wn-crop-overlay');
+            if (!overlay || overlay._wnInit) return;
+            overlay._wnInit = true;
+
+            overlay.addEventListener('mousedown', function(e) {
+                if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
+                    alert('最多只能框選 10 個錯題');
+                    return;
+                }
+                e.preventDefault();
+                var rect = overlay.getBoundingClientRect();
+                var img = document.getElementById('wn-crop-img');
+                var scaleX = img.naturalWidth / rect.width;
+                var scaleY = img.naturalHeight / rect.height;
+                WN_CROP_DRAW_STATE.startX = (e.clientX - rect.left) * scaleX;
+                WN_CROP_DRAW_STATE.startY = (e.clientY - rect.top) * scaleY;
+                WN_CROP_DRAW_STATE.drawing = true;
+                WN_CROP_DRAW_STATE.currentBox = { x: WN_CROP_DRAW_STATE.startX, y: WN_CROP_DRAW_STATE.startY, w: 0, h: 0 };
+            });
+
+            overlay.addEventListener('mousemove', function(e) {
+                if (!WN_CROP_DRAW_STATE.drawing || !WN_CROP_DRAW_STATE.currentBox) return;
+                e.preventDefault();
+                var rect = overlay.getBoundingClientRect();
+                var img = document.getElementById('wn-crop-img');
+                var scaleX = img.naturalWidth / rect.width;
+                var scaleY = img.naturalHeight / rect.height;
+                var curX = (e.clientX - rect.left) * scaleX;
+                var curY = (e.clientY - rect.top) * scaleY;
+                WN_CROP_DRAW_STATE.currentBox.w = Math.abs(curX - WN_CROP_DRAW_STATE.startX);
+                WN_CROP_DRAW_STATE.currentBox.h = Math.abs(curY - WN_CROP_DRAW_STATE.startY);
+                WN_CROP_DRAW_STATE.currentBox.x = Math.min(curX, WN_CROP_DRAW_STATE.startX);
+                WN_CROP_DRAW_STATE.currentBox.y = Math.min(curY, WN_CROP_DRAW_STATE.startY);
+                WN_renderCropDrawingPreview();
+            });
+
+            overlay.addEventListener('mouseup', function(e) {
+                if (!WN_CROP_DRAW_STATE.drawing || !WN_CROP_DRAW_STATE.currentBox) return;
+                e.preventDefault();
+                var box = WN_CROP_DRAW_STATE.currentBox;
+                if (box.w < 10 || box.h < 10) {
+                    alert('框選區域太小，請框大一點');
+                    WN_CROP_DRAW_STATE.drawing = false;
+                    WN_CROP_DRAW_STATE.currentBox = null;
+                    WN_renderCropDrawingPreview();
+                    return;
+                }
+                WN_PHASE2_STATE.cropBoxes.push(box);
+                WN_CROP_DRAW_STATE.drawing = false;
+                WN_CROP_DRAW_STATE.currentBox = null;
+                WN_renderCropBoxes();
+                WN_renderCropDrawingPreview();
+            });
+        }
+
+        function WN_renderCropDrawingPreview() {
+            var overlay = document.getElementById('wn-crop-overlay');
+            if (!overlay) return;
+            // 移除暫存預覽 box
+            var preview = document.getElementById('wn-crop-preview');
+            if (preview) preview.remove();
+            // 加新的預覽 box (畫到一半的)
+            var box = WN_CROP_DRAW_STATE.currentBox;
+            if (box && WN_CROP_DRAW_STATE.drawing) {
+                var overlayRect = overlay.getBoundingClientRect();
+                var img = document.getElementById('wn-crop-img');
+                var scaleX = overlayRect.width / img.naturalWidth;
+                var scaleY = overlayRect.height / img.naturalHeight;
+                var div = document.createElement('div');
+                div.id = 'wn-crop-preview';
+                div.className = 'wn-crop-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.style.background = 'rgba(255, 200, 0, 0.3)';
+                div.style.borderColor = '#ffc800';
+                overlay.appendChild(div);
+            }
         }
 
         // Crop 渲染
@@ -8500,6 +8605,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     });
                 }
             }
+            // v1.6.72: drag & drop init
+            WN_initDragDrop();
             // 預設顯示匯入頁
             switchWrongNotesView('import');
         }

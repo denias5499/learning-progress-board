@@ -39,5 +39,5 @@ test('v1.6.70: 4 個 nav pages (import/notes/stats/practice) 存在', () => {
 });
 
 test('v1.6.70: title 更新為 [v1.6.70]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.71]<\/title>/.test(indexHtml));
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.72]<\/title>/.test(indexHtml));
 });
