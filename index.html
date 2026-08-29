@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.72]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.73]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1301,13 +1301,13 @@
         .wn-tab { padding: 8px 18px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 0.95em; transition: all 0.2s; color: var(--secondary); }
         .wn-tab:hover { background: #f3e8f5; }
         .wn-tab.active {
-            background: #b78fb7 !important;
+            background: #9163a8 !important;
             color: white !important;
-            border-color: #9163a8 !important;
-            font-weight: bold;
-            transform: scale(1.15) translateY(-3px);
-            box-shadow: 0 6px 12px rgba(145, 99, 168, 0.4), inset 0 -2px 4px rgba(0,0,0,0.1);
-            z-index: 10;
+            border: 3px solid #9163a8 !important;
+            font-weight: 900;
+            transform: scale(1.2) translateY(-5px);
+            box-shadow: 0 8px 20px rgba(145, 99, 168, 0.6), 0 0 0 3px rgba(255,255,255,0.8), inset 0 -3px 6px rgba(0,0,0,0.15);
+            z-index: 20;
         }
         .wn-page { display: none; padding: 15px 0; }
         .wn-page.active { display: block; }
@@ -1330,6 +1330,13 @@
         .wn-btn-success:hover { background: #4cae4c; }
         .wn-btn-danger { background: #e74c3c; color: white; border-color: #e74c3c; }
         .wn-btn-secondary { background: white; color: var(--secondary); }
+
+        /* v1.6.73: Phase 2 Layout (附件設計) */
+        .wn-import-container { background: #f3e8f5; padding: 24px; border-radius: 12px; max-width: 800px; margin: 0 auto; }
+        .wn-step-title { font-size: 1.2em; font-weight: bold; color: #2c3e50; margin-bottom: 14px; }
+        .wn-source-zone { border: 2.5px dashed #b78fb7; border-radius: 10px; padding: 26px; text-align: center; background: white; cursor: pointer; transition: all 0.2s; }
+        .wn-source-zone:hover { background: #f3e8f5; border-color: #9163a8; }
+        .wn-source-zone.dragover { background: #f3e8f5; border-color: #9163a8; transform: scale(1.02); }
         .checkbox-group label { display: block; padding: 3px 0; font-size: 1.1em; font-weight: bold; cursor: pointer; }
         /* ===== End Phase 1 CSS ===== */
 
@@ -1786,21 +1793,28 @@
                 </div>
 
                 <div id="wn-page-import" class="wn-page active" style="display:block;">
-                    <!-- Phase 2: 上傳 + Crop + 中等版筆跡消除 -->
-                    <div style="background:#f3e8f5; padding:20px; border-radius:12px;">
-                        <h3 style="color:#b78fb7; margin:0 0 12px;">📤 匯入錯題</h3>
+                    <div class="wn-import-container">
+                        <div class="wn-step-title">Step 1：請選擇錯題來源</div>
 
-                        <!-- 上傳區 -->
-                        <div id="wn-upload-zone" class="wn-drop-zone" onclick="document.getElementById('wn-file-input').click()" ondragover="WN_onDragOver(event)" ondrop="WN_onDrop(event)">
-                            <p>📁 拖曳圖片到這裡 (或點擊上傳)</p>
-                            <p style="font-size:0.85em;color:#888;">支援 jpg, png (單張)</p>
+                        <!-- 兩個 drop zone (參照附件設計) -->
+                        <div id="wn-source-zone" class="wn-source-zone" onclick="document.getElementById('wn-source-input').click()">
+                            <p>📝 請選擇錯題來源 (支援拖曳或選取多張照片)</p>
+                            <p style="font-size:0.85em;color:#888;">Phase 2 實作</p>
                         </div>
-                        <input type="file" id="wn-file-input" style="display:none" accept="image/*" onchange="WN_handleFileUpload(this.files[0])">
+                        <input type="file" id="wn-source-input" style="display:none" accept="image/*" multiple>
 
-                        <!-- 預覽 + Crop 區 -->
-                        <div id="wn-crop-area" class="wn-crop-area" style="display:none; margin-top:14px;">
+                        <div style="text-align:center;margin:10px 0;color:#888;font-weight:bold;">或</div>
+
+                        <div id="wn-paper-zone" class="wn-source-zone" onclick="document.getElementById('wn-paper-input').click()">
+                            <p>📄 請匯入考卷 (支援 jpeg 或 png 檔)</p>
+                            <p style="font-size:0.85em;color:#888;">Phase 3 實作</p>
+                        </div>
+                        <input type="file" id="wn-paper-input" style="display:none" accept="image/*">
+
+                        <!-- 預覽 + Crop 區 (從原圖獨立區域) -->
+                        <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:18px;">
                             <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
-                                <button class="wn-btn wn-btn-secondary" onclick="WN_setCropMode('add')">➕ 框選</button>
+                                <button class="wn-btn wn-btn-success" onclick="WN_setCropMode('add')">➕ 框選</button>
                                 <button class="wn-btn wn-btn-secondary" onclick="WN_setCropMode('erase')">🧹 擦除</button>
                                 <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
                             </div>
@@ -1808,11 +1822,11 @@
                                 <img id="wn-crop-img" style="display:block;max-width:100%;">
                                 <div id="wn-crop-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;user-select:none;"></div>
                             </div>
-                            <p style="font-size:0.85em;color:#666;margin-top:8px;">💡 框選一個錯題區域 (最多 10 個)</p>
+                            <p style="font-size:0.85em;color:#666;margin-top:8px;">💡 框選一個錯題區域 (最多 10 個, 用相對座標判斷)</p>
                         </div>
 
                         <!-- 教材選擇 (逐個 crop box 設定) -->
-                        <div id="wn-crop-list" style="display:none;margin-top:14px;">
+                        <div id="wn-crop-list" style="display:none;margin-top:18px;">
                             <h4 style="margin:0 0 8px;">📚 為每個錯題設定詳細資訊</h4>
                             <div id="wn-crop-cards"></div>
                             <div style="margin-top:14px;display:flex;gap:10px;">
@@ -8367,8 +8381,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (!WN_CROP_DRAW_STATE.drawing || !WN_CROP_DRAW_STATE.currentBox) return;
                 e.preventDefault();
                 var box = WN_CROP_DRAW_STATE.currentBox;
-                if (box.w < 10 || box.h < 10) {
-                    alert('框選區域太小，請框大一點');
+                // v1.6.73: 用相對座標 (百分比) 判斷, 不受圖片縮放影響
+                var imgEl = document.getElementById('wn-crop-img');
+                var relW = box.w / imgEl.naturalWidth;
+                var relH = box.h / imgEl.naturalHeight;
+                if (relW < 0.05 || relH < 0.05) {
+                    alert('框選區域太小 (請至少框 5% 寬度), 請框大一點');
                     WN_CROP_DRAW_STATE.drawing = false;
                     WN_CROP_DRAW_STATE.currentBox = null;
                     WN_renderCropDrawingPreview();
