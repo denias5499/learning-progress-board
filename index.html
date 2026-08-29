@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.80]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.81]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8484,31 +8484,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!overlay || overlay._wnInit) return;
             overlay._wnInit = true;
 
-            // v1.6.77: double click 在圖片上任一位置新增 crop box
-            overlay.addEventListener('dblclick', function(e) {
-                if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
-                    alert('最多只能框選 10 個錯題');
-                    return;
-                }
-                e.preventDefault();
-                var rect = overlay.getBoundingClientRect();
-                var img = document.getElementById('wn-crop-img');
-                var scaleX = img.naturalWidth / rect.width;
-                var scaleY = img.naturalHeight / rect.height;
-                var clickX = (e.clientX - rect.left) * scaleX;
-                var clickY = (e.clientY - rect.top) * scaleY;
-                // 預設 100x100 box 在 click 位置 (居中)
-                var boxW = Math.min(100, img.naturalWidth * 0.2);
-                var boxH = Math.min(100, img.naturalHeight * 0.2);
-                var newBox = {
-                    x: Math.max(0, Math.min(img.naturalWidth - boxW, clickX - boxW / 2)),
-                    y: Math.max(0, Math.min(img.naturalHeight - boxH, clickY - boxH / 2)),
-                    w: boxW,
-                    h: boxH
-                };
-                WN_PHASE2_STATE.cropBoxes.push(newBox);
-                WN_renderCropBoxes();
-            });
+            // v1.6.81: 移除 dblclick handler (跟 mousedown 重複, 會累積過多 box)
+            // 改用 mousedown 統一處理 click/double click
             // v1.6.80: mousedown 立即新增 150x150 box (點擊直接觸發)
             overlay.addEventListener('mousedown', function(e) {
                 if (WN_PHASE2_STATE.cropBoxes.length >= 10) {

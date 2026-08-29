@@ -32,6 +32,6 @@ test('v1.6.80: mousedown 與 mouseup 各自獨立 (mousedown 新增, mouseup dra
     assert.ok(mousedown[0].includes('cropBoxes.push(newBox)'), 'mousedown 獨立新增');
 });
 
-test('v1.6.80: title 更新為 [v1.6.80]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.80\]<\/title>/.test(html));
+test('v1.6.80: title 更新為 [v1.6.81]', () => {
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.81\]<\/title>/.test(html));
 });
