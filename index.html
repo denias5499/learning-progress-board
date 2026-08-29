@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.77]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.78]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1844,20 +1844,20 @@
 
                         <!-- 預覽 + Crop 區 -->
                         <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:18px;">
+                            <!-- 取消選取 + 完成選取 按鈕 (在頂部, 確保使用者一定看得到) -->
+                            <div style="display:flex;gap:14px;justify-content:center;margin-bottom:14px;">
+                                <button class="wn-btn" onclick="WN_cancelSelection()" style="padding:12px 32px;font-size:1.05em;background:#c9b8d9;color:#333;border:none;border-radius:24px;cursor:pointer;">取消選取</button>
+                                <button class="wn-btn" onclick="WN_completeSelection()" style="padding:12px 32px;font-size:1.05em;background:#f0d040;color:#333;border:none;border-radius:24px;cursor:pointer;font-weight:bold;">完成選取</button>
+                            </div>
                             <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
                                 <button class="wn-btn wn-btn-success" onclick="WN_setCropMode('add')">➕ 框選</button>
                                 <button class="wn-btn wn-btn-secondary" onclick="WN_setCropMode('erase')">🧹 擦除</button>
                                 <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
                             </div>
+                            <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個)</p>
                             <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;">
                                 <img id="wn-crop-img" style="display:block;max-width:100%;">
                                 <div id="wn-crop-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;user-select:none;"></div>
-                            </div>
-                            <p style="font-size:0.85em;color:#666;margin-top:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個, 用相對座標判斷)</p>
-                            <!-- 取消選取 + 完成選取 按鈕 (在最下方) -->
-                            <div style="display:flex;gap:14px;justify-content:center;margin-top:18px;">
-                                <button class="wn-btn" onclick="WN_cancelSelection()" style="padding:12px 32px;font-size:1.05em;background:#c9b8d9;color:#333;border:none;border-radius:24px;cursor:pointer;">取消選取</button>
-                                <button class="wn-btn" onclick="WN_completeSelection()" style="padding:12px 32px;font-size:1.05em;background:#f0d040;color:#333;border:none;border-radius:24px;cursor:pointer;font-weight:bold;">完成選取</button>
                             </div>
                         </div>
 
