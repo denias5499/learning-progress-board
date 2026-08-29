@@ -97,10 +97,10 @@ test('v1.6.78: WN_addCropFromCenter 函式存在 (從中心新增)', () => {
     assert.ok(body.includes('cropBoxes.push'), '應新增 crop box');
 });
 
-test('v1.6.78: double click 新增 crop box', () => {
+test('v1.6.81: 點擊新增 crop box (用 mousedown 不用 dblclick)', () => {
     const body = getFunctionBody('WN_initCropDrawing');
     assert.ok(body, 'WN_initCropDrawing 應定義');
-    assert.ok(body.includes("addEventListener('dblclick'"), '應綁定 dblclick');
+    assert.ok(body.includes("addEventListener('mousedown'"), '應綁定 mousedown');
     assert.ok(body.includes('cropBoxes.push(newBox)'), '應新增 crop box');
 });
 
@@ -111,6 +111,6 @@ test('v1.6.78: Crop box CSS 加強 (藍色 3px + selected 狀態)', () => {
     assert.ok(/\.wn-crop-box\.selected/.test(html), '應有 selected 狀態');
 });
 
-test('v1.6.78: title 更新為 [v1.6.80]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.80]<\/title>/.test(html));
+test('v1.6.78: title 更新為 [v1.6.81]', () => {
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.81]<\/title>/.test(html));
 });

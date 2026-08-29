@@ -27,6 +27,6 @@ test('v1.6.80: 不再有 isClick 邏輯', () => {
     assert.ok(!html.includes('mouseDownX'), '不應再有 mouseDownX');
 });
 
-test('v1.6.80: title 更新為 [v1.6.80]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.80\]<\/title>/.test(html));
+test('v1.6.80: title 更新為 [v1.6.81]', () => {
+    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.81\]<\/title>/.test(html));
 });
