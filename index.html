@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.69]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.70]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1296,6 +1296,13 @@
         .filter-select { padding: 6px 10px; border: 1.5px solid #dee2e6; border-radius: 8px; font-size: 1.1em; font-weight: bold; }
         .btn-print { padding: 6px 14px; background: #fff; border: 1.5px solid #dee2e6; border-radius: 8px; cursor: pointer; font-size: 1.1em; font-weight: bold; }
         .placeholder-text { text-align: center; color: #aaa; padding: 40px; font-size: 1.1em; }
+
+        /* v1.6.70: 錯題資料庫 4 個 nav pages 樣式 */
+        .wn-tab { padding: 8px 18px; border: 1.5px solid var(--border); border-radius: 8px; background: white; cursor: pointer; font-size: 0.95em; transition: all 0.2s; color: var(--secondary); }
+        .wn-tab:hover { background: #f3e8f5; }
+        .wn-tab.active { background: #b78fb7; color: white; border-color: #b78fb7; font-weight: bold; }
+        .wn-page { display: none; padding: 15px 0; }
+        .wn-page.active { display: block; }
         .checkbox-group label { display: block; padding: 3px 0; font-size: 1.1em; font-weight: bold; cursor: pointer; }
         /* ===== End Phase 1 CSS ===== */
 
@@ -1331,6 +1338,7 @@
                     <button id="nav-btn-settings" class="nav-btn nav-btn-1" onclick="openSettings()">⚙️ 教材庫與備份</button>
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
                     <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;">📊 學習統計分析</button>
+                    <button id="nav-btn-wrongnotes" class="nav-btn nav-btn-5" onclick="openWrongNotes()" style="background-color:#e8d5e8 !important;">📚 錯題資料庫</button>
                     <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
                 </div>
             </div>
@@ -1730,10 +1738,41 @@
                 <div id="stats-accuracy" class="stats-view">
                     <div id="accuracy-root"></div>
                 </div>
-                <div id="stats-wrongnotes" class="stats-view">
-                    <!-- v1.6.67: iframe 嵌入 standalone 錯題資料庫 -->
-                    <iframe id="wrongnotes-iframe" src="wrong-notes/" style="width:100%;height:85vh;border:none;border-radius:8px;background:var(--card-bg,#fff);box-shadow:0 2px 8px rgba(0,0,0,0.1);" title="錯題資料庫"></iframe>
+                <!-- v1.6.70: 錯題資料庫改為獨立 top-level page (page-wrongnotes); stats-wrongnotes 保留空殼向後相容 -->
+                <div id="stats-wrongnotes" class="stats-view"></div>
+            </div>
+        </div>
+
+        <!-- v1.6.70: 錯題資料庫獨立 page (top-level tab) -->
+        <div id="page-wrongnotes" class="page-view" style="background:#f5e8f5;">
+            <div class="page-card">
+                <div class="modal-header">
+                    <div class="stats-card-header" style="width: 100%;">
+                        <h2>📚 錯題資料庫</h2>
+                        <p style="color:var(--secondary); font-size:0.9em; margin:4px 0 0;">
+                            上傳錯題圖片 → 自動消除筆跡 → 練習考卷生成
+                        </p>
                     </div>
+                </div>
+                <!-- 4 個 nav pages -->
+                <div class="wn-tabs" style="display:flex;gap:8px;margin:15px 0;flex-wrap:wrap;">
+                    <button class="wn-tab active" data-wntab="import" onclick="switchWrongNotesView('import')">📤 匯入錯題</button>
+                    <button class="wn-tab" data-wntab="notes" onclick="switchWrongNotesView('notes')">📖 查看錯題筆記</button>
+                    <button class="wn-tab" data-wntab="stats" onclick="switchWrongNotesView('stats')">📊 錯題數據分析</button>
+                    <button class="wn-tab" data-wntab="practice" onclick="switchWrongNotesView('practice')">✏️ 錯題再練</button>
+                </div>
+
+                <div id="wn-page-import" class="wn-page active">
+                    <div class="placeholder-text">📤 匯入錯題功能施工中 (Phase 2 實作)</div>
+                </div>
+                <div id="wn-page-notes" class="wn-page">
+                    <div class="placeholder-text">📖 查看錯題筆記功能施工中 (Phase 4 實作)</div>
+                </div>
+                <div id="wn-page-stats" class="wn-page">
+                    <div class="placeholder-text">📊 錯題數據分析功能施工中 (Phase 4 實作)</div>
+                </div>
+                <div id="wn-page-practice" class="wn-page">
+                    <div class="placeholder-text">✏️ 錯題再練功能施工中 (Phase 5 實作)</div>
                 </div>
             </div>
         </div>
@@ -2524,6 +2563,7 @@
                 // v1.5.57: page-history no longer has a top nav button
                 // v1.5.57: page-daily no longer has a top nav button
                 if (pageId === 'page-stats' && el('nav-btn-stats')) el('nav-btn-stats').classList.add('active-nav');
+                if (pageId === 'page-wrongnotes' && el('nav-btn-wrongnotes')) el('nav-btn-wrongnotes').classList.add('active-nav');
             }
         }
 
@@ -8133,6 +8173,27 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (sm) sm.style.display = '';
             // 預設顯示樹狀圖
             renderTreeView();
+        }
+
+        // v1.6.70: 錯題資料庫獨立 page
+        function openWrongNotes() {
+            showPage('page-wrongnotes');
+            // 第一次進入時提示用戶建立資料夾
+            if (!localStorage.getItem('StudyMap_WrongNotes_DisclaimerAck')) {
+                alert('📂 第一次使用錯題資料庫：\n\n請先在瀏覽器下載資料夾下建立「學習進度看板」資料夾，\n並將瀏覽器的下載位置設定到這個資料夾。\n\n之後上傳的錯題圖片會自動下載到此資料夾。');
+                localStorage.setItem('StudyMap_WrongNotes_DisclaimerAck', '1');
+            }
+            // 預設顯示匯入頁
+            switchWrongNotesView('import');
+        }
+
+        function switchWrongNotesView(view) {
+            document.querySelectorAll('[data-wntab]').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.wn-page').forEach(function(p) { p.classList.remove('active'); });
+            var tBtn = document.querySelector('[data-wntab="' + view + '"]');
+            if (tBtn) tBtn.classList.add('active');
+            var pEl = document.getElementById('wn-page-' + view);
+            if (pEl) pEl.classList.add('active');
         }
 
         function switchStatsView(view) {
