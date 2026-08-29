@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>錯題資料庫</title>
+    <!-- 引入 PDF.js 以支援 PDF 解析 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    <style>
+        :root {
+            /* --- Pantone 專屬色彩設定 --- */
+            --bg-ice-melt: #dbeae8;       
+            --btn-peach-dust: #f0d8cc;    
+            --btn-almost-aqua: #cad5c2;   
+            --btn-orchid-tint: #dbd0e0;   
+            --btn-lemon-icing: #f6edcc;   
+            --header-aqua-sky: #7bc4c4;   
+            
+            --btn-generate: rgba(125, 203, 202, 0.7); 
+            --btn-generate-solid: #7DCBCA; 
+            --btn-generate-shadow: #59a3a2;
+
+            /* 底部按鍵 Pantone 色 */
+            --btn-complete-base: rgba(243, 208, 84, 0.85); /* Pantone 13-0624 */
+            --btn-complete-hover: rgba(243, 208, 84, 1);
+            
+            --btn-cancel-base: rgba(162, 151, 177, 0.85); /* Pantone 16-3610 Quiet violet */
+            --btn-cancel-hover: rgba(162, 151, 177, 1);
+
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --theme-blue: #1a82e2;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            background: var(--bg-ice-melt);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* --- 頂部導覽列 --- */
+        .top-navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.6); padding: 15px 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000;
+        }
+
+        .nav-brand {
+            font-size: 26px; font-weight: bold; color: #2c3e50; letter-spacing: 2px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8); margin-right: 30px; white-space: nowrap;
+        }
+
+        .nav-links { flex: 1; display: flex; gap: 15px; align-items: center; }
+
+        .btn-3d {
+            padding: 10px 20px; border: 2px solid rgba(255,255,255,0.6); border-radius: 18px;
+            font-weight: bold; font-size: 15px; color: #444; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); text-align: center; outline: none;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.08), 0 8px 10px rgba(0,0,0,0.05);
+        }
+        .btn-import { background-color: var(--btn-peach-dust); }
+        .btn-view { background-color: var(--btn-almost-aqua); }
+        .btn-data { background-color: var(--btn-orchid-tint); }
+        .btn-practice { background-color: var(--btn-lemon-icing); }
+
+        .btn-3d:hover {
+            transform: scale(1.1) translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.15); border-color: #fff; z-index: 5;
+        }
+        .btn-3d:active { transform: translateY(5px); box-shadow: 0 0 0 rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05); }
+
+        .btn-3d.active-nav {
+            transform: scale(1.15) translateY(-4px); border: 2px solid #fff; color: #222;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 15px 20px rgba(0,0,0,0.15); z-index: 10;
+        }
+
+        .nav-right { display: flex; justify-content: flex-end; align-items: center; }
+
+        /* --- 學生面板 UI --- */
+        .student-panel {
+            display: flex; align-items: center; background: #f4f6f9; padding: 6px 15px 6px 6px;
+            border-radius: 40px; border: 1px solid #e1e4e8; box-shadow: 0 2px 8px rgba(0,0,0,0.05); gap: 8px;
+        }
+        .sp-avatar {
+            width: 38px; height: 38px; border-radius: 50%; background: #fff; border: 2px solid #ddd;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative;
+        }
+        .sp-avatar span { font-size: 22px; }
+
+        .sp-select-wrapper select {
+            background: transparent; border: none; color: #333; font-size: 16px; font-weight: bold; outline: none; cursor: pointer; max-width: 120px; appearance: auto;
+        }
+
+        /* --- 主內容區 --- */
+        .app-container {
+            width: 100%; max-width: 1000px; margin: 20px auto; position: relative; display: flex; flex-direction: column; flex-grow: 1;
+        }
+        .page { display: none; padding: 20px; flex-direction: column; }
+        .page.active { display: flex; }
+
+        /* --- 錯題匯入頁面 --- */
+        .step-container {
+            background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        .step-title { font-weight: bold; font-size: 18px; margin-bottom: 15px; color: var(--theme-blue); }
+        
+        .drop-zone {
+            border: 2px dashed var(--theme-blue); border-radius: 10px; padding: 30px 20px;
+            text-align: center; background: #f8fbff; cursor: pointer; transition: 0.2s;
+        }
+        .drop-zone:hover, .drop-zone.dragover { background: #e3f0ff; border-color: #1565c0; transform: scale(1.02); }
+        .drop-zone p { font-size: 18px; color: #333; margin: 0; font-weight: bold; pointer-events: none; }
+        .drop-zone input[type="file"] { display: none; }
+        
+        .or-divider { text-align: center; font-weight: bold; color: #666; font-size: 16px; margin: 10px 0; }
+
+        .slider-container { display: flex; overflow-x: auto; gap: 20px; padding-bottom: 15px; scroll-snap-type: x mandatory; }
+        .slider-container::-webkit-scrollbar { height: 10px; }
+        .slider-container::-webkit-scrollbar-thumb { background: #bbb; border-radius: 5px; }
+        
+        .file-card {
+            min-width: 320px; background: #fff; border: 1px solid #ddd; position: relative;
+            border-radius: 10px; padding: 15px; scroll-snap-align: start; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .delete-card-btn {
+            position: absolute; top: 10px; right: 10px; background: #ff4757; color: white; border: none; border-radius: 50%;
+            width: 28px; height: 28px; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.2s; z-index: 10;
+        }
+        .delete-card-btn:hover { transform: scale(1.15); background: #ff6b81; }
+        .file-card img { width: 100%; height: 180px; object-fit: contain; background: #eee; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ddd;}
+        
+        select, input[type="text"] {
+            width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box;
+        }
+        .checkbox-group label { display: inline-flex; align-items: center; margin-right: 10px; margin-bottom: 5px; font-size: 14px;}
+        
+        .generate-btn {
+            background: var(--btn-generate); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            color: #fff; border: 1px solid rgba(255,255,255,0.6); padding: 15px; 
+            font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; 
+            width: 100%; margin: 10px 0; display: block; 
+            box-shadow: 0 6px 0 var(--btn-generate-shadow), 0 10px 15px rgba(0,0,0,0.1); 
+            transition: all 0.2s ease; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .generate-btn:hover { 
+            background: var(--btn-generate-solid); transform: translateY(-2px); 
+            box-shadow: 0 8px 0 var(--btn-generate-shadow), 0 15px 20px rgba(0,0,0,0.15); 
+        }
+        .generate-btn:active { 
+            transform: translateY(6px); box-shadow: 0 0 0 var(--btn-generate-shadow), 0 4px 6px rgba(0,0,0,0.2); 
+        }
+
+        /* --- 全螢幕預覽與框選介面 --- */
+        #crop-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #e8ecef; z-index: 2000; flex-direction: column; overflow: hidden;
+        }
+        
+        .crop-header-wrapper {
+            width: 100%; display: flex; justify-content: center; padding-top: 20px;
+        }
+        .crop-header {
+            background: #BCC6C9; color: #2c3e50; padding: 15px 20px; text-align: center; font-size: 16px; font-weight: bold;
+            max-width: 800px; width: 100%; border-radius: 12px 12px 0 0; box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+
+        .glass-btn-small {
+            padding: 8px 16px; border: 1px solid rgba(255,255,255,0.6); border-radius: 20px;
+            font-size: 14px; font-weight: bold; color: #333; cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s; outline: none;
+        }
+        .glass-btn-small:hover { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        
+        .crop-workspace {
+            flex: 1; overflow-y: auto; padding: 0 20px 100px 20px; 
+            display: flex; flex-direction: column; align-items: center; gap: 20px;
+        }
+        .page-container {
+            position: relative; max-width: 800px; width: 100%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            border-radius: 0 0 12px 12px; margin-bottom: 20px; user-select: none;
+        }
+        
+        /* 支援拖曳與四角縮放的藍色框 */
+        .mock-crop-box {
+            position: absolute; border: 3px solid var(--theme-blue); background: rgba(26,130,226,0.15);
+            min-width: 50px; min-height: 30px; cursor: move; box-sizing: border-box;
+        }
+        .mock-crop-box:hover { border-color: #0056b3; background: rgba(0,86,179,0.2); z-index: 5; }
+
+        /* 紅色 X 刪除鍵 */
+        .delete-box-btn {
+            position: absolute; top: -12px; right: -12px; background: #ff4757; color: white;
+            border-radius: 50%; width: 24px; height: 24px; font-size: 14px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10;
+        }
+        .delete-box-btn:hover { transform: scale(1.15); background: #e84118; }
+
+        /* 紅色三角形縮放控制點 */
+        .resize-handle { position: absolute; width: 0; height: 0; border-style: solid; z-index: 10; }
+        .resize-handle.tl { 
+            top: 0; left: 0; cursor: nwse-resize; 
+            border-width: 15px 15px 0 0; border-color: #e74c3c transparent transparent transparent; 
+        }
+        .resize-handle.br { 
+            bottom: 0; right: 0; cursor: nwse-resize; 
+            border-width: 0 0 15px 15px; border-color: transparent transparent #e74c3c transparent; 
+        }
+
+        .add-crop-btn {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 36px; height: 36px; background: #007aff; color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            cursor: pointer; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: 0.2s; z-index: 5;
+        }
+        .add-crop-btn:hover { transform: translate(-50%, -50%) scale(1.15); }
+        .add-crop-btn.selected { background: #34c759; }
+
+        /* 底部操作按鍵區 */
+        .crop-modal-footer {
+            position: fixed; bottom: 35px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; z-index: 2001;
+        }
+
+        .glass-btn {
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.7); padding: 12px 40px; border-radius: 30px;
+            font-size: 18px; font-weight: bold; color: #333; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.6);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 2px;
+        }
+        
+        .glass-btn-complete { background: var(--btn-complete-base); }
+        .glass-btn-complete:hover {
+            transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 25px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.8);
+            background: var(--btn-complete-hover);
+        }
+
+        .glass-btn-cancel { background: var(--btn-cancel-base); color: #fff; border-color: rgba(255,255,255,0.3); }
+        .glass-btn-cancel:hover {
+            transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 25px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.5);
+            background: var(--btn-cancel-hover);
+        }
+
+        /* --- 筆記頁與檢視區 --- */
+        .note-slot {
+            display: flex; flex-direction: column; background: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; overflow: hidden;
+            break-inside: avoid;
+        }
+        .note-slot-header {
+            background: var(--header-aqua-sky); color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); 
+        }
+        .note-slot-body { display: flex; min-height: 450px; }
+        .note-left {
+            width: 25%; border-right: 2px solid #ddd; padding: 15px; background: #fafafa; box-sizing: border-box; display: flex; flex-direction: column; position: relative;
+        }
+        .note-left h4 { margin: 0 0 15px 0; color: #333; font-size: 16px;}
+        .note-left label { display: block; margin-bottom: 10px; font-size: 15px; color: #555;}
+        
+        .note-right { width: 75%; display: flex; flex-direction: column; }
+        
+        .note-img-area {
+            flex: 1; min-height: 250px; border-bottom: 2px dashed #999; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 15px; background: #fff;
+        }
+        .note-img-area img { width: 100%; height: 100%; max-height: 400px; object-fit: contain; display: block; }
+        
+        .note-grid-area {
+            flex: 1; min-height: 200px; background-color: #fff; background-image: linear-gradient(#e0e0e0 1px, transparent 1px), linear-gradient(90deg, #e0e0e0 1px, transparent 1px); background-size: 25px 25px; padding: 10px 15px; outline: none; overflow-y: auto; font-size: 18px; line-height: 25px; color: #222;
+        }
+        .note-grid-area:empty:before { content: attr(placeholder); color: #aaa; }
+
+        .save-btn-container { text-align: center; margin-bottom: 30px; margin-top: 20px; }
+        .btn-save { background-color: #34495e; box-shadow: 0 5px 0 #2c3e50; color: #fff; font-size: 20px; padding: 15px 40px; border-radius:25px; border:none; cursor:pointer;}
+        .btn-save:active { transform: translateY(5px); box-shadow: 0 0 0 #2c3e50; }
+
+        /* --- 查看錯題筆記頁面選單特效 (恢復版本17的精巧按鈕配置) --- */
+        .filter-bar {
+            background: rgba(255,255,255,0.9); padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; justify-content: flex-start; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        
+        .filter-select { 
+            padding: 10px 15px; font-size: 15px; border-radius: 20px; border: 2px solid #fff; outline: none; width: 150px; cursor: pointer; background: var(--bg-ice-melt); color: #333; font-weight: bold; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #filter-time { background: var(--btn-almost-aqua); color: #333; }
+
+        .filter-select:hover { 
+            transform: scale(1.1) translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.15); border-color: #fff; z-index: 5;
+        }
+        .filter-select:focus, .filter-select:active { 
+            transform: scale(1.15) translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.25); z-index: 10; border-color: var(--theme-blue);
+        }
+
+        .btn-print {
+            margin-left: auto; padding: 10px 25px; background: #a29bfe; border: none; border-radius: 20px; font-size: 15px;
+            font-weight: bold; cursor: pointer; color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s;
+        }
+        .btn-print:hover { transform: scale(1.05); box-shadow: 0 6px 10px rgba(0,0,0,0.15); background: #8c82fc; }
+
+        #view-slots-container { display: flex; flex-direction: column; gap: 20px; }
+        
+        .note-action-btns { margin-top: auto; display: flex; gap: 10px; padding-top: 15px; border-top: 1px solid #ddd; }
+        .action-btn-small { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; }
+        .btn-edit-note { background: #feca57; color: #333; }
+        .btn-save-note { background: #1dd1a1; }
+        
+        .placeholder-text { text-align: center; color: #777; margin-top: 50px; font-size: 20px; }
+
+        /* === 列印專用樣式 === */
+        @media print {
+            body { background: #fff; color: #000; }
+            .top-navbar, .filter-bar, .save-btn-container, .note-action-btns { display: none !important; }
+            .app-container { margin: 0; padding: 0; max-width: 100%; width: 100%; }
+            .page { padding: 0; display: block; }
+            .note-slot { border: 2px solid #ccc; box-shadow: none; margin-bottom: 30px; page-break-inside: avoid; break-inside: avoid; }
+            .note-slot-header { background: #eee !important; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 2px solid #ccc; text-shadow: none;}
+            .note-slot-body { min-height: auto; }
+            .note-left { background: #fff; }
+            .note-img-area { min-height: 150px; border-bottom: 1px solid #ccc; }
+            .note-img-area img { max-height: 300px; }
+            .note-grid-area { min-height: 120px; background-image: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-navbar">
+    <div class="nav-brand">錯題資料庫</div>
+    <div class="nav-links">
+        <button class="btn-3d btn-import active-nav" id="nav-import" onclick="goToPage('import-page', this)">匯入錯題</button>
+        <button class="btn-3d btn-view" id="nav-view" onclick="goToPage('view-page', this)">查看錯題筆記</button>
+        <button class="btn-3d btn-data" id="nav-data" onclick="goToPage('data-page', this)">錯題數據分析</button>
+        <button class="btn-3d btn-practice" id="nav-practice" onclick="goToPage('practice-page', this)">錯題再練</button>
+    </div>
+    <div class="nav-right">
+        <div class="student-panel">
+            <div class="sp-avatar"><span id="sp-avatar-emoji">👦</span></div>
+            <div class="sp-select-wrapper"><select id="student-name"></select></div>
+        </div>
+    </div>
+</div>
+
+<div class="app-container">
+    
+    <!-- 匯入錯題頁面 -->
+    <div id="import-page" class="page active">
+        <div class="step-container">
+            <div class="step-title">Step 1：請選擇錯題來源</div>
+            
+            <div class="drop-zone" id="zone-photos" onclick="document.getElementById('source-image-photos').click()">
+                <p>📁 請選擇錯題來源 (支援拖曳或選取多張照片)</p>
+                <input type="file" id="source-image-photos" accept="image/*" multiple onchange="handleFilesForCrop(this.files)">
+            </div>
+
+            <div class="or-divider"><br>或<br><br></div>
+
+            <div class="drop-zone" id="zone-exams" onclick="document.getElementById('source-image-exam').click()">
+                <p>📄 請匯入考卷（支援jpeg或pdf檔）</p>
+                <input type="file" id="source-image-exam" accept="image/jpeg, image/png, application/pdf" multiple onchange="handleFilesForCrop(this.files)">
+            </div>
+        </div>
+
+        <div class="step-container" id="settings-container" style="display: none;">
+            <div class="step-title">Step 2 ~ Step 4：為每個檔案設定詳細資訊 (左右滑動)</div>
+            <div class="slider-container" id="cards-slider"></div>
+            <button class="generate-btn" onclick="generateNote()">生成錯題筆記</button>
+        </div>
+    </div>
+
+    <!-- 編輯生成筆記頁面 -->
+    <div id="note-page" class="page">
+        <div id="note-slots-container"></div>
+        <div class="save-btn-container">
+            <button class="btn-save" onclick="saveNotes()">💾 儲存筆記</button>
+        </div>
+    </div>
+
+    <!-- 查看錯題筆記頁面 -->
+    <div id="view-page" class="page">
+        <div class="filter-bar">
+            <!-- 恢復錯題資料庫 17 的精巧下拉選單配置，並換上您指定的圖示樣式 -->
+            <select class="filter-select" id="filter-time" onchange="renderViewPage()">
+                <option value="all">📁 全部筆記</option>
+                <option value="today" selected>☑️ 當日筆記</option>
+                <option value="week">📅 當週筆記</option>
+            </select>
+            <select class="filter-select" id="filter-subject" onchange="renderViewPage()"><option value="">依科目查看</option></select>
+            <select class="filter-select" id="filter-volume" onchange="renderViewPage()"><option value="">依冊次查看</option></select>
+            <select class="filter-select" id="filter-unit" onchange="renderViewPage()"><option value="">依單元查看</option></select>
+            
+            <button class="btn-print" onclick="window.print()">🖨️ 列印</button>
+        </div>
+        <div id="view-slots-container"></div>
+    </div>
+
+    <div id="data-page" class="page"><div class="placeholder-text">📊 錯題數據分析 - 功能建置中</div></div>
+    <div id="practice-page" class="page"><div class="placeholder-text">✏️ 錯題再練 - 功能建置中</div></div>
+</div>
+
+<!-- 考卷/相片 OCR 全螢幕框選視窗 -->
+<div id="crop-modal">
+    <div class="crop-header-wrapper">
+        <div class="crop-header">
+            <div>已為您辨識題目。可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</div>
+            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 15px;">
+                <button class="glass-btn-small" style="background:var(--btn-almost-aqua);" onclick="triggerAutoCrop()">🤖 自動辨識</button>
+                <button class="glass-btn-small" style="background:var(--btn-peach-dust);" onclick="enableManualCrop()">✍️ 手動框選</button>
+            </div>
+            
+            <!-- 手動框選編輯 Pad -->
+            <div id="manual-edit-pad" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.1);">
+                <button class="glass-btn-small" style="background:#fff;" onclick="startManualBox()">➕ 新增框線</button>
+                <button class="glass-btn-small" style="background:#fff;" onclick="undoManualBox()">↺ Undo</button>
+                <span style="font-size:14px; margin-left:10px; color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
+            </div>
+        </div>
+    </div>
+    <div class="crop-workspace" id="crop-workspace">
+        <!-- 畫面將自動產生於此 -->
+    </div>
+    
+    <!-- 底部置中操作按鍵群 -->
+    <div class="crop-modal-footer">
+        <button class="glass-btn glass-btn-cancel" onclick="cancelCropping()">取消選取</button>
+        <button class="glass-btn glass-btn-complete" onclick="finishCropping()">完成選取</button>
+    </div>
+</div>
+
+<script>
+    const syllabusDB = {
+        "國文": { 
+            "type": "custom", 
+            "units": ["字音", "字形", "字義", "詞語應用", "成語總匯", "標點符號與工具書檢索", "漢字結構與字體演變", "詞類與句型", "應用文（一）", "應用文（二）", "文化常識", "國學常識", "語法辨析", "文章表現技巧", "文意填空與重組", "白話文閱讀單題", "文言文閱讀單題", "白話文閱讀題組", "文言文閱讀題組", "多文本對讀", "會考寫作攻略"] 
+        },
+        "數學": {
+            "type": "volume", "volOrder": ["第一冊", "第二冊", "第三冊", "第四冊", "第五冊", "第六冊", "模擬試題"],
+            "vols": {
+                "第一冊": ["數與數線", "標準分解式與分數運算", "一元一次方程式", "二元一次聯立方程式"],
+                "第二冊": ["直角坐標與二元一次方程式的圖形", "比例", "一元一次不等式", "線對稱與三視圖", "統計圖表與資料分析"],
+                "第三冊": ["乘法公式與多項式", "平方根與畢氏定理", "因式分解與一元二次方程式"],
+                "第四冊": ["數列與級數", "線型函數", "三角形的基本性質", "平行與四邊形"],
+                "第五冊": ["連比與相似形", "圓形", "推理證明與三角形的心"],
+                "第六冊": ["二次函數", "統計與機率", "立體圖形"],
+                "模擬試題": ["第1~2冊", "第1~4冊", "第1~6冊"]
+            }
+        },
+        "英文": {
+            "type": "volume", "volOrder": ["第一冊", "第二冊", "第1~2冊複習", "第三冊", "第1~3冊複習", "第四冊", "第1~4冊複習", "第五冊", "第1~5冊複習", "第六冊", "第1~6冊複習"],
+            "vols": { 
+                "第一冊": ["U1", "U2"], "第二冊": ["U3", "U4", "U5"], "第1~2冊複習": ["語法統整與高分策略", "模擬試題"], 
+                "第三冊": ["U6", "U7", "U8"], "第1~3冊複習": ["語法統整與高分策略", "模擬試題"],
+                "第四冊": ["U9", "U10", "U11"], "第1~4冊複習": ["語法統整與高分策略", "模擬試題"],
+                "第五冊": ["U12", "U13", "U14"], "第1~5冊複習": ["語法統整與高分策略", "模擬試題"],
+                "第六冊": ["U15", "U16"], "第1~6冊複習": ["語法統整與高分策略", "模擬試題"]
+            }
+        }
+    };
+
+    let currentFilesData = []; 
+    let hasUnsavedNotes = false;
+    let batchCounter = 0; 
+    let studentsData = [{ id: 'stu1', name: '高二 (大寶)', type: 'emoji', value: '👦' }];
+    
+    let isManualAdding = false;
+    let manualBoxes = [];
+
+    window.onload = () => {
+        const select = document.getElementById('student-name');
+        studentsData.forEach(s => select.add(new Option(s.name, s.id)));
+        
+        const fSubj = document.getElementById('filter-subject');
+        Object.keys(syllabusDB).forEach(sub => fSubj.add(new Option(sub, sub)));
+        
+        setupDragAndDrop();
+    };
+
+    function setupDragAndDrop() {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            window.addEventListener(eventName, preventDefaults, false);
+        });
+        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+        const dropZones = document.querySelectorAll('.drop-zone');
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', () => zone.classList.add('dragover'));
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            zone.addEventListener('drop', (e) => {
+                zone.classList.remove('dragover');
+                if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                    handleFilesForCrop(e.dataTransfer.files);
+                }
+            });
+        });
+    }
+
+    function goToPage(pageId, navBtn) {
+        if (hasUnsavedNotes && pageId !== 'note-page') {
+            if (!confirm("⚠️ 您還有筆記尚未儲存！確定要離開編輯頁面嗎？（未儲存的內容將會遺失）")) return;
+            hasUnsavedNotes = false; 
+        }
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        if(navBtn) {
+            document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
+            navBtn.classList.add('active-nav');
+        }
+        if(pageId === 'view-page') renderViewPage();
+    }
+
+    async function handleFilesForCrop(files) {
+        if(!files || files.length === 0) return;
+        
+        const workspace = document.getElementById('crop-workspace');
+        workspace.innerHTML = ''; 
+        document.getElementById('crop-modal').style.display = 'flex';
+        document.getElementById('manual-edit-pad').style.display = 'none'; 
+        batchCounter++;
+        manualBoxes = []; 
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+            if (file.type === "application/pdf") {
+                await renderPDF(file, workspace);
+            } else if (file.type.startsWith("image/")) {
+                await renderImage(file, workspace);
+            }
+        }
+        
+        document.getElementById('source-image-photos').value = ''; 
+        document.getElementById('source-image-exam').value = ''; 
+    }
+
+    async function renderPDF(file, workspace) {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+        
+        for(let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const viewport = page.getViewport({scale: 2.0}); 
+            
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            canvas.style.width = '100%';
+            canvas.style.display = 'block';
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            await page.render({canvasContext: ctx, viewport: viewport}).promise;
+            createPageContainer(canvas, workspace);
+        }
+    }
+
+    function renderImage(file, workspace) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.style.width = '100%';
+                img.style.display = 'block';
+                img.onload = () => {
+                    createPageContainer(img, workspace);
+                    resolve();
+                };
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function createPageContainer(mediaEl, workspace) {
+        const container = document.createElement('div');
+        container.className = 'page-container';
+        container.appendChild(mediaEl);
+        
+        container.addEventListener('mousedown', function(e) {
+            if (isManualAdding) {
+                if (e.target === container || e.target === mediaEl) {
+                    e.preventDefault();
+                    createNewManualBox(e.offsetX, e.offsetY, container);
+                    isManualAdding = false;
+                    const tip = document.getElementById('manual-tip');
+                    tip.style.color = '#555';
+                    tip.innerText = '✅ 已成功新增。您可點擊「新增框線」繼續，或直接調整藍色框。';
+                }
+            }
+        });
+        
+        workspace.appendChild(container);
+    }
+
+    function triggerAutoCrop() {
+        document.querySelectorAll('.page-container').forEach(container => {
+            container.querySelectorAll('.mock-crop-box').forEach(b => b.remove());
+            addMockOCRBoxes(container);
+        });
+        document.getElementById('manual-edit-pad').style.display = 'none';
+        isManualAdding = false;
+    }
+
+    function enableManualCrop() {
+        document.getElementById('manual-edit-pad').style.display = 'block';
+    }
+
+    function startManualBox() {
+        isManualAdding = true;
+        const tip = document.getElementById('manual-tip');
+        tip.style.color = '#e74c3c';
+        tip.innerText = '👉 現在請在考卷上的題號左上角「點擊」一下...';
+    }
+
+    function createNewManualBox(x, y, container) {
+        const box = document.createElement('div');
+        box.className = 'mock-crop-box';
+        
+        const rect = container.getBoundingClientRect();
+        const topPerc = (y / rect.height) * 100;
+        const leftPerc = (x / rect.width) * 100;
+        
+        box.style.top = `${topPerc}%`;
+        box.style.left = `${leftPerc}%`;
+        box.style.width = `45%`; 
+        box.style.height = `15%`; 
+        
+        const cropId = 'crop_' + Date.now() + Math.random().toString(36).substr(2, 5);
+        box.dataset.cropId = cropId;
+        
+        box.innerHTML = `
+            <div class="delete-box-btn" onclick="deleteBox(this)">✕</div>
+            <div class="resize-handle tl"></div>
+            <div class="resize-handle br"></div>
+            <div class="add-crop-btn" onclick="toggleCroppedQuestion(this, ${batchCounter})">+</div>
+        `;
+        
+        container.appendChild(box);
+        makeDraggableAndResizable(box);
+        manualBoxes.push(box);
+    }
+
+    function undoManualBox() {
+        if(manualBoxes.length > 0) {
+            const lastBox = manualBoxes.pop();
+            const btn = lastBox.querySelector('.add-crop-btn');
+            if(btn && btn.classList.contains('selected')) {
+                toggleCroppedQuestion(btn, batchCounter);
+            }
+            lastBox.remove();
+            document.getElementById('manual-tip').innerText = '↺ 已取消上一步新增。';
+        }
+    }
+
+    function addMockOCRBoxes(container) {
+        const boxes = [
+            { top: 4, left: 3, width: 45, height: 16 },
+            { top: 22, left: 3, width: 45, height: 16 },
+            { top: 40, left: 3, width: 45, height: 20 },
+            { top: 62, left: 3, width: 45, height: 16 },
+            { top: 80, left: 3, width: 45, height: 16 },
+            { top: 4, left: 51, width: 46, height: 22 },
+            { top: 28, left: 51, width: 46, height: 26 },
+            { top: 56, left: 51, width: 46, height: 22 },
+            { top: 80, left: 51, width: 46, height: 16 }
+        ];
+        
+        boxes.forEach((b) => {
+            const box = document.createElement('div');
+            box.className = 'mock-crop-box';
+            box.style.top = `${b.top}%`;
+            box.style.left = `${b.left}%`;
+            box.style.width = `${b.width}%`;
+            box.style.height = `${b.height}%`;
+            
+            const cropId = 'crop_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            box.dataset.cropId = cropId;
+            
+            box.innerHTML = `
+                <div class="delete-box-btn" onclick="deleteBox(this)">✕</div>
+                <div class="resize-handle tl"></div>
+                <div class="resize-handle br"></div>
+                <div class="add-crop-btn" onclick="toggleCroppedQuestion(this, ${batchCounter})">+</div>
+            `;
+            container.appendChild(box);
+            makeDraggableAndResizable(box);
+        });
+    }
+
+    function makeDraggableAndResizable(box) {
+        let isDragging = false, isResizingTL = false, isResizingBR = false;
+        let startX, startY, startW, startH, startLeft, startTop;
+
+        box.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('add-crop-btn') || e.target.classList.contains('delete-box-btn')) return;
+            
+            startX = e.clientX; startY = e.clientY;
+            startLeft = box.offsetLeft; startTop = box.offsetTop;
+            startW = box.offsetWidth; startH = box.offsetHeight;
+            
+            if (e.target.classList.contains('tl')) {
+                isResizingTL = true;
+            } else if (e.target.classList.contains('br')) {
+                isResizingBR = true;
+            } else {
+                isDragging = true;
+            }
+            e.stopPropagation();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging && !isResizingTL && !isResizingBR) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            if (isDragging) {
+                box.style.left = `${startLeft + dx}px`;
+                box.style.top = `${startTop + dy}px`;
+            } else if (isResizingBR) {
+                box.style.width = `${startW + dx}px`;
+                box.style.height = `${startH + dy}px`;
+            } else if (isResizingTL) {
+                box.style.left = `${startLeft + dx}px`;
+                box.style.top = `${startTop + dy}px`;
+                box.style.width = `${startW - dx}px`;
+                box.style.height = `${startH - dy}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => { 
+            isDragging = false; isResizingTL = false; isResizingBR = false; 
+        });
+    }
+
+    function deleteBox(btn) {
+        const box = btn.parentElement;
+        const addBtn = box.querySelector('.add-crop-btn');
+        if (addBtn.classList.contains('selected')) {
+            toggleCroppedQuestion(addBtn, batchCounter); 
+        }
+        box.remove();
+    }
+
+    function toggleCroppedQuestion(btn, batchId) {
+        const box = btn.parentElement;
+        const cropId = box.dataset.cropId;
+
+        if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            btn.innerText = '+';
+            
+            const slider = document.getElementById('cards-slider');
+            const card = slider.querySelector(`.file-card[data-crop-id="${cropId}"]`);
+            if (card) {
+                removeCard(card.querySelector('.delete-card-btn'));
+            }
+        } else {
+            btn.classList.add('selected');
+            btn.innerText = '✓';
+
+            const container = box.parentElement;
+            const mediaEl = container.querySelector('img, canvas');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            let intrinsicWidth = mediaEl.tagName === 'IMG' ? mediaEl.naturalWidth : mediaEl.width;
+            let intrinsicHeight = mediaEl.tagName === 'IMG' ? mediaEl.naturalHeight : mediaEl.height;
+
+            const scaleX = intrinsicWidth / mediaEl.offsetWidth;
+            const scaleY = intrinsicHeight / mediaEl.offsetHeight;
+
+            const sx = box.offsetLeft * scaleX;
+            const sy = box.offsetTop * scaleY;
+            const sWidth = box.offsetWidth * scaleX;
+            const sHeight = box.offsetHeight * scaleY;
+
+            canvas.width = sWidth; canvas.height = sHeight;
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, sWidth, sHeight);
+            ctx.drawImage(mediaEl, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg');
+            const cardIndex = currentFilesData.length;
+            currentFilesData.push({ imgUrl: dataUrl, batchId: batchId, cropId: cropId });
+
+            const slider = document.getElementById('cards-slider');
+            document.getElementById('settings-container').style.display = 'block';
+            
+            const newCard = createSettingCard(dataUrl, cardIndex, batchId, cropId);
+            slider.appendChild(newCard);
+            
+            handleCardSubjectChange(newCard.querySelector('.subj-sel'), false);
+        }
+    }
+
+    function finishCropping() {
+        document.getElementById('crop-modal').style.display = 'none';
+        if(document.getElementById('settings-container').style.display === 'block') {
+            document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function cancelCropping() {
+        document.getElementById('crop-modal').style.display = 'none';
+        document.getElementById('crop-workspace').innerHTML = '';
+        
+        const slider = document.getElementById('cards-slider');
+        const cards = slider.querySelectorAll(`.file-card[data-batch-id="${batchCounter}"]`);
+        cards.forEach(card => card.remove());
+        
+        currentFilesData = currentFilesData.filter(item => item.batchId !== batchCounter);
+        
+        if (slider.children.length === 0) {
+            document.getElementById('settings-container').style.display = 'none';
+        }
+    }
+
+    function createSettingCard(imgUrl, index, batchId, cropId) {
+        const div = document.createElement('div');
+        div.className = 'file-card';
+        div.dataset.index = index;
+        div.dataset.batchId = batchId;
+        if(cropId) div.dataset.cropId = cropId;
+        
+        let subjOptions = '<option value="">請選擇科目</option>';
+        Object.keys(syllabusDB).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
+
+        div.innerHTML = `
+            <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
+            <img src="${imgUrl}">
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
+            <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
+            
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：冊次/單元</div>
+            <select class="vol-sel" onchange="handleCardVolumeChange(this, true)" style="display:none;"></select>
+            <select class="unit-sel" onchange="handleCardUnitChange(this, true)"></select>
+
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯題來源</div>
+            <select class="source-sel" onchange="toggleCardSource(this)">
+                <option value="複講">複講</option>
+                <option value="考卷">考卷</option>
+                <option value="其他">其他 (自訂)</option>
+            </select>
+            <input type="text" class="custom-source" placeholder="請填寫來源..." style="display:none;">
+
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：錯誤原因</div>
+            <div class="checkbox-group reasons-group">
+                <label><input type="checkbox" value="觀念模糊"> 觀念模糊</label>
+                <label><input type="checkbox" value="題目陷阱"> 題目陷阱</label>
+                <label><input type="checkbox" value="粗心"> 粗心</label>
+            </div>
+        `;
+        return div;
+    }
+
+    function removeCard(btn) {
+        const card = btn.closest('.file-card');
+        const cropId = card.dataset.cropId;
+        card.remove();
+        
+        const box = document.querySelector(`.mock-crop-box[data-crop-id="${cropId}"]`);
+        if (box) {
+            const addBtn = box.querySelector('.add-crop-btn');
+            if(addBtn) {
+                addBtn.classList.remove('selected');
+                addBtn.innerText = '+';
+            }
+        }
+
+        const slider = document.getElementById('cards-slider');
+        if (slider.children.length === 0) {
+            document.getElementById('settings-container').style.display = 'none';
+        }
+    }
+
+    function handleCardSubjectChange(selectEl, isSync = false) {
+        const card = selectEl.closest('.file-card');
+        const subject = selectEl.value;
+        const volSelect = card.querySelector('.vol-sel');
+        const unitSelect = card.querySelector('.unit-sel');
+        const data = syllabusDB[subject];
+
+        volSelect.innerHTML = ''; unitSelect.innerHTML = '';
+
+        if (data) {
+            if (data.type === 'custom') {
+                volSelect.style.display = 'none';
+                data.units.forEach(u => unitSelect.add(new Option(u, u)));
+            } else {
+                volSelect.style.display = 'block';
+                data.volOrder.forEach(v => volSelect.add(new Option(v, v)));
+                handleCardVolumeChange(volSelect, false);
+            }
+        }
+
+        if (isSync) {
+            const batchId = card.dataset.batchId;
+            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
+                if (otherCard !== card) {
+                    const otherSubjSel = otherCard.querySelector('.subj-sel');
+                    otherSubjSel.value = subject;
+                    handleCardSubjectChange(otherSubjSel, false);
+                }
+            });
+        }
+    }
+
+    function handleCardVolumeChange(volSelect, isSync = false) {
+        const card = volSelect.closest('.file-card');
+        const subject = card.querySelector('.subj-sel').value;
+        const volume = volSelect.value;
+        const unitSelect = card.querySelector('.unit-sel');
+        const data = syllabusDB[subject];
+
+        unitSelect.innerHTML = '';
+        if (data && data.vols && data.vols[volume]) {
+            data.vols[volume].forEach(u => unitSelect.add(new Option(u, u)));
+        }
+
+        if (isSync) {
+            const batchId = card.dataset.batchId;
+            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
+                if (otherCard !== card) {
+                    const otherVolSel = otherCard.querySelector('.vol-sel');
+                    if (otherVolSel.style.display !== 'none') {
+                        otherVolSel.value = volume;
+                        handleCardVolumeChange(otherVolSel, false);
+                    }
+                }
+            });
+        }
+    }
+
+    function handleCardUnitChange(unitSelect, isSync = false) {
+        if (isSync) {
+            const card = unitSelect.closest('.file-card');
+            const unitVal = unitSelect.value;
+            const batchId = card.dataset.batchId;
+            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
+                if (otherCard !== card) {
+                    otherCard.querySelector('.unit-sel').value = unitVal;
+                }
+            });
+        }
+    }
+
+    function toggleCardSource(selectEl) {
+        const input = selectEl.closest('.file-card').querySelector('.custom-source');
+        input.style.display = selectEl.value === '其他' ? 'block' : 'none';
+    }
+
+    function generateNote() {
+        const cards = document.querySelectorAll('.file-card');
+        if(cards.length === 0) return alert("請先選擇或匯入錯題！");
+
+        const container = document.getElementById('note-slots-container');
+        container.innerHTML = '';
+
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
+
+        cards.forEach(card => {
+            const imgUrl = card.querySelector('img').src;
+            const subj = card.querySelector('.subj-sel').value || '未分類';
+            const vol = card.querySelector('.vol-sel').style.display !== 'none' ? `[${card.querySelector('.vol-sel').value}]` : '';
+            const unit = card.querySelector('.unit-sel').value || '';
+            
+            let source = card.querySelector('.source-sel').value;
+            if(source === '其他') source = card.querySelector('.custom-source').value || '自訂來源';
+
+            const checkboxes = card.querySelectorAll('.reasons-group input:checked');
+            const reasons = Array.from(checkboxes).map(cb => cb.value);
+
+            const slot = document.createElement('div');
+            slot.className = 'note-slot editable-slot';
+            slot.dataset.date = dateStr;
+            slot.dataset.subject = subj;
+            slot.dataset.volume = card.querySelector('.vol-sel').style.display !== 'none' ? card.querySelector('.vol-sel').value : '';
+            slot.dataset.unit = unit;
+            slot.dataset.source = source;
+            slot.dataset.reasons = JSON.stringify(reasons);
+
+            let reasonHtml = ``;
+            ['觀念模糊', '題目陷阱', '粗心'].forEach(r => {
+                const isChecked = reasons.includes(r) ? 'checked' : '';
+                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" ${isChecked}> ${r}</label>`;
+            });
+
+            slot.innerHTML = `
+                <div class="note-slot-header" style="background:var(--header-aqua-sky);">
+                    <span>📅 ${dateStr}</span>
+                    <span>📖 ${subj} ${vol} ${unit}</span>
+                    <span>🏷️ ${source}</span>
+                </div>
+                <div class="note-slot-body">
+                    <div class="note-left">
+                        <h4>■ 錯誤原因分析</h4>
+                        ${reasonHtml}
+                        <div class="note-action-btns">
+                            <button class="action-btn-small btn-edit-note" onclick="enableDraftEdit(this)">✏️ 編輯</button>
+                            <button class="action-btn-small btn-save-note" style="display:none;" onclick="saveDraftEdit(this)">💾 儲存</button>
+                        </div>
+                    </div>
+                    <div class="note-right">
+                        <div class="note-img-area"><img src="${imgUrl}"></div>
+                        <div class="note-grid-area" contenteditable="false" placeholder="點擊編輯輸入筆記內容..."></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(slot);
+        });
+
+        hasUnsavedNotes = true;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('note-page').classList.add('active');
+        document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
+    }
+
+    function enableDraftEdit(btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'true');
+        gridArea.focus();
+        
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        cbs.forEach(cb => cb.removeAttribute('disabled'));
+
+        btn.style.display = 'none';
+        btn.nextElementSibling.style.display = 'block';
+    }
+
+    function saveDraftEdit(btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'false');
+
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
+        cbs.forEach(cb => cb.setAttribute('disabled', 'true'));
+
+        const slot = btn.closest('.editable-slot');
+        slot.dataset.reasons = JSON.stringify(newReasons);
+
+        btn.style.display = 'none';
+        btn.previousElementSibling.style.display = 'block';
+    }
+
+    function saveNotes() {
+        const slots = document.querySelectorAll('.editable-slot');
+        let savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        
+        slots.forEach(slot => {
+            savedNotes.unshift({ 
+                date: slot.dataset.date,
+                timestamp: Date.now() + Math.random(),
+                subject: slot.dataset.subject,
+                volume: slot.dataset.volume,
+                unit: slot.dataset.unit,
+                source: slot.dataset.source,
+                reasons: JSON.parse(slot.dataset.reasons),
+                imgUrl: slot.querySelector('img').src,
+                content: slot.querySelector('.note-grid-area').innerHTML
+            });
+        });
+
+        localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
+        hasUnsavedNotes = false; 
+        
+        alert("✅ 筆記已成功儲存！");
+        document.getElementById('cards-slider').innerHTML = '';
+        document.getElementById('settings-container').style.display = 'none';
+        currentFilesData = [];
+
+        goToPage('view-page', document.getElementById('nav-view'));
+    }
+
+    function renderViewPage() {
+        const container = document.getElementById('view-slots-container');
+        container.innerHTML = '';
+        
+        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        if (notes.length === 0) {
+            container.innerHTML = `<h3 class="placeholder-text">目前尚無儲存的錯題筆記喔！</h3>`;
+            return;
+        }
+
+        const timeFilter = document.getElementById('filter-time').value;
+        const subjFilter = document.getElementById('filter-subject').value;
+        const volFilter = document.getElementById('filter-volume').value;
+        const unitFilter = document.getElementById('filter-unit').value;
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
+        const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        let filteredNotes = notes.filter(n => {
+            const [year, month, day] = n.date.split('/').map(Number);
+            const nD = new Date(year, month - 1, day);
+            const diffTime = todayDate - nD;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            let timeMatch = true;
+            if (timeFilter === 'today') {
+                timeMatch = (n.date === todayStr);
+            } else if (timeFilter === 'week') {
+                timeMatch = (diffDays >= 0 && diffDays <= 7);
+            } else if (timeFilter === 'all') {
+                timeMatch = true;
+            }
+
+            const subjMatch = subjFilter ? n.subject === subjFilter : true;
+            const volMatch = volFilter ? n.volume === volFilter : true;
+            const unitMatch = unitFilter ? n.unit === unitFilter : true;
+
+            return timeMatch && subjMatch && volMatch && unitMatch;
+        });
+
+        if (subjFilter) {
+            const rawSubjNotes = notes.filter(n => n.subject === subjFilter);
+            populateFilterOptions('volume', rawSubjNotes.map(n=>n.volume));
+            if (volFilter) {
+                const rawVolNotes = rawSubjNotes.filter(n => n.volume === volFilter);
+                populateFilterOptions('unit', rawVolNotes.map(n=>n.unit));
+            } else {
+                populateFilterOptions('unit', rawSubjNotes.map(n=>n.unit));
+            }
+        }
+
+        if (filteredNotes.length === 0) {
+            container.innerHTML = `<h3 class="placeholder-text">查無符合條件的筆記。</h3>`;
+            return;
+        }
+
+        filteredNotes.forEach(note => {
+            const slot = document.createElement('div');
+            slot.className = 'note-slot';
+            
+            let reasonHtml = ``;
+            ['觀念模糊', '題目陷阱', '粗心'].forEach(r => {
+                const isChecked = note.reasons.includes(r) ? 'checked' : '';
+                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" ${isChecked}> ${r}</label>`;
+            });
+
+            const volStr = note.volume ? `[${note.volume}]` : '';
+
+            slot.innerHTML = `
+                <div class="note-slot-header" style="background:var(--header-aqua-sky);">
+                    <span>📅 ${note.date}</span>
+                    <span>📖 ${note.subject} ${volStr} ${note.unit}</span>
+                    <span>🏷️ ${note.source}</span>
+                </div>
+                <div class="note-slot-body">
+                    <div class="note-left">
+                        <h4>■ 錯誤原因分析</h4>
+                        ${reasonHtml}
+                        <div class="note-action-btns">
+                            <button class="action-btn-small btn-edit-note" onclick="enableViewEdit('${note.timestamp}', this)">✏️ 編輯</button>
+                            <button class="action-btn-small btn-save-note" style="display:none;" onclick="saveViewEdit('${note.timestamp}', this)">💾 儲存</button>
+                        </div>
+                    </div>
+                    <div class="note-right">
+                        <div class="note-img-area"><img src="${note.imgUrl}"></div>
+                        <div class="note-grid-area" contenteditable="false">${note.content}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(slot);
+        });
+    }
+
+    function populateFilterOptions(selectId, dataArray) {
+        const select = document.getElementById(`filter-${selectId}`);
+        const currentVal = select.value;
+        const uniqueValues = [...new Set(dataArray.filter(v => v))]; 
+        
+        select.innerHTML = `<option value="">依${selectId==='volume'?'冊次':'單元'}查看</option>`;
+        uniqueValues.forEach(v => select.add(new Option(v, v)));
+        if(uniqueValues.includes(currentVal)) select.value = currentVal;
+    }
+
+    function enableViewEdit(timestamp, btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'true');
+        gridArea.focus();
+        
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        cbs.forEach(cb => cb.removeAttribute('disabled'));
+
+        btn.style.display = 'none';
+        btn.nextElementSibling.style.display = 'block';
+    }
+
+    function saveViewEdit(timestamp, btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'false');
+
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
+        cbs.forEach(cb => cb.setAttribute('disabled', 'true'));
+
+        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        const noteIndex = notes.findIndex(n => String(n.timestamp) === String(timestamp));
+        if (noteIndex > -1) {
+            notes[noteIndex].content = gridArea.innerHTML;
+            notes[noteIndex].reasons = newReasons;
+            localStorage.setItem('myStudyNotes', JSON.stringify(notes));
+            alert("筆記更新成功！");
+        }
+
+        btn.style.display = 'none';
+        btn.previousElementSibling.style.display = 'block';
+    }
+
+</script>
+</body>
+</html>
