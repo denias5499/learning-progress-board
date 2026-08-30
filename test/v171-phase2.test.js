@@ -1,4 +1,4 @@
-// v1.6.71 Phase 2: 上傳 + Crop + 中等版筆跡消除
+// v1.6.83 Phase 2: 上傳 + Crop + 中等版筆跡消除
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { loadIndex } = require('./helpers');
@@ -25,14 +25,14 @@ function getFunctionBody(name) {
     return null;
 }
 
-test('v1.6.71: WN_PHASE2_STATE 結構正確', () => {
+test('v1.6.83: WN_PHASE2_STATE 結構正確', () => {
     assert.ok(/var WN_PHASE2_STATE\s*=/.test(html), 'WN_PHASE2_STATE 應宣告');
     assert.ok(/uploadedImg:\s*null/.test(html), 'uploadedImg 應初始化為 null');
     assert.ok(/cropBoxes:\s*\[\]/.test(html), 'cropBoxes 應初始化為 []');
     assert.ok(/cropMode:\s*'add'/.test(html), 'cropMode 應預設 add');
 });
 
-test('v1.6.71: WN_handleFileUpload 處理圖片上傳', () => {
+test('v1.6.83: WN_handleFileUpload 處理圖片上傳', () => {
     const body = getFunctionBody('WN_handleFileUpload');
     assert.ok(body, 'WN_handleFileUpload 應定義');
     assert.ok(/FileReader/.test(body), '應用 FileReader');
@@ -40,7 +40,7 @@ test('v1.6.71: WN_handleFileUpload 處理圖片上傳', () => {
     assert.ok(/alert.*請上傳圖片/.test(body), '應在非圖片時 alert');
 });
 
-test('v1.6.71: WN_removeHandwriting 中等版筆跡消除', () => {
+test('v1.6.83: WN_removeHandwriting 中等版筆跡消除', () => {
     const body = getFunctionBody('WN_removeHandwriting');
     assert.ok(body, 'WN_removeHandwriting 應定義');
     assert.ok(/getImageData/.test(body), '應用 getImageData 讀取像素');
@@ -53,7 +53,7 @@ test('v1.6.71: WN_removeHandwriting 中等版筆跡消除', () => {
     assert.ok(/data\[i\]\s*=\s*255/.test(body), '應把 RGB 變 255 (白)');
 });
 
-test('v1.6.71: WN_saveAllCrops 完整儲存流程', () => {
+test('v1.6.83: WN_saveAllCrops 完整儲存流程', () => {
     const body = getFunctionBody('WN_saveAllCrops');
     assert.ok(body, 'WN_saveAllCrops 應定義');
     assert.ok(/StudyMap_WrongNotes/.test(body), '應寫入 StudyMap_WrongNotes');
@@ -62,7 +62,7 @@ test('v1.6.71: WN_saveAllCrops 完整儲存流程', () => {
     assert.ok(/WN_autoDownload/.test(body), '應自動下載');
 });
 
-test('v1.6.71: 自動下載的檔名規範', () => {
+test('v1.6.83: 自動下載的檔名規範', () => {
     // 檔名格式: Denias__數學__複習講義__一模__2026-08-25__001__原始.jpg
     const saveBody = getFunctionBody('WN_saveAllCrops');
     assert.ok(/baseName/.test(saveBody), '應組裝 baseName');
@@ -70,7 +70,7 @@ test('v1.6.71: 自動下載的檔名規範', () => {
     assert.ok(/__消除筆跡\.jpg/.test(saveBody), '消除檔案後綴 __消除筆跡.jpg');
 });
 
-test('v1.6.71: WN_autoDownload 用 <a download>', () => {
+test('v1.6.83: WN_autoDownload 用 <a download>', () => {
     const body = getFunctionBody('WN_autoDownload');
     assert.ok(body, 'WN_autoDownload 應定義');
     assert.ok(/document\.createElement\(.a.\)/.test(body), '應創建 <a>');
@@ -78,7 +78,7 @@ test('v1.6.71: WN_autoDownload 用 <a download>', () => {
     assert.ok(/a\.click\(\)/.test(body), '應觸發下載');
 });
 
-test('v1.6.71: 4 個 crop 模式函式都存在', () => {
+test('v1.6.83: 4 個 crop 模式函式都存在', () => {
     assert.ok(getFunctionBody('WN_setCropMode'), 'WN_setCropMode 應定義');
     assert.ok(getFunctionBody('WN_clearAllBoxes'), 'WN_clearAllBoxes 應定義');
     assert.ok(getFunctionBody('WN_renderCropBoxes'), 'WN_renderCropBoxes 應定義');
@@ -86,17 +86,17 @@ test('v1.6.71: 4 個 crop 模式函式都存在', () => {
     assert.ok(getFunctionBody('WN_renderCropCards'), 'WN_renderCropCards 應定義');
 });
 
-test('v1.6.71: HTML 有上傳 + crop 區域', () => {
+test('v1.6.83: HTML 有上傳 + crop 區域', () => {
     assert.ok(/id="wn-source-zone"/.test(html), 'wn-upload-zone 應存在');
     assert.ok(/id="wn-source-input"/.test(html), 'wn-file-input 應存在');
     assert.ok(/id="wn-crop-area"/.test(html), 'wn-crop-area 應存在');
     assert.ok(/id="wn-crop-img"/.test(html), 'wn-crop-img 應存在');
-    assert.ok(/id="wn-crop-overlay"/.test(html), 'wn-crop-overlay 應存在');
+    assert.ok(/onmousedown="WN_onCropImgMouseDown\(event\)"/.test(html), "wn-crop-img 應有 mousedown handler");
     assert.ok(/id="wn-crop-list"/.test(html), 'wn-crop-list 應存在');
     assert.ok(/id="wn-crop-cards"/.test(html), 'wn-crop-cards 應存在');
 });
 
-test('v1.6.71: 5 個錯題原因 dropdown', () => {
+test('v1.6.83: 5 個錯題原因 dropdown', () => {
     const cardFn = getFunctionBody('WN_renderCropCards');
     assert.ok(cardFn, 'WN_renderCropCards 應定義');
     assert.ok(/計算錯誤/.test(cardFn));
@@ -106,7 +106,7 @@ test('v1.6.71: 5 個錯題原因 dropdown', () => {
     assert.ok(/審題不清/.test(cardFn));
 });
 
-test('v1.6.71: 整合測試 - WN_handleFileUpload + WN_saveAllCrops 模擬', () => {
+test('v1.6.83: 整合測試 - WN_handleFileUpload + WN_saveAllCrops 模擬', () => {
     const win = loadIndex();
     // 確認函式都存在
     assert.equal(typeof win.WN_handleFileUpload, 'function');

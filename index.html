@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.81]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.83]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1856,8 +1856,7 @@
                             </div>
                             <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個)</p>
                             <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;">
-                                <img id="wn-crop-img" style="display:block;max-width:100%;">
-                                <div id="wn-crop-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;user-select:none;"></div>
+                                <img id="wn-crop-img" style="display:block;max-width:100%;cursor:crosshair;user-select:none;" onmousedown="WN_onCropImgMouseDown(event)">
                             </div>
                         </div>
 
@@ -8486,7 +8485,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
             // v1.6.81: 移除 dblclick handler (跟 mousedown 重複, 會累積過多 box)
             // 改用 mousedown 統一處理 click/double click
-            // v1.6.80: mousedown 立即新增 150x150 box (點擊直接觸發)
+            // v1.6.82: 照附件設計 - mousedown 在 img 上 (percentage 座標)
+        function WN_onCropImgMouseDown(e) {
+            if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
+                alert('最多只能框選 10 個錯題');
+                return;
+            }
+            e.preventDefault();
+            var img = document.getElementById('wn-crop-img');
+            var rect = img.getBoundingClientRect();
+            // 用 percentage 座標 (不受圖片縮放影響)
+            var leftPerc = ((e.clientX - rect.left) / rect.width) * 100;
+            var topPerc = ((e.clientY - rect.top) / rect.height) * 100;
+            // 預設 box 15% 寬 x 10% 高 (附件設計)
+            var boxW = 15;
+            var boxH = 10;
+            var newBox = {
+                x: Math.max(0, Math.min(100 - boxW, leftPerc - boxW / 2)),
+                y: Math.max(0, Math.min(100 - boxH, topPerc - boxH / 2)),
+                w: boxW,
+                h: boxH
+            };
+            WN_PHASE2_STATE.cropBoxes.push(newBox);
+            WN_renderCropBoxes();
+        }
+        // v1.6.80: 保留舊的 mousedown handler (附件風格優先)
             overlay.addEventListener('mousedown', function(e) {
                 if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
                     alert('最多只能框選 10 個錯題');
@@ -8561,7 +8584,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
         }
 
-        // Crop 渲染 (含 resize handles + delete + add 按鈕)
+        // Crop 渲染 (v1.6.82: 照附件設計 - percentage 座標 + 直接 appendTo img-container)
         function WN_renderCropBoxes() {
             var overlay = document.getElementById('wn-crop-overlay');
             if (!overlay) return;
@@ -8570,10 +8593,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var div = document.createElement('div');
                 div.className = 'wn-crop-box';
                 div.setAttribute('data-idx', idx);
-                div.style.left = box.x + 'px';
-                div.style.top = box.y + 'px';
-                div.style.width = box.w + 'px';
-                div.style.height = box.h + 'px';
+                // v1.6.82: 改用 percentage 座標 (附件風格, 不受圖片縮放影響)
+                div.style.left = box.x + '%';
+                div.style.top = box.y + '%';
+                div.style.width = box.w + '%';
+                div.style.height = box.h + '%';
                 div.innerHTML =
                     '<div class="wn-crop-label">#' + (idx + 1) + '</div>' +
                     '<div class="wn-crop-delete" onclick="WN_deleteCropBox(' + idx + ')">×</div>' +
