@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.87]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.88]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1331,7 +1331,7 @@
         .wn-drop-zone { border: 2px dashed #b78fb7; border-radius: 12px; padding: 30px; text-align: center; background: white; cursor: pointer; transition: all 0.2s; }
         .wn-drop-zone:hover { background: #f3e8f5; border-color: #9163a8; }
         .wn-drop-zone.dragover { background: #f3e8f5; border-color: #9163a8; transform: scale(1.02); }
-        .wn-crop-area { background: white; border-radius: 12px; padding: 12px; }
+        .wn-crop-area { background: white; border-radius: 12px; padding: 12px; position: relative; }
         .wn-crop-box {
             position: absolute;
             border: 3px solid #1a82e2;
@@ -1843,7 +1843,7 @@
                         <input type="file" id="wn-paper-input" style="display:none" accept="image/*">
 
                         <!-- 預覽 + Crop 區 -->
-                        <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:18px;">
+                        <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:18px;position:relative;">
                             <!-- 取消選取 + 完成選取 按鈕 (在頂部, 確保使用者一定看得到) -->
                             <div style="display:flex;gap:14px;justify-content:center;margin-bottom:14px;">
                                 <button class="wn-btn" onclick="WN_cancelSelection()" style="padding:12px 32px;font-size:1.05em;background:#c9b8d9;color:#333;border:none;border-radius:24px;cursor:pointer;">取消選取</button>
