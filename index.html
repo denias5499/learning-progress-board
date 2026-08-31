@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.84]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.85]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1855,8 +1855,8 @@
                                 <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
                             </div>
                             <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個)</p>
-                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;" onmousedown="WN_onCropImgMouseDown(event)">
-                                <img id="wn-crop-img" style="display:block;max-width:100%;">
+                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;" onmousedown="WN_onCropImgMouseDown(event)">
+                                <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
                             </div>
                         </div>
 
@@ -8486,18 +8486,26 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v1.6.81: 移除 dblclick handler (跟 mousedown 重複, 會累積過多 box)
             // 改用 mousedown 統一處理 click/double click
             // v1.6.82: 照附件設計 - mousedown 在 img 上 (percentage 座標)
-        // v1.6.84: 用 cropArea (container) 接收 mousedown (舊版設計)
-        // 跟 v1.6.16 Phase 1 整合
+        // v1.6.85: 用 cropArea (container) 接收 mousedown
+        // 加上 user-select: none 阻止文字選取 (藍色反白)
         var WN_CROP_DRAG_STATE = { drawing: false, startX: 0, startY: 0, currentBox: null };
         function WN_onCropImgMouseDown(e) {
             if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
                 alert('最多只能框選 10 個錯題');
                 return;
             }
-            // 點擊 vs 拖曳判定
-            if (WN_CROP_DRAG_STATE.drawing) return; // 避免重複觸發
             e.preventDefault();
             e.stopPropagation();
+            // 阻止瀏覽器文字選取
+            if (window.getSelection) window.getSelection().removeAllRanges();
+            document.body.style.userSelect = 'none';
+            document.body.style.webkitUserSelect = 'none';
+            setTimeout(function() {
+                document.body.style.userSelect = '';
+                document.body.style.webkitUserSelect = '';
+            }, 300);
+            // 點擊 vs 拖曳判定
+            if (WN_CROP_DRAG_STATE.drawing) return; // 避免重複觸發
             var container = document.getElementById('wn-crop-img-container');
             var rect = container.getBoundingClientRect();
             var img = document.getElementById('wn-crop-img');
