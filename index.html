@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.96]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.97]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1331,8 +1331,10 @@
         .wn-drop-zone { border: 2px dashed #b78fb7; border-radius: 12px; padding: 30px; text-align: center; background: white; cursor: pointer; transition: all 0.2s; }
         .wn-drop-zone:hover { background: #f3e8f5; border-color: #9163a8; }
         .wn-drop-zone.dragover { background: #f3e8f5; border-color: #9163a8; transform: scale(1.02); }
-        .wn-crop-area { background: #f0f0f0; border-radius: 8px; margin-top: 10px; position: relative; display: inline-block; max-width: 100%; }
-        .wn-crop-box { position: absolute; border: 2px solid #3498db; background: rgba(52, 152, 219, 0.15); cursor: move; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+        .wn-crop-area { background: #f0f0f0; border-radius: 8px; margin-top: 10px; padding: 0 20px 100px 20px; }
+.wn-page-container { position: relative; max-width: 800px; width: 100%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 0 0 12px 12px; margin-bottom: 20px; user-select: none; }
+        .wn-crop-box { position: absolute; border: 3px solid #1a82e2; background: rgba(26,130,226,0.15); min-width: 50px; min-height: 30px; cursor: move; box-sizing: border-box; }
+.wn-crop-box:hover { border-color: #0056b3; background: rgba(0,86,179,0.2); z-index: 5; }
         .wn-crop-box .wn-box-num { background: var(--accent); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: bold; }
         .wn-crop-box.selected {
             border-color: #1565c0;
@@ -1340,6 +1342,15 @@
             box-shadow: 0 0 0 2px rgba(255, 200, 0, 0.5);
         }
         .wn-crop-box .wn-crop-label { position: absolute; top: -24px; left: 0; background: #1a82e2; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .wn-crop-delete { position: absolute; top: -12px; right: -12px; background: #ff4757; color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; }
+        .wn-crop-delete:hover { transform: scale(1.15); background: #e84118; }
+        .wn-resize-handle { position: absolute; width: 0; height: 0; border-style: solid; z-index: 10; }
+        .wn-resize-handle.tl { top: 0; left: 0; cursor: nwse-resize; border-width: 15px 15px 0 0; border-color: #e74c3c transparent transparent transparent; }
+        .wn-resize-handle.br { bottom: 0; right: 0; cursor: nwse-resize; border-width: 0 0 15px 15px; border-color: transparent transparent #e74c3c transparent; }
+        .wn-add-crop-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 36px; height: 36px; background: #007aff; color: white; border: none; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: 0.2s; z-index: 5; }
+        .wn-add-crop-btn:hover { transform: translate(-50%, -50%) scale(1.15); }
+        .wn-add-crop-btn.selected { background: #34c759; }
+        .wn-page-container { position: relative; max-width: 800px; width: 100%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-radius: 0 0 12px 12px; margin-bottom: 20px; user-select: none; }
         .wn-crop-box .wn-crop-delete { position: absolute; top: -10px; right: -10px; background: #e74c3c; color: white; width: 22px; height: 22px; border-radius: 50%; text-align: center; line-height: 22px; cursor: pointer; font-size: 1em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10; }
         .wn-crop-box .wn-resize-tl { position: absolute; top: -8px; left: -8px; width: 16px; height: 16px; background: #1a82e2; cursor: nwse-resize; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 10; }
         .wn-crop-box .wn-resize-tl::after { content: '↖'; color: white; font-size: 10px; font-weight: bold; position: absolute; top: 1px; left: 3px; }
@@ -1844,14 +1855,22 @@
                                 <button class="wn-btn" onclick="WN_cancelSelection()" style="padding:12px 32px;font-size:1.05em;background:#c9b8d9;color:#333;border:none;border-radius:24px;cursor:pointer;">取消選取</button>
                                 <button class="wn-btn" onclick="WN_completeSelection()" style="padding:12px 32px;font-size:1.05em;background:#f0d040;color:#333;border:none;border-radius:24px;cursor:pointer;font-weight:bold;">完成選取</button>
                             </div>
-                            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
-                                <button class="wn-btn wn-btn-success" onclick="WN_setCropMode('add')">➕ 框選</button>
-                                <button class="wn-btn wn-btn-secondary" onclick="WN_setCropMode('erase')">🧹 擦除</button>
-                                <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
+                            <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</p>
+                            <!-- v1.6.97: 照附件設計 - img 在 page-container 內 -->
+                            <div class="wn-page-container" id="wn-page-container" style="max-width:800px;margin:0 auto;">
+                                <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
                             </div>
-                            <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個)</p>
-                            <!-- v1.6.94: 照 v1.5.241 - img 直接在 cropArea 內 (不再用 img-container) -->
-                            <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
+                            <!-- 編輯按鈕 (照附件) -->
+                            <div style="margin-top:15px;display:flex;justify-content:center;gap:15px;">
+                                <button class="wn-btn wn-btn-success" onclick="WN_triggerAutoCrop()">🤖 自動辨識</button>
+                                <button class="wn-btn wn-btn-secondary" onclick="WN_enableManualCrop()">✍️ 手動框選</button>
+                            </div>
+                            <!-- 手動框選編輯 Pad -->
+                            <div id="wn-manual-edit-pad" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid rgba(0,0,0,0.1);display:flex;justify-content:center;gap:10px;align-items:center;">
+                                <button class="wn-btn wn-btn-primary" onclick="WN_startManualBox()">➕ 新增框線</button>
+                                <button class="wn-btn wn-btn-secondary" onclick="WN_undoManualBox()">↺ Undo</button>
+                                <span id="wn-manual-tip" style="font-size:13px;color:#666;">點擊「新增框線」後，在圖片任一位置點擊一下。</span>
+                            </div>
                         </div>
 
                         <!-- 教材選擇 (逐個 crop box 設定) -->
@@ -8296,13 +8315,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v1.6.71: Phase 2 - 上傳 + Crop + 中等版筆跡消除
         // ============================================================
         var WN_PHASE2_STATE = {
-            uploadedImg: null,       // base64 dataURL
+            uploadedImg: null,
             uploadedImgWidth: 0,
             uploadedImgHeight: 0,
-            cropBoxes: [],            // [{x, y, w, h, relativeX, relativeY, relativeW, relativeH, croppedOriginal, croppedClean}]
-            cropMode: 'add',          // 'add' | 'erase'
+            cropBoxes: [],
+            cropMode: 'add',
             currentCropIdx: 0
         };
+        // v1.6.97: 照附件設計 - isManualAdding flag (按「新增框線」後啟用)
+        var WN_isManualAdding = false;
+        var WN_manualBoxes = [];
 
         // 上傳處理
         function WN_handleFileUpload(file) {
@@ -8321,15 +8343,183 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     document.getElementById('wn-crop-img').src = e.target.result;
                     document.getElementById('wn-crop-area').style.display = 'block';
                     WN_PHASE2_STATE.cropBoxes = [];
-                    // v1.6.89: 延遲 render 等 layout 完成
-                    setTimeout(function() { WN_renderCropAreaBoxes(); }, 50);
-                    WN_renderCropBoxes();
-                    // v1.6.86: 用 cropArea.onmousedown 統一處理 (v1.6.8 設計, 確定可工作)
-                    WN_setupCropAreaEvents();
+                    WN_manualBoxes = [];
+                    WN_isManualAdding = false;
+                    // v1.6.97: 用 page-container (附件設計)
+                    setTimeout(function() {
+                        WN_setupCropEvents();
+                    }, 100);
                 };
                 img.src = e.target.result;
             };
             reader.readAsDataURL(file);
+        }
+
+        // v1.6.97: 完整照附件 - crop box 邏輯 (page-container + isManualAdding + resize handles)
+        function WN_setupCropEvents() {
+            var pageContainer = document.getElementById('wn-page-container');
+            if (!pageContainer) return;
+            pageContainer.addEventListener('mousedown', function(e) {
+                if (WN_isManualAdding) {
+                    if (e.target === pageContainer || e.target === document.getElementById('wn-crop-img')) {
+                        e.preventDefault();
+                        WN_createNewManualBox(e.offsetX, e.offsetY, pageContainer);
+                        WN_isManualAdding = false;
+                        var tip = document.getElementById('wn-manual-tip');
+                        if (tip) {
+                            tip.style.color = '#555';
+                            tip.innerText = '✅ 已成功新增。您可點擊「新增框線」繼續，或直接調整藍色框。';
+                        }
+                    }
+                }
+            });
+        }
+
+        function WN_createNewManualBox(x, y, container) {
+            var box = document.createElement('div');
+            box.className = 'wn-crop-box';
+            var rect = container.getBoundingClientRect();
+            var topPerc = (y / rect.height) * 100;
+            var leftPerc = (x / rect.width) * 100;
+            box.style.top = topPerc + '%';
+            box.style.left = leftPerc + '%';
+            box.style.width = '45%';
+            box.style.height = '15%';
+            var cropId = 'crop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            box.dataset.cropId = cropId;
+            box.innerHTML =
+                '<div class="wn-crop-delete" onclick="WN_deleteBox(this)">✕</div>' +
+                '<div class="wn-resize-handle tl" data-corner="tl"></div>' +
+                '<div class="wn-resize-handle br" data-corner="br"></div>' +
+                '<div class="wn-add-crop-btn" onclick="WN_toggleCroppedQuestion(this)">+</div>';
+            container.appendChild(box);
+            WN_makeDraggableAndResizable(box);
+            WN_manualBoxes.push(box);
+            WN_PHASE2_STATE.cropBoxes.push({
+                id: cropId,
+                x: leftPerc, y: topPerc, w: 45, h: 15,
+                relativeX: leftPerc, relativeY: topPerc, relativeW: 45, relativeH: 15
+            });
+        }
+
+        function WN_makeDraggableAndResizable(box) {
+            var isDragging = false, isResizingTL = false, isResizingBR = false;
+            var startX, startY, startW, startH, startLeft, startTop;
+            box.addEventListener('mousedown', function(e) {
+                if (e.target.classList.contains('wn-add-crop-btn') ||
+                    e.target.classList.contains('wn-crop-delete')) return;
+                startX = e.clientX; startY = e.clientY;
+                startLeft = box.offsetLeft; startTop = box.offsetTop;
+                startW = box.offsetWidth; startH = box.offsetHeight;
+                if (e.target.classList.contains('tl')) isResizingTL = true;
+                else if (e.target.classList.contains('br')) isResizingBR = true;
+                else isDragging = true;
+                e.stopPropagation();
+            });
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging && !isResizingTL && !isResizingBR) return;
+                var dx = e.clientX - startX;
+                var dy = e.clientY - startY;
+                if (isDragging) {
+                    box.style.left = (startLeft + dx) + 'px';
+                    box.style.top = (startTop + dy) + 'px';
+                } else if (isResizingBR) {
+                    box.style.width = (startW + dx) + 'px';
+                    box.style.height = (startH + dy) + 'px';
+                } else if (isResizingTL) {
+                    box.style.left = (startLeft + dx) + 'px';
+                    box.style.top = (startTop + dy) + 'px';
+                    box.style.width = (startW - dx) + 'px';
+                    box.style.height = (startH - dy) + 'px';
+                }
+            });
+            document.addEventListener('mouseup', function() {
+                isDragging = false; isResizingTL = false; isResizingBR = false;
+            });
+        }
+
+        function WN_deleteBox(btn) {
+            var box = btn.parentElement;
+            var addBtn = box.querySelector('.wn-add-crop-btn');
+            if (addBtn) {
+                addBtn.classList.remove('selected');
+                addBtn.innerText = '+';
+            }
+            box.remove();
+        }
+
+        function WN_toggleCroppedQuestion(btn) {
+            var box = btn.parentElement;
+            if (btn.classList.contains('selected')) {
+                btn.classList.remove('selected');
+                btn.innerText = '+';
+            } else {
+                btn.classList.add('selected');
+                btn.innerText = '✓';
+            }
+        }
+
+        function WN_triggerAutoCrop() {
+            var pageContainer = document.getElementById('wn-page-container');
+            if (!pageContainer) return;
+            pageContainer.querySelectorAll('.wn-crop-box').forEach(function(b) { b.remove(); });
+            WN_addMockOCRBoxes(pageContainer);
+            document.getElementById('wn-manual-edit-pad').style.display = 'none';
+            WN_isManualAdding = false;
+        }
+
+        function WN_addMockOCRBoxes(container) {
+            // 附件預設 9 個 box
+            var boxes = [
+                { top: 4, left: 3, width: 45, height: 16 },
+                { top: 22, left: 3, width: 45, height: 16 },
+                { top: 40, left: 3, width: 45, height: 20 },
+                { top: 62, left: 3, width: 45, height: 16 },
+                { top: 80, left: 3, width: 45, height: 16 },
+                { top: 4, left: 51, width: 46, height: 22 },
+                { top: 28, left: 51, width: 46, height: 26 },
+                { top: 56, left: 51, width: 46, height: 22 },
+                { top: 80, left: 51, width: 46, height: 16 }
+            ];
+            boxes.forEach(function(b) {
+                var box = document.createElement('div');
+                box.className = 'wn-crop-box';
+                box.style.top = b.top + '%';
+                box.style.left = b.left + '%';
+                box.style.width = b.width + '%';
+                box.style.height = b.height + '%';
+                var cropId = 'crop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                box.dataset.cropId = cropId;
+                box.innerHTML =
+                    '<div class="wn-crop-delete" onclick="WN_deleteBox(this)">✕</div>' +
+                    '<div class="wn-resize-handle tl" data-corner="tl"></div>' +
+                    '<div class="wn-resize-handle br" data-corner="br"></div>' +
+                    '<div class="wn-add-crop-btn" onclick="WN_toggleCroppedQuestion(this)">+</div>';
+                container.appendChild(box);
+                WN_makeDraggableAndResizable(box);
+            });
+        }
+
+        function WN_enableManualCrop() {
+            document.getElementById('wn-manual-edit-pad').style.display = 'flex';
+        }
+
+        function WN_startManualBox() {
+            WN_isManualAdding = true;
+            var tip = document.getElementById('wn-manual-tip');
+            if (tip) {
+                tip.style.color = '#e74c3c';
+                tip.innerText = '👉 現在請在圖片上任一位置「點擊」一下...';
+            }
+        }
+
+        function WN_undoManualBox() {
+            if (WN_manualBoxes.length > 0) {
+                var lastBox = WN_manualBoxes.pop();
+                lastBox.remove();
+                var tip = document.getElementById('wn-manual-tip');
+                if (tip) tip.innerText = '↺ 已取消上一步新增。';
+            }
         }
 
         // v1.6.72: drag & drop 用 addEventListener 確保觸發
@@ -8372,11 +8562,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v1.6.72: Crop drawing (mousedown/mousemove/mouseup)
         var WN_CROP_DRAW_STATE = { drawing: false, startX: 0, startY: 0, currentBox: null };
 
-        // v1.6.77: 取消選取 - 清空所有 crop boxes, 回到初始狀態
+        // v1.6.97: 取消選取 - 清空所有 crop boxes (照附件)
         function WN_cancelSelection() {
             if (!confirm('確定要取消選取嗎？所有已框選的錯題將清除。')) return;
             WN_PHASE2_STATE.cropBoxes = [];
-            WN_PHASE2_STATE.uploadedImg = null;
+            WN_manualBoxes = [];
+            WN_isManualAdding = false;
+            var pageContainer = document.getElementById('wn-page-container');
+            if (pageContainer) pageContainer.querySelectorAll('.wn-crop-box').forEach(function(b) { b.remove(); });
             document.getElementById('wn-crop-img').src = '';
             document.getElementById('wn-crop-area').style.display = 'none';
             document.getElementById('wn-crop-list').style.display = 'none';
@@ -8597,129 +8790,7 @@ function WN_onCropImgMouseDown(e) {
 
         // v1.6.86: 完整還原 v1.6.8 設計 - cropArea.onmousedown 統一處理
         // 對應 WN_PHASE2_STATE.cropBoxes (取代舊的 WN_STATE.cropBoxes)
-        function WN_setupCropAreaEvents() {
-            var cropArea = document.getElementById('wn-crop-area');
-            if (!cropArea) return;
-            // 確保 user-select: none 防止文字選取 (Safari)
-            cropArea.style.userSelect = 'none';
-            cropArea.style.webkitUserSelect = 'none';
-            cropArea.onmousedown = function(e) {
-                // 只接受 cropArea 本身或 wn-crop-img
-                if (e.target !== cropArea && e.target !== document.getElementById('wn-crop-img')) return;
-                e.preventDefault();
-                var rect = cropArea.getBoundingClientRect();
-                var img = cropArea.querySelector('img');
-                var scaleX = img.naturalWidth / rect.width;
-                var scaleY = img.naturalHeight / rect.height;
-                var startX = (e.clientX - rect.left) * scaleX;
-                var startY = (e.clientY - rect.top) * scaleY;
-                WN_PHASE2_STATE._dragStartX = startX;
-                WN_PHASE2_STATE._dragStartY = startY;
-                WN_PHASE2_STATE._isDragging = true;
-                WN_PHASE2_STATE._currentBox = { x: startX, y: startY, w: 0, h: 0, id: Date.now() + '_' + Math.random() };
-            };
-            cropArea.onmousemove = function(e) {
-                if (!WN_PHASE2_STATE._isDragging || !WN_PHASE2_STATE._currentBox) return;
-                e.preventDefault();
-                var rect = cropArea.getBoundingClientRect();
-                var img = cropArea.querySelector('img');
-                var scaleX = img.naturalWidth / rect.width;
-                var scaleY = img.naturalHeight / rect.height;
-                var curX = (e.clientX - rect.left) * scaleX;
-                var curY = (e.clientY - rect.top) * scaleY;
-                WN_PHASE2_STATE._currentBox.w = Math.abs(curX - WN_PHASE2_STATE._dragStartX);
-                WN_PHASE2_STATE._currentBox.h = Math.abs(curY - WN_PHASE2_STATE._dragStartY);
-                WN_PHASE2_STATE._currentBox.x = Math.min(curX, WN_PHASE2_STATE._dragStartX);
-                WN_PHASE2_STATE._currentBox.y = Math.min(curY, WN_PHASE2_STATE._dragStartY);
-                WN_renderCropAreaBoxes();
-            };
-            cropArea.onmouseup = function(e) {
-                if (!WN_PHASE2_STATE._isDragging) return;
-                WN_PHASE2_STATE._isDragging = false;
-                var box = WN_PHASE2_STATE._currentBox;
-                if (!box) return;
-                if (box.w > 10 && box.h > 10) {
-                    // 拖拉: push 拖拉的 box
-                    WN_PHASE2_STATE.cropBoxes.push(box);
-                } else {
-                    // 點擊 (沒移動或移動很小): 立即新增 100x100 box (居中在點擊處)
-                    var img = cropArea.querySelector('img');
-                    var boxW = Math.min(100, img.naturalWidth * 0.15);
-                    var boxH = Math.min(100, img.naturalHeight * 0.15);
-                    var clickBox = {
-                        x: Math.max(0, Math.min(img.naturalWidth - boxW, box.x - boxW / 2)),
-                        y: Math.max(0, Math.min(img.naturalHeight - boxH, box.y - boxH / 2)),
-                        w: boxW,
-                        h: boxH,
-                        id: Date.now() + '_' + Math.random()
-                    };
-                    WN_PHASE2_STATE.cropBoxes.push(clickBox);
-                }
-                WN_PHASE2_STATE._currentBox = null;
-                WN_renderCropAreaBoxes();
-            };
-            cropArea.onmouseleave = function() {
-                if (WN_PHASE2_STATE._isDragging && WN_PHASE2_STATE._currentBox) {
-                    WN_PHASE2_STATE._currentBox = null;
-                    WN_PHASE2_STATE._isDragging = false;
-                }
-            };
-        }
-
-        // v1.6.94: 完整照 v1.5.241 - crop box appendChild 到 cropArea
-        // 用 cropArea.getBoundingClientRect() 計算 scaleX/scaleY (jsdom 穩定)
-        function WN_renderCropAreaBoxes() {
-            var cropArea = document.getElementById('wn-crop-area');
-            if (!cropArea) return;
-            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b) { b.remove(); });
-            var img = document.getElementById('wn-crop-img');
-            if (!img) return;
-            var rect = cropArea.getBoundingClientRect();
-            if (rect.width === 0) return;
-            var scaleX = rect.width / img.naturalWidth;
-            var scaleY = rect.height / img.naturalHeight;
-            WN_PHASE2_STATE.cropBoxes.forEach(function(box, i) {
-                var div = document.createElement('div');
-                div.className = 'wn-crop-box';
-                div.style.left = (box.x * scaleX) + 'px';
-                div.style.top = (box.y * scaleY) + 'px';
-                div.style.width = (box.w * scaleX) + 'px';
-                div.style.height = (box.h * scaleY) + 'px';
-                div.innerHTML = '<span class="wn-box-num">' + (i + 1) + '</span><button class="wn-box-delete" data-box-id="' + box.id + '">✕</button>';
-                // 拖拉移動 (從 v1.6.8 移植)
-                div.onmousedown = function(ev) {
-                    if (ev.target.classList.contains('wn-box-delete')) return;
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    var sX = ev.clientX, sY = ev.clientY;
-                    var oX = box.x, oY = box.y;
-                    function onMove(e) {
-                        box.x = Math.max(0, oX + (e.clientX - sX) / scaleX);
-                        box.y = Math.max(0, oY + (e.clientY - sY) / scaleY);
-                        div.style.left = (box.x * scaleX) + 'px';
-                        div.style.top = (box.y * scaleY) + 'px';
-                    }
-                    function onUp() {
-                        document.removeEventListener('mousemove', onMove);
-                        document.removeEventListener('mouseup', onUp);
-                    }
-                    document.addEventListener('mousemove', onMove);
-                    document.addEventListener('mouseup', onUp);
-                };
-                cropArea.appendChild(div);
-            });
-        }
-
-        // v1.6.86: 從 v1.6.8 移植 (click handler 統一)
-        function WN_deleteCropBox(event, boxId) {
-            event.stopPropagation();
-            event.preventDefault();
-            WN_PHASE2_STATE.cropBoxes = WN_PHASE2_STATE.cropBoxes.filter(function(b) { return b.id !== boxId; });
-            WN_renderCropAreaBoxes();
-        }
-
-        // 別名 (給 inline onclick 用)
-        function WN_deleteBox(event, boxId) { WN_deleteCropBox(event, boxId); }
+        
 
         // 舊的 v1.6.77 + render function (保留以向後相容)
         // Crop 渲染 (v1.6.82: 照附件設計 - percentage 座標 + 直接 appendTo img-container)
