@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.86]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.87]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8641,8 +8641,23 @@ function WN_onCropImgMouseDown(e) {
                 if (!WN_PHASE2_STATE._isDragging) return;
                 WN_PHASE2_STATE._isDragging = false;
                 var box = WN_PHASE2_STATE._currentBox;
-                if (box && box.w > 10 && box.h > 10) {
+                if (!box) return;
+                if (box.w > 10 && box.h > 10) {
+                    // 拖拉: push 拖拉的 box
                     WN_PHASE2_STATE.cropBoxes.push(box);
+                } else {
+                    // 點擊 (沒移動或移動很小): 立即新增 100x100 box (居中在點擊處)
+                    var img = cropArea.querySelector('img');
+                    var boxW = Math.min(100, img.naturalWidth * 0.15);
+                    var boxH = Math.min(100, img.naturalHeight * 0.15);
+                    var clickBox = {
+                        x: Math.max(0, Math.min(img.naturalWidth - boxW, box.x - boxW / 2)),
+                        y: Math.max(0, Math.min(img.naturalHeight - boxH, box.y - boxH / 2)),
+                        w: boxW,
+                        h: boxH,
+                        id: Date.now() + '_' + Math.random()
+                    };
+                    WN_PHASE2_STATE.cropBoxes.push(clickBox);
                 }
                 WN_PHASE2_STATE._currentBox = null;
                 WN_renderCropAreaBoxes();
