@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.88]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.91]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8327,6 +8327,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     document.getElementById('wn-crop-img').src = e.target.result;
                     document.getElementById('wn-crop-area').style.display = 'block';
                     WN_PHASE2_STATE.cropBoxes = [];
+                    // v1.6.89: 延遲 render 等 layout 完成
+                    setTimeout(function() { WN_renderCropAreaBoxes(); }, 50);
                     WN_renderCropBoxes();
                     // v1.6.86: 用 cropArea.onmousedown 統一處理 (v1.6.8 設計, 確定可工作)
                     WN_setupCropAreaEvents();
@@ -8670,16 +8672,19 @@ function WN_onCropImgMouseDown(e) {
             };
         }
 
-        // v1.6.86: 從 v1.6.8 WN_renderBoxes 移植 (用 cropArea + scaleX/Y)
+        // v1.6.91: 用 img 自身尺寸計算 scaleX/scaleY (jsdom layout 不穩定)
         function WN_renderCropAreaBoxes() {
             var cropArea = document.getElementById('wn-crop-area');
             if (!cropArea) return;
             cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b) { b.remove(); });
             var img = document.getElementById('wn-crop-img');
-            var rect = cropArea.getBoundingClientRect();
-            if (rect.width === 0 || !img || !img.naturalWidth) return;
-            var scaleX = rect.width / img.naturalWidth;
-            var scaleY = rect.height / img.naturalHeight;
+            if (!img) return;
+            // v1.6.91: 優先用 img 的實際渲染尺寸 (clientWidth/Height), 退回 naturalWidth
+            var imgW = img.clientWidth || img.naturalWidth || 0;
+            var imgH = img.clientHeight || img.naturalHeight || 0;
+            if (imgW === 0 || imgH === 0) return;
+            var scaleX = imgW / img.naturalWidth;
+            var scaleY = imgH / img.naturalHeight;
             WN_PHASE2_STATE.cropBoxes.forEach(function(box, i) {
                 var div = document.createElement('div');
                 div.className = 'wn-crop-box';
