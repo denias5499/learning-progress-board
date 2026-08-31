@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.97]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.98]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9456,73 +9456,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             };
         }
 
-        function WN_setupCropEvents() {
-            var cropArea = document.getElementById('wn-crop-area');
-            var isDragging = false, startX, startY, currentBox;
-            cropArea.onmousedown = function(e) {
-                var img = document.getElementById('wn-crop-img');
-                if(e.target !== cropArea && e.target !== img) return;
-                e.preventDefault();
-                var rect = cropArea.getBoundingClientRect();
-                var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
-                var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
-                startX = (e.clientX - rect.left) * scaleX;
-                startY = (e.clientY - rect.top) * scaleY;
-                isDragging = true;
-                if(WN_STATE.mode === 'add') {
-                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
-                } else if(WN_STATE.mode === 'erase') {
-                    currentBox = {x: startX, y: startY, w: 0, h: 0, id: Date.now()};
-                }
-            };
-            cropArea.onmousemove = function(e) {
-                if(!isDragging || !currentBox) return;
-                e.preventDefault();
-                var rect = cropArea.getBoundingClientRect();
-                var img2 = cropArea.querySelector('img');
-                var scaleX = img2.naturalWidth / rect.width;
-                var scaleY = img2.naturalHeight / rect.height;
-                var curX = (e.clientX - rect.left) * scaleX;
-                var curY = (e.clientY - rect.top) * scaleY;
-                currentBox.w = Math.abs(curX - startX);
-                currentBox.h = Math.abs(curY - startY);
-                currentBox.x = Math.min(startX, curX);
-                currentBox.y = Math.min(startY, curY);
-                // Live-preview the box without rebuilding all DOM
-                var existing = cropArea.querySelector('.wn-drag-preview');
-                if(!existing) {
-                    existing = document.createElement('div');
-                    existing.className = 'wn-crop-box wn-drag-preview';
-                    existing.style.pointerEvents = 'none';
-                    cropArea.appendChild(existing);
-                }
-                var sx = rect.width / img2.naturalWidth;
-                var sy = rect.height / img2.naturalHeight;
-                existing.style.left = (currentBox.x * sx) + 'px';
-                existing.style.top = (currentBox.y * sy) + 'px';
-                existing.style.width = (currentBox.w * sx) + 'px';
-                existing.style.height = (currentBox.h * sy) + 'px';
-            };
-            cropArea.onmouseup = function(e) {
-                if(!isDragging) return;
-                isDragging = false;
-                // Remove live preview
-                var preview = cropArea.querySelector('.wn-drag-preview');
-                if(preview) preview.remove();
-                if(currentBox && currentBox.w > 10 && currentBox.h > 10) {
-                    if(WN_STATE.mode === 'add') {
-                        WN_STATE.cropBoxes.push(currentBox);
-                    } else if(WN_STATE.mode === 'erase') {
-                        WN_STATE.eraseBoxes.push(currentBox);
-                        WN_applyErase();
-                    }
-                }
-                currentBox = null;
-                WN_renderBoxes();
-            };
-            cropArea.onmouseleave = function() { if(isDragging && currentBox) { currentBox = null; isDragging = false; } };
-        }
-
         function WN_renderBoxes() {
             var cropArea = document.getElementById('wn-crop-area');
             if(!cropArea) return;
@@ -12753,20 +12686,27 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         };
 
                 async function saveSettingsAndAlert(returnHome = false) {
-            // v1.6.96: 先確保所有 modal-bg 都關閉 (避免擋住 save-confirm modal)
-            document.querySelectorAll('.modal-bg').forEach(function(m) {
-                // 保留 save-confirm 自身 (還沒創建), 但關閉其他
-                if (m.id !== 'modal-save-confirm') {
-                    // 不關閉 modal-edit (重要 modal)
-                    if (!m.id || !m.id.startsWith('modal-edit')) {
-                        m.style.display = 'none';
-                    }
+            // v1.6.98: 簡化 - 直接儲存 + 顯示確認 modal
+            // v1.6.96 fix: 不關閉 modal-bg (避免擋住 save-confirm)
+            console.log('[v1.6.98] saveSettingsAndAlert called');
+            try {
+                if(el('page-settings') && el('pane-master').classList.contains('active')) {
+                    extractCurrentEditorData();
                 }
-            });
-            if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
-            saveToLocal();
-            updateFilters();
-            window.isMasterDirty = false;
+            } catch(e) {
+                console.error('[v1.6.98] extractCurrentEditorData failed:', e.message);
+                alert('❌ 儲存失敗 (extract): ' + e.message);
+                return;
+            }
+            try {
+                saveToLocal();
+                updateFilters();
+                window.isMasterDirty = false;
+            } catch(e) {
+                console.error('[v1.6.98] saveToLocal failed:', e.message);
+                alert('❌ 儲存失敗 (save): ' + e.message);
+                return;
+            }
 
             if(returnHome === true) {
                 returnToHome();
@@ -15163,64 +15103,6 @@ function WN_showCropImage(dataUrl) {
         WN_renderBoxes();
         WN_setupCropEvents();
     };
-}
-
-function WN_setupCropEvents() {
-    var cropArea = document.getElementById('wn-crop-area');
-    if (!cropArea) return;
-    var isDragging = false, startX, startY, currentBox;
-    cropArea.onmousedown = function(e) {
-        var img = document.getElementById('wn-crop-img');
-        if (e.target !== cropArea && e.target !== img) return;
-        e.preventDefault();
-        var rect = cropArea.getBoundingClientRect();
-        var scaleX = cropArea.querySelector('img').naturalWidth / rect.width;
-        var scaleY = cropArea.querySelector('img').naturalHeight / rect.height;
-        startX = (e.clientX - rect.left) * scaleX;
-        startY = (e.clientY - rect.top) * scaleY;
-        isDragging = true;
-        currentBox = { x: startX, y: startY, w: 0, h: 0, id: Date.now() };
-    };
-    cropArea.onmousemove = function(e) {
-        if (!isDragging || !currentBox) return;
-        e.preventDefault();
-        var rect = cropArea.getBoundingClientRect();
-        var img2 = cropArea.querySelector('img');
-        var scaleX = img2.naturalWidth / rect.width;
-        var scaleY = img2.naturalHeight / rect.height;
-        var curX = (e.clientX - rect.left) * scaleX;
-        var curY = (e.clientY - rect.top) * scaleY;
-        currentBox.w = Math.abs(curX - startX);
-        currentBox.h = Math.abs(curY - startY);
-        currentBox.x = Math.min(startX, curX);
-        currentBox.y = Math.min(startY, curY);
-        var existing = cropArea.querySelector('.wn-drag-preview');
-        if (!existing) {
-            existing = document.createElement('div');
-            existing.className = 'wn-crop-box wn-drag-preview';
-            existing.style.pointerEvents = 'none';
-            cropArea.appendChild(existing);
-        }
-        var sx = rect.width / img2.naturalWidth;
-        var sy = rect.height / img2.naturalHeight;
-        existing.style.left = (currentBox.x * sx) + 'px';
-        existing.style.top = (currentBox.y * sy) + 'px';
-        existing.style.width = (currentBox.w * sx) + 'px';
-        existing.style.height = (currentBox.h * sy) + 'px';
-    };
-    cropArea.onmouseup = function(e) {
-        if (!isDragging) return;
-        isDragging = false;
-        var preview = cropArea.querySelector('.wn-drag-preview');
-        if (preview) preview.remove();
-        if (currentBox && currentBox.w > 10 && currentBox.h > 10) {
-            if (WN_STATE.mode === 'add') WN_STATE.cropBoxes.push(currentBox);
-            else if (WN_STATE.mode === 'erase') { WN_STATE.eraseBoxes.push(currentBox); WN_applyErase(); }
-        }
-        currentBox = null;
-        WN_renderBoxes();
-    };
-    cropArea.onmouseleave = function() { if (isDragging && currentBox) { currentBox = null; isDragging = false; } };
 }
 
 function WN_renderBoxes() {
