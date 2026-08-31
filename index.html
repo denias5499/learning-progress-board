@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.93]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.94]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1331,18 +1331,9 @@
         .wn-drop-zone { border: 2px dashed #b78fb7; border-radius: 12px; padding: 30px; text-align: center; background: white; cursor: pointer; transition: all 0.2s; }
         .wn-drop-zone:hover { background: #f3e8f5; border-color: #9163a8; }
         .wn-drop-zone.dragover { background: #f3e8f5; border-color: #9163a8; transform: scale(1.02); }
-        .wn-crop-area { background: white; border-radius: 12px; padding: 12px; position: relative; }
-        .wn-crop-box {
-            position: absolute;
-            border: 3px solid #1a82e2 !important;
-            background: rgba(26, 130, 226, 0.2) !important;
-            cursor: move;
-            box-sizing: border-box;
-            pointer-events: auto;
-            z-index: 10;
-            min-width: 20px;
-            min-height: 20px;
-        }
+        .wn-crop-area { background: #f0f0f0; border-radius: 8px; margin-top: 10px; position: relative; display: inline-block; max-width: 100%; }
+        .wn-crop-box { position: absolute; border: 2px solid #3498db; background: rgba(52, 152, 219, 0.15); cursor: move; display: flex; align-items: center; justify-content: center; pointer-events: auto; }
+        .wn-crop-box .wn-box-num { background: var(--accent); color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8em; font-weight: bold; }
         .wn-crop-box.selected {
             border-color: #1565c0;
             background: rgba(21, 101, 192, 0.2);
@@ -1847,8 +1838,8 @@
                         <input type="file" id="wn-paper-input" style="display:none" accept="image/*">
 
                         <!-- 預覽 + Crop 區 -->
-                        <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:18px;position:relative;">
-                            <!-- 取消選取 + 完成選取 按鈕 (在頂部, 確保使用者一定看得到) -->
+                        <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:10px;">
+                            <!-- 取消選取 + 完成選取 按鈕 (在頂部) -->
                             <div style="display:flex;gap:14px;justify-content:center;margin-bottom:14px;">
                                 <button class="wn-btn" onclick="WN_cancelSelection()" style="padding:12px 32px;font-size:1.05em;background:#c9b8d9;color:#333;border:none;border-radius:24px;cursor:pointer;">取消選取</button>
                                 <button class="wn-btn" onclick="WN_completeSelection()" style="padding:12px 32px;font-size:1.05em;background:#f0d040;color:#333;border:none;border-radius:24px;cursor:pointer;font-weight:bold;">完成選取</button>
@@ -1859,9 +1850,8 @@
                                 <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
                             </div>
                             <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個)</p>
-                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;user-select:none;-webkit-user-select:none;-moz-user-drag:none;">
-                                <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
-                            </div>
+                            <!-- v1.6.94: 照 v1.5.241 - img 直接在 cropArea 內 (不再用 img-container) -->
+                            <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
                         </div>
 
                         <!-- 教材選擇 (逐個 crop box 設定) -->
@@ -8676,21 +8666,18 @@ function WN_onCropImgMouseDown(e) {
             };
         }
 
-        // v1.6.92: crop box 改 appendTo wn-crop-img-container (在圖片內)
-        // 用 container 而非 cropArea (避免 box 跑出圖片範圍)
+        // v1.6.94: 完整照 v1.5.241 - crop box appendChild 到 cropArea
+        // 用 cropArea.getBoundingClientRect() 計算 scaleX/scaleY (jsdom 穩定)
         function WN_renderCropAreaBoxes() {
             var cropArea = document.getElementById('wn-crop-area');
             if (!cropArea) return;
-            var container = document.getElementById('wn-crop-img-container');
-            if (!container) return;
-            container.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b) { b.remove(); });
+            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b) { b.remove(); });
             var img = document.getElementById('wn-crop-img');
             if (!img) return;
-            var imgW = img.clientWidth || img.naturalWidth || 0;
-            var imgH = img.clientHeight || img.naturalHeight || 0;
-            if (imgW === 0 || imgH === 0) return;
-            var scaleX = imgW / img.naturalWidth;
-            var scaleY = imgH / img.naturalHeight;
+            var rect = cropArea.getBoundingClientRect();
+            if (rect.width === 0) return;
+            var scaleX = rect.width / img.naturalWidth;
+            var scaleY = rect.height / img.naturalHeight;
             WN_PHASE2_STATE.cropBoxes.forEach(function(box, i) {
                 var div = document.createElement('div');
                 div.className = 'wn-crop-box';
@@ -8719,7 +8706,7 @@ function WN_onCropImgMouseDown(e) {
                     document.addEventListener('mousemove', onMove);
                     document.addEventListener('mouseup', onUp);
                 };
-                container.appendChild(div);
+                cropArea.appendChild(div);
             });
         }
 
