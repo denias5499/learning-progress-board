@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.94]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.95]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -12095,6 +12095,12 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
             // 1. 建立分類
             appMissions[name] = {};
+            // v1.6.95: 同步在 user.masters 加空殻 (避免儲存後新分類消失)
+            var user = multiData[currentUserId];
+            if (user) {
+                if (!user.masters) user.masters = {};
+                if (!user.masters[name]) user.masters[name] = {};
+            }
 
             // 2. 關閉 modal
             closeModal('modal-add-cat');
@@ -12676,17 +12682,42 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         };
 
                 async function saveSettingsAndAlert(returnHome = false) {
-            if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
-            saveToLocal();
-            updateFilters();
-            window.isMasterDirty = false;
-
+            // v1.6.95: 先確保所有 modal-bg 都關閉 (避免擋住 save-confirm modal)
+            document.querySelectorAll('.modal-bg').forEach(function(m) {
+                // 保留 save-confirm 自身 (還沒創建), 但關閉其他
+                if (m.id !== 'modal-save-confirm') {
+                    // 不關閉 wn-page-edit 等重要 modal (id 開頭不是 modal-edit)
+                    if (!m.id || !m.id.startsWith('modal-edit')) {
+                        m.style.display = 'none';
+                    }
+                }
+            });
+            try {
+                if(el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
+            } catch(e) {
+                console.error('[v1.6.95] extractCurrentEditorData failed:', e.message);
+            }
+            try {
+                saveToLocal();
+                updateFilters();
+                window.isMasterDirty = false;
+            } catch(e) {
+                console.error('[v1.6.95] saveToLocal failed:', e.message);
+                alert('儲存失敗: ' + e.message);
+                return;
+            }
             if(returnHome === true) {
                 returnToHome();
                 return;
             }
             // v1.5.8: 跳出確認 modal + 兩個按鈕 (繼續編輯 / 結束編輯)
-            openSaveConfirmModal();
+            try {
+                openSaveConfirmModal();
+            } catch(e) {
+                console.error('[v1.6.95] openSaveConfirmModal failed:', e.message);
+                // fallback: 用 alert
+                alert('✅ 儲存成功！');
+            }
         }
 
         function openSaveConfirmModal() {
