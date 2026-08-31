@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.92]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.93]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1334,10 +1334,14 @@
         .wn-crop-area { background: white; border-radius: 12px; padding: 12px; position: relative; }
         .wn-crop-box {
             position: absolute;
-            border: 3px solid #1a82e2;
-            background: rgba(26, 130, 226, 0.15);
+            border: 3px solid #1a82e2 !important;
+            background: rgba(26, 130, 226, 0.2) !important;
             cursor: move;
             box-sizing: border-box;
+            pointer-events: auto;
+            z-index: 10;
+            min-width: 20px;
+            min-height: 20px;
         }
         .wn-crop-box.selected {
             border-color: #1565c0;
@@ -1855,7 +1859,7 @@
                                 <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
                             </div>
                             <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個)</p>
-                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-drag:none;">
+                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;user-select:none;-webkit-user-select:none;-moz-user-drag:none;">
                                 <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
                             </div>
                         </div>
