@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.85]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.86]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1855,7 +1855,7 @@
                                 <button class="wn-btn wn-btn-danger" onclick="WN_clearAllBoxes()" style="margin-left:auto;">🗑 清除全部</button>
                             </div>
                             <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 框選 (drag) 或 double click 圖片新增錯題 (最多 10 個)</p>
-                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;" onmousedown="WN_onCropImgMouseDown(event)">
+                            <div id="wn-crop-img-container" style="position:relative;display:inline-block;border:2px solid #b78fb7;border-radius:8px;overflow:hidden;user-select:none;-webkit-user-select:none;-moz-user-drag:none;">
                                 <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
                             </div>
                         </div>
@@ -8328,7 +8328,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     document.getElementById('wn-crop-area').style.display = 'block';
                     WN_PHASE2_STATE.cropBoxes = [];
                     WN_renderCropBoxes();
-                    WN_initCropDrawing();  // v1.6.72: 初始化 crop drawing
+                    // v1.6.86: 用 cropArea.onmousedown 統一處理 (v1.6.8 設計, 確定可工作)
+                    WN_setupCropAreaEvents();
                 };
                 img.src = e.target.result;
             };
@@ -8486,10 +8487,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v1.6.81: 移除 dblclick handler (跟 mousedown 重複, 會累積過多 box)
             // 改用 mousedown 統一處理 click/double click
             // v1.6.82: 照附件設計 - mousedown 在 img 上 (percentage 座標)
-        // v1.6.85: 用 cropArea (container) 接收 mousedown
-        // 加上 user-select: none 阻止文字選取 (藍色反白)
-        var WN_CROP_DRAG_STATE = { drawing: false, startX: 0, startY: 0, currentBox: null };
-        function WN_onCropImgMouseDown(e) {
+function WN_onCropImgMouseDown(e) {
             if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
                 alert('最多只能框選 10 個錯題');
                 return;
@@ -8601,6 +8599,116 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
         }
 
+        // v1.6.86: 完整還原 v1.6.8 設計 - cropArea.onmousedown 統一處理
+        // 對應 WN_PHASE2_STATE.cropBoxes (取代舊的 WN_STATE.cropBoxes)
+        function WN_setupCropAreaEvents() {
+            var cropArea = document.getElementById('wn-crop-area');
+            if (!cropArea) return;
+            // 確保 user-select: none 防止文字選取 (Safari)
+            cropArea.style.userSelect = 'none';
+            cropArea.style.webkitUserSelect = 'none';
+            cropArea.onmousedown = function(e) {
+                // 只接受 cropArea 本身或 wn-crop-img
+                if (e.target !== cropArea && e.target !== document.getElementById('wn-crop-img')) return;
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var img = cropArea.querySelector('img');
+                var scaleX = img.naturalWidth / rect.width;
+                var scaleY = img.naturalHeight / rect.height;
+                var startX = (e.clientX - rect.left) * scaleX;
+                var startY = (e.clientY - rect.top) * scaleY;
+                WN_PHASE2_STATE._dragStartX = startX;
+                WN_PHASE2_STATE._dragStartY = startY;
+                WN_PHASE2_STATE._isDragging = true;
+                WN_PHASE2_STATE._currentBox = { x: startX, y: startY, w: 0, h: 0, id: Date.now() + '_' + Math.random() };
+            };
+            cropArea.onmousemove = function(e) {
+                if (!WN_PHASE2_STATE._isDragging || !WN_PHASE2_STATE._currentBox) return;
+                e.preventDefault();
+                var rect = cropArea.getBoundingClientRect();
+                var img = cropArea.querySelector('img');
+                var scaleX = img.naturalWidth / rect.width;
+                var scaleY = img.naturalHeight / rect.height;
+                var curX = (e.clientX - rect.left) * scaleX;
+                var curY = (e.clientY - rect.top) * scaleY;
+                WN_PHASE2_STATE._currentBox.w = Math.abs(curX - WN_PHASE2_STATE._dragStartX);
+                WN_PHASE2_STATE._currentBox.h = Math.abs(curY - WN_PHASE2_STATE._dragStartY);
+                WN_PHASE2_STATE._currentBox.x = Math.min(curX, WN_PHASE2_STATE._dragStartX);
+                WN_PHASE2_STATE._currentBox.y = Math.min(curY, WN_PHASE2_STATE._dragStartY);
+                WN_renderCropAreaBoxes();
+            };
+            cropArea.onmouseup = function(e) {
+                if (!WN_PHASE2_STATE._isDragging) return;
+                WN_PHASE2_STATE._isDragging = false;
+                var box = WN_PHASE2_STATE._currentBox;
+                if (box && box.w > 10 && box.h > 10) {
+                    WN_PHASE2_STATE.cropBoxes.push(box);
+                }
+                WN_PHASE2_STATE._currentBox = null;
+                WN_renderCropAreaBoxes();
+            };
+            cropArea.onmouseleave = function() {
+                if (WN_PHASE2_STATE._isDragging && WN_PHASE2_STATE._currentBox) {
+                    WN_PHASE2_STATE._currentBox = null;
+                    WN_PHASE2_STATE._isDragging = false;
+                }
+            };
+        }
+
+        // v1.6.86: 從 v1.6.8 WN_renderBoxes 移植 (用 cropArea + scaleX/Y)
+        function WN_renderCropAreaBoxes() {
+            var cropArea = document.getElementById('wn-crop-area');
+            if (!cropArea) return;
+            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b) { b.remove(); });
+            var img = document.getElementById('wn-crop-img');
+            var rect = cropArea.getBoundingClientRect();
+            if (rect.width === 0 || !img || !img.naturalWidth) return;
+            var scaleX = rect.width / img.naturalWidth;
+            var scaleY = rect.height / img.naturalHeight;
+            WN_PHASE2_STATE.cropBoxes.forEach(function(box, i) {
+                var div = document.createElement('div');
+                div.className = 'wn-crop-box';
+                div.style.left = (box.x * scaleX) + 'px';
+                div.style.top = (box.y * scaleY) + 'px';
+                div.style.width = (box.w * scaleX) + 'px';
+                div.style.height = (box.h * scaleY) + 'px';
+                div.innerHTML = '<span class="wn-box-num">' + (i + 1) + '</span><button class="wn-box-delete" data-box-id="' + box.id + '">✕</button>';
+                // 拖拉移動 (從 v1.6.8 移植)
+                div.onmousedown = function(ev) {
+                    if (ev.target.classList.contains('wn-box-delete')) return;
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    var sX = ev.clientX, sY = ev.clientY;
+                    var oX = box.x, oY = box.y;
+                    function onMove(e) {
+                        box.x = Math.max(0, oX + (e.clientX - sX) / scaleX);
+                        box.y = Math.max(0, oY + (e.clientY - sY) / scaleY);
+                        div.style.left = (box.x * scaleX) + 'px';
+                        div.style.top = (box.y * scaleY) + 'px';
+                    }
+                    function onUp() {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                    }
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                };
+                cropArea.appendChild(div);
+            });
+        }
+
+        // v1.6.86: 從 v1.6.8 移植 (click handler 統一)
+        function WN_deleteCropBox(event, boxId) {
+            event.stopPropagation();
+            event.preventDefault();
+            WN_PHASE2_STATE.cropBoxes = WN_PHASE2_STATE.cropBoxes.filter(function(b) { return b.id !== boxId; });
+            WN_renderCropAreaBoxes();
+        }
+
+        // 別名 (給 inline onclick 用)
+        function WN_deleteBox(event, boxId) { WN_deleteCropBox(event, boxId); }
+
+        // 舊的 v1.6.77 + render function (保留以向後相容)
         // Crop 渲染 (v1.6.82: 照附件設計 - percentage 座標 + 直接 appendTo img-container)
         function WN_renderCropBoxes() {
             var overlay = document.getElementById('wn-crop-overlay');
