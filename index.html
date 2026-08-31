@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.91]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.92]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8672,14 +8672,16 @@ function WN_onCropImgMouseDown(e) {
             };
         }
 
-        // v1.6.91: 用 img 自身尺寸計算 scaleX/scaleY (jsdom layout 不穩定)
+        // v1.6.92: crop box 改 appendTo wn-crop-img-container (在圖片內)
+        // 用 container 而非 cropArea (避免 box 跑出圖片範圍)
         function WN_renderCropAreaBoxes() {
             var cropArea = document.getElementById('wn-crop-area');
             if (!cropArea) return;
-            cropArea.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b) { b.remove(); });
+            var container = document.getElementById('wn-crop-img-container');
+            if (!container) return;
+            container.querySelectorAll('.wn-crop-box, .wn-erase-box').forEach(function(b) { b.remove(); });
             var img = document.getElementById('wn-crop-img');
             if (!img) return;
-            // v1.6.91: 優先用 img 的實際渲染尺寸 (clientWidth/Height), 退回 naturalWidth
             var imgW = img.clientWidth || img.naturalWidth || 0;
             var imgH = img.clientHeight || img.naturalHeight || 0;
             if (imgW === 0 || imgH === 0) return;
@@ -8713,7 +8715,7 @@ function WN_onCropImgMouseDown(e) {
                     document.addEventListener('mousemove', onMove);
                     document.addEventListener('mouseup', onUp);
                 };
-                cropArea.appendChild(div);
+                container.appendChild(div);
             });
         }
 
