@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.104]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.105]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8380,30 +8380,27 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function WN_createNewManualBox(x, y, container) {
-            // v1.6.103: 改用絕對 pixel 位置 (不用 percentage, 避免 offsetParent = null 時定位失敗)
+            // v1.6.105: 修正 - 用絕對 pixel 位置 (不用 percentage)
             var box = document.createElement('div');
             box.className = 'wn-crop-box';
+            // 先 appendChild 到 container (確保 box 在 DOM 內)
+            container.appendChild(box);
+            // 然後設定 inline style (pixel 定位 + 固定大小)
             var rect = container.getBoundingClientRect();
-            // 防止 rect.width = 0
             var containerW = rect.width || container.offsetWidth || 1;
             var containerH = rect.height || container.offsetHeight || 1;
-            // 用 pixel 位置 (更可靠, 不依賴 offsetParent)
             var pixelLeft = Math.max(0, Math.min(containerW - 100, x - rect.left - 45));
             var pixelTop = Math.max(0, Math.min(containerH - 30, y - rect.top - 15));
-            // 先 appendChild 再設定 position (確保 offsetParent 正確)
-            container.appendChild(box);
-            // 用 pixel 定位 (附件 fallback 設計)
+            // 強制設定所有 inline style (避免被 CSS 覆蓋)
+            box.setAttribute('style', '');
             box.style.position = 'absolute';
             box.style.left = pixelLeft + 'px';
             box.style.top = pixelTop + 'px';
             box.style.width = '90px';
             box.style.height = '30px';
-            // 確保 box 找到 offsetParent
-            if (!box.offsetParent) {
-                box.style.position = 'relative';
-            }
-            box.style.width = '45%';
-            box.style.height = '15%';
+            box.style.zIndex = '10';
+            box.style.display = 'block';
+            box.style.boxSizing = 'border-box';
             var cropId = 'crop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             box.dataset.cropId = cropId;
             box.innerHTML =
