@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.105]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.107]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8340,15 +8340,25 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 img.onload = function() {
                     WN_PHASE2_STATE.uploadedImgWidth = img.width;
                     WN_PHASE2_STATE.uploadedImgHeight = img.height;
-                    document.getElementById('wn-crop-img').src = e.target.result;
+                    // v1.6.106: 設 wn-crop-img src 然後等它真的 load
+                    var cropImg = document.getElementById('wn-crop-img');
+                    cropImg.onload = function() {
+                        // 圖片已 render, pageContainer 有真實尺寸
+                        WN_PHASE2_STATE.cropBoxes = [];
+                        WN_manualBoxes = [];
+                        WN_isManualAdding = false;
+                        // 等 200ms 確保 layout 完成
+                        setTimeout(function() {
+                            WN_CROP_EVENTS_INITED = false;  // 重置 flag (新圖片)
+                            WN_setupCropEvents();
+                        }, 200);
+                    };
+                    cropImg.src = e.target.result;
+                    // 如果已經 load 過, 直接呼叫
+                    if (cropImg.complete && cropImg.naturalWidth > 0) {
+                        cropImg.onload();
+                    }
                     document.getElementById('wn-crop-area').style.display = 'block';
-                    WN_PHASE2_STATE.cropBoxes = [];
-                    WN_manualBoxes = [];
-                    WN_isManualAdding = false;
-                    // v1.6.97: 用 page-container (附件設計)
-                    setTimeout(function() {
-                        WN_setupCropEvents();
-                    }, 100);
                 };
                 img.src = e.target.result;
             };
@@ -8360,14 +8370,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function WN_setupCropEvents() {
             var pageContainer = document.getElementById('wn-page-container');
             if (!pageContainer) return;
-            // v1.6.104: 防止重複綁定 (每次上傳都會呼叫, 會累積 handler)
+            // v1.6.104: 防止重複綁定
             if (WN_CROP_EVENTS_INITED) return;
             WN_CROP_EVENTS_INITED = true;
+            // v1.6.107: 照附件用 e.offsetX, e.offsetY (跟附件的 createPageContainer 一模一樣)
             pageContainer.addEventListener('mousedown', function(e) {
                 if (WN_isManualAdding) {
+                    // 附件用 == 不嚴格 (其實是 ===), 但為了 PDF.js 用法寬鬆一點
                     if (e.target === pageContainer || e.target === document.getElementById('wn-crop-img')) {
                         e.preventDefault();
-                        WN_createNewManualBox(e.clientX, e.clientY, pageContainer);
+                        WN_createNewManualBox(e.offsetX, e.offsetY, pageContainer);
                         WN_isManualAdding = false;
                         var tip = document.getElementById('wn-manual-tip');
                         if (tip) {
@@ -8380,27 +8392,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function WN_createNewManualBox(x, y, container) {
-            // v1.6.105: 修正 - 用絕對 pixel 位置 (不用 percentage)
+            // v1.6.107: 完整照附件 - percentage 定位 + 拖拉選取邏輯
             var box = document.createElement('div');
             box.className = 'wn-crop-box';
-            // 先 appendChild 到 container (確保 box 在 DOM 內)
-            container.appendChild(box);
-            // 然後設定 inline style (pixel 定位 + 固定大小)
             var rect = container.getBoundingClientRect();
-            var containerW = rect.width || container.offsetWidth || 1;
-            var containerH = rect.height || container.offsetHeight || 1;
-            var pixelLeft = Math.max(0, Math.min(containerW - 100, x - rect.left - 45));
-            var pixelTop = Math.max(0, Math.min(containerH - 30, y - rect.top - 15));
-            // 強制設定所有 inline style (避免被 CSS 覆蓋)
-            box.setAttribute('style', '');
-            box.style.position = 'absolute';
-            box.style.left = pixelLeft + 'px';
-            box.style.top = pixelTop + 'px';
-            box.style.width = '90px';
-            box.style.height = '30px';
-            box.style.zIndex = '10';
-            box.style.display = 'block';
-            box.style.boxSizing = 'border-box';
+            // 防止 rect = 0 (jsdom 沒 layout)
+            var rectW = rect.width || container.offsetWidth || 1;
+            var rectH = rect.height || container.offsetHeight || 1;
+            // 附件用 percentage 定位 (e.offsetX / rect.width)
+            var topPerc = (y / rectH) * 100;
+            var leftPerc = (x / rectW) * 100;
+            box.style.top = topPerc + '%';
+            box.style.left = leftPerc + '%';
+            box.style.width = '45%';  // 附件固定大小
+            box.style.height = '15%';
             var cropId = 'crop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             box.dataset.cropId = cropId;
             box.innerHTML =
@@ -8413,7 +8418,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             WN_manualBoxes.push(box);
             WN_PHASE2_STATE.cropBoxes.push({
                 id: cropId,
-                x: pixelLeft, y: pixelTop, w: 90, h: 30
+                x: leftPerc, y: topPerc, w: 45, h: 15
             });
         }
 
