@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.107]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.108]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1884,13 +1884,8 @@
                     </div>
                 </div>
                 <div id="wn-page-notes" class="wn-page" style="display:none;">
-                    <div class="placeholder-text" style="background:#e8f5e8; padding:30px; border-radius:12px;">
-                        <h3 style="color:#5a8a5a; margin:0 0 12px;">📖 查看錯題筆記 (Phase 4)</h3>
-                        <p style="margin:8px 0;">✅ 兩欄 layout (左半：錯題原因 + 來源 / 右半：圖片 + 內容)</p>
-                        <p style="margin:8px 0;">✅ 篩選: 日期/科目/冊次/單元</p>
-                        <p style="margin:8px 0;">✅ 從 ~/Downloads/學習進度看板/ 讀取圖片</p>
-                        <p style="color:#888; font-size:0.85em; margin-top:16px;">⏳ 此功能將在 Phase 4 實作</p>
-                    </div>
+                    <!-- v1.6.108: iframe 嵌入附件 standalone app (附件 crop box 邏輯已可 work) -->
+                    <iframe id="wrongnotes-iframe" src="wrong-notes/" style="width:100%;height:85vh;border:none;border-radius:8px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.1);" title="錯題資料庫"></iframe>
                 </div>
                 <div id="wn-page-stats" class="wn-page" style="display:none;">
                     <div class="placeholder-text" style="background:#e8e8f5; padding:30px; border-radius:12px;">
@@ -8314,280 +8309,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // ============================================================
         // v1.6.71: Phase 2 - 上傳 + Crop + 中等版筆跡消除
         // ============================================================
-        var WN_PHASE2_STATE = {
-            uploadedImg: null,
-            uploadedImgWidth: 0,
-            uploadedImgHeight: 0,
-            cropBoxes: [],
-            cropMode: 'add',
-            currentCropIdx: 0
-        };
+        
         // v1.6.97: 照附件設計 - isManualAdding flag (按「新增框線」後啟用)
-        var WN_isManualAdding = false;
-        var WN_manualBoxes = [];
-
-        // 上傳處理
-        function WN_handleFileUpload(file) {
-            if (!file) return;
-            if (!file.type.startsWith('image/')) {
-                alert('請上傳圖片檔案 (jpg/png)');
-                return;
-            }
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                WN_PHASE2_STATE.uploadedImg = e.target.result;
-                var img = new Image();
-                img.onload = function() {
-                    WN_PHASE2_STATE.uploadedImgWidth = img.width;
-                    WN_PHASE2_STATE.uploadedImgHeight = img.height;
-                    // v1.6.106: 設 wn-crop-img src 然後等它真的 load
-                    var cropImg = document.getElementById('wn-crop-img');
-                    cropImg.onload = function() {
-                        // 圖片已 render, pageContainer 有真實尺寸
-                        WN_PHASE2_STATE.cropBoxes = [];
-                        WN_manualBoxes = [];
-                        WN_isManualAdding = false;
-                        // 等 200ms 確保 layout 完成
-                        setTimeout(function() {
-                            WN_CROP_EVENTS_INITED = false;  // 重置 flag (新圖片)
-                            WN_setupCropEvents();
-                        }, 200);
-                    };
-                    cropImg.src = e.target.result;
-                    // 如果已經 load 過, 直接呼叫
-                    if (cropImg.complete && cropImg.naturalWidth > 0) {
-                        cropImg.onload();
-                    }
-                    document.getElementById('wn-crop-area').style.display = 'block';
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        // v1.6.97: 完整照附件 - crop box 邏輯 (page-container + isManualAdding + resize handles)
-        var WN_CROP_EVENTS_INITED = false;  // v1.6.104: 防止重複綁定
-        function WN_setupCropEvents() {
-            var pageContainer = document.getElementById('wn-page-container');
-            if (!pageContainer) return;
-            // v1.6.104: 防止重複綁定
-            if (WN_CROP_EVENTS_INITED) return;
-            WN_CROP_EVENTS_INITED = true;
-            // v1.6.107: 照附件用 e.offsetX, e.offsetY (跟附件的 createPageContainer 一模一樣)
-            pageContainer.addEventListener('mousedown', function(e) {
-                if (WN_isManualAdding) {
-                    // 附件用 == 不嚴格 (其實是 ===), 但為了 PDF.js 用法寬鬆一點
-                    if (e.target === pageContainer || e.target === document.getElementById('wn-crop-img')) {
-                        e.preventDefault();
-                        WN_createNewManualBox(e.offsetX, e.offsetY, pageContainer);
-                        WN_isManualAdding = false;
-                        var tip = document.getElementById('wn-manual-tip');
-                        if (tip) {
-                            tip.style.color = '#555';
-                            tip.innerText = '✅ 已成功新增。您可點擊「新增框線」繼續，或直接調整藍色框。';
-                        }
-                    }
-                }
-            });
-        }
-
-        function WN_createNewManualBox(x, y, container) {
-            // v1.6.107: 完整照附件 - percentage 定位 + 拖拉選取邏輯
-            var box = document.createElement('div');
-            box.className = 'wn-crop-box';
-            var rect = container.getBoundingClientRect();
-            // 防止 rect = 0 (jsdom 沒 layout)
-            var rectW = rect.width || container.offsetWidth || 1;
-            var rectH = rect.height || container.offsetHeight || 1;
-            // 附件用 percentage 定位 (e.offsetX / rect.width)
-            var topPerc = (y / rectH) * 100;
-            var leftPerc = (x / rectW) * 100;
-            box.style.top = topPerc + '%';
-            box.style.left = leftPerc + '%';
-            box.style.width = '45%';  // 附件固定大小
-            box.style.height = '15%';
-            var cropId = 'crop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-            box.dataset.cropId = cropId;
-            box.innerHTML =
-                '<div class="wn-crop-delete" onclick="WN_deleteBox(this)">✕</div>' +
-                '<div class="wn-resize-handle tl" data-corner="tl"></div>' +
-                '<div class="wn-resize-handle br" data-corner="br"></div>' +
-                '<div class="wn-add-crop-btn" onclick="WN_toggleCroppedQuestion(this)">+</div>';
-            // container 已 appendChild (上面)
-            WN_makeDraggableAndResizable(box);
-            WN_manualBoxes.push(box);
-            WN_PHASE2_STATE.cropBoxes.push({
-                id: cropId,
-                x: leftPerc, y: topPerc, w: 45, h: 15
-            });
-        }
-
-        function WN_makeDraggableAndResizable(box) {
-            var isDragging = false, isResizingTL = false, isResizingBR = false;
-            var startX, startY, startW, startH, startLeft, startTop;
-            box.addEventListener('mousedown', function(e) {
-                if (e.target.classList.contains('wn-add-crop-btn') ||
-                    e.target.classList.contains('wn-crop-delete')) return;
-                startX = e.clientX; startY = e.clientY;
-                startLeft = box.offsetLeft; startTop = box.offsetTop;
-                startW = box.offsetWidth; startH = box.offsetHeight;
-                if (e.target.classList.contains('tl')) isResizingTL = true;
-                else if (e.target.classList.contains('br')) isResizingBR = true;
-                else isDragging = true;
-                e.stopPropagation();
-            });
-            document.addEventListener('mousemove', function(e) {
-                if (!isDragging && !isResizingTL && !isResizingBR) return;
-                var dx = e.clientX - startX;
-                var dy = e.clientY - startY;
-                if (isDragging) {
-                    box.style.left = (startLeft + dx) + 'px';
-                    box.style.top = (startTop + dy) + 'px';
-                } else if (isResizingBR) {
-                    box.style.width = (startW + dx) + 'px';
-                    box.style.height = (startH + dy) + 'px';
-                } else if (isResizingTL) {
-                    box.style.left = (startLeft + dx) + 'px';
-                    box.style.top = (startTop + dy) + 'px';
-                    box.style.width = (startW - dx) + 'px';
-                    box.style.height = (startH - dy) + 'px';
-                }
-            });
-            document.addEventListener('mouseup', function() {
-                isDragging = false; isResizingTL = false; isResizingBR = false;
-            });
-        }
-
-        function WN_deleteBox(btn) {
-            var box = btn.parentElement;
-            var addBtn = box.querySelector('.wn-add-crop-btn');
-            if (addBtn) {
-                addBtn.classList.remove('selected');
-                addBtn.innerText = '+';
-            }
-            box.remove();
-        }
-
-        function WN_toggleCroppedQuestion(btn) {
-            var box = btn.parentElement;
-            if (btn.classList.contains('selected')) {
-                btn.classList.remove('selected');
-                btn.innerText = '+';
-            } else {
-                btn.classList.add('selected');
-                btn.innerText = '✓';
-            }
-        }
-
-        function WN_triggerAutoCrop() {
-            var pageContainer = document.getElementById('wn-page-container');
-            if (!pageContainer) return;
-            pageContainer.querySelectorAll('.wn-crop-box').forEach(function(b) { b.remove(); });
-            WN_addMockOCRBoxes(pageContainer);
-            document.getElementById('wn-manual-edit-pad').style.display = 'none';
-            WN_isManualAdding = false;
-        }
-
-        function WN_addMockOCRBoxes(container) {
-            // 附件預設 9 個 box
-            var boxes = [
-                { top: 4, left: 3, width: 45, height: 16 },
-                { top: 22, left: 3, width: 45, height: 16 },
-                { top: 40, left: 3, width: 45, height: 20 },
-                { top: 62, left: 3, width: 45, height: 16 },
-                { top: 80, left: 3, width: 45, height: 16 },
-                { top: 4, left: 51, width: 46, height: 22 },
-                { top: 28, left: 51, width: 46, height: 26 },
-                { top: 56, left: 51, width: 46, height: 22 },
-                { top: 80, left: 51, width: 46, height: 16 }
-            ];
-            boxes.forEach(function(b) {
-                var box = document.createElement('div');
-                box.className = 'wn-crop-box';
-                box.style.top = b.top + '%';
-                box.style.left = b.left + '%';
-                box.style.width = b.width + '%';
-                box.style.height = b.height + '%';
-                var cropId = 'crop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-                box.dataset.cropId = cropId;
-                box.innerHTML =
-                    '<div class="wn-crop-delete" onclick="WN_deleteBox(this)">✕</div>' +
-                    '<div class="wn-resize-handle tl" data-corner="tl"></div>' +
-                    '<div class="wn-resize-handle br" data-corner="br"></div>' +
-                    '<div class="wn-add-crop-btn" onclick="WN_toggleCroppedQuestion(this)">+</div>';
-                container.appendChild(box);
-                WN_makeDraggableAndResizable(box);
-            });
-        }
-
-        function WN_enableManualCrop() {
-            // v1.6.99: 顯示編輯 Pad 但還沒啟用新增 (要等按「新增框線」才啟用)
-            WN_isManualAdding = false;
-            document.getElementById('wn-manual-edit-pad').style.display = 'flex';
-            var tip = document.getElementById('wn-manual-tip');
-            if (tip) {
-                tip.style.color = '#555';
-                tip.innerText = '點擊「新增框線」後，在圖片任一位置點擊一下。';
-            }
-        }
-
-        function WN_startManualBox() {
-            WN_isManualAdding = true;
-            var tip = document.getElementById('wn-manual-tip');
-            if (tip) {
-                tip.style.color = '#e74c3c';
-                tip.innerText = '👉 現在請在圖片上任一位置「點擊」一下...';
-            }
-        }
-
-        function WN_undoManualBox() {
-            if (WN_manualBoxes.length > 0) {
-                var lastBox = WN_manualBoxes.pop();
-                lastBox.remove();
-                var tip = document.getElementById('wn-manual-tip');
-                if (tip) tip.innerText = '↺ 已取消上一步新增。';
-            }
-        }
-
-        // v1.6.72: drag & drop 用 addEventListener 確保觸發
-        var WN_DRAG_INIT_DONE = false;
-        function WN_initDragDrop() {
-            if (WN_DRAG_INIT_DONE) return;
-            WN_DRAG_INIT_DONE = true;
-            var zone = document.getElementById('wn-source-zone');
-            if (!zone) return;
-            zone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                zone.classList.add('dragover');
-            });
-            zone.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                zone.classList.remove('dragover');
-            });
-            zone.addEventListener('drop', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                zone.classList.remove('dragover');
-                var files = e.dataTransfer.files;
-                if (files && files.length > 0) {
-                    WN_handleFileUpload(files[0]);
-                }
-            });
-        }
-
-        function WN_setCropMode(mode) {
-            WN_PHASE2_STATE.cropMode = mode;
-        }
-
-        function WN_clearAllBoxes() {
-            WN_PHASE2_STATE.cropBoxes = [];
-            WN_renderCropBoxes();
-            document.getElementById('wn-crop-list').style.display = 'none';
-        }
-
-        // v1.6.72: Crop drawing (mousedown/mousemove/mouseup)
-        var WN_CROP_DRAW_STATE = { drawing: false, startX: 0, startY: 0, currentBox: null };
+        
 
         // v1.6.97: 取消選取 - 清空所有 crop boxes (照附件)
         function WN_cancelSelection() {
@@ -8610,16 +8334,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v1.6.77: 完成選取 - 顯示教材選擇表單 (不直接儲存)
-        function WN_completeSelection() {
-            if (WN_PHASE2_STATE.cropBoxes.length === 0) {
-                alert('請先框選至少一個錯題');
-                return;
-            }
-            document.getElementById('wn-crop-list').style.display = 'block';
-            WN_renderCropCards();
-            // 滾動到表單
-            document.getElementById('wn-crop-list').scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
 
         // v1.6.77: 拖拉移動 crop box
         function WN_startMove(e, idx) {
@@ -8701,100 +8415,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
             WN_renderCropBoxes();
         }
 
-        function WN_initCropDrawing() {
-            var overlay = document.getElementById('wn-crop-overlay');
-            if (!overlay || overlay._wnInit) return;
-            overlay._wnInit = true;
-
-            // v1.6.81: 移除 dblclick handler (跟 mousedown 重複, 會累積過多 box)
-            // 改用 mousedown 統一處理 click/double click
-            // v1.6.82: 照附件設計 - mousedown 在 img 上 (percentage 座標)
-function WN_onCropImgMouseDown(e) {
-            if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
-                alert('最多只能框選 10 個錯題');
-                return;
-            }
-            e.preventDefault();
-            e.stopPropagation();
-            // 阻止瀏覽器文字選取
-            if (window.getSelection) window.getSelection().removeAllRanges();
-            document.body.style.userSelect = 'none';
-            document.body.style.webkitUserSelect = 'none';
-            setTimeout(function() {
-                document.body.style.userSelect = '';
-                document.body.style.webkitUserSelect = '';
-            }, 300);
-            // 點擊 vs 拖曳判定
-            if (WN_CROP_DRAG_STATE.drawing) return; // 避免重複觸發
-            var container = document.getElementById('wn-crop-img-container');
-            var rect = container.getBoundingClientRect();
-            var img = document.getElementById('wn-crop-img');
-            var scaleX = img.naturalWidth / rect.width;
-            var scaleY = img.naturalHeight / rect.height;
-            var x = (e.clientX - rect.left) * scaleX;
-            var y = (e.clientY - rect.top) * scaleY;
-            // 預設 100x100 px (附件設計, 顯示為 ~15% 寬度)
-            var boxW = 100;
-            var boxH = 100;
-            var newBox = {
-                x: Math.max(0, Math.min(img.naturalWidth - boxW, x - boxW / 2)),
-                y: Math.max(0, Math.min(img.naturalHeight - boxH, y - boxH / 2)),
-                w: boxW,
-                h: boxH,
-                id: Date.now() + '_' + Math.random()
-            };
-            WN_PHASE2_STATE.cropBoxes.push(newBox);
-            WN_renderCropBoxes();
-        }
-        // v1.6.80: 保留舊的 mousedown handler (附件風格優先)
-            overlay.addEventListener('mousedown', function(e) {
-                if (WN_PHASE2_STATE.cropBoxes.length >= 10) {
-                    alert('最多只能框選 10 個錯題');
-                    return;
-                }
-                e.preventDefault();
-                e.stopPropagation();
-                var rect = overlay.getBoundingClientRect();
-                var img = document.getElementById('wn-crop-img');
-                var scaleX = img.naturalWidth / rect.width;
-                var scaleY = img.naturalHeight / rect.height;
-                var clickX = (e.clientX - rect.left) * scaleX;
-                var clickY = (e.clientY - rect.top) * scaleY;
-                // 自動新增 150x150 box 在 click 位置 (居中)
-                var boxW = Math.min(150, img.naturalWidth * 0.15);
-                var boxH = Math.min(150, img.naturalHeight * 0.15);
-                var newBox = {
-                    x: Math.max(0, Math.min(img.naturalWidth - boxW, clickX - boxW / 2)),
-                    y: Math.max(0, Math.min(img.naturalHeight - boxH, clickY - boxH / 2)),
-                    w: boxW,
-                    h: boxH
-                };
-                WN_PHASE2_STATE.cropBoxes.push(newBox);
-                WN_renderCropBoxes();
-            });
-
-            overlay.addEventListener('mousemove', function(e) {
-                if (!WN_CROP_DRAW_STATE.drawing || !WN_CROP_DRAW_STATE.currentBox) return;
-                e.preventDefault();
-                var rect = overlay.getBoundingClientRect();
-                var img = document.getElementById('wn-crop-img');
-                var scaleX = img.naturalWidth / rect.width;
-                var scaleY = img.naturalHeight / rect.height;
-                var curX = (e.clientX - rect.left) * scaleX;
-                var curY = (e.clientY - rect.top) * scaleY;
-                WN_CROP_DRAW_STATE.currentBox.w = Math.abs(curX - WN_CROP_DRAW_STATE.startX);
-                WN_CROP_DRAW_STATE.currentBox.h = Math.abs(curY - WN_CROP_DRAW_STATE.startY);
-                WN_CROP_DRAW_STATE.currentBox.x = Math.min(curX, WN_CROP_DRAW_STATE.startX);
-                WN_CROP_DRAW_STATE.currentBox.y = Math.min(curY, WN_CROP_DRAW_STATE.startY);
-                WN_renderCropDrawingPreview();
-            });
-
-            // v1.6.80: mouseup 不需要做事 (mousedown 已經直接新增 box)
-            overlay.addEventListener('mouseup', function(e) {
-                // no-op (v1.6.80 簡化)
-            });
-        }
-
         function WN_renderCropDrawingPreview() {
             var overlay = document.getElementById('wn-crop-overlay');
             if (!overlay) return;
@@ -8862,139 +8482,9 @@ function WN_onCropImgMouseDown(e) {
             }
         }
 
-        function WN_deleteCropBox(idx) {
-            WN_PHASE2_STATE.cropBoxes.splice(idx, 1);
-            WN_renderCropBoxes();
-        }
-
-        function WN_renderCropCards() {
-            var container = document.getElementById('wn-crop-cards');
-            if (!container) return;
-            container.innerHTML = '';
-            WN_PHASE2_STATE.cropBoxes.forEach(function(box, idx) {
-                var card = document.createElement('div');
-                card.className = 'wn-crop-card';
-                card.innerHTML =
-                    '<div class="wn-crop-card-title">錯題 #' + (idx + 1) + '</div>' +
-                    '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">' +
-                        '<div><label>科目:</label><select class="wn-select" id="wn-crop-subject-' + idx + '">' +
-                            '<option value="">請選擇</option>' +
-                            '<option value="數學">數學</option><option value="英文">英文</option><option value="國文">國文</option>' +
-                        '</select></div>' +
-                        '<div><label>教材類型:</label><select class="wn-select" id="wn-crop-material-' + idx + '"><option value="">請選擇</option></select></div>' +
-                        '<div><label>教材名:</label><select class="wn-select" id="wn-crop-instance-' + idx + '"><option value="">請選擇</option></select></div>' +
-                        '<div><label>冊次:</label><select class="wn-select" id="wn-crop-volume-' + idx + '"><option value="">請選擇</option></select></div>' +
-                        '<div><label>單元:</label><select class="wn-select" id="wn-crop-unit-' + idx + '"><option value="">請選擇</option></select></div>' +
-                        '<div><label>錯題原因:</label><select class="wn-select" id="wn-crop-reason-' + idx + '">' +
-                            '<option value="計算錯誤">計算錯誤</option>' +
-                            '<option value="概念不清楚">概念不清楚</option>' +
-                            '<option value="公式記錯">公式記錯</option>' +
-                            '<option value="粗心">粗心</option>' +
-                            '<option value="審題不清">審題不清</option>' +
-                        '</select></div>' +
-                    '</div>';
-                container.appendChild(card);
-            });
-        }
-
         // 中等版筆跡消除 (螢光筆 + 部分手寫)
-        function WN_removeHandwriting(canvas, cropBox) {
-            // cropBox: {x, y, w, h} (相對於原圖的像素座標)
-            var ctx = canvas.getContext('2d');
-            var imgData = ctx.getImageData(cropBox.x, cropBox.y, cropBox.w, cropBox.h);
-            var data = imgData.data;
-            for (var i = 0; i < data.length; i += 4) {
-                var r = data[i], g = data[i + 1], b = data[i + 2];
-                var max = Math.max(r, g, b);
-                var min = Math.min(r, g, b);
-                var isYellow = (r > 200 && g > 200 && b < 180);
-                var isGreen = (g > 200 && r < 200 && b < 200);
-                var isLightPink = (r > 220 && g > 200 && b > 200 && (r - b) < 30);
-                if (isYellow || isGreen || isLightPink) {
-                    data[i] = 255; data[i + 1] = 255; data[i + 2] = 255;
-                }
-            }
-            ctx.putImageData(imgData, cropBox.x, cropBox.y);
-        }
 
         // 儲存全部 crop (自動下載 + localStorage)
-        function WN_saveAllCrops() {
-            if (WN_PHASE2_STATE.cropBoxes.length === 0) {
-                alert('請先框選至少一個錯題');
-                return;
-            }
-            if (!confirm('確定要儲存 ' + WN_PHASE2_STATE.cropBoxes.length + ' 個錯題?')) return;
-
-            var student = (typeof multiData !== 'undefined' && multiData[currentUserId]) ? multiData[currentUserId].name : 'unknown';
-            var today = new Date().toISOString().slice(0, 10);
-            var seq = 1;
-
-            var img = new Image();
-            img.onload = function() {
-                var canvas = document.createElement('canvas');
-                canvas.width = WN_PHASE2_STATE.uploadedImgWidth;
-                canvas.height = WN_PHASE2_STATE.uploadedImgHeight;
-                var ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-
-                var notes = [];
-                try {
-                    notes = JSON.parse(localStorage.getItem('StudyMap_WrongNotes') || '[]');
-                } catch(e) {}
-
-                WN_PHASE2_STATE.cropBoxes.forEach(function(box, idx) {
-                    // 1. 提取原始 crop
-                    var origCanvas = document.createElement('canvas');
-                    origCanvas.width = box.w; origCanvas.height = box.h;
-                    var origCtx = origCanvas.getContext('2d');
-                    origCtx.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
-                    var origDataUrl = origCanvas.toDataURL('image/jpeg', 0.85);
-
-                    // 2. 消除筆跡
-                    WN_removeHandwriting(canvas, box);
-
-                    // 3. 提取消除後 crop
-                    var cleanCanvas = document.createElement('canvas');
-                    cleanCanvas.width = box.w; cleanCanvas.height = box.h;
-                    var cleanCtx = cleanCanvas.getContext('2d');
-                    cleanCtx.drawImage(canvas, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
-                    var cleanDataUrl = cleanCanvas.toDataURL('image/jpeg', 0.85);
-
-                    // 4. 自動下載
-                    var baseName = student + '__' + (box.subject || 'unknown') + '__' + (box.material || 'unknown') + '__' + (box.instance || 'unknown') + '__' + today + '__' + String(seq).padStart(3, '0');
-                    WN_autoDownload(origDataUrl, baseName + '__原始.jpg');
-                    WN_autoDownload(cleanDataUrl, baseName + '__消除筆跡.jpg');
-
-                    // 5. localStorage metadata
-                    var note = {
-                        id: 'note_' + Date.now() + '_' + idx,
-                        date: today,
-                        student: student,
-                        subject: box.subject || '',
-                        material: box.material || '',
-                        instance: box.instance || '',
-                        volume: box.volume || '',
-                        unit: box.unit || '',
-                        reasons: [box.reason || ''],
-                        originalDataUrl: origDataUrl,
-                        cleanDataUrl: cleanDataUrl,
-                        practiced: 0, mastered: 0, stillWrong: 0
-                    };
-                    notes.push(note);
-                    seq++;
-                });
-
-                try {
-                    localStorage.setItem('StudyMap_WrongNotes', JSON.stringify(notes));
-                    alert('✅ 已儲存 ' + notes.length + ' 個錯題 (含原始圖 + 消除筆跡圖已下載)');
-                    WN_PHASE2_STATE.cropBoxes = [];
-                    WN_renderCropBoxes();
-                } catch(e) {
-                    alert('儲存失敗: ' + e.message + '\n\n可能是 localStorage 空間不足');
-                }
-            };
-            img.src = WN_PHASE2_STATE.uploadedImg;
-        }
 
         function WN_autoDownload(dataUrl, fileName) {
             var a = document.createElement('a');
@@ -9187,16 +8677,6 @@ function WN_onCropImgMouseDown(e) {
                     console.log('[WN] 舊筆記已搬遷到 StudyMap_WrongNotes');
                 }
             } catch(e){}
-        }
-
-        function WN_getNotes() {
-            try {
-                return JSON.parse(localStorage.getItem('StudyMap_WrongNotes') || '[]');
-            } catch(e){ return []; }
-        }
-
-        function WN_saveNotes(notes) {
-            try { localStorage.setItem('StudyMap_WrongNotes', JSON.stringify(notes)); } catch(e){}
         }
 
         // --- 帶入資料（從答對率頁跳轉時呼叫） ---
@@ -9469,26 +8949,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             reader.readAsDataURL(file);
         }
 
-        function WN_showCropImage(dataUrl) {
-            var cropArea = document.getElementById('wn-crop-area');
-            var img = document.getElementById('wn-crop-img');
-            var modeBar = document.getElementById('wn-mode-bar');
-            img.src = dataUrl;
-            img.onload = function() {
-                cropArea.style.display = 'inline-block';
-                modeBar.style.display = 'flex';
-                var dropZone = document.getElementById('wn-drop-zone');
-                if(dropZone) dropZone.style.display = 'none';
-                WN_STATE.cropBoxes = [];
-                WN_STATE.eraseBoxes = [];
-                WN_STATE.mode = 'add';
-                WN_updateModeButtons();
-                WN_renderBoxes();
-                // 設定 crop area 事件
-                WN_setupCropEvents();
-            };
-        }
-
         function WN_renderBoxes() {
             var cropArea = document.getElementById('wn-crop-area');
             if(!cropArea) return;
@@ -9566,12 +9026,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             });
         }
 
-        function WN_deleteBox(e, id) {
-            e.stopPropagation();
-            WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== id; });
-            WN_renderBoxes();
-        }
-
         function WN_deleteEraseBox(e, id) {
             e.stopPropagation();
             WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== id; });
@@ -9592,51 +9046,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if(cleanUpload) cleanUpload.style.display = (WN_STATE.mode === 'clean') ? 'block' : 'none';
         }
 
-        function WN_clearAllBoxes() {
-            WN_STATE.cropBoxes = [];
-            WN_STATE.eraseBoxes = [];
-            WN_STATE.cleanImage = null;
-            WN_renderBoxes();
-        }
-
         // --- 內容感知填補（消除答案） ---
-        function WN_applyErase() {
-            if(!WN_STATE.eraseBoxes.length || !WN_STATE.importedImage) return;
-            var img = document.getElementById('wn-crop-img');
-            var canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            WN_STATE.eraseBoxes.forEach(function(box) {
-                // 內容感知填補：用周圍顏色填補
-                var patchSize = Math.max(box.w, box.h) * 0.5;
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(box.x, box.y, box.w, box.h);
-                // 簡單模糊填補：取周圍平均色彩
-                try {
-                    var imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    var d = imgData.data;
-                    var r=0,g=0,b=0,cnt=0;
-                    // 取框外圍邊緣像素平均值
-                    for(var py = Math.max(0,box.y-2); py < Math.min(canvas.height, box.y+box.h+2); py++) {
-                        for(var px = Math.max(0,box.x-2); px < Math.min(canvas.width, box.x+box.w+2); px++) {
-                            if(py < box.y || py >= box.y+box.h || px < box.x || px >= box.x+box.w) {
-                                var idx = (py*canvas.width+px)*4;
-                                r+=d[idx]; g+=d[idx+1]; b+=d[idx+2]; cnt++;
-                            }
-                        }
-                    }
-                    if(cnt>0) { r=Math.round(r/cnt); g=Math.round(g/cnt); b=Math.round(b/cnt); }
-                    ctx.fillStyle = 'rgb('+r+','+g+','+b+')';
-                    ctx.fillRect(box.x+1, box.y+1, box.w-2, box.h-2);
-                } catch(err){}
-            });
-            // 更新顯示
-            var newDataUrl = canvas.toDataURL('image/png');
-            document.getElementById('wn-crop-img').src = newDataUrl;
-            WN_STATE.importedImage = newDataUrl;
-        }
 
         // --- 上傳乾淨版本 ---
         function WN_handleCleanImage(input) {
@@ -9662,39 +9072,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         // --- 儲存筆記 ---
-        function WN_saveNote() {
-            var student = document.getElementById('wn-student').value;
-            var subject = document.getElementById('wn-subject').value;
-            var volume = document.getElementById('wn-volume').value;
-            var unit = document.getElementById('wn-unit').value;
-            var source = document.getElementById('wn-source').value;
-            var content = document.getElementById('wn-note-content').value;
-            if(!student || !subject || !volume || !unit) {
-                alert('請填寫學生、科目、冊次、單元');
-                return;
-            }
-            if(!WN_STATE.cropBoxes.length) {
-                alert('請框選至少一個錯題區塊');
-                return;
-            }
-            // 對每個框產生筆記
-            var notes = WN_getNotes();
-            WN_STATE.cropBoxes.forEach(function(box, i) {
-                var imgData = WN_cropBoxToDataUrl(box);
-                notes.push({
-                    id: Date.now() + '_' + i,
-                    date: new Date().toISOString().slice(0,10),
-                    student: student, subject: subject, material: WN_STATE.currentMaterial, instance: WN_STATE.currentInstance, volume: volume, unit: unit,
-                    source: source, reasons: WN_STATE.selectedReasons.slice(),
-                    imgUrl: imgData, content: content,
-                    practiced: 0, mastered: 0, stillWrong: 0
-                });
-            });
-            WN_saveNotes(notes);
-            WN_cancelImport();
-            WN_switchTab('notes');
-            alert('已儲存 ' + WN_STATE.cropBoxes.length + ' 筆錯題筆記');
-        }
 
         // v1.6.66: 7-step flow functions
         function WN_completeCrop() {
@@ -9930,63 +9307,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             document.querySelectorAll('#wn-flow-reasons input[type="checkbox"]').forEach(function(cb) {
                 cb.checked = card.reasons.indexOf(cb.value) >= 0;
             });
-        }
-
-        function WN_saveFinalNote() {
-            // 收集所有卡的 reasons + content
-            WN_STATE.flowPerCard.forEach(function(card, i) {
-                if (i === WN_STATE.flowCurrentIdx) {
-                    // 從 textarea 取當前內容
-                    card.content = document.getElementById('wn-note-content-display').value || '';
-                }
-            });
-            // 呼叫現有 WN_saveNote flow
-            var notes = WN_getNotes();
-            var today = new Date().toISOString().slice(0, 10);
-            WN_STATE.flowPerCard.forEach(function(card, i) {
-                var img = WN_STATE.flowImages[i];
-                if (img) {
-                    notes.push({
-                        id: Date.now() + '_' + i,
-                        date: today,
-                        student: card.student, subject: card.subject, material: card.material, instance: card.instance, volume: card.volume, unit: card.unit,
-                        reasons: card.reasons.slice(), content: card.content,
-                        imgUrl: img.file,
-                        practiced: 0, mastered: 0, stillWrong: 0
-                    });
-                }
-            });
-            WN_saveNotes(notes);
-            // 切到 wn-notes tab
-            WN_switchTab('notes');
-            alert('已儲存 ' + WN_STATE.flowPerCard.length + ' 筆錯題筆記');
-            // reset
-            WN_STATE.flowImages = [];
-            WN_STATE.flowPerCard = [];
-            WN_STATE.flowCurrentIdx = 0;
-        }
-
-        function WN_cropBoxToDataUrl(box) {
-            var img = document.getElementById('wn-crop-img');
-            var canvas = document.createElement('canvas');
-            canvas.width = box.w;
-            canvas.height = box.h;
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(img, box.x, box.y, box.w, box.h, 0, 0, box.w, box.h);
-            return canvas.toDataURL('image/png');
-        }
-
-        function WN_cancelImport() {
-            WN_STATE.cropBoxes = [];
-            WN_STATE.eraseBoxes = [];
-            WN_STATE.importedImage = null;
-            WN_STATE.cleanImage = null;
-            WN_STATE.selectedReasons = [];
-            document.getElementById('wn-crop-area').style.display = 'none';
-            document.getElementById('wn-mode-bar').style.display = 'none';
-            document.getElementById('wn-setting-area').style.display = 'none';
-            document.getElementById('wn-note-content').value = '';
-            document.querySelectorAll('.wn-reason-tag').forEach(function(t){ t.classList.remove('selected'); });
         }
 
         // --- 查看錯題筆記列表 ---
@@ -15091,22 +14411,6 @@ function WN_updateModeButtons() {
     if (activeBtn) activeBtn.classList.add('active');
 }
 
-function WN_clearAllBoxes() {
-    WN_STATE.cropBoxes = [];
-    WN_STATE.eraseBoxes = [];
-    WN_STATE.importedImage = null;
-    WN_renderBoxes();
-    var cropArea = document.getElementById('wn-crop-area');
-    var img = document.getElementById('wn-crop-img');
-    if (img) img.src = '';
-    if (cropArea) cropArea.style.display = 'none';
-    var modeBar = document.getElementById('wn-mode-bar');
-    if (modeBar) modeBar.style.display = 'none';
-    var dropZone = document.getElementById('wn-drop-zone');
-    if (dropZone) dropZone.style.display = 'block';
-    document.getElementById('wn-file-input').value = '';
-}
-
 function WN_handleFileInput(input) {
     if (!input.files || !input.files.length) return;
     var file = input.files[0];
@@ -15117,25 +14421,6 @@ function WN_handleFileInput(input) {
         WN_showCropImage(e.target.result);
     };
     reader.readAsDataURL(file);
-}
-
-function WN_showCropImage(dataUrl) {
-    var cropArea = document.getElementById('wn-crop-area');
-    var img = document.getElementById('wn-crop-img');
-    var modeBar = document.getElementById('wn-mode-bar');
-    img.src = dataUrl;
-    img.onload = function() {
-        cropArea.style.display = 'inline-block';
-        modeBar.style.display = 'flex';
-        var dropZone = document.getElementById('wn-drop-zone');
-        if (dropZone) dropZone.style.display = 'none';
-        WN_STATE.cropBoxes = [];
-        WN_STATE.eraseBoxes = [];
-        WN_STATE.mode = 'add';
-        WN_updateModeButtons();
-        WN_renderBoxes();
-        WN_setupCropEvents();
-    };
 }
 
 function WN_renderBoxes() {
@@ -15202,32 +14487,11 @@ function WN_renderBoxes() {
     });
 }
 
-function WN_deleteBox(event, boxId) {
-    event.stopPropagation();
-    event.preventDefault();
-    WN_STATE.cropBoxes = WN_STATE.cropBoxes.filter(function(b){ return b.id !== boxId; });
-    WN_renderBoxes();
-}
-
 function WN_deleteEraseBox(event, boxId) {
     event.stopPropagation();
     event.preventDefault();
     WN_STATE.eraseBoxes = WN_STATE.eraseBoxes.filter(function(b){ return b.id !== boxId; });
     WN_applyErase();
-}
-
-function WN_applyErase() {
-    if (!WN_STATE.eraseBoxes.length || !WN_STATE.importedImage) return;
-    var img = document.getElementById('wn-crop-img');
-    if (!img || !img.naturalWidth) return;
-    var canvas = document.createElement('canvas');
-    canvas.width = img.naturalWidth;
-    canvas.height = img.naturalHeight;
-    var ctx = canvas.getContext('2d');
-    ctx.drawImage(img, 0, 0);
-    WN_STATE.eraseBoxes.forEach(function(box) { ctx.clearRect(box.x, box.y, box.w, box.h); });
-    img.src = canvas.toDataURL();
-    WN_STATE.eraseBoxes = [];
 }
 
 function WN_handleCleanImage(input) {
