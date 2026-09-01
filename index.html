@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.99]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.100]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1839,14 +1839,14 @@
                         <div id="wn-source-zone" class="wn-source-zone" style="border:3px dashed #1a82e2;border-radius:10px;padding:32px 20px;text-align:center;background:#f8fbff;cursor:pointer;margin-bottom:8px;" onclick="document.getElementById('wn-source-input').click()">
                             <p style="font-size:1.1em;color:#333;margin:0;font-weight:bold;pointer-events:none;">📁 請選擇錯題來源 (支援拖曳或選取多張照片)</p>
                         </div>
-                        <input type="file" id="wn-source-input" style="display:none" accept="image/*" multiple>
+                        <input type="file" id="wn-source-input" style="display:none" accept="image/*" multiple onchange="WN_handleFileUpload(this.files[0])">
 
                         <div class="wn-or-divider" style="text-align:center;font-weight:bold;color:#666;font-size:1.05em;margin:12px 0;">或</div>
 
                         <div id="wn-paper-zone" class="wn-source-zone" style="border:3px dashed #1a82e2;border-radius:10px;padding:32px 20px;text-align:center;background:#f8fbff;cursor:pointer;margin-bottom:8px;" onclick="document.getElementById('wn-paper-input').click()">
                             <p style="font-size:1.1em;color:#333;margin:0;font-weight:bold;pointer-events:none;">📄 請匯入考卷 (支援 jpeg 或 png 檔)</p>
                         </div>
-                        <input type="file" id="wn-paper-input" style="display:none" accept="image/*">
+                        <input type="file" id="wn-paper-input" style="display:none" accept="image/*" multiple onchange="WN_handleFileUpload(this.files[0])">
 
                         <!-- 預覽 + Crop 區 -->
                         <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:10px;">
