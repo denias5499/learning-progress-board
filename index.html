@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.100]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.101]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8363,7 +8363,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (WN_isManualAdding) {
                     if (e.target === pageContainer || e.target === document.getElementById('wn-crop-img')) {
                         e.preventDefault();
-                        WN_createNewManualBox(e.offsetX, e.offsetY, pageContainer);
+                        WN_createNewManualBox(e.clientX, e.clientY, pageContainer);
                         WN_isManualAdding = false;
                         var tip = document.getElementById('wn-manual-tip');
                         if (tip) {
@@ -8376,13 +8376,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function WN_createNewManualBox(x, y, container) {
+            // v1.6.101: 改用 clientX/clientY - container.left (附件設計, 不受 layout 影響)
             var box = document.createElement('div');
             box.className = 'wn-crop-box';
             var rect = container.getBoundingClientRect();
-            var topPerc = (y / rect.height) * 100;
-            var leftPerc = (x / rect.width) * 100;
-            box.style.top = topPerc + '%';
-            box.style.left = leftPerc + '%';
+            // 防止 rect.width = 0 (圖片未載入)
+            var containerW = rect.width || container.offsetWidth || 1;
+            var containerH = rect.height || container.offsetHeight || 1;
+            // x, y 是 mouse event 的 clientX/clientY
+            var leftPerc = ((x - rect.left) / containerW) * 100;
+            var topPerc = ((y - rect.top) / containerH) * 100;
+            box.style.top = Math.max(0, Math.min(100 - 15, topPerc)) + '%';
+            box.style.left = Math.max(0, Math.min(100 - 45, leftPerc)) + '%';
             box.style.width = '45%';
             box.style.height = '15%';
             var cropId = 'crop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
