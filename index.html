@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.103]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.104]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8356,9 +8356,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v1.6.97: 完整照附件 - crop box 邏輯 (page-container + isManualAdding + resize handles)
+        var WN_CROP_EVENTS_INITED = false;  // v1.6.104: 防止重複綁定
         function WN_setupCropEvents() {
             var pageContainer = document.getElementById('wn-page-container');
             if (!pageContainer) return;
+            // v1.6.104: 防止重複綁定 (每次上傳都會呼叫, 會累積 handler)
+            if (WN_CROP_EVENTS_INITED) return;
+            WN_CROP_EVENTS_INITED = true;
             pageContainer.addEventListener('mousedown', function(e) {
                 if (WN_isManualAdding) {
                     if (e.target === pageContainer || e.target === document.getElementById('wn-crop-img')) {
@@ -8586,6 +8590,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v1.6.97: 取消選取 - 清空所有 crop boxes (照附件)
         function WN_cancelSelection() {
             if (!confirm('確定要取消選取嗎？所有已框選的錯題將清除。')) return;
+            // v1.6.104: 移除所有 crop boxes + 重置 event flag (允許下次上傳重新綁定)
+            WN_CROP_EVENTS_INITED = false;
+            var pageContainer = document.getElementById('wn-page-container');
+            if (pageContainer) {
+                pageContainer.querySelectorAll('.wn-crop-box').forEach(function(b) { b.remove(); });
+            }
             WN_PHASE2_STATE.cropBoxes = [];
             WN_manualBoxes = [];
             WN_isManualAdding = false;
