@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.111]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.110]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1815,47 +1815,7 @@
         <!-- v1.6.70: 錯題資料庫獨立 page (top-level tab) -->
         <div id="page-wrongnotes" class="page-view" style="background:#f5e8f5;">
             <!-- v1.6.109: 附件 standalone app 嵌入 (iframe 模式) -->
-            <iframe id="wrongnotes-iframe" src="wrong-notes/?embedded=1" style="width:100%;height:60vh;border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);margin-top:10px;" title="錯題資料庫"></iframe>
-
-            <!-- v1.6.111: 主專案管 dropdown + 儲存 (從 masters localStorage 動態填) -->
-            <div id="wn-main-form" style="background:white;padding:20px;border-radius:12px;margin-top:15px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
-                <h3 style="color:#5a5a8a;margin:0 0 15px;">📋 錯題設定 (主專案管理, 從資料庫動態填)</h3>
-                <div id="wn-cropped-preview" style="display:none;margin-bottom:15px;padding:10px;background:#e8f5e8;border-radius:8px;">
-                    <strong>✅ 已框選 <span id="wn-crop-count">0</span> 張圖片</strong>
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;">Step 2：科目</label>
-                    <select id="wn-sel-subject" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;">
-                        <option value="">請選擇科目</option>
-                    </select>
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;">Step 3：冊次/單元</label>
-                    <select id="wn-sel-instance" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" disabled>
-                        <option value="">請先選擇科目</option>
-                    </select>
-                    <select id="wn-sel-unit" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;margin-top:5px;" disabled>
-                        <option value="">請先選擇冊次</option>
-                    </select>
-                </div>
-                <div style="margin-bottom:12px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;">Step 4：錯題來源</label>
-                    <select id="wn-sel-source" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;">
-                        <option value="">請選擇來源</option>
-                    </select>
-                </div>
-                <div style="margin-bottom:15px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;">Step 5：錯誤原因 (可複選)</label>
-                    <label style="margin-right:15px;"><input type="checkbox" value="觀念模糊"> 觀念模糊</label>
-                    <label style="margin-right:15px;"><input type="checkbox" value="題目陷阱"> 題目陷阱</label>
-                    <label><input type="checkbox" value="粗心"> 粗心</label>
-                </div>
-                <div style="margin-bottom:15px;">
-                    <label style="font-weight:bold;display:block;margin-bottom:5px;">筆記內容 (選填)</label>
-                    <textarea id="wn-note-content" placeholder="可填寫解題思路、重點..." style="width:100%;min-height:60px;padding:8px;border:1px solid #ccc;border-radius:6px;"></textarea>
-                </div>
-                <button id="wn-btn-save" onclick="WN_saveToMainProject()" style="width:100%;padding:12px;background:#5a8a5a;color:white;border:none;border-radius:8px;font-size:16px;font-weight:bold;cursor:pointer;">💾 儲存錯題 (到 StudyMap)</button>
-            </div>
+            <iframe id="wrongnotes-iframe" src="wrong-notes/" style="width:100%;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);margin-top:10px;" title="錯題資料庫"></iframe>
             <div class="page-card">
                 <div class="modal-header">
                     <div class="stats-card-header" style="width: 100%;">
@@ -8542,110 +8502,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v1.6.70: 錯題資料庫獨立 page
-        // v1.6.111: postMessage listener - 從 iframe 接收 crop data
-        let _wnCroppedImages = [];
-        window.addEventListener('message', function(e) {
-            if(e.data && e.data.type === 'wrong-notes-crop-complete') {
-                _wnCroppedImages = e.data.images || [];
-                var preview = document.getElementById('wn-cropped-preview');
-                var countEl = document.getElementById('wn-crop-count');
-                if(_wnCroppedImages.length > 0) {
-                    preview.style.display = 'block';
-                    countEl.textContent = _wnCroppedImages.length;
-                }
-            }
-        });
-
-        // v1.6.111: 從 localStorage masters 動態填 dropdown
-        function WN_loadMasterDropdowns() {
-            var user = JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}');
-            var masters = user.masters || {};
-            // Step 2 科目: 從 masters 所有 subject
-            var subjects = Object.keys(masters);
-            var subjSel = document.getElementById('wn-sel-subject');
-            subjSel.innerHTML = '<option value="">請選擇科目</option>';
-            subjects.forEach(function(sub) { subjSel.innerHTML += '<option value="' + sub + '">' + sub + '</option>'; });
-            // Step 4 來源: 從 masters 所有 typeName (unique)
-            var types = {};
-            Object.keys(masters).forEach(function(sub) {
-                Object.keys(masters[sub] || {}).forEach(function(type) { types[type] = true; });
-            });
-            var sourceSel = document.getElementById('wn-sel-source');
-            sourceSel.innerHTML = '<option value="">請選擇來源</option>';
-            Object.keys(types).forEach(function(t) { sourceSel.innerHTML += '<option value="' + t + '">' + t + '</option>'; });
-        }
-
-        // v1.6.111: 科目改變 → 載入該科目的 instance (冊次)
-        document.addEventListener('change', function(e) {
-            if(e.target && e.target.id === 'wn-sel-subject') {
-                var user = JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}');
-                var masters = (user.masters || {})[e.target.value] || {};
-                var instSel = document.getElementById('wn-sel-instance');
-                instSel.innerHTML = '<option value="">請選擇冊次</option>';
-                instSel.disabled = false;
-                Object.keys(masters).forEach(function(inst) {
-                    instSel.innerHTML += '<option value="' + inst + '">' + inst + '</option>';
-                });
-                document.getElementById('wn-sel-unit').innerHTML = '<option value="">請先選擇冊次</option>';
-                document.getElementById('wn-sel-unit').disabled = true;
-            }
-            if(e.target && e.target.id === 'wn-sel-instance') {
-                var user = JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}');
-                var subj = document.getElementById('wn-sel-subject').value;
-                var instId = e.target.value;
-                var instData = ((user.masters || {})[subj] || {})[instId];
-                var unitSel = document.getElementById('wn-sel-unit');
-                if(instData && instData.units) {
-                    unitSel.innerHTML = '<option value="">請選擇單元</option>';
-                    unitSel.disabled = false;
-                    instData.units.forEach(function(u) {
-                        var label = u.name || u.id;
-                        unitSel.innerHTML += '<option value="' + label + '">' + label + '</option>';
-                    });
-                } else {
-                    unitSel.innerHTML = '<option value="">無單元資料</option>';
-                }
-            }
-        });
-
-        // v1.6.111: 儲存到主專案 localStorage (StudyMap_WrongNotes)
-        function WN_saveToMainProject() {
-            if(_wnCroppedImages.length === 0) { alert('請先在 iframe 內上傳並框選錯題！'); return; }
-            var subject = document.getElementById('wn-sel-subject').value;
-            var instance = document.getElementById('wn-sel-instance').value;
-            var unit = document.getElementById('wn-sel-unit').value;
-            var source = document.getElementById('wn-sel-source').value;
-            if(!subject || !source) { alert('請選擇科目和來源！'); return; }
-            var reasons = [];
-            document.querySelectorAll('#wn-main-form input[type="checkbox"]:checked').forEach(function(cb) { reasons.push(cb.value); });
-            var content = document.getElementById('wn-note-content').value;
-            var today = new Date();
-            var dateStr = today.getFullYear() + '/' + ('0' + (today.getMonth()+1)).slice(-2) + '/' + ('0' + today.getDate()).slice(-2);
-            var notes = JSON.parse(localStorage.getItem('StudyMap_WrongNotes') || '[]');
-            _wnCroppedImages.forEach(function(img) {
-                notes.unshift({
-                    id: 'wn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                    date: dateStr,
-                    timestamp: Date.now() + Math.random(),
-                    subject: subject,
-                    instanceName: instance,
-                    unit: unit,
-                    source: source,
-                    reasons: reasons,
-                    imgUrl: img.imgUrl,
-                    content: content
-                });
-            });
-            localStorage.setItem('StudyMap_WrongNotes', JSON.stringify(notes));
-            alert('✅ 已儲存 ' + _wnCroppedImages.length + ' 筆錯題到主專案！');
-            _wnCroppedImages = [];
-            document.getElementById('wn-cropped-preview').style.display = 'none';
-        }
-
         function openWrongNotes() {
             showPage('page-wrongnotes');
-            // v1.6.111: 載入 masters dropdowns
-            if(typeof WN_loadMasterDropdowns === 'function') WN_loadMasterDropdowns();
             // 第一次進入時提示用戶建立資料夾
             if (!localStorage.getItem('StudyMap_WrongNotes_DisclaimerAck')) {
                 alert('📂 第一次使用錯題資料庫：\n\n請先在瀏覽器下載資料夾下建立「學習進度看板」資料夾，\n並將瀏覽器的下載位置設定到這個資料夾。\n\n之後上傳的錯題圖片會自動下載到此資料夾。');
