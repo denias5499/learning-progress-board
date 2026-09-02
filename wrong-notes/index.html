@@ -327,7 +327,11 @@
             .note-img-area img { max-height: 300px; }
             .note-grid-area { min-height: 120px; background-image: none !important; }
         }
-    </style>
+        /* v1.6.111: embedded mode - 隱藏附件 standalone 的 Step 2~4 + 儲存按鈕 (主專案自己管) */
+    body.embedded-mode .step-container#settings-container,
+    body.embedded-mode #note-page,
+    body.embedded-mode .save-btn-container { display: none !important; }
+</style>
 </head>
 <body>
 
@@ -798,8 +802,24 @@
         }
     }
 
+    const isEmbedded = new URLSearchParams(window.location.search).has('embedded');
+
     function finishCropping() {
         document.getElementById('crop-modal').style.display = 'none';
+        if(isEmbedded) {
+            // v1.6.111: embedded mode - postMessage crop data to 主專案
+            try {
+                window.parent.postMessage({
+                    type: 'wrong-notes-crop-complete',
+                    images: currentFilesData.map(function(item) {
+                        return { imgUrl: item.imgUrl, batchId: item.batchId, cropId: item.cropId };
+                    })
+                }, '*');
+            } catch(e) {
+                console.error('postMessage failed', e);
+            }
+            return;
+        }
         if(document.getElementById('settings-container').style.display === 'block') {
             document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth' });
         }
@@ -1218,6 +1238,7 @@
         btn.previousElementSibling.style.display = 'block';
     }
 
-</script>
+        if(isEmbedded) document.body.classList.add('embedded-mode');
+    </script>
 </body>
 </html>
