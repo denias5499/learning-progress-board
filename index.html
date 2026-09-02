@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.112]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.113]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1815,103 +1815,11 @@
         <!-- v1.6.70: 錯題資料庫獨立 page (top-level tab) -->
         <div id="page-wrongnotes" class="page-view" style="background:#f5e8f5;">
             <!-- v1.6.112: 移除 iframe, 改用主專案原本的「匯入錯題」tab (上方那組), 寬度匹配 dashboard -->
-            <div class="page-card" style="max-width:1200px;margin:0 auto;width:100%;">
-            <div class="modal-header">
-                    <div class="stats-card-header" style="width: 100%;">
-                        <h2>📚 錯題資料庫</h2>
-                        <p style="color:var(--secondary); font-size:0.9em; margin:4px 0 0;">
-                            上傳錯題圖片 → 自動消除筆跡 → 練習考卷生成
-                        </p>
-                    </div>
-                </div>
-                <!-- 4 個 nav pages -->
-                <div class="wn-tabs" style="position:sticky;top:0;background:white;padding:12px 0;z-index:50;border-bottom:2px solid #e0e0e0;">
-                    <button class="wn-tab active" data-wntab="import">📤 匯入錯題</button>
-                    <button class="wn-tab" data-wntab="notes">📖 查看錯題筆記</button>
-                    <button class="wn-tab" data-wntab="stats">📊 錯題數據分析</button>
-                    <button class="wn-tab" data-wntab="practice">✏️ 錯題再練</button>
-                </div>
-
-                <div id="wn-page-import" class="wn-page active" style="display:block;">
-                    <div class="wn-import-container">
-                        <div class="wn-step-title">Step 1：請選擇錯題來源</div>
-
-                        <!-- 兩個 drop zone (參照附件設計) - inline style 確保框線顯示 -->
-                        <div id="wn-source-zone" class="wn-source-zone" style="border:3px dashed #1a82e2;border-radius:10px;padding:32px 20px;text-align:center;background:#f8fbff;cursor:pointer;margin-bottom:8px;" onclick="document.getElementById('wn-source-input').click()">
-                            <p style="font-size:1.1em;color:#333;margin:0;font-weight:bold;pointer-events:none;">📁 請選擇錯題來源 (支援拖曳或選取多張照片)</p>
-                        </div>
-                        <input type="file" id="wn-source-input" style="display:none" accept="image/*" multiple onchange="WN_handleFileUpload(this.files[0])">
-
-                        <div class="wn-or-divider" style="text-align:center;font-weight:bold;color:#666;font-size:1.05em;margin:12px 0;">或</div>
-
-                        <div id="wn-paper-zone" class="wn-source-zone" style="border:3px dashed #1a82e2;border-radius:10px;padding:32px 20px;text-align:center;background:#f8fbff;cursor:pointer;margin-bottom:8px;" onclick="document.getElementById('wn-paper-input').click()">
-                            <p style="font-size:1.1em;color:#333;margin:0;font-weight:bold;pointer-events:none;">📄 請匯入考卷 (支援 jpeg 或 png 檔)</p>
-                        </div>
-                        <input type="file" id="wn-paper-input" style="display:none" accept="image/*" multiple onchange="WN_handleFileUpload(this.files[0])">
-
-                        <!-- 預覽 + Crop 區 -->
-                        <div id="wn-crop-area" class="wn-crop-area" style="display:none;margin-top:10px;">
-                            <!-- 取消選取 + 完成選取 按鈕 (在頂部) -->
-                            <div style="display:flex;gap:14px;justify-content:center;margin-bottom:14px;">
-                                <button class="wn-btn" onclick="WN_cancelSelection()" style="padding:12px 32px;font-size:1.05em;background:#c9b8d9;color:#333;border:none;border-radius:24px;cursor:pointer;">取消選取</button>
-                                <button class="wn-btn" onclick="WN_completeSelection()" style="padding:12px 32px;font-size:1.05em;background:#f0d040;color:#333;border:none;border-radius:24px;cursor:pointer;font-weight:bold;">完成選取</button>
-                            </div>
-                            <p style="font-size:0.85em;color:#666;margin-bottom:8px;">💡 可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</p>
-                            <!-- v1.6.97: 照附件設計 - img 在 page-container 內 -->
-                            <div class="wn-page-container" id="wn-page-container" style="max-width:800px;width:100%;margin:0 auto;display:block;">
-                                <img id="wn-crop-img" style="display:block;max-width:100%;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-moz-user-select:none;-ms-user-select:none;">
-                            </div>
-                            <!-- 編輯按鈕 (照附件) -->
-                            <div style="margin-top:15px;display:flex;justify-content:center;gap:15px;">
-                                <button class="wn-btn wn-btn-success" onclick="WN_triggerAutoCrop()">🤖 自動辨識</button>
-                                <button class="wn-btn wn-btn-secondary" onclick="WN_enableManualCrop()">✍️ 手動框選</button>
-                            </div>
-                            <!-- 手動框選編輯 Pad -->
-                            <div id="wn-manual-edit-pad" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid rgba(0,0,0,0.1);justify-content:center;gap:10px;align-items:center;">
-                                <button class="wn-btn wn-btn-primary" onclick="WN_startManualBox()">➕ 新增框線</button>
-                                <button class="wn-btn wn-btn-secondary" onclick="WN_undoManualBox()">↺ Undo</button>
-                                <span id="wn-manual-tip" style="font-size:13px;color:#666;">點擊「新增框線」後，在圖片任一位置點擊一下。</span>
-                            </div>
-                        </div>
-
-                        <!-- 教材選擇 (逐個 crop box 設定) -->
-                        <div id="wn-crop-list" style="display:none;margin-top:18px;">
-                            <h4 style="margin:0 0 8px;">📚 為每個錯題設定詳細資訊</h4>
-                            <div id="wn-crop-cards"></div>
-                            <div style="margin-top:14px;display:flex;gap:10px;">
-                                <button class="wn-btn wn-btn-success" onclick="WN_saveAllCrops()">💾 儲存全部錯題</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <!-- v1.6.109: iframe 移到頂層 page (附件完整 app 在「錯題資料庫」tab) -->
-                <div id="wn-page-notes" class="wn-page" style="display:none;">
-                    <div class="placeholder-text" style="background:#e8f5e8; padding:30px; border-radius:12px;">
-                        <h3 style="color:#5a8a5a; margin:0 0 12px;">📖 查看錯題筆記 (Phase 4)</h3>
-                        <p style="margin:8px 0;">✅ 讀取附件 iframe 儲存的資料 (postMessage 同步)</p>
-                        <p style="color:#888; font-size:0.85em; margin-top:16px;">⏳ 此功能將在 Phase 4 實作</p>
-                    </div>
-                </div>
-                <div id="wn-page-stats" class="wn-page" style="display:none;">
-                    <div class="placeholder-text" style="background:#e8e8f5; padding:30px; border-radius:12px;">
-                        <h3 style="color:#5a5a8a; margin:0 0 12px;">📊 錯題數據分析 (Phase 4)</h3>
-                        <p style="margin:8px 0;">✅ 各科目錯題分布 (由多至少排序)</p>
-                        <p style="margin:8px 0;">✅ 點 bar 彈出 modal (單元名稱 + 錯題題數)</p>
-                        <p style="color:#888; font-size:0.85em; margin-top:16px;">⏳ 此功能將在 Phase 4 實作</p>
-                    </div>
-                </div>
-                <div id="wn-page-practice" class="wn-page" style="display:none;">
-                    <div class="placeholder-text" style="background:#f5e8e8; padding:30px; border-radius:12px;">
-                        <h3 style="color:#b78f5a; margin:0 0 12px;">✏️ 錯題再練 (Phase 5)</h3>
-                        <p style="margin:8px 0;">✅ 隨機抽題</p>
-                        <p style="margin:8px 0;">✅ <strong>顯示「消除筆跡後」的圖片</strong>（沒有你的筆跡，可以練習）</p>
-                        <p style="margin:8px 0;">✅ 標記「✅ 已學會」/「❌ 再錯」</p>
-                        <p style="margin:8px 0;">✅ 生成 A4 練習考卷 (3 題/頁)</p>
-                        <p style="color:#888; font-size:0.85em; margin-top:16px;">⏳ 此功能將在 Phase 5 實作</p>
-                    </div>
-                </div>
+            <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
+            <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
+                     附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
+            <iframe src="wrong-notes/" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
-
     </div>
 
     <!-- 所有 Modal 區塊 -->
