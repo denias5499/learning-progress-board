@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.113]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.114]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1818,7 +1818,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe src="wrong-notes/" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe id="wrongnotes-iframe" src="wrong-notes/" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫" onload="WN_injectIntoIframe()"></iframe>
         </div>
     </div>
 
@@ -8408,6 +8408,50 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v1.6.70: 錯題資料庫獨立 page
+
+        // v1.6.114: iframe 載入後注入 CSS + master data
+        function WN_buildMasterData() {
+            var user = JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}');
+            var masters = user.masters || {};
+            var subjects = Object.keys(masters);  // 9 個科目 (含地科)
+            var tree = {};
+            // 把 masters 結構轉成附件要的格式:
+            // masters: { subject: { instanceId: { typeName, instanceName, units: [...] } } }
+            // 附件要: tree: { subject: { typeName: { instanceName: [unit names] } } }
+            Object.keys(masters).forEach(function(subj) {
+                tree[subj] = {};
+                Object.keys(masters[subj]).forEach(function(insId) {
+                    var inst = masters[subj][insId];
+                    var typeName = inst.typeName || '其他';
+                    var instName = inst.instanceName || insId;
+                    if (!tree[subj][typeName]) tree[subj][typeName] = {};
+                    var units = (inst.units || []).map(function(u) {
+                        return typeof u === 'string' ? u : (u.name || u.id || '');
+                    });
+                    tree[subj][typeName][instName] = units;
+                });
+            });
+            return { subjects: subjects, tree: tree };
+        }
+
+        function WN_injectIntoIframe() {
+            var iframe = document.getElementById('wrongnotes-iframe');
+            if (!iframe || !iframe.contentWindow) return;
+            try {
+                var wn = iframe.contentWindow;
+                var doc = wn.document;
+                // 1. 注入 CSS (Step 1 框寬度對齊 dashboard)
+                var style = doc.createElement('style');
+                style.textContent = '.app-container { max-width: 1200px !important; }';
+                doc.head.appendChild(style);
+                // 2. 注入 master data
+                var masterData = WN_buildMasterData();
+                wn.WN_masterData = masterData;
+            } catch(e) {
+                console.error('WN_injectIntoIframe failed:', e);
+            }
+        }
+
         function openWrongNotes() {
             showPage('page-wrongnotes');
             // 第一次進入時提示用戶建立資料夾

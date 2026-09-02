@@ -367,8 +367,15 @@
             </div>
         </div>
 
-        <div class="step-container" id="settings-container" style="display: none;">
-            <div class="step-title">Step 2 ~ Step 4：為每個檔案設定詳細資訊 (左右滑動)</div>
+        </div>
+
+    <!-- v1.6.114: 編輯生成筆記頁面 (新 settings-page, 與 Step 1 分離) -->
+    <div id="settings-page" class="page" style="display:none;">
+        <div class="step-container">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <div class="step-title">Step 2 ~ Step 6：為每個檔案設定詳細資訊</div>
+                <button class="wn-btn" onclick="WN_navigateToImport()" style="background:#c9b8d9;">← 上一步 (返回上傳)</button>
+            </div>
             <div class="slider-container" id="cards-slider"></div>
             <button class="generate-btn" onclick="generateNote()">生成錯題筆記</button>
         </div>
@@ -434,7 +441,8 @@
 </div>
 
 <script>
-    const syllabusDB = {
+    // v1.6.114: 從 window.WN_masterData 注入 (主專案 master), 否則用 syllabusDB 預設
+    let syllabusDB = window.WN_masterData && window.WN_masterData.tree ? window.WN_masterData.tree : {
         "國文": { 
             "type": "custom", 
             "units": ["字音", "字形", "字義", "詞語應用", "成語總匯", "標點符號與工具書檢索", "漢字結構與字體演變", "詞類與句型", "應用文（一）", "應用文（二）", "文化常識", "國學常識", "語法辨析", "文章表現技巧", "文意填空與重組", "白話文閱讀單題", "文言文閱讀單題", "白話文閱讀題組", "文言文閱讀題組", "多文本對讀", "會考寫作攻略"] 
@@ -498,6 +506,45 @@
                 }
             });
         });
+    }
+
+
+    // v1.6.114: 跨頁面導航函式
+    function WN_navigateToSettings() {
+        // 隱藏所有 page, 顯示 settings-page
+        document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+            p.style.display = 'none';
+        });
+        const settingsPage = document.getElementById('settings-page');
+        if (settingsPage) {
+            settingsPage.classList.add('active');
+            settingsPage.style.display = 'block';
+        }
+        // 確保 settings-container 可見
+        document.getElementById('settings-container').style.display = 'block';
+        // 隱藏 import-page 的 Step 1
+        const importPage = document.getElementById('import-page');
+        if (importPage) {
+            const stepContainer = importPage.querySelector('.step-container');
+            if (stepContainer) stepContainer.style.display = 'none';
+        }
+    }
+
+    function WN_navigateToImport() {
+        // 隱藏所有 page, 顯示 import-page
+        document.querySelectorAll('.page').forEach(p => {
+            p.classList.remove('active');
+            p.style.display = 'none';
+        });
+        const importPage = document.getElementById('import-page');
+        if (importPage) {
+            importPage.classList.add('active');
+            importPage.style.display = 'block';
+            // 顯示 Step 1
+            const stepContainer = importPage.querySelector('.step-container');
+            if (stepContainer) stepContainer.style.display = 'block';
+        }
     }
 
     function goToPage(pageId, navBtn) {
@@ -800,7 +847,10 @@
 
     function finishCropping() {
         document.getElementById('crop-modal').style.display = 'none';
-        if(document.getElementById('settings-container').style.display === 'block') {
+        // v1.6.114: 自動跳 settings-page (方案 C - 完全分頁設計)
+        if(typeof window.WN_navigateToSettings === 'function') {
+            window.WN_navigateToSettings();
+        } else if(document.getElementById('settings-container').style.display === 'block') {
             document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth' });
         }
     }
@@ -833,22 +883,19 @@
         div.innerHTML = `
             <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
             <img src="${imgUrl}">
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目 (從主專案注入)</div>
             <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
             
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：冊次/單元</div>
-            <select class="vol-sel" onchange="handleCardVolumeChange(this, true)" style="display:none;"></select>
-            <select class="unit-sel" onchange="handleCardUnitChange(this, true)"></select>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：教材類型</div>
+            <select class="type-sel" onchange="handleCardTypeChange(this, true)" disabled><option value="">請先選擇科目</option></select>
+            
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：教材名稱 (instance)</div>
+            <select class="inst-sel" onchange="handleCardInstChange(this, true)" disabled><option value="">請先選擇教材類型</option></select>
+            
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：單元</div>
+            <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇教材名稱</option></select>
 
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯題來源</div>
-            <select class="source-sel" onchange="toggleCardSource(this)">
-                <option value="複講">複講</option>
-                <option value="考卷">考卷</option>
-                <option value="其他">其他 (自訂)</option>
-            </select>
-            <input type="text" class="custom-source" placeholder="請填寫來源..." style="display:none;">
-
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：錯誤原因</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 6：錯誤原因</div>
             <div class="checkbox-group reasons-group">
                 <label><input type="checkbox" value="觀念模糊"> 觀念模糊</label>
                 <label><input type="checkbox" value="題目陷阱"> 題目陷阱</label>
@@ -881,21 +928,24 @@
     function handleCardSubjectChange(selectEl, isSync = false) {
         const card = selectEl.closest('.file-card');
         const subject = selectEl.value;
-        const volSelect = card.querySelector('.vol-sel');
+        const typeSelect = card.querySelector('.type-sel');
+        const instSelect = card.querySelector('.inst-sel');
         const unitSelect = card.querySelector('.unit-sel');
         const data = syllabusDB[subject];
 
-        volSelect.innerHTML = ''; unitSelect.innerHTML = '';
+        typeSelect.innerHTML = '<option value="">請選擇教材類型</option>';
+        instSelect.innerHTML = '<option value="">請先選擇教材類型</option>';
+        unitSelect.innerHTML = '<option value="">請先選擇教材名稱</option>';
+        typeSelect.disabled = !data;
+        instSelect.disabled = true;
+        unitSelect.disabled = true;
 
         if (data) {
-            if (data.type === 'custom') {
-                volSelect.style.display = 'none';
-                data.units.forEach(u => unitSelect.add(new Option(u, u)));
-            } else {
-                volSelect.style.display = 'block';
-                data.volOrder.forEach(v => volSelect.add(new Option(v, v)));
-                handleCardVolumeChange(volSelect, false);
-            }
+            // 從 master 注入的資料結構: data = { typeName: { instanceName: [units] } }
+            Object.keys(data).forEach(typeName => {
+                typeSelect.add(new Option(typeName, typeName));
+            });
+            typeSelect.disabled = false;
         }
 
         if (isSync) {
@@ -905,6 +955,69 @@
                     const otherSubjSel = otherCard.querySelector('.subj-sel');
                     otherSubjSel.value = subject;
                     handleCardSubjectChange(otherSubjSel, false);
+                }
+            });
+        }
+    }
+
+    function handleCardTypeChange(typeSelect, isSync = false) {
+        const card = typeSelect.closest('.file-card');
+        const subject = card.querySelector('.subj-sel').value;
+        const typeName = typeSelect.value;
+        const instSelect = card.querySelector('.inst-sel');
+        const unitSelect = card.querySelector('.unit-sel');
+        const data = syllabusDB[subject];
+
+        instSelect.innerHTML = '<option value="">請選擇教材名稱</option>';
+        unitSelect.innerHTML = '<option value="">請先選擇教材名稱</option>';
+        instSelect.disabled = !data || !typeName;
+        unitSelect.disabled = true;
+
+        if (data && data[typeName]) {
+            Object.keys(data[typeName]).forEach(instName => {
+                instSelect.add(new Option(instName, instName));
+            });
+        }
+
+        if (isSync) {
+            const batchId = card.dataset.batchId;
+            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
+                if (otherCard !== card) {
+                    const otherTypeSel = otherCard.querySelector('.type-sel');
+                    otherTypeSel.value = typeName;
+                    handleCardTypeChange(otherTypeSel, false);
+                }
+            });
+        }
+    }
+
+    function handleCardInstChange(instSelect, isSync = false) {
+        const card = instSelect.closest('.file-card');
+        const subject = card.querySelector('.subj-sel').value;
+        const typeName = card.querySelector('.type-sel').value;
+        const instName = instSelect.value;
+        const unitSelect = card.querySelector('.unit-sel');
+        const data = syllabusDB[subject];
+
+        unitSelect.innerHTML = '<option value="">請選擇單元</option>';
+        unitSelect.disabled = true;
+
+        if (data && data[typeName] && data[typeName][instName]) {
+            const units = data[typeName][instName];
+            units.forEach(u => {
+                const label = typeof u === 'string' ? u : (u.name || u.id);
+                unitSelect.add(new Option(label, label));
+            });
+            unitSelect.disabled = false;
+        }
+
+        if (isSync) {
+            const batchId = card.dataset.batchId;
+            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
+                if (otherCard !== card) {
+                    const otherInstSel = otherCard.querySelector('.inst-sel');
+                    otherInstSel.value = instName;
+                    handleCardInstChange(otherInstSel, false);
                 }
             });
         }
@@ -967,11 +1080,11 @@
         cards.forEach(card => {
             const imgUrl = card.querySelector('img').src;
             const subj = card.querySelector('.subj-sel').value || '未分類';
-            const vol = card.querySelector('.vol-sel').style.display !== 'none' ? `[${card.querySelector('.vol-sel').value}]` : '';
+            const typeName = card.querySelector('.type-sel').value || '';
+            const instName = card.querySelector('.inst-sel').value || '';
             const unit = card.querySelector('.unit-sel').value || '';
-            
-            let source = card.querySelector('.source-sel').value;
-            if(source === '其他') source = card.querySelector('.custom-source').value || '自訂來源';
+            // typeName + instName 取代原本的 source
+            const source = typeName + (instName ? ' / ' + instName : '');
 
             const checkboxes = card.querySelectorAll('.reasons-group input:checked');
             const reasons = Array.from(checkboxes).map(cb => cb.value);
@@ -980,7 +1093,8 @@
             slot.className = 'note-slot editable-slot';
             slot.dataset.date = dateStr;
             slot.dataset.subject = subj;
-            slot.dataset.volume = card.querySelector('.vol-sel').style.display !== 'none' ? card.querySelector('.vol-sel').value : '';
+            slot.dataset.typeName = typeName;
+            slot.dataset.instanceName = instName;
             slot.dataset.unit = unit;
             slot.dataset.source = source;
             slot.dataset.reasons = JSON.stringify(reasons);
@@ -1059,7 +1173,8 @@
                 date: slot.dataset.date,
                 timestamp: Date.now() + Math.random(),
                 subject: slot.dataset.subject,
-                volume: slot.dataset.volume,
+                typeName: slot.dataset.typeName,
+                instanceName: slot.dataset.instanceName,
                 unit: slot.dataset.unit,
                 source: slot.dataset.source,
                 reasons: JSON.parse(slot.dataset.reasons),
