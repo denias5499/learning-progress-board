@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.116]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.117]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8443,12 +8443,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 // 1. 注入 CSS (Step 1 框寬度對齊 dashboard)
                 var style = doc.createElement('style');
                 style.textContent = `
+            /* v1.6.117: dashboard 外框 1200px, crop modal 內容也要 1200px */
             .app-container { max-width: 1200px !important; width: 100% !important; box-sizing: border-box; margin: 0 auto !important; padding: 20px !important; }
             .step-container { max-width: 100% !important; width: 100% !important; box-sizing: border-box; padding: 20px !important; margin-bottom: 15px !important; }
             .drop-zone { max-width: 100% !important; width: 100% !important; box-sizing: border-box; }
-            .crop-modal-content, .crop-modal-body, .crop-workspace, .page-container { max-width: 1200px !important; width: 100% !important; box-sizing: border-box; }
-            .crop-modal-body { padding: 0 !important; }
-            .mock-crop-box { max-width: 100% !important; }
+            .crop-workspace, .page-container { max-width: 1200px !important; width: 100% !important; box-sizing: border-box; padding: 0 20px 100px 20px !important; }
+            .crop-header { max-width: 1200px !important; width: 100% !important; box-sizing: border-box; }
         `;
                 doc.head.appendChild(style);
                 // 2. 注入 master data
