@@ -441,8 +441,8 @@
 </div>
 
 <script>
-    // v1.6.114: 從 window.WN_masterData 注入 (主專案 master), 否則用 syllabusDB 預設
-    let syllabusDB = window.WN_masterData && window.WN_masterData.tree ? window.WN_masterData.tree : {
+    // v1.6.116: 改為動態讀取 (lazy)
+    let syllabusDB = {
         "國文": { 
             "type": "custom", 
             "units": ["字音", "字形", "字義", "詞語應用", "成語總匯", "標點符號與工具書檢索", "漢字結構與字體演變", "詞類與句型", "應用文（一）", "應用文（二）", "文化常識", "國學常識", "語法辨析", "文章表現技巧", "文意填空與重組", "白話文閱讀單題", "文言文閱讀單題", "白話文閱讀題組", "文言文閱讀題組", "多文本對讀", "會考寫作攻略"] 
@@ -471,6 +471,21 @@
         }
     };
 
+    // v1.6.116: 預設 syllabusDB (附件原本的, 給 standalone 使用)
+    const DEFAULT_SYLLABUS_DB = {
+        "國文": { "type": "custom", "units": ["字音", "字形", "字義", "詞語應用", "成語總匯", "標點符號與工具書檢索", "漢字結構與字體演變", "詞類與句型", "應用文（一）", "應用文（二）", "文化常識", "國學常識", "語法辨析", "文章表現技巧", "文意填空與重組", "白話文閱讀單題", "文言文閱讀單題", "白話文閱讀題組", "文言文閱讀題組", "多文本對讀", "會考寫作攻略"] },
+        "數學": { "type": "volume", "volOrder": ["第一冊", "第二冊", "第三冊", "第四冊", "第五冊", "第六冊", "模擬試題"], "vols": {"第一冊": ["數與數線"], "第二冊": ["直角坐標"], "第三冊": ["乘法公式"]} },
+        "英文": { "type": "volume", "volOrder": ["第一冊", "第二冊"], "vols": {"第一冊": ["U1", "U2"], "第二冊": ["U3"]} }
+    };
+    // v1.6.116: lazy getSyllabusDB (每次讀取時檢查 window.WN_masterData)
+    function getSyllabusDB() {
+        if (window.WN_masterData && window.WN_masterData.tree) {
+            return window.WN_masterData.tree;
+        }
+        return DEFAULT_SYLLABUS_DB;
+    }
+    syllabusDB = getSyllabusDB();
+
     let currentFilesData = []; 
     let hasUnsavedNotes = false;
     let batchCounter = 0; 
@@ -484,7 +499,7 @@
         studentsData.forEach(s => select.add(new Option(s.name, s.id)));
         
         const fSubj = document.getElementById('filter-subject');
-        Object.keys(syllabusDB).forEach(sub => fSubj.add(new Option(sub, sub)));
+        Object.keys(getSyllabusDB()).forEach(sub => fSubj.add(new Option(sub, sub)));
         
         setupDragAndDrop();
     };
@@ -931,7 +946,7 @@
         const typeSelect = card.querySelector('.type-sel');
         const instSelect = card.querySelector('.inst-sel');
         const unitSelect = card.querySelector('.unit-sel');
-        const data = syllabusDB[subject];
+        const data = getSyllabusDB()[subject];
 
         typeSelect.innerHTML = '<option value="">請選擇教材類型</option>';
         instSelect.innerHTML = '<option value="">請先選擇教材類型</option>';
@@ -966,7 +981,7 @@
         const typeName = typeSelect.value;
         const instSelect = card.querySelector('.inst-sel');
         const unitSelect = card.querySelector('.unit-sel');
-        const data = syllabusDB[subject];
+        const data = getSyllabusDB()[subject];
 
         instSelect.innerHTML = '<option value="">請選擇教材名稱</option>';
         unitSelect.innerHTML = '<option value="">請先選擇教材名稱</option>';
@@ -997,7 +1012,7 @@
         const typeName = card.querySelector('.type-sel').value;
         const instName = instSelect.value;
         const unitSelect = card.querySelector('.unit-sel');
-        const data = syllabusDB[subject];
+        const data = getSyllabusDB()[subject];
 
         unitSelect.innerHTML = '<option value="">請選擇單元</option>';
         unitSelect.disabled = true;
@@ -1028,7 +1043,7 @@
         const subject = card.querySelector('.subj-sel').value;
         const volume = volSelect.value;
         const unitSelect = card.querySelector('.unit-sel');
-        const data = syllabusDB[subject];
+        const data = getSyllabusDB()[subject];
 
         unitSelect.innerHTML = '';
         if (data && data.vols && data.vols[volume]) {
@@ -1108,7 +1123,7 @@
             slot.innerHTML = `
                 <div class="note-slot-header" style="background:var(--header-aqua-sky);">
                     <span>📅 ${dateStr}</span>
-                    <span>📖 ${subj} ${vol} ${unit}</span>
+                    <span>📖 ${subj} ${unit}</span>
                     <span>🏷️ ${source}</span>
                 </div>
                 <div class="note-slot-body">
