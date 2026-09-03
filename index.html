@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.117]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.118]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8453,6 +8453,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 doc.head.appendChild(style);
                 // 2. 注入 master data
                 var masterData = WN_buildMasterData();
+                console.log('[v1.6.118 WN_injectIntoIframe] masterData.subjects =', masterData.subjects);
+                console.log('[v1.6.118 WN_injectIntoIframe] masterData.tree keys =', Object.keys(masterData.tree));
+                console.log('[v1.6.118 WN_injectIntoIframe] user.masters keys =', Object.keys(JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}').masters || {}));
                 wn.WN_masterData = masterData;
             } catch(e) {
                 console.error('WN_injectIntoIframe failed:', e);

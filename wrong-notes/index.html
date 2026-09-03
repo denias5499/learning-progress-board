@@ -477,11 +477,23 @@
         "數學": { "type": "volume", "volOrder": ["第一冊", "第二冊", "第三冊", "第四冊", "第五冊", "第六冊", "模擬試題"], "vols": {"第一冊": ["數與數線"], "第二冊": ["直角坐標"], "第三冊": ["乘法公式"]} },
         "英文": { "type": "volume", "volOrder": ["第一冊", "第二冊"], "vols": {"第一冊": ["U1", "U2"], "第二冊": ["U3"]} }
     };
-    // v1.6.116: lazy getSyllabusDB (每次讀取時檢查 window.WN_masterData)
+    // v1.6.118: lazy getSyllabusDB + fallback + debug log
     function getSyllabusDB() {
-        if (window.WN_masterData && window.WN_masterData.tree) {
+        if (window.WN_masterData && window.WN_masterData.tree && Object.keys(window.WN_masterData.tree).length > 0) {
+            console.log('[v1.6.118 getSyllabusDB] 使用主專案注入的 WN_masterData (科目數:', Object.keys(window.WN_masterData.tree).length, ')');
             return window.WN_masterData.tree;
         }
+        console.warn('[v1.6.118 getSyllabusDB] WN_masterData.tree 是空, fallback 到 DEFAULT');
+        console.log('[debug] window.WN_masterData =', window.WN_masterData);
+        try {
+            var raw = localStorage.getItem('StudyMap_UserData');
+            console.log('[debug] StudyMap_UserData 存在?', !!raw, '長度:', raw ? raw.length : 0);
+            if (raw) {
+                var user = JSON.parse(raw);
+                console.log('[debug] user.masters keys:', Object.keys(user.masters || {}));
+                console.log('[debug] user.masters 第一層:', JSON.stringify(user.masters).substring(0, 500));
+            }
+        } catch(e) { console.log('[debug] localStorage parse error:', e.message); }
         return DEFAULT_SYLLABUS_DB;
     }
     syllabusDB = getSyllabusDB();
@@ -1092,6 +1104,7 @@
         const today = new Date();
         const dateStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
 
+        console.log('[v1.6.118 generateNote] cards.length =', cards.length);
         cards.forEach(card => {
             const imgUrl = card.querySelector('img').src;
             const subj = card.querySelector('.subj-sel').value || '未分類';
