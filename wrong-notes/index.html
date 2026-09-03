@@ -893,7 +893,7 @@
         if(cropId) div.dataset.cropId = cropId;
         
         let subjOptions = '<option value="">請選擇科目</option>';
-        Object.keys(syllabusDB).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
+        Object.keys(getSyllabusDB()).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
 
         div.innerHTML = `
             <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
