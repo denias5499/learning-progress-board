@@ -354,7 +354,8 @@
         <div class="step-container">
             <div class="step-title">Step 1：請選擇錯題來源</div>
             
-            <div class="drop-zone" id="zone-photos" onclick="document.getElementById('source-image-photos').click()">
+            <!-- v1.6.122: 加 dragover preventDefault 確保 Safari 不卡死 -->
+    <div class="drop-zone" id="zone-photos" onclick="document.getElementById('source-image-photos').click()" ondragover="event.preventDefault();return false;" ondrop="event.preventDefault();handleFilesForCrop(event.dataTransfer.files);">
                 <p>📁 請選擇錯題來源 (支援拖曳或選取多張照片)</p>
                 <input type="file" id="source-image-photos" accept="image/*" multiple onchange="handleFilesForCrop(this.files)">
             </div>
@@ -568,7 +569,14 @@
     };
 
     function setupDragAndDrop() {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        // v1.6.122: 立刻註冊 preventDefault (Safari 對於 iframe 內 dragover 未阻止會當 navigation 卡死)
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+            window.addEventListener(eventName, function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }, false);
+        });
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
             window.addEventListener(eventName, preventDefaults, false);
         });
         function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }

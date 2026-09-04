@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.121]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.122]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1818,7 +1818,8 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe id="wrongnotes-iframe" src="wrong-notes/index.html" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <!-- v1.6.122: 加 sandbox 防止 dragover navigation 導致 Safari 卡死 -->
+        <iframe id="wrongnotes-iframe" src="wrong-notes/index.html" sandbox="allow-scripts allow-same-origin allow-forms" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
