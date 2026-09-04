@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.120]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.121]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -8411,27 +8411,51 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // v1.6.114: iframe 載入後注入 CSS + master data
         function WN_buildMasterData() {
-            var user = JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}');
+            // v1.6.121: 修正 storage key - 應該是 StudyMap_Family_Data_V20, 不是 StudyMap_UserData
+            // 結構: multiData[currentUserId].masters[cat][subject][instanceId] = { typeName, instanceName, units }
+            var familyStr = localStorage.getItem('StudyMap_Family_Data_V20');
+            if (!familyStr) {
+                console.warn('[v1.6.121 WN_buildMasterData] StudyMap_Family_Data_V20 不存在');
+                return { subjects: [], tree: {} };
+            }
+            var multiData = JSON.parse(familyStr);
+            // 找 currentUserId (從 StudyMap_CurrentUserId_V20)
+            var uid = localStorage.getItem('StudyMap_CurrentUserId_V20');
+            // 或 multiData 內第一個有 masters 的 user
+            var user = null;
+            if (uid && multiData[uid] && multiData[uid].masters) {
+                user = multiData[uid];
+            } else {
+                // fallback: 找第一個有 masters 的 user
+                Object.keys(multiData).forEach(function(k) {
+                    if (!user && multiData[k] && multiData[k].masters) user = multiData[k];
+                });
+            }
+            if (!user) {
+                console.warn('[v1.6.121 WN_buildMasterData] 找不到有 masters 的 user');
+                return { subjects: [], tree: {} };
+            }
             var masters = user.masters || {};
-            var subjects = Object.keys(masters);  // 9 個科目 (含地科)
+            // masters 結構: { cat: { subject: { instanceId: { typeName, instanceName, units: [...] } } } }
+            // 要攤平成: { subject: { typeName: { instanceName: [unit names] } } }
             var tree = {};
-            // 把 masters 結構轉成附件要的格式:
-            // masters: { subject: { instanceId: { typeName, instanceName, units: [...] } } }
-            // 附件要: tree: { subject: { typeName: { instanceName: [unit names] } } }
-            Object.keys(masters).forEach(function(subj) {
-                tree[subj] = {};
-                Object.keys(masters[subj]).forEach(function(insId) {
-                    var inst = masters[subj][insId];
-                    var typeName = inst.typeName || '其他';
-                    var instName = inst.instanceName || insId;
-                    if (!tree[subj][typeName]) tree[subj][typeName] = {};
-                    var units = (inst.units || []).map(function(u) {
-                        return typeof u === 'string' ? u : (u.name || u.id || '');
+            Object.keys(masters).forEach(function(cat) {
+                var catData = masters[cat];
+                Object.keys(catData).forEach(function(subj) {
+                    if (!tree[subj]) tree[subj] = {};
+                    Object.keys(catData[subj]).forEach(function(insId) {
+                        var inst = catData[subj][insId];
+                        var typeName = inst.typeName || '其他';
+                        var instName = inst.instanceName || insId;
+                        if (!tree[subj][typeName]) tree[subj][typeName] = {};
+                        var units = (inst.units || []).map(function(u) {
+                            return typeof u === 'string' ? u : (u.name || u.id || '');
+                        });
+                        tree[subj][typeName][instName] = units;
                     });
-                    tree[subj][typeName][instName] = units;
                 });
             });
-            return { subjects: subjects, tree: tree };
+            return { subjects: Object.keys(tree), tree: tree };
         }
 
         function WN_injectIntoIframe() {
@@ -8455,7 +8479,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var masterData = WN_buildMasterData();
                 console.log('[v1.6.118 WN_injectIntoIframe] masterData.subjects =', masterData.subjects);
                 console.log('[v1.6.118 WN_injectIntoIframe] masterData.tree keys =', Object.keys(masterData.tree));
-                console.log('[v1.6.118 WN_injectIntoIframe] user.masters keys =', Object.keys(JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}').masters || {}));
+                var _f = JSON.parse(localStorage.getItem('StudyMap_Family_Data_V20') || '{}');
+                var _u = _f[localStorage.getItem('StudyMap_CurrentUserId_V20')];
+                console.log('[v1.6.121 WN_injectIntoIframe] familyData.users =', Object.keys(_f), 'currentUser.masters count =', _u && _u.masters ? Object.keys(_u.masters).length : 0);
                 wn.WN_masterData = masterData;
             } catch(e) {
                 console.error('WN_injectIntoIframe failed:', e);

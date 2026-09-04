@@ -487,12 +487,41 @@
             return window.WN_masterData.tree;
         }
         // 2. 自己讀 localStorage (附件與主專案是同源 https://...github.io)
+        // v1.6.121: 修正為 StudyMap_Family_Data_V20 + multiData[currentUserId]
         try {
-            var raw = localStorage.getItem('StudyMap_UserData');
+            var raw = localStorage.getItem('StudyMap_Family_Data_V20');
             if (raw) {
-                var user = JSON.parse(raw);
+                var multiData = JSON.parse(raw);
+                var uid = localStorage.getItem('StudyMap_CurrentUserId_V20');
+                var user = (uid && multiData[uid]) ? multiData[uid] : null;
+                if (!user) {
+                    Object.keys(multiData).forEach(function(k) {
+                        if (!user && multiData[k] && multiData[k].masters) user = multiData[k];
+                    });
+                }
+                if (!user) return DEFAULT_SYLLABUS_DB;
                 var masters = user.masters || {};
-                if (Object.keys(masters).length > 0) {
+                // 攤平 cat > subject > instanceId
+                var flat = {};
+                Object.keys(masters).forEach(function(cat) {
+                    Object.keys(masters[cat] || {}).forEach(function(subj) {
+                        if (!flat[subj]) flat[subj] = {};
+                        Object.keys(masters[cat][subj] || {}).forEach(function(insId) {
+                            var inst = masters[cat][subj][insId];
+                            var typeName = inst.typeName || '其他';
+                            var instName = inst.instanceName || insId;
+                            if (!flat[subj][typeName]) flat[subj][typeName] = {};
+                            var units = (inst.units || []).map(function(u) {
+                                return typeof u === 'string' ? u : (u.name || u.id || '');
+                            });
+                            flat[subj][typeName][instName] = units;
+                        });
+                    });
+                });
+                if (Object.keys(flat).length > 0) {
+                    console.log('[v1.6.121 getSyllabusDB] 從附件自己讀 family data, 科目:', Object.keys(flat).length);
+                    return flat;
+                }
                     var tree = {};
                     Object.keys(masters).forEach(function(subj) {
                         tree[subj] = {};
@@ -1129,7 +1158,7 @@
             try {
                 var backup = JSON.parse(e.target.result);
                 // 備份檔結構: {keys: {StudyMap_UserData: '...base64 or json string...', ...}}
-                var userDataRaw = backup.key && backup.key.StudyMap_UserData;
+                var userDataRaw = backup.key && backup.key.StudyMap_Family_Data_V20;
                 if (!userDataRaw) {
                     alert('此備份檔不含 StudyMap_UserData (可能被過濾)');
                     return;
