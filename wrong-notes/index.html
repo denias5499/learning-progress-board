@@ -378,6 +378,9 @@
             </div>
             <div class="slider-container" id="cards-slider"></div>
             <button class="generate-btn" onclick="generateNote()">生成錯題筆記</button>
+            <!-- v1.6.120: 從備份檔匯入按鈕 (萬一 localStorage 是空) -->
+            <button class="generate-btn" onclick="WN_importBackup()" style="background:var(--theme-yellow); margin-top:10px;">📥 從 StudyMap 備份檔匯入教材庫</button>
+            <input type="file" id="wn-backup-input" accept=".json" style="display:none;" onchange="WN_handleBackupFile(event)">
         </div>
     </div>
 
@@ -477,23 +480,42 @@
         "數學": { "type": "volume", "volOrder": ["第一冊", "第二冊", "第三冊", "第四冊", "第五冊", "第六冊", "模擬試題"], "vols": {"第一冊": ["數與數線"], "第二冊": ["直角坐標"], "第三冊": ["乘法公式"]} },
         "英文": { "type": "volume", "volOrder": ["第一冊", "第二冊"], "vols": {"第一冊": ["U1", "U2"], "第二冊": ["U3"]} }
     };
-    // v1.6.118: lazy getSyllabusDB + fallback + debug log
+    // v1.6.120: 附件自己讀 localStorage (同源共用, 不依賴主專案注入)
     function getSyllabusDB() {
+        // 1. 先看 window.WN_masterData (主專案注入)
         if (window.WN_masterData && window.WN_masterData.tree && Object.keys(window.WN_masterData.tree).length > 0) {
-            console.log('[v1.6.118 getSyllabusDB] 使用主專案注入的 WN_masterData (科目數:', Object.keys(window.WN_masterData.tree).length, ')');
             return window.WN_masterData.tree;
         }
-        console.warn('[v1.6.118 getSyllabusDB] WN_masterData.tree 是空, fallback 到 DEFAULT');
-        console.log('[debug] window.WN_masterData =', window.WN_masterData);
+        // 2. 自己讀 localStorage (附件與主專案是同源 https://...github.io)
         try {
             var raw = localStorage.getItem('StudyMap_UserData');
-            console.log('[debug] StudyMap_UserData 存在?', !!raw, '長度:', raw ? raw.length : 0);
             if (raw) {
                 var user = JSON.parse(raw);
-                console.log('[debug] user.masters keys:', Object.keys(user.masters || {}));
-                console.log('[debug] user.masters 第一層:', JSON.stringify(user.masters).substring(0, 500));
+                var masters = user.masters || {};
+                if (Object.keys(masters).length > 0) {
+                    var tree = {};
+                    Object.keys(masters).forEach(function(subj) {
+                        tree[subj] = {};
+                        Object.keys(masters[subj]).forEach(function(insId) {
+                            var inst = masters[subj][insId];
+                            var typeName = inst.typeName || '其他';
+                            var instName = inst.instanceName || insId;
+                            if (!tree[subj][typeName]) tree[subj][typeName] = {};
+                            var units = (inst.units || []).map(function(u) {
+                                return typeof u === 'string' ? u : (u.name || u.id || '');
+                            });
+                            tree[subj][typeName][instName] = units;
+                        });
+                    });
+                    console.log('[v1.6.120 getSyllabusDB] 從附件自己讀 localStorage, 科目:', Object.keys(tree).length);
+                    return tree;
+                }
             }
-        } catch(e) { console.log('[debug] localStorage parse error:', e.message); }
+        } catch(e) {
+            console.error('[v1.6.120 getSyllabusDB] localStorage 解析錯誤:', e);
+        }
+        // 3. fallback
+        console.warn('[v1.6.120 getSyllabusDB] 無 master data, 用 DEFAULT');
         return DEFAULT_SYLLABUS_DB;
     }
     syllabusDB = getSyllabusDB();
@@ -1092,6 +1114,44 @@
     function toggleCardSource(selectEl) {
         const input = selectEl.closest('.file-card').querySelector('.custom-source');
         input.style.display = selectEl.value === '其他' ? 'block' : 'none';
+    }
+
+    // v1.6.120: 從備份檔匯入
+    function WN_importBackup() {
+        var input = document.getElementById('wn-backup-input');
+        if (input) input.click();
+    }
+    function WN_handleBackupFile(event) {
+        var file = event.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var backup = JSON.parse(e.target.result);
+                // 備份檔結構: {keys: {StudyMap_UserData: '...base64 or json string...', ...}}
+                var userDataRaw = backup.key && backup.key.StudyMap_UserData;
+                if (!userDataRaw) {
+                    alert('此備份檔不含 StudyMap_UserData (可能被過濾)');
+                    return;
+                }
+                var userData = typeof userDataRaw === 'string' ? JSON.parse(userDataRaw) : userDataRaw;
+                if (!userData.masters || Object.keys(userData.masters).length === 0) {
+                    alert('此備份檔的 StudyMap_UserData 沒有 masters');
+                    return;
+                }
+                // 寫入 localStorage
+                var existing = JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}');
+                Object.keys(userData).forEach(function(k) {
+                    existing[k] = userData[k];
+                });
+                localStorage.setItem('StudyMap_UserData', JSON.stringify(existing));
+                alert('✅ 匯入成功！科目數: ' + Object.keys(userData.masters).length + '\n\n請重新整理頁面 (F5)');
+                location.reload();
+            } catch(err) {
+                alert('❌ 解析失敗: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
     }
 
     function generateNote() {
