@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.118]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.119]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1818,7 +1818,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe id="wrongnotes-iframe" src="wrong-notes/" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫" onload="WN_injectIntoIframe()"></iframe>
+            <iframe id="wrongnotes-iframe" src="wrong-notes/index.html" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -8464,6 +8464,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         function openWrongNotes() {
             showPage('page-wrongnotes');
+            // v1.6.119: 用 addEventListener 確保 iframe load 時注入 (在主專案 window 內執行)
+            var wnIframe = document.getElementById('wrongnotes-iframe');
+            if (wnIframe && !wnIframe._wnInjected) {
+                wnIframe.addEventListener('load', function() {
+                    console.log('[v1.6.119] iframe loaded, 注入 master data');
+                    WN_injectIntoIframe();
+                });
+                // 如果 iframe 已載入 (cached), 直接注入
+                if (wnIframe.contentDocument && wnIframe.contentDocument.readyState === 'complete') {
+                    console.log('[v1.6.119] iframe already loaded (cached), 直接注入');
+                    WN_injectIntoIframe();
+                    wnIframe._wnInjected = true;
+                }
+            }
             // 第一次進入時提示用戶建立資料夾
             if (!localStorage.getItem('StudyMap_WrongNotes_DisclaimerAck')) {
                 alert('📂 第一次使用錯題資料庫：\n\n請先在瀏覽器下載資料夾下建立「學習進度看板」資料夾，\n並將瀏覽器的下載位置設定到這個資料夾。\n\n之後上傳的錯題圖片會自動下載到此資料夾。');
