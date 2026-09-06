@@ -354,7 +354,7 @@
         <div class="step-container">
             <div class="step-title">Step 1：請選擇錯題來源</div>
             
-            <div class="drop-zone" id="zone-photos" onclick="document.getElementById('source-image-photos').click()" ondragover="event.preventDefault();return false;" ondrop="event.preventDefault();handleFilesForCrop(event.dataTransfer.files);">
+            <div class="drop-zone" id="zone-photos" onclick="document.getElementById('source-image-photos').click()">
                 <p>📁 請選擇錯題來源 (支援拖曳或選取多張照片)</p>
                 <input type="file" id="source-image-photos" accept="image/*" multiple onchange="handleFilesForCrop(this.files)">
             </div>
