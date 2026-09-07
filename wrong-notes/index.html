@@ -594,11 +594,23 @@
 
         const dropZones = document.querySelectorAll('.drop-zone');
         dropZones.forEach(zone => {
-            zone.addEventListener('dragover', () => zone.classList.add('dragover'));
-            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-            zone.addEventListener('drop', (e) => {
+            // v1.6.129: dragover/drop handler 必須 preventDefault
+            //   Safari 對於 iframe 內 dragover 沒 preventDefault 會當 navigation → freeze
+            zone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('dragover');
+            });
+            zone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
                 zone.classList.remove('dragover');
-                if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('dragover');
+                if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     handleFilesForCrop(e.dataTransfer.files);
                 }
             });
