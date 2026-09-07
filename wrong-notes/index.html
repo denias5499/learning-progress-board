@@ -557,14 +557,26 @@
     let isManualAdding = false;
     let manualBoxes = [];
 
-    window.onload = () => {
+    function WN_initWrongNotes() {
         const select = document.getElementById('student-name');
-        studentsData.forEach(s => select.add(new Option(s.name, s.id)));
+        if (select) studentsData.forEach(s => select.add(new Option(s.name, s.id)));
         
         const fSubj = document.getElementById('filter-subject');
-        Object.keys(getSyllabusDB()).forEach(sub => fSubj.add(new Option(sub, sub)));
-        
+        if (fSubj) Object.keys(getSyllabusDB()).forEach(sub => fSubj.add(new Option(sub, sub)));
+    }
+
+    // v1.6.127: setupDragAndDrop() 立即執行 (不等 onload)
+    //   Safari 對於 hidden iframe 的 window.onload 可能延遲/不觸發
+    //   導致拖曳 handler 沒註冊 → 拖圖 → Safari 預設行為 → navigation → freeze
+    try {
         setupDragAndDrop();
+        console.log('[v1.6.127] setupDragAndDrop 已立即執行');
+    } catch(e) {
+        console.error('[v1.6.127] setupDragAndDrop 失敗:', e);
+    }
+
+    window.onload = function() {
+        try { WN_initWrongNotes(); } catch(e) { console.error('[v1.6.127] onload init 失敗:', e); }
     };
 
     function setupDragAndDrop() {
