@@ -886,12 +886,14 @@
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：單元</div>
             <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇教材名稱</option></select>
 
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 6：錯誤原因</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 6：錯誤原因 (可複選 + 其他自填)</div>
             <div class="checkbox-group reasons-group">
-                <label><input type="checkbox" value="觀念模糊"> 觀念模糊</label>
-                <label><input type="checkbox" value="題目陷阱"> 題目陷阱</label>
                 <label><input type="checkbox" value="粗心"> 粗心</label>
+                <label><input type="checkbox" value="觀念不清"> 觀念不清</label>
+                <label><input type="checkbox" value="計算錯誤"> 計算錯誤</label>
+                <label><input type="checkbox" value="背不起來"> 背不起來</label>
             </div>
+            <input type="text" class="custom-reason" placeholder="或自填其他原因..." style="margin-top:5px;width:100%;padding:6px;border:1px solid #ddd;border-radius:6px;">
         `;
         return div;
     }
@@ -1050,6 +1052,8 @@
             
             const checkboxes = card.querySelectorAll('.reasons-group input:checked');
             const reasons = Array.from(checkboxes).map(cb => cb.value);
+            const customReason = (card.querySelector('.custom-reason') || {}).value || '';
+            if (customReason) reasons.push(customReason);
 
             const slot = document.createElement('div');
             slot.className = 'note-slot editable-slot';
