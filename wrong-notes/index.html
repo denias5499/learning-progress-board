@@ -460,40 +460,57 @@
                 }
                 if (!user) return DEFAULT_SYLLABUS_DB;
                 var masters = user.masters || {};
-                // 攤平 cat > subject > instanceId
+                // v1.6.134: 處理真實 master 結構
+                // masters[cat][subj].materials[typeName].instances[].{name, units[], vols[]}
                 var flat = {};
+                var hasData = false;
                 Object.keys(masters).forEach(function(cat) {
                     Object.keys(masters[cat] || {}).forEach(function(subj) {
+                        var subData = masters[cat][subj];
+                        if (!subData) return;
                         if (!flat[subj]) flat[subj] = {};
-                        Object.keys(masters[cat][subj] || {}).forEach(function(insId) {
-                            var inst = masters[cat][subj][insId];
-                            var typeName = inst.typeName || '其他';
-                            var instName = inst.instanceName || insId;
-                            if (!flat[subj][typeName]) flat[subj][typeName] = {};
-                            var units = (inst.units || []).map(function(u) {
-                                return typeof u === 'string' ? u : (u.name || u.id || '');
+                        // v1.6.134: 新結構 — 有 .materials[typeName]
+                        if (subData.materials && typeof subData.materials === 'object') {
+                            Object.keys(subData.materials).forEach(function(typeName) {
+                                var typeObj = subData.materials[typeName];
+                                if (!typeObj || !typeObj.instances) return;
+                                if (!flat[subj][typeName]) flat[subj][typeName] = {};
+                                typeObj.instances.forEach(function(ins) {
+                                    if (!ins) return;
+                                    var instName = ins.name || '(未命名)';
+                                    // 收集 units: 直接 units[] + vols[vol][] 攤平
+                                    var units = [];
+                                    (ins.units || []).forEach(function(u) {
+                                        var label = typeof u === 'string' ? u : (u.name || u.id || '');
+                                        if (label) units.push(label);
+                                    });
+                                    Object.keys(ins.vols || {}).forEach(function(volName) {
+                                        (ins.vols[volName] || []).forEach(function(u) {
+                                            var label = typeof u === 'string' ? u : (u.name || u.id || '');
+                                            if (label) units.push(volName + ' / ' + label);
+                                        });
+                                    });
+                                    flat[subj][typeName][instName] = units;
+                                    hasData = true;
+                                });
                             });
-                            flat[subj][typeName][instName] = units;
-                        });
+                        } else {
+                            // 舊結構 (沒 .materials): 直接 masters[cat][subj][insId]
+                            Object.keys(subData).forEach(function(insId) {
+                                var inst = subData[insId];
+                                var typeName = inst.typeName || '其他';
+                                var instName = inst.instanceName || insId;
+                                if (!flat[subj][typeName]) flat[subj][typeName] = {};
+                                var units = (inst.units || []).map(function(u) {
+                                    return typeof u === 'string' ? u : (u.name || u.id || '');
+                                });
+                                flat[subj][typeName][instName] = units;
+                                hasData = true;
+                            });
+                        }
                     });
                 });
-                if (Object.keys(flat).length > 0) return flat;
-                // 攤平 subject > instanceId (舊 v20 結構, 沒 cat 分類)
-                var tree = {};
-                Object.keys(masters).forEach(function(subj) {
-                    tree[subj] = {};
-                    Object.keys(masters[subj]).forEach(function(insId) {
-                        var inst = masters[subj][insId];
-                        var typeName = inst.typeName || '其他';
-                        var instName = inst.instanceName || insId;
-                        if (!tree[subj][typeName]) tree[subj][typeName] = {};
-                        var units = (inst.units || []).map(function(u) {
-                            return typeof u === 'string' ? u : (u.name || u.id || '');
-                        });
-                        tree[subj][typeName][instName] = units;
-                    });
-                });
-                if (Object.keys(tree).length > 0) return tree;
+                if (hasData) return flat;
             }
         } catch(e) {
             console.error('[v1.6.132 getSyllabusDB] localStorage 解析錯誤:', e);
