@@ -693,19 +693,33 @@
     }
 
     function renderImage(file, workspace) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
+        // v1.6.126: 改用 createObjectURL 取代 readAsDataURL
+        // 原因: readAsDataURL 對大圖 (>5MB) 會把整個 base64 編碼進 img.src,
+        //       Safari 對於 HEIC 或某些 JPG 格式在這個路徑會 freeze 整個 iframe
+        //       createObjectURL 直接給 blob URL, 更穩定更快
+        return new Promise((resolve, reject) => {
+            try {
                 const img = document.createElement('img');
-                img.src = e.target.result;
+                const blobUrl = URL.createObjectURL(file);
+                img.src = blobUrl;
                 img.style.width = '100%';
                 img.style.display = 'block';
                 img.onload = () => {
                     createPageContainer(img, workspace);
+                    // 注意: 不要 revoke, 之後 crop 還要用
                     resolve();
                 };
-            };
-            reader.readAsDataURL(file);
+                img.onerror = () => {
+                    URL.revokeObjectURL(blobUrl);
+                    console.error('[v1.6.126] 圖片載入失敗:', file.name);
+                    alert('圖片載入失敗: ' + file.name);
+                    reject(new Error('img load failed'));
+                };
+            } catch (e) {
+                console.error('[v1.6.126] renderImage 錯誤:', e);
+                alert('圖片處理錯誤: ' + e.message);
+                reject(e);
+            }
         });
     }
 
