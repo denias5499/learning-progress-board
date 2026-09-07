@@ -367,20 +367,10 @@
             </div>
         </div>
 
-        </div>
-
-    <!-- v1.6.114: 編輯生成筆記頁面 (新 settings-page, 與 Step 1 分離) -->
-    <div id="settings-page" class="page" style="display:none;">
-        <div class="step-container" id="settings-container">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                <div class="step-title">Step 2 ~ Step 6：為每個檔案設定詳細資訊</div>
-                <button class="wn-btn" onclick="WN_navigateToImport()" style="background:#c9b8d9;">← 上一步 (返回上傳)</button>
-            </div>
+        <div class="step-container" id="settings-container" style="display: none;">
+            <div class="step-title">Step 2 ~ Step 4：為每個檔案設定詳細資訊 (左右滑動)</div>
             <div class="slider-container" id="cards-slider"></div>
             <button class="generate-btn" onclick="generateNote()">生成錯題筆記</button>
-            <!-- v1.6.120: 從備份檔匯入按鈕 (萬一 localStorage 是空) -->
-            <button class="generate-btn" onclick="WN_importBackup()" style="background:var(--theme-yellow); margin-top:10px;">📥 從 StudyMap 備份檔匯入教材庫</button>
-            <input type="file" id="wn-backup-input" accept=".json" style="display:none;" onchange="WN_handleBackupFile(event)">
         </div>
     </div>
 
@@ -444,8 +434,7 @@
 </div>
 
 <script>
-    // v1.6.116: 改為動態讀取 (lazy)
-    let syllabusDB = {
+    const syllabusDB = {
         "國文": { 
             "type": "custom", 
             "units": ["字音", "字形", "字義", "詞語應用", "成語總匯", "標點符號與工具書檢索", "漢字結構與字體演變", "詞類與句型", "應用文（一）", "應用文（二）", "文化常識", "國學常識", "語法辨析", "文章表現技巧", "文意填空與重組", "白話文閱讀單題", "文言文閱讀單題", "白話文閱讀題組", "文言文閱讀題組", "多文本對讀", "會考寫作攻略"] 
@@ -474,81 +463,6 @@
         }
     };
 
-    // v1.6.116: 預設 syllabusDB (附件原本的, 給 standalone 使用)
-    const DEFAULT_SYLLABUS_DB = {
-        "國文": { "type": "custom", "units": ["字音", "字形", "字義", "詞語應用", "成語總匯", "標點符號與工具書檢索", "漢字結構與字體演變", "詞類與句型", "應用文（一）", "應用文（二）", "文化常識", "國學常識", "語法辨析", "文章表現技巧", "文意填空與重組", "白話文閱讀單題", "文言文閱讀單題", "白話文閱讀題組", "文言文閱讀題組", "多文本對讀", "會考寫作攻略"] },
-        "數學": { "type": "volume", "volOrder": ["第一冊", "第二冊", "第三冊", "第四冊", "第五冊", "第六冊", "模擬試題"], "vols": {"第一冊": ["數與數線"], "第二冊": ["直角坐標"], "第三冊": ["乘法公式"]} },
-        "英文": { "type": "volume", "volOrder": ["第一冊", "第二冊"], "vols": {"第一冊": ["U1", "U2"], "第二冊": ["U3"]} }
-    };
-    // v1.6.120: 附件自己讀 localStorage (同源共用, 不依賴主專案注入)
-    function getSyllabusDB() {
-        // 1. 先看 window.WN_masterData (主專案注入)
-        if (window.WN_masterData && window.WN_masterData.tree && Object.keys(window.WN_masterData.tree).length > 0) {
-            return window.WN_masterData.tree;
-        }
-        // 2. 自己讀 localStorage (附件與主專案是同源 https://...github.io)
-        // v1.6.121: 修正為 StudyMap_Family_Data_V20 + multiData[currentUserId]
-        try {
-            var raw = localStorage.getItem('StudyMap_Family_Data_V20');
-            if (raw) {
-                var multiData = JSON.parse(raw);
-                var uid = localStorage.getItem('StudyMap_CurrentUserId_V20');
-                var user = (uid && multiData[uid]) ? multiData[uid] : null;
-                if (!user) {
-                    Object.keys(multiData).forEach(function(k) {
-                        if (!user && multiData[k] && multiData[k].masters) user = multiData[k];
-                    });
-                }
-                if (!user) return DEFAULT_SYLLABUS_DB;
-                var masters = user.masters || {};
-                // 攤平 cat > subject > instanceId
-                var flat = {};
-                Object.keys(masters).forEach(function(cat) {
-                    Object.keys(masters[cat] || {}).forEach(function(subj) {
-                        if (!flat[subj]) flat[subj] = {};
-                        Object.keys(masters[cat][subj] || {}).forEach(function(insId) {
-                            var inst = masters[cat][subj][insId];
-                            var typeName = inst.typeName || '其他';
-                            var instName = inst.instanceName || insId;
-                            if (!flat[subj][typeName]) flat[subj][typeName] = {};
-                            var units = (inst.units || []).map(function(u) {
-                                return typeof u === 'string' ? u : (u.name || u.id || '');
-                            });
-                            flat[subj][typeName][instName] = units;
-                        });
-                    });
-                });
-                if (Object.keys(flat).length > 0) {
-                    console.log('[v1.6.121 getSyllabusDB] 從附件自己讀 family data, 科目:', Object.keys(flat).length);
-                    return flat;
-                }
-                    var tree = {};
-                    Object.keys(masters).forEach(function(subj) {
-                        tree[subj] = {};
-                        Object.keys(masters[subj]).forEach(function(insId) {
-                            var inst = masters[subj][insId];
-                            var typeName = inst.typeName || '其他';
-                            var instName = inst.instanceName || insId;
-                            if (!tree[subj][typeName]) tree[subj][typeName] = {};
-                            var units = (inst.units || []).map(function(u) {
-                                return typeof u === 'string' ? u : (u.name || u.id || '');
-                            });
-                            tree[subj][typeName][instName] = units;
-                        });
-                    });
-                    console.log('[v1.6.120 getSyllabusDB] 從附件自己讀 localStorage, 科目:', Object.keys(tree).length);
-                    return tree;
-                }
-            }
-        } catch(e) {
-            console.error('[v1.6.120 getSyllabusDB] localStorage 解析錯誤:', e);
-        }
-        // 3. fallback
-        console.warn('[v1.6.120 getSyllabusDB] 無 master data, 用 DEFAULT');
-        return DEFAULT_SYLLABUS_DB;
-    }
-    syllabusDB = getSyllabusDB();
-
     let currentFilesData = []; 
     let hasUnsavedNotes = false;
     let batchCounter = 0; 
@@ -557,103 +471,33 @@
     let isManualAdding = false;
     let manualBoxes = [];
 
-    function WN_initWrongNotes() {
+    window.onload = () => {
         const select = document.getElementById('student-name');
-        if (select) studentsData.forEach(s => select.add(new Option(s.name, s.id)));
+        studentsData.forEach(s => select.add(new Option(s.name, s.id)));
         
         const fSubj = document.getElementById('filter-subject');
-        if (fSubj) Object.keys(getSyllabusDB()).forEach(sub => fSubj.add(new Option(sub, sub)));
-    }
-
-    // v1.6.127: setupDragAndDrop() 立即執行 (不等 onload)
-    //   Safari 對於 hidden iframe 的 window.onload 可能延遲/不觸發
-    //   導致拖曳 handler 沒註冊 → 拖圖 → Safari 預設行為 → navigation → freeze
-    try {
+        Object.keys(syllabusDB).forEach(sub => fSubj.add(new Option(sub, sub)));
+        
         setupDragAndDrop();
-        console.log('[v1.6.127] setupDragAndDrop 已立即執行');
-    } catch(e) {
-        console.error('[v1.6.127] setupDragAndDrop 失敗:', e);
-    }
-
-    window.onload = function() {
-        try { WN_initWrongNotes(); } catch(e) { console.error('[v1.6.127] onload init 失敗:', e); }
     };
 
     function setupDragAndDrop() {
-        // v1.6.122: 立刻註冊 preventDefault (Safari 對於 iframe 內 dragover 未阻止會當 navigation 卡死)
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
-            window.addEventListener(eventName, function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }, false);
-        });
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
             window.addEventListener(eventName, preventDefaults, false);
         });
         function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
         const dropZones = document.querySelectorAll('.drop-zone');
         dropZones.forEach(zone => {
-            // v1.6.129: dragover/drop handler 必須 preventDefault
-            //   Safari 對於 iframe 內 dragover 沒 preventDefault 會當 navigation → freeze
-            zone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                zone.classList.add('dragover');
-            });
-            zone.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
+            zone.addEventListener('dragover', () => zone.classList.add('dragover'));
+            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+            zone.addEventListener('drop', (e) => {
                 zone.classList.remove('dragover');
-            });
-            zone.addEventListener('drop', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                zone.classList.remove('dragover');
-                if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                     handleFilesForCrop(e.dataTransfer.files);
                 }
             });
         });
-    }
-
-
-    // v1.6.114: 跨頁面導航函式
-    function WN_navigateToSettings() {
-        // 隱藏所有 page, 顯示 settings-page
-        document.querySelectorAll('.page').forEach(p => {
-            p.classList.remove('active');
-            p.style.display = 'none';
-        });
-        const settingsPage = document.getElementById('settings-page');
-        if (settingsPage) {
-            settingsPage.classList.add('active');
-            settingsPage.style.display = 'block';
-        }
-        // 確保 settings-container 可見
-        document.getElementById('settings-container').style.display = 'block';
-        // 隱藏 import-page 的 Step 1
-        const importPage = document.getElementById('import-page');
-        if (importPage) {
-            const stepContainer = importPage.querySelector('.step-container');
-            if (stepContainer) stepContainer.style.display = 'none';
-        }
-    }
-
-    function WN_navigateToImport() {
-        // 隱藏所有 page, 顯示 import-page
-        document.querySelectorAll('.page').forEach(p => {
-            p.classList.remove('active');
-            p.style.display = 'none';
-        });
-        const importPage = document.getElementById('import-page');
-        if (importPage) {
-            importPage.classList.add('active');
-            importPage.style.display = 'block';
-            // 顯示 Step 1
-            const stepContainer = importPage.querySelector('.step-container');
-            if (stepContainer) stepContainer.style.display = 'block';
-        }
     }
 
     function goToPage(pageId, navBtn) {
@@ -717,33 +561,19 @@
     }
 
     function renderImage(file, workspace) {
-        // v1.6.126: 改用 createObjectURL 取代 readAsDataURL
-        // 原因: readAsDataURL 對大圖 (>5MB) 會把整個 base64 編碼進 img.src,
-        //       Safari 對於 HEIC 或某些 JPG 格式在這個路徑會 freeze 整個 iframe
-        //       createObjectURL 直接給 blob URL, 更穩定更快
-        return new Promise((resolve, reject) => {
-            try {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
                 const img = document.createElement('img');
-                const blobUrl = URL.createObjectURL(file);
-                img.src = blobUrl;
+                img.src = e.target.result;
                 img.style.width = '100%';
                 img.style.display = 'block';
                 img.onload = () => {
                     createPageContainer(img, workspace);
-                    // 注意: 不要 revoke, 之後 crop 還要用
                     resolve();
                 };
-                img.onerror = () => {
-                    URL.revokeObjectURL(blobUrl);
-                    console.error('[v1.6.126] 圖片載入失敗:', file.name);
-                    alert('圖片載入失敗: ' + file.name);
-                    reject(new Error('img load failed'));
-                };
-            } catch (e) {
-                console.error('[v1.6.126] renderImage 錯誤:', e);
-                alert('圖片處理錯誤: ' + e.message);
-                reject(e);
-            }
+            };
+            reader.readAsDataURL(file);
         });
     }
 
@@ -970,10 +800,7 @@
 
     function finishCropping() {
         document.getElementById('crop-modal').style.display = 'none';
-        // v1.6.114: 自動跳 settings-page (方案 C - 完全分頁設計)
-        if(typeof window.WN_navigateToSettings === 'function') {
-            window.WN_navigateToSettings();
-        } else if(document.getElementById('settings-container').style.display === 'block') {
+        if(document.getElementById('settings-container').style.display === 'block') {
             document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth' });
         }
     }
@@ -1001,24 +828,27 @@
         if(cropId) div.dataset.cropId = cropId;
         
         let subjOptions = '<option value="">請選擇科目</option>';
-        Object.keys(getSyllabusDB()).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
+        Object.keys(syllabusDB).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
 
         div.innerHTML = `
             <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
             <img src="${imgUrl}">
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目 (從主專案注入)</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
             <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
             
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：教材類型</div>
-            <select class="type-sel" onchange="handleCardTypeChange(this, true)" disabled><option value="">請先選擇科目</option></select>
-            
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：教材名稱 (instance)</div>
-            <select class="inst-sel" onchange="handleCardInstChange(this, true)" disabled><option value="">請先選擇教材類型</option></select>
-            
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：單元</div>
-            <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇教材名稱</option></select>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：冊次/單元</div>
+            <select class="vol-sel" onchange="handleCardVolumeChange(this, true)" style="display:none;"></select>
+            <select class="unit-sel" onchange="handleCardUnitChange(this, true)"></select>
 
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 6：錯誤原因</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯題來源</div>
+            <select class="source-sel" onchange="toggleCardSource(this)">
+                <option value="複講">複講</option>
+                <option value="考卷">考卷</option>
+                <option value="其他">其他 (自訂)</option>
+            </select>
+            <input type="text" class="custom-source" placeholder="請填寫來源..." style="display:none;">
+
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：錯誤原因</div>
             <div class="checkbox-group reasons-group">
                 <label><input type="checkbox" value="觀念模糊"> 觀念模糊</label>
                 <label><input type="checkbox" value="題目陷阱"> 題目陷阱</label>
@@ -1051,24 +881,21 @@
     function handleCardSubjectChange(selectEl, isSync = false) {
         const card = selectEl.closest('.file-card');
         const subject = selectEl.value;
-        const typeSelect = card.querySelector('.type-sel');
-        const instSelect = card.querySelector('.inst-sel');
+        const volSelect = card.querySelector('.vol-sel');
         const unitSelect = card.querySelector('.unit-sel');
-        const data = getSyllabusDB()[subject];
+        const data = syllabusDB[subject];
 
-        typeSelect.innerHTML = '<option value="">請選擇教材類型</option>';
-        instSelect.innerHTML = '<option value="">請先選擇教材類型</option>';
-        unitSelect.innerHTML = '<option value="">請先選擇教材名稱</option>';
-        typeSelect.disabled = !data;
-        instSelect.disabled = true;
-        unitSelect.disabled = true;
+        volSelect.innerHTML = ''; unitSelect.innerHTML = '';
 
         if (data) {
-            // 從 master 注入的資料結構: data = { typeName: { instanceName: [units] } }
-            Object.keys(data).forEach(typeName => {
-                typeSelect.add(new Option(typeName, typeName));
-            });
-            typeSelect.disabled = false;
+            if (data.type === 'custom') {
+                volSelect.style.display = 'none';
+                data.units.forEach(u => unitSelect.add(new Option(u, u)));
+            } else {
+                volSelect.style.display = 'block';
+                data.volOrder.forEach(v => volSelect.add(new Option(v, v)));
+                handleCardVolumeChange(volSelect, false);
+            }
         }
 
         if (isSync) {
@@ -1083,75 +910,12 @@
         }
     }
 
-    function handleCardTypeChange(typeSelect, isSync = false) {
-        const card = typeSelect.closest('.file-card');
-        const subject = card.querySelector('.subj-sel').value;
-        const typeName = typeSelect.value;
-        const instSelect = card.querySelector('.inst-sel');
-        const unitSelect = card.querySelector('.unit-sel');
-        const data = getSyllabusDB()[subject];
-
-        instSelect.innerHTML = '<option value="">請選擇教材名稱</option>';
-        unitSelect.innerHTML = '<option value="">請先選擇教材名稱</option>';
-        instSelect.disabled = !data || !typeName;
-        unitSelect.disabled = true;
-
-        if (data && data[typeName]) {
-            Object.keys(data[typeName]).forEach(instName => {
-                instSelect.add(new Option(instName, instName));
-            });
-        }
-
-        if (isSync) {
-            const batchId = card.dataset.batchId;
-            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
-                if (otherCard !== card) {
-                    const otherTypeSel = otherCard.querySelector('.type-sel');
-                    otherTypeSel.value = typeName;
-                    handleCardTypeChange(otherTypeSel, false);
-                }
-            });
-        }
-    }
-
-    function handleCardInstChange(instSelect, isSync = false) {
-        const card = instSelect.closest('.file-card');
-        const subject = card.querySelector('.subj-sel').value;
-        const typeName = card.querySelector('.type-sel').value;
-        const instName = instSelect.value;
-        const unitSelect = card.querySelector('.unit-sel');
-        const data = getSyllabusDB()[subject];
-
-        unitSelect.innerHTML = '<option value="">請選擇單元</option>';
-        unitSelect.disabled = true;
-
-        if (data && data[typeName] && data[typeName][instName]) {
-            const units = data[typeName][instName];
-            units.forEach(u => {
-                const label = typeof u === 'string' ? u : (u.name || u.id);
-                unitSelect.add(new Option(label, label));
-            });
-            unitSelect.disabled = false;
-        }
-
-        if (isSync) {
-            const batchId = card.dataset.batchId;
-            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
-                if (otherCard !== card) {
-                    const otherInstSel = otherCard.querySelector('.inst-sel');
-                    otherInstSel.value = instName;
-                    handleCardInstChange(otherInstSel, false);
-                }
-            });
-        }
-    }
-
     function handleCardVolumeChange(volSelect, isSync = false) {
         const card = volSelect.closest('.file-card');
         const subject = card.querySelector('.subj-sel').value;
         const volume = volSelect.value;
         const unitSelect = card.querySelector('.unit-sel');
-        const data = getSyllabusDB()[subject];
+        const data = syllabusDB[subject];
 
         unitSelect.innerHTML = '';
         if (data && data.vols && data.vols[volume]) {
@@ -1190,44 +954,6 @@
         input.style.display = selectEl.value === '其他' ? 'block' : 'none';
     }
 
-    // v1.6.120: 從備份檔匯入
-    function WN_importBackup() {
-        var input = document.getElementById('wn-backup-input');
-        if (input) input.click();
-    }
-    function WN_handleBackupFile(event) {
-        var file = event.target.files[0];
-        if (!file) return;
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                var backup = JSON.parse(e.target.result);
-                // 備份檔結構: {keys: {StudyMap_UserData: '...base64 or json string...', ...}}
-                var userDataRaw = backup.key && backup.key.StudyMap_Family_Data_V20;
-                if (!userDataRaw) {
-                    alert('此備份檔不含 StudyMap_UserData (可能被過濾)');
-                    return;
-                }
-                var userData = typeof userDataRaw === 'string' ? JSON.parse(userDataRaw) : userDataRaw;
-                if (!userData.masters || Object.keys(userData.masters).length === 0) {
-                    alert('此備份檔的 StudyMap_UserData 沒有 masters');
-                    return;
-                }
-                // 寫入 localStorage
-                var existing = JSON.parse(localStorage.getItem('StudyMap_UserData') || '{}');
-                Object.keys(userData).forEach(function(k) {
-                    existing[k] = userData[k];
-                });
-                localStorage.setItem('StudyMap_UserData', JSON.stringify(existing));
-                alert('✅ 匯入成功！科目數: ' + Object.keys(userData.masters).length + '\n\n請重新整理頁面 (F5)');
-                location.reload();
-            } catch(err) {
-                alert('❌ 解析失敗: ' + err.message);
-            }
-        };
-        reader.readAsText(file);
-    }
-
     function generateNote() {
         const cards = document.querySelectorAll('.file-card');
         if(cards.length === 0) return alert("請先選擇或匯入錯題！");
@@ -1238,15 +964,14 @@
         const today = new Date();
         const dateStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
 
-        console.log('[v1.6.118 generateNote] cards.length =', cards.length);
         cards.forEach(card => {
             const imgUrl = card.querySelector('img').src;
             const subj = card.querySelector('.subj-sel').value || '未分類';
-            const typeName = card.querySelector('.type-sel').value || '';
-            const instName = card.querySelector('.inst-sel').value || '';
+            const vol = card.querySelector('.vol-sel').style.display !== 'none' ? `[${card.querySelector('.vol-sel').value}]` : '';
             const unit = card.querySelector('.unit-sel').value || '';
-            // typeName + instName 取代原本的 source
-            const source = typeName + (instName ? ' / ' + instName : '');
+            
+            let source = card.querySelector('.source-sel').value;
+            if(source === '其他') source = card.querySelector('.custom-source').value || '自訂來源';
 
             const checkboxes = card.querySelectorAll('.reasons-group input:checked');
             const reasons = Array.from(checkboxes).map(cb => cb.value);
@@ -1255,8 +980,7 @@
             slot.className = 'note-slot editable-slot';
             slot.dataset.date = dateStr;
             slot.dataset.subject = subj;
-            slot.dataset.typeName = typeName;
-            slot.dataset.instanceName = instName;
+            slot.dataset.volume = card.querySelector('.vol-sel').style.display !== 'none' ? card.querySelector('.vol-sel').value : '';
             slot.dataset.unit = unit;
             slot.dataset.source = source;
             slot.dataset.reasons = JSON.stringify(reasons);
@@ -1270,7 +994,7 @@
             slot.innerHTML = `
                 <div class="note-slot-header" style="background:var(--header-aqua-sky);">
                     <span>📅 ${dateStr}</span>
-                    <span>📖 ${subj} ${unit}</span>
+                    <span>📖 ${subj} ${vol} ${unit}</span>
                     <span>🏷️ ${source}</span>
                 </div>
                 <div class="note-slot-body">
@@ -1335,8 +1059,7 @@
                 date: slot.dataset.date,
                 timestamp: Date.now() + Math.random(),
                 subject: slot.dataset.subject,
-                typeName: slot.dataset.typeName,
-                instanceName: slot.dataset.instanceName,
+                volume: slot.dataset.volume,
                 unit: slot.dataset.unit,
                 source: slot.dataset.source,
                 reasons: JSON.parse(slot.dataset.reasons),
