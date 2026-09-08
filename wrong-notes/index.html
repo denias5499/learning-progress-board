@@ -533,12 +533,15 @@
             var data = JSON.parse(raw);
             var user = data[uid];
             if (!user) return { name: '未登入', emoji: '👤' };
+            // v1.6.135.1: avatar 是 base64 image, 不是 emoji; 只在 avatar 不是 base64 時才用
+            var avatarStr = user.avatar || '';
+            var isBase64 = avatarStr.indexOf('data:image') === 0;
             return {
                 name: user.name || uid,
-                emoji: user.avatar || user.emoji || '👤'
+                emoji: isBase64 ? '👤' : (avatarStr || user.emoji || '👤')
             };
         } catch(e) {
-            console.error('[v1.6.135 getCurrentUser]', e);
+            console.error('[v1.6.135.1 getCurrentUser]', e);
             return { name: '未登入', emoji: '👤' };
         }
     }
