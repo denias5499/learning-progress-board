@@ -61,8 +61,9 @@ test('v135 (4): saveNotes 有 try/catch 保護 UI reset', () => {
 });
 
 // title
-test('v135 title: index.html [v1.6.135]', () => {
-    assert.ok(/<title>.*\[v1\.6\.135\]<\/title>/.test(IDX));
+test('v135 title: index.html 含 [v1.6.135] 系列', () => {
+    // 應該是 v1.6.135, .1, .2, ... 任意 hotfix 都算 pass
+    assert.ok(/<title>.*\[v1\.6\.135(?:\.\d+)?\]<\/title>/.test(IDX));
 });
 
 // 行為測試 — saveNotes 不 throw
