@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.135.6]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.136]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5326,7 +5326,7 @@ function wzUpdateSubjects() {
                     if (sTree.type === 'custom') {
                         sTree.items['custom'].forEach(u => extract(u, '', '', ''));
                     } else {
-                        var vols = appMaster[sub].volOrder ? appMaster[sub].volOrder.filter(v => sTree.items[v]) : Object.keys(sTree.items);
+                        var vols = Object.keys(sTree.items); // v1.6.136: 包含 instance-prefixed vol
                         vols.forEach(v => sTree.items[v].forEach(u => extract(u, v, u._typeName || '', u._instanceName || '')));
                     }
 
@@ -7252,7 +7252,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         subUnits.push({sub:sub, u:u, vol:'', typeName:u._typeName||'', instanceName:u._instanceName||''});
                     });
                 } else {
-                    var vols = appMaster[sub].volOrder ? appMaster[sub].volOrder.filter(function(v){return sTree.items[v];}) : Object.keys(sTree.items);
+                    var vols = Object.keys(sTree.items); // v1.6.136: 直接用 sTree.items keys (含 instance-prefixed vol)
                     vols.forEach(function(vol){
                         sTree.items[vol].forEach(function(u){
                             subUnits.push({sub:sub, u:u, vol:vol, typeName:u._typeName||'', instanceName:u._instanceName||''});
@@ -7303,7 +7303,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var subKeys = Object.keys(mTree).filter(function(sub){
                 var sTree = mTree[sub];
                 if (sTree.type === 'custom') return sTree.items['custom'].length > 0;
-                var vols = appMaster[sub].volOrder ? appMaster[sub].volOrder.filter(function(v){return sTree.items[v];}) : Object.keys(sTree.items);
+                var vols = Object.keys(sTree.items); // v1.6.136: 直接用 sTree.items keys (含 instance-prefixed vol)
                 return vols.some(function(vol){ return sTree.items[vol].length > 0; });
             });
             subKeys = getSortedSubjects(subKeys);
@@ -8113,7 +8113,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (sTree.type === 'custom') { 
                     sTree.items['custom'].forEach(u => { html += `<option value="${u.id}" data-sub="${sub}" data-vol="custom">[${sub}] ${u.name} (P.${u.start}~${u.end})</option>`; hasUnits = true; }); 
                 } else { 
-                    var volsToRender = appMaster[sub].volOrder ? appMaster[sub].volOrder.filter(v => sTree.items[v]) : Object.keys(sTree.items); 
+                    var volsToRender = Object.keys(sTree.items); // v1.6.136: 包含 instance-prefixed vol 
                     volsToRender.forEach(vol => { sTree.items[vol].forEach(u => { html += `<option value="${u.id}" data-sub="${sub}" data-vol="${vol}">[${sub} - ${vol}] ${u.name} (P.${u.start}~${u.end})</option>`; hasUnits = true; }); }); 
                 } 
             }); 
@@ -13355,7 +13355,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                         if (sTree.type === 'custom') { 
                             sTree.items['custom'].forEach(processUnit); 
                         } else { 
-                            var volsToRender = appMaster[sub].volOrder ? appMaster[sub].volOrder.filter(v => sTree.items[v]) : Object.keys(sTree.items); 
+                            var volsToRender = Object.keys(sTree.items); // v1.6.136: 包含 instance-prefixed vol 
                             volsToRender.forEach(vol => { 
                                 sTree.items[vol].forEach(processUnit); 
                             }); 
