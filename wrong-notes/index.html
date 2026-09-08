@@ -100,14 +100,14 @@
 
         /* --- 主內容區 --- */
         .app-container {
-            width: 100%; max-width: 1000px; margin: 20px auto; position: relative; display: flex; flex-direction: column; flex-grow: 1;
+            width: 100%; max-width: 100%; margin: 0; padding: 0; position: relative; display: flex; flex-direction: column; flex-grow: 1;
         }
-        .page { display: none; padding: 20px; flex-direction: column; }
+        .page { display: none; padding: 0; flex-direction: column; width: 100%; }
         .page.active { display: flex; }
 
         /* --- 錯題匯入頁面 --- */
         .step-container {
-            background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 12px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            background: rgba(255, 255, 255, 0.95); padding: 20px; border-radius: 0; margin-bottom: 0; box-shadow: none; border-bottom: 1px solid #eee;
         }
         .step-title { font-weight: bold; font-size: 18px; margin-bottom: 15px; color: var(--theme-blue); }
         
@@ -252,7 +252,7 @@
 
         /* --- 筆記頁與檢視區 --- */
         .note-slot {
-            display: flex; flex-direction: column; background: #fff; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; overflow: hidden;
+            display: flex; flex-direction: column; background: #fff; border-radius: 0; box-shadow: none; margin-bottom: 30px; overflow: hidden; border: 1px solid #e0e0e0;
             break-inside: avoid;
         }
         .note-slot-header {
@@ -340,10 +340,7 @@
         <button class="btn-3d btn-practice" id="nav-practice" onclick="goToPage('practice-page', this)">錯題再練</button>
     </div>
     <div class="nav-right">
-        <div class="student-panel">
-            <div class="sp-avatar"><span id="sp-avatar-emoji">👦</span></div>
-            <div class="sp-select-wrapper"><select id="student-name"></select></div>
-        </div>
+        <div id="current-user-display" style="color:var(--theme-blue);font-weight:bold;font-size:14px;padding:6px 12px;"></div>
     </div>
 </div>
 
@@ -524,20 +521,44 @@
     let currentFilesData = []; 
     let hasUnsavedNotes = false;
     let batchCounter = 0; 
-    let studentsData = [{ id: 'stu1', name: '高二 (大寶)', type: 'emoji', value: '👦' }];
-    
     let isManualAdding = false;
     let manualBoxes = [];
 
-    window.onload = () => {
-        const select = document.getElementById('student-name');
-        studentsData.forEach(s => select.add(new Option(s.name, s.id)));
-        
-        const fSubj = document.getElementById('filter-subject');
-        Object.keys(syllabusDB).forEach(sub => fSubj.add(new Option(sub, sub)));
-        
+    // v1.6.135: 從 localStorage 讀當前使用者 (附件跟主專案共用 StudyMap_CurrentUserId_V20)
+    function getCurrentUser() {
+        try {
+            var uid = localStorage.getItem('StudyMap_CurrentUserId_V20');
+            var raw = localStorage.getItem('StudyMap_Family_Data_V20');
+            if (!uid || !raw) return { name: '未登入', emoji: '👤' };
+            var data = JSON.parse(raw);
+            var user = data[uid];
+            if (!user) return { name: '未登入', emoji: '👤' };
+            return {
+                name: user.name || uid,
+                emoji: user.avatar || user.emoji || '👤'
+            };
+        } catch(e) {
+            console.error('[v1.6.135 getCurrentUser]', e);
+            return { name: '未登入', emoji: '👤' };
+        }
+    }
+
+    function refreshUserDisplay() {
+        var user = getCurrentUser();
+        var display = document.getElementById('current-user-display');
+        if (display) display.textContent = user.emoji + ' ' + user.name;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshUserDisplay();
+        var fSubj = document.getElementById('filter-subject');
+        if (fSubj) Object.keys(syllabusDB).forEach(function(sub) {
+            var opt = document.createElement('option');
+            opt.value = sub; opt.textContent = sub;
+            fSubj.appendChild(opt);
+        });
         setupDragAndDrop();
-    };
+    });
 
     function setupDragAndDrop() {
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -857,6 +878,12 @@
     }
 
     function finishCropping() {
+        // v1.6.135: 檢查 cards-slider 內這 batch 是否有卡片
+        const batchCards = document.querySelectorAll('.file-card[data-batch-id="' + batchCounter + '"]');
+        if (batchCards.length === 0) {
+            alert('⚠️ 尚未完成錯題選擇!\n請按「+」按鈕將框選的題目加入清單。');
+            return;
+        }
         document.getElementById('crop-modal').style.display = 'none';
         if(document.getElementById('settings-container').style.display === 'block') {
             document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth' });
@@ -1146,32 +1173,49 @@
     }
 
     function saveNotes() {
+        // v1.6.135: 修 v1.6.132 拆 dropdown 之後 slot.dataset.volume 變 undefined 的問題
+        // 改用 typeName + instanceName 取代 volume
         const slots = document.querySelectorAll('.editable-slot');
-        let savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        let savedNotes = [];
+        try { savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]'); }
+        catch(e) { console.error('[v1.6.135 saveNotes] parse 失敗:', e); savedNotes = []; }
         
-        slots.forEach(slot => {
-            savedNotes.unshift({ 
+        slots.forEach(function(slot) {
+            savedNotes.unshift({
                 date: slot.dataset.date,
                 timestamp: Date.now() + Math.random(),
                 subject: slot.dataset.subject,
-                volume: slot.dataset.volume,
+                typeName: slot.dataset.typeName,
+                instanceName: slot.dataset.instanceName,
                 unit: slot.dataset.unit,
                 source: slot.dataset.source,
-                reasons: JSON.parse(slot.dataset.reasons),
-                imgUrl: slot.querySelector('img').src,
-                content: slot.querySelector('.note-grid-area').innerHTML
+                reasons: JSON.parse(slot.dataset.reasons || '[]'),
+                imgUrl: slot.querySelector('img') ? slot.querySelector('img').src : '',
+                content: slot.querySelector('.note-grid-area') ? slot.querySelector('.note-grid-area').innerHTML : ''
             });
         });
 
-        localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
-        hasUnsavedNotes = false; 
-        
-        alert("✅ 筆記已成功儲存！");
-        document.getElementById('cards-slider').innerHTML = '';
-        document.getElementById('settings-container').style.display = 'none';
-        currentFilesData = [];
+        try {
+            localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
+        } catch(e) {
+            alert('❌ 儲存失敗:' + e.message);
+            return;
+        }
+        hasUnsavedNotes = false;
 
-        goToPage('view-page', document.getElementById('nav-view'));
+        alert('✅ 筆記已成功儲存!');
+        try {
+            document.getElementById('cards-slider').innerHTML = '';
+            document.getElementById('settings-container').style.display = 'none';
+            currentFilesData = [];
+            goToPage('view-page', document.getElementById('nav-view'));
+        } catch(e) {
+            console.error('[v1.6.135 saveNotes] UI reset 失敗:', e);
+            // 即便 UI reset 失敗, 儲存已成功, 提示 user 手動切到查看頁
+            if (confirm('筆記已儲存,但頁面跳轉失敗,要手動切到「查看錯題筆記」嗎?')) {
+                window.location.reload();
+            }
+        }
     }
 
     function renderViewPage() {
