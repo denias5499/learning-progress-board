@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.136]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.137]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7324,7 +7324,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // v1.5.37: 渲染一個科目的全寬卡片 — 含教材類型 radio 切換
         function renderAeSubjectCardHtml(sub, subUnits, cat, mis) {
-            // v1.5.40: 永遠顯示 5 個教材類型 radio，沒單元的類型灰底 + disabled
+            // v1.5.40: 預設 5 個教材類型排前面; v1.6.137: typeCount 額外的 typeName (如「模考歷屆」) 也 append
             var defaultOrder = ['複習講義','複習卷','數字題本','模擬題本','考古題'];
 
             // 收集每個 type 各有幾個 unit
@@ -7334,13 +7334,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 typeCount[t] = (typeCount[t] || 0) + 1;
             });
 
+            // v1.6.137: 合併 defaultOrder + typeCount 額外的 typeName (例如自訂「模考歷屆」「素養題」)
+            var orderedTypes = defaultOrder.slice();
+            Object.keys(typeCount).forEach(function(t){
+                if (orderedTypes.indexOf(t) < 0) orderedTypes.push(t);
+            });
             // 預設選第一個有 unit 的 type
             var firstAvailable = null;
-            defaultOrder.forEach(function(t){
+            orderedTypes.forEach(function(t){
                 if (typeCount[t] > 0 && !firstAvailable) firstAvailable = t;
             });
             if (!window.aeSubjectType[sub] || typeCount[window.aeSubjectType[sub]] === undefined) {
-                window.aeSubjectType[sub] = firstAvailable || defaultOrder[0];
+                window.aeSubjectType[sub] = firstAvailable || orderedTypes[0];
             }
             var currentType = window.aeSubjectType[sub];
 
@@ -7351,7 +7356,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 教材類型 radio — 永遠顯示全部 5 個
             html += '<div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; padding:10px 15px; background:#f8fafc; border-bottom:1px solid #e2e8f0;">';
             html += '<span style="font-weight:bold; color:var(--secondary); font-size:0.8em;">教材類型:</span>';
-            defaultOrder.forEach(function(t){
+            orderedTypes.forEach(function(t){
                 var hasUnits = typeCount[t] > 0;
                 var isSelected = currentType === t;
                 var borderColor = isSelected ? 'var(--accent)' : (hasUnits ? '#cbd5e1' : '#e2e8f0');
