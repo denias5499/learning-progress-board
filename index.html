@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.139]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.140]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7331,11 +7331,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v1.5.40: 預設 5 個教材類型排前面; v1.6.137: typeCount 額外的 typeName (如「模考歷屆」) 也 append
             var defaultOrder = ['複習講義','複習卷','數字題本','模擬題本','考古題'];
 
-            // v1.6.139: 讀 _deletedTypes marker, 從 defaultOrder 移除使用者已刪除的 typeName
-            // (v1.6.138 marker 只控「教材庫設定頁面」, dropdown tab 仍會 render 變成 disabled label; 這裡補上 dropdown 的隱藏邏輯)
-            var _usr = multiData[currentUserId] || {};
-            var _delTypes = (_usr._deletedTypes && _usr._deletedTypes[cat] && _usr._deletedTypes[cat][sub]) || {};
-            defaultOrder = defaultOrder.filter(function(t){ return !_delTypes[t]; });
+            // v1.6.140: 讀 _deletedTypes marker (array 結構: [typeName, ...]), 從 defaultOrder 移除使用者已刪除的 typeName
+            // (v1.6.138 marker 寫入時用 array.push + indexOf; v1.6.139 誤用 object 查 key 所以壞了, 這裡修對)
+            var _delArr = (multiData[currentUserId] && multiData[currentUserId]._deletedTypes && multiData[currentUserId]._deletedTypes[cat] && multiData[currentUserId]._deletedTypes[cat][sub]) || [];
+            defaultOrder = defaultOrder.filter(function(t){ return _delArr.indexOf(t) < 0; });
 
             // 收集每個 type 各有幾個 unit
             var typeCount = {};
