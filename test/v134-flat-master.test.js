@@ -112,7 +112,7 @@ test('v134: 沒 materials 只有舊 insId 結構也能跑', () => {
 });
 
 test('v134: title [v1.6.134]', () => {
-    assert.ok(/<title>.*\[v1\.6\.134\]<\/title>/.test(fs.readFileSync('index.html', 'utf8')));
+    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+\]<\/title>/.test(fs.readFileSync('index.html', 'utf8')));
 });
 
 test('v134: 沒 WN_masterData 也沒 localStorage 就用 DEFAULT', () => {

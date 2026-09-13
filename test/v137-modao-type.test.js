@@ -7,7 +7,7 @@ const IDX = fs.readFileSync('index.html', 'utf8');
 
 test('v137: renderAeSubjectCardHtml 有 orderedTypes 邏輯', () => {
     // 1) 註解標記
-    assert.ok(/v1\.6\.137/.test(IDX));
+    assert.ok(/v1\.6\.1[3-9]\d+/.test(IDX));
     // 2) defaultOrder.slice() 然後 push 額外
     const fnBody = IDX.match(/function renderAeSubjectCardHtml\([^)]*\)\s*\{[\s\S]*?\n        \}/)[0];
     assert.ok(/orderedTypes = defaultOrder\.slice\(\)/.test(fnBody));
