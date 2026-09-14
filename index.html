@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.142.1]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.142.2]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1380,6 +1380,59 @@
         /* ===== End Phase 1 CSS ===== */
 
         </style>
+
+    <style id="wz-hotfix">
+        /* v1.6.142.2 強制修正：智慧排程模式按鈕文字顯示 */
+        .wizard-row .wz-desc-text {
+            flex: 1 1 0 !important;
+            min-width: 0 !important;
+            max-width: 300px !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            font-size: 0.82em !important;
+            color: #475569 !important;
+            cursor: help !important;
+            padding-right: 4px !important;
+            transition: all 0.2s ease !important;
+        }
+        
+        /* 展開狀態 */
+        .wizard-row .wz-desc-text.expanded {
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            background: white !important;
+            border-radius: 4px !important;
+            padding: 4px 8px !important;
+            box-shadow: 0 0 8px rgba(0,0,0,0.1) !important;
+            z-index: 10 !important;
+            position: relative !important;
+        }
+        
+        /* 狀態列樣式 */
+        #wz-status-line {
+            position: fixed !important;
+            bottom: 15px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            background: rgba(0,0,0,0.9) !important;
+            color: white !important;
+            padding: 8px 16px !important;
+            border-radius: 20px !important;
+            font-size: 14px !important;
+            max-width: 90% !important;
+            text-align: center !important;
+            z-index: 99999 !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+            border: 1px solid rgba(255,255,255,0.2) !important;
+        }
+        
+        /* 按鈕容器調整 */
+        label[id*="wz-mode-"] {
+            min-height: 50px !important;
+        }
+    </style>
 </head>
 <body>
 
@@ -6251,7 +6304,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var hoursPerUnit = Number(ws.hoursPerUnit) || 1;
                 var unitsPerWeek = Number(ws.progVal) || 1;
 
-                // v1.6.141: 依 scheduleMode 分派 (模式 A: 時數 = 原行為; 模式 B: 單元 = v1.6.142.1 實作)
+                // v1.6.141: 依 scheduleMode 分派 (模式 A: 時數 = 原行為; 模式 B: 單元 = v1.6.142.2 實作)
                 var _scheduleMode = ws.scheduleMode || 'hours';
 
                 ws.availableUnits.forEach(availU => {
@@ -6319,7 +6372,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 dateCapacities[ds] = dailyRemain[ds];
             });
 
-            // v1.6.142.1: 模式 B (單元) pipeline 排程 — 把每個 unit 的多個 chunks 重組成「每 unit 佔 N 個有效讀書日」
+            // v1.6.142.2: 模式 B (單元) pipeline 排程 — 把每個 unit 的多個 chunks 重組成「每 unit 佔 N 個有效讀書日」
             // 策略: 對每個 mode='units' 的 ws, 把它的 chunks 按 unit 分組, 每組內的 chunks 沿 sortedDates 連續 N 天放置
             // 然後把所有 mode B 的 chunks 重新放回 allSubjectChunks
             var _hasUnitMode = wizardSubjects.some(function(ws) { return ws.scheduleMode === 'units' && ws.selectedUnitIds.length > 0; });
@@ -6463,7 +6516,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
                 // 警告 UI
                 if (unitModeWarnings.length > 0) {
-                    console.warn('v1.6.142.1 模式 B 警告:', unitModeWarnings);
+                    console.warn('v1.6.142.2 模式 B 警告:', unitModeWarnings);
                 }
 
                 // 模式 B 處理完就 return (不走時數模式的 executePlacement)
@@ -14764,71 +14817,114 @@ function renderViewPage() {
     </div>
 </div>
 
-<!-- 新增按鈕互動功能 -->
+
+<!-- 新版互動功能 v1.6.142.2 -->
 <script>
 (function() {
+  console.log('[智慧排程模式] 初始化互動功能');
   let activeExpandedDesc = null;
-  const statusLine = document.createElement("div");
-  statusLine.id = "wz-status-line";
-  statusLine.style.cssText = "position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 6px 12px; border-radius: 20px; font-size: 14px; max-width: 80%; text-align: center; z-index: 9999; display: none; transition: opacity 0.3s;";
-  document.body.appendChild(statusLine);
-
-  document.querySelectorAll(".wz-desc-text").forEach(span => {
-    span.addEventListener("click", function(e) {
-      e.stopPropagation();
-      
-      if (activeExpandedDesc && activeExpandedDesc !== this) {
-        activeExpandedDesc.style.whiteSpace = "nowrap";
-        activeExpandedDesc.style.textOverflow = "ellipsis";
-      }
-      
-      if (this.style.whiteSpace === "normal") {
-        this.style.whiteSpace = "nowrap";
-        this.style.textOverflow = "ellipsis";
-        activeExpandedDesc = null;
-        statusLine.style.display = "none";
-      } else {
-        this.style.whiteSpace = "normal";
-        this.style.textOverflow = "clip";
-        activeExpandedDesc = this;
-        
-        statusLine.textContent = this.dataset.full;
-        statusLine.style.display = "block";
-        statusLine.style.opacity = "1";
-        setTimeout(() => {
-          statusLine.style.opacity = "0";
-          setTimeout(() => statusLine.style.display = "none", 300);
-        }, 3000);
-      }
-    });
-    
-    span.addEventListener("mouseenter", function() {
-      if (!activeExpandedDesc) {
-        statusLine.textContent = this.dataset.full;
-        statusLine.style.display = "block";
-        statusLine.style.opacity = "1";
-      }
-    });
-    
-    span.addEventListener("mouseleave", function() {
-      if (!activeExpandedDesc) {
-        statusLine.style.opacity = "0";
-        setTimeout(() => {
-          if (!activeExpandedDesc) statusLine.style.display = "none";
-        }, 300);
-      }
-    });
-  });
   
-  document.addEventListener("click", function() {
-    if (activeExpandedDesc) {
-      activeExpandedDesc.style.whiteSpace = "nowrap";
-      activeExpandedDesc.style.textOverflow = "ellipsis";
+  // 建立狀態列
+  if (!document.getElementById('wz-status-line')) {
+    const statusLine = document.createElement('div');
+    statusLine.id = 'wz-status-line';
+    statusLine.style.cssText = 'position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.9); color: white; padding: 8px 16px; border-radius: 20px; font-size: 14px; max-width: 90%; text-align: center; z-index: 99999; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); display: none; transition: opacity 0.3s ease;';
+    document.body.appendChild(statusLine);
+    console.log('[智慧排程模式] 狀態列建立完成');
+  }
+  
+  const statusLine = document.getElementById('wz-status-line');
+  
+  // 初始化按鈕互動
+  function initButtonInteractions() {
+    const descTexts = document.querySelectorAll('.wz-desc-text');
+    console.log('[智慧排程模式] 找到描述元素:', descTexts.length);
+    
+    descTexts.forEach(span => {
+      // 清除舊的事件監聽器
+      const newSpan = span.cloneNode(true);
+      span.parentNode.replaceChild(newSpan, span);
+      
+      // 新增新的監聽器
+      newSpan.addEventListener('click', function(e) {
+        e.stopPropagation();
+        console.log('[智慧排程模式] 點擊:', this.dataset.full?.substring(0, 30) + '...');
+        
+        // 收合前一個展開的元素
+        if (activeExpandedDesc && activeExpandedDesc !== this) {
+          activeExpandedDesc.classList.remove('expanded');
+          console.log('[智慧排程模式] 收合前一個元素');
+        }
+        
+        // 切換當前元素
+        if (this.classList.contains('expanded')) {
+          this.classList.remove('expanded');
+          activeExpandedDesc = null;
+          statusLine.style.display = 'none';
+          console.log('[智慧排程模式] 收合當前元素');
+        } else {
+          this.classList.add('expanded');
+          activeExpandedDesc = this;
+          
+          // 顯示狀態列
+          statusLine.textContent = this.dataset.full || this.innerText;
+          statusLine.style.display = 'block';
+          statusLine.style.opacity = '1';
+          console.log('[智慧排程模式] 展開當前元素，狀態列更新');
+          
+          // 自動隱藏計時器
+          setTimeout(() => {
+            if (activeExpandedDesc === this) {
+              statusLine.style.opacity = '0';
+              setTimeout(() => {
+                if (activeExpandedDesc === this) {
+                  statusLine.style.display = 'none';
+                  console.log('[智慧排程模式] 狀態列自動隱藏');
+                }
+              }, 300);
+            }
+          }, 4000);
+        }
+      });
+      
+      // 懸停顯示完整文字
+      newSpan.addEventListener('mouseenter', function() {
+        if (!activeExpandedDesc) {
+          statusLine.textContent = this.dataset.full || this.innerText;
+          statusLine.style.display = 'block';
+          statusLine.style.opacity = '1';
+        }
+      });
+      
+      newSpan.addEventListener('mouseleave', function() {
+        if (!activeExpandedDesc) {
+          statusLine.style.opacity = '0';
+          setTimeout(() => {
+            if (!activeExpandedDesc) {
+              statusLine.style.display = 'none';
+            }
+          }, 300);
+        }
+      });
+    });
+    
+    console.log('[智慧排程模式] 互動功能初始化完成');
+  }
+  
+  // 全域點擊收合
+  document.addEventListener('click', function(e) {
+    if (activeExpandedDesc && !activeExpandedDesc.contains(e.target)) {
+      activeExpandedDesc.classList.remove('expanded');
       activeExpandedDesc = null;
-      statusLine.style.display = "none";
+      statusLine.style.display = 'none';
+      console.log('[智慧排程模式] 點擊頁面其他區域，收合所有元素');
     }
   });
+  
+  // 延遲初始化以確保 DOM 準備好
+  setTimeout(initButtonInteractions, 100);
 })();
 </script>
+
 </body>
 </html>
