@@ -17,7 +17,7 @@ test('v130: DOMContentLoaded 內 iframe 有 dragover/drop handler', () => {
 
 test('v130: title [v1.6.130]', () => {
     const IDX = fs.readFileSync('index.html', 'utf8');
-    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+\]<\/title>/.test(IDX));
+    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+(\.\d+)?\]<\/title>/.test(IDX));
 });
 
 test('v130: iframe handler 用 preventDefault + stopPropagation', () => {

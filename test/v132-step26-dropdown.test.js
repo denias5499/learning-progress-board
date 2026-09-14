@@ -107,7 +107,7 @@ test('v132: 行為測試 - localStorage fallback', () => {
 });
 
 test('v132: title [v1.6.132]', () => {
-    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+\]<\/title>/.test(fs.readFileSync('index.html', 'utf8')));
+    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+(\.\d+)?\]<\/title>/.test(fs.readFileSync('index.html', 'utf8')));
 });
 
 test('v132: 保留 BISECT drag-drop setupDragAndDrop (沒 preventDefault, Safari 不 freeze)', () => {
