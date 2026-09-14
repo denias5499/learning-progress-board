@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.142]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.142.1]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2001,14 +2001,14 @@
                             <input type="radio" name="wz-schedule-mode" value="hours" checked onchange="setWizardScheduleMode('hours')" style="margin: 0;">
                             <span style="font-size: 1.4em; line-height: 1;">⏱️</span>
                             <span style="font-weight: bold; font-size: 0.95em; color: #0369a1; flex-shrink: 0;">時數模式 (A)</span>
-                            <span style="font-size: 0.82em; color: #475569; flex: 1; overflow: hidden; text-overflow: ellipsis;">用「每天讀書時數」+「每單元所需時數」自動切成 0.5hr chunks 排進每天</span>
+                            <span class="wz-desc-text" data-full="用「每天讀書時數」+「每單元所需時數」自動切成 0.5hr chunks 排進每天" style="font-size: 0.82em; color: #475569; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help;" title="點擊展開/收合">用「每天讀書時數」+「每單元所需時數」自動切成 0.5hr chunks 排進每天</span>
                             <span style="font-size: 0.78em; color: #0369a1; font-weight: bold; flex-shrink: 0; background: white; padding: 3px 8px; border-radius: 12px;">✅ 每天時間固定</span>
                         </label>
                         <label id="wz-mode-units-card" style="cursor: pointer; display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 8px; border: 2px solid #cbd5e1; background: white; transition: all 0.2s; white-space: nowrap;">
                             <input type="radio" name="wz-schedule-mode" value="units" onchange="setWizardScheduleMode('units')" style="margin: 0;">
                             <span style="font-size: 1.4em; line-height: 1;">📅</span>
                             <span style="font-weight: bold; font-size: 0.95em; color: #475569; flex-shrink: 0;">單元模式 (B)</span>
-                            <span style="font-size: 0.82em; color: #475569; flex: 1; overflow: hidden; text-overflow: ellipsis;">用「每週讀完 N 個 unit」+「每 unit 幾天」pipeline 排程,每天讀 unit 一段</span>
+                            <span class="wz-desc-text" data-full="用「每週讀完 N 個 unit」+「每 unit 幾天」pipeline 排程,每天讀 unit 一段" style="font-size: 0.82em; color: #475569; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: help;" title="點擊展開/收合">用「每週讀完 N 個 unit」+「每 unit 幾天」pipeline 排程,每天讀 unit 一段</span>
                             <span style="font-size: 0.78em; color: #0369a1; font-weight: bold; flex-shrink: 0; background: #f0f9ff; padding: 3px 8px; border-radius: 12px;">✅ 段考週狂掃</span>
                         </label>
                     </div>
@@ -6251,7 +6251,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var hoursPerUnit = Number(ws.hoursPerUnit) || 1;
                 var unitsPerWeek = Number(ws.progVal) || 1;
 
-                // v1.6.141: 依 scheduleMode 分派 (模式 A: 時數 = 原行為; 模式 B: 單元 = v1.6.142 實作)
+                // v1.6.141: 依 scheduleMode 分派 (模式 A: 時數 = 原行為; 模式 B: 單元 = v1.6.142.1 實作)
                 var _scheduleMode = ws.scheduleMode || 'hours';
 
                 ws.availableUnits.forEach(availU => {
@@ -6319,7 +6319,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 dateCapacities[ds] = dailyRemain[ds];
             });
 
-            // v1.6.142: 模式 B (單元) pipeline 排程 — 把每個 unit 的多個 chunks 重組成「每 unit 佔 N 個有效讀書日」
+            // v1.6.142.1: 模式 B (單元) pipeline 排程 — 把每個 unit 的多個 chunks 重組成「每 unit 佔 N 個有效讀書日」
             // 策略: 對每個 mode='units' 的 ws, 把它的 chunks 按 unit 分組, 每組內的 chunks 沿 sortedDates 連續 N 天放置
             // 然後把所有 mode B 的 chunks 重新放回 allSubjectChunks
             var _hasUnitMode = wizardSubjects.some(function(ws) { return ws.scheduleMode === 'units' && ws.selectedUnitIds.length > 0; });
@@ -6463,7 +6463,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
                 // 警告 UI
                 if (unitModeWarnings.length > 0) {
-                    console.warn('v1.6.142 模式 B 警告:', unitModeWarnings);
+                    console.warn('v1.6.142.1 模式 B 警告:', unitModeWarnings);
                 }
 
                 // 模式 B 處理完就 return (不走時數模式的 executePlacement)
@@ -14764,5 +14764,71 @@ function renderViewPage() {
     </div>
 </div>
 
+<!-- 新增按鈕互動功能 -->
+<script>
+(function() {
+  let activeExpandedDesc = null;
+  const statusLine = document.createElement("div");
+  statusLine.id = "wz-status-line";
+  statusLine.style.cssText = "position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.85); color: white; padding: 6px 12px; border-radius: 20px; font-size: 14px; max-width: 80%; text-align: center; z-index: 9999; display: none; transition: opacity 0.3s;";
+  document.body.appendChild(statusLine);
+
+  document.querySelectorAll(".wz-desc-text").forEach(span => {
+    span.addEventListener("click", function(e) {
+      e.stopPropagation();
+      
+      if (activeExpandedDesc && activeExpandedDesc !== this) {
+        activeExpandedDesc.style.whiteSpace = "nowrap";
+        activeExpandedDesc.style.textOverflow = "ellipsis";
+      }
+      
+      if (this.style.whiteSpace === "normal") {
+        this.style.whiteSpace = "nowrap";
+        this.style.textOverflow = "ellipsis";
+        activeExpandedDesc = null;
+        statusLine.style.display = "none";
+      } else {
+        this.style.whiteSpace = "normal";
+        this.style.textOverflow = "clip";
+        activeExpandedDesc = this;
+        
+        statusLine.textContent = this.dataset.full;
+        statusLine.style.display = "block";
+        statusLine.style.opacity = "1";
+        setTimeout(() => {
+          statusLine.style.opacity = "0";
+          setTimeout(() => statusLine.style.display = "none", 300);
+        }, 3000);
+      }
+    });
+    
+    span.addEventListener("mouseenter", function() {
+      if (!activeExpandedDesc) {
+        statusLine.textContent = this.dataset.full;
+        statusLine.style.display = "block";
+        statusLine.style.opacity = "1";
+      }
+    });
+    
+    span.addEventListener("mouseleave", function() {
+      if (!activeExpandedDesc) {
+        statusLine.style.opacity = "0";
+        setTimeout(() => {
+          if (!activeExpandedDesc) statusLine.style.display = "none";
+        }, 300);
+      }
+    });
+  });
+  
+  document.addEventListener("click", function() {
+    if (activeExpandedDesc) {
+      activeExpandedDesc.style.whiteSpace = "nowrap";
+      activeExpandedDesc.style.textOverflow = "ellipsis";
+      activeExpandedDesc = null;
+      statusLine.style.display = "none";
+    }
+  });
+})();
+</script>
 </body>
 </html>
