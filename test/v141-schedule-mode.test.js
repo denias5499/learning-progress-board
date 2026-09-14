@@ -120,7 +120,7 @@ test('v141-7: index.html 內含 setWizardScheduleMode 與 scheduleMode 欄位', 
     assert.ok(HTML.indexOf('wz-schedule-mode') >= 0, '應有 wz-schedule-mode radio name');
     assert.ok(HTML.indexOf('daysPerUnit') >= 0, '應有 daysPerUnit 欄位');
     assert.ok(HTML.indexOf('scheduleMode') >= 0, '應有 scheduleMode 欄位');
-    assert.ok(/\[v1\.6\.141(\.\d+)?\]/.test(HTML), 'title 應為 [v1.6.141] 系列 (含 hotfix .X)');
+    assert.ok(/\[v1\.6\.14[0-9](\.\d+)?\]/.test(HTML), 'title 應為 [v1.6.14X] 系列 (含 hotfix .X)');
 });
 
 test('v141-8: title regex 寬鬆 - v1.6.13X 系列測試', () => {
@@ -129,5 +129,5 @@ test('v141-8: title regex 寬鬆 - v1.6.13X 系列測試', () => {
     assert.ok(titleMatch, '應有 <title>');
     var ver = titleMatch[1].match(/v1\.6\.\d+/);
     assert.ok(ver, 'title 應含版本號');
-    assert.ok(/^v1\.6\.141(\.\d+)?$/.test(ver[0]), '版本號應為 v1.6.141 系列 (含 hotfix .X), 實際: ' + ver[0]);
+    assert.ok(/^v1\.6\.14[0-9](\.\d+)?$/.test(ver[0]), '版本號應為 v1.6.14X 系列 (含 hotfix .X), 實際: ' + ver[0]);
 });

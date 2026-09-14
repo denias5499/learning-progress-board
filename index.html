@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.141.2]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.142]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6318,6 +6318,164 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 totalCapacity += dailyRemain[ds];
                 dateCapacities[ds] = dailyRemain[ds];
             });
+
+            // v1.6.142: 模式 B (單元) pipeline 排程 — 把每個 unit 的多個 chunks 重組成「每 unit 佔 N 個有效讀書日」
+            // 策略: 對每個 mode='units' 的 ws, 把它的 chunks 按 unit 分組, 每組內的 chunks 沿 sortedDates 連續 N 天放置
+            // 然後把所有 mode B 的 chunks 重新放回 allSubjectChunks
+            var _hasUnitMode = wizardSubjects.some(function(ws) { return ws.scheduleMode === 'units' && ws.selectedUnitIds.length > 0; });
+            if (_hasUnitMode) {
+                var unitModeAssignments = {}; // ds -> [{subject, unitId, vol, unitName, typeName, instanceName, prefix, startPage, endPage, cost, ws}]
+                var unitModeWarnings = [];
+
+                // 依 ws 順序處理 (維持現有優先權)
+                wizardSubjects.forEach(function(ws) {
+                    if (ws.scheduleMode !== 'units') return;
+                    if (ws.selectedUnitIds.length === 0) return;
+
+                    var hoursPerUnit = Number(ws.hoursPerUnit) || 1;
+                    var daysPerUnit = Math.max(1, Math.round(ws.daysPerUnit != null && ws.daysPerUnit !== '' ? Number(ws.daysPerUnit) : 2));
+                    // perDayCost = hoursPerUnit / daysPerUnit (模式 B 統一時間模型)
+
+                    // 收集這個 ws 選中的 chunks (按 selectedUnitIds 順序 + 沿用 A 模式的 numChunks)
+                    var myChunksByUnit = {}; // unitId -> [chunk, chunk, ...]
+                    var myChunksOrder = [];   // [unitId, unitId, ...] 維持選中順序
+
+                    // 從現有 chunks 找 (allSubjectChunks 是空 array 結構, 還沒填)
+                    // 我們需要重新計算 (因為 A 模式 chunks 沒在 allSubjectChunks 裡)
+                    // 改: 直接從 ws 重建 chunks (重複 A 模式邏輯, 但只用 mode B 需要的部分)
+                    var chunkSizeHours = 0.5;
+                    var numChunks = Math.max(1, Math.ceil(hoursPerUnit / chunkSizeHours));
+                    var qrEl = el('wz-quickread-discount');
+                    var qrDiscount = 1.0;
+                    if (qrEl) {
+                        var qrVal = Number(qrEl.value) || 60;
+                        qrDiscount = Math.max(0.10, Math.min(0.95, qrVal / 100));
+                    }
+
+                    ws.availableUnits.forEach(function(availU) {
+                        if (!ws.selectedUnitIds.includes(availU.id)) return;
+                        var u = availU.uObj;
+                        var volName = availU.vol;
+                        var prefix = volName ? ('[' + volName + '] ') : '';
+                        var s = Number(u.start) || 0;
+                        var e = Number(u.end) || 0;
+                        var totalPages = (s && e && e >= s) ? (e - s + 1) : 0;
+                        var effectiveHours = hoursPerUnit * (availU.quickRead ? qrDiscount : 1.0);
+                        var actualCost = effectiveHours / numChunks;
+                        var pagesPerChunk = totalPages > 0 ? (totalPages / numChunks) : 0;
+                        var currentPage = s;
+
+                        for (var i = 0; i < numChunks; i++) {
+                            var cStart = currentPage;
+                            var cEnd = Math.round(s + (i + 1) * pagesPerChunk - 1);
+                            if (i === numChunks - 1) cEnd = e;
+                            var ch = {
+                                subject: ws.name,
+                                unitId: u.id,
+                                vol: volName,
+                                unitName: u.name,
+                                typeName: availU.typeName || '',
+                                instanceName: availU.instanceName || '',
+                                prefix: prefix,
+                                startPage: (totalPages > 0) ? Math.round(cStart) : '',
+                                endPage: (totalPages > 0) ? Math.round(cEnd) : '',
+                                cost: actualCost,
+                                ws: ws
+                            };
+                            if (!myChunksByUnit[u.id]) {
+                                myChunksByUnit[u.id] = [];
+                                myChunksOrder.push(u.id);
+                            }
+                            myChunksByUnit[u.id].push(ch);
+                            currentPage = cEnd + 1;
+                        }
+                    });
+
+                    // pipeline 排: 每個 unit 佔 daysPerUnit 個有效讀書日, 每天 1 個 chunk
+                    // 沿 sortedDates 順序連續放
+                    var dayCursor = 0; // 指向 sortedDates[dayCursor]
+                    var unitQueue = myChunksOrder.slice(); // 還沒排完的 unit id 序列
+
+                    while (unitQueue.length > 0 && dayCursor < sortedDates.length) {
+                        var uId = unitQueue[0];
+                        var chunksForUnit = myChunksByUnit[uId];
+                        var placedThisUnit = 0;
+
+                        // 把這個 unit 的每個 chunk 放到連續 daysPerUnit 天
+                        for (var di = 0; di < daysPerUnit && di < chunksForUnit.length; di++) {
+                            if (dayCursor >= sortedDates.length) break;
+                            var ds = sortedDates[dayCursor];
+                            var ch = chunksForUnit[di];
+                            if (!unitModeAssignments[ds]) unitModeAssignments[ds] = [];
+                            unitModeAssignments[ds].push(ch);
+                            placedThisUnit++;
+                            dayCursor++;
+                        }
+
+                        // 如果這個 unit 的 chunks 比 daysPerUnit 少 (numChunks < daysPerUnit)
+                        if (placedThisUnit < chunksForUnit.length) {
+                            // 警告: 用戶設 daysPerUnit 但 unit chunk 數不夠, 剩餘 chunk 排不進
+                            unitModeWarnings.push(ws.name + ' / ' + (chunksForUnit[0] ? chunksForUnit[0].unitName : uId) +
+                                ' : daysPerUnit=' + daysPerUnit + ' 但只有 ' + chunksForUnit.length + ' chunks');
+                            // 強行塞到接下來的日子
+                            for (var ri = placedThisUnit; ri < chunksForUnit.length; ri++) {
+                                if (dayCursor >= sortedDates.length) break;
+                                var ds2 = sortedDates[dayCursor];
+                                unitModeAssignments[ds2].push(chunksForUnit[ri]);
+                                dayCursor++;
+                            }
+                        }
+
+                        unitQueue.shift(); // 這個 unit 處理完
+                    }
+
+                    // 警告: 排到 endDate 還沒完
+                    if (unitQueue.length > 0) {
+                        var remaining = unitQueue.map(function(id) {
+                            var c0 = myChunksByUnit[id][0];
+                            return c0 ? c0.unitName : id;
+                        }).join(', ');
+                        unitModeWarnings.push(ws.name + ': ' + unitQueue.length + ' 個 unit 排不進期間: ' + remaining);
+                    }
+                });
+
+                // 把 unitModeAssignments 寫入 plan.grid (覆蓋當日 mode A 的結果)
+                Object.keys(unitModeAssignments).forEach(function(ds) {
+                    if (!plan.grid[ds]) plan.grid[ds] = [];
+                    plan.grid[ds] = unitModeAssignments[ds].map(function(ch) {
+                        return {
+                            id: genId(),
+                            date: ds,
+                            subject: ch.subject,
+                            task: ch.prefix + ch.unitName +
+                                (ch.startPage !== '' ? ' (p' + ch.startPage + (ch.endPage !== '' ? ('-' + ch.endPage) : '') + ')' : ''),
+                            unitId: ch.unitId,
+                            vol: ch.vol,
+                            unitName: ch.unitName,
+                            typeName: ch.typeName,
+                            instanceName: ch.instanceName,
+                            duration: ch.cost,
+                            ws: ch.ws
+                        };
+                    });
+                    tasksCreated += plan.grid[ds].length;
+                });
+
+                // 警告 UI
+                if (unitModeWarnings.length > 0) {
+                    console.warn('v1.6.142 模式 B 警告:', unitModeWarnings);
+                }
+
+                // 模式 B 處理完就 return (不走時數模式的 executePlacement)
+                if (unitModeWarnings.length > 0) {
+                    var warnMsg = '📅 模式 B pipeline 排程完成,部分警告:\n\n' + unitModeWarnings.slice(0, 5).join('\n');
+                    if (unitModeWarnings.length > 5) warnMsg += '\n... 還有 ' + (unitModeWarnings.length - 5) + ' 個警告';
+                    alert(warnMsg);
+                }
+                saveData();
+                closeModal('modal-wizard');
+                return; // 模式 B 短路,不走時數模式 A 邏輯
+            }
 
             if (totalCapacity <= 0) {
                 return alert('⚠️ 錯誤：指定的期間與每日時數總合為 0，請檢查「每日讀書時數」設定或日期區間！');
