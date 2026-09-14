@@ -29,5 +29,5 @@ test('v133: generateNote 收集 checkbox + custom-reason', () => {
 });
 
 test('v133: title [v1.6.133]', () => {
-    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+\]<\/title>/.test(fs.readFileSync('index.html', 'utf8')));
+    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+(\.\d+)?\]<\/title>/.test(fs.readFileSync('index.html', 'utf8')));
 });
