@@ -2049,23 +2049,19 @@
                         <span style="font-weight: bold; color: #0369a1; font-size: 1.05em;">智慧排程模式</span>
                         <span style="font-size: 0.72em; color: #64748b; margin-left: auto; background: white; padding: 2px 8px; border-radius: 10px;">v1.6.143 UI 修正</span>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 8px;">
-                        <label id="wz-mode-hours-card" style="cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; border: 2px solid #0ea5e9; background: #e0f2fe; transition: all 0.2s; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
-                            <input type="radio" name="wz-schedule-mode" value="hours" checked onchange="setWizardScheduleMode('hours')" style="margin: 0; flex-shrink: 0;">
-                            <span style="font-size: 1.2em; flex-shrink: 0;">⏱️</span>
-                            <span style="font-weight: bold; font-size: 0.9em; color: #0369a1; flex-shrink: 0; white-space: nowrap;">時數模式</span>
-                            <span class="wz-desc-text" data-full="用「每天讀書時數」+「每單元所需時數」自動切成 0.5hr chunks 排進每天" style="font-size: 0.8em; color: #475569; flex: 1 1 auto; min-width: 50px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">用「每天讀書時數」+「每單元所需時數」自動切成 0.5hr chunks 排進每天</span>
-                            <span style="font-size: 0.72em; color: #0369a1; font-weight: bold; flex-shrink: 0; white-space: nowrap; background: white; padding: 2px 6px; border-radius: 10px;">✅ 每天時間固定</span>
+                    <div style="display: flex; flex-direction: row; gap: 12px; justify-content: center;">
+                        <label id="wz-mode-hours-card" style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 2px solid #0ea5e9; background: #e0f2fe; transition: all 0.2s; white-space: nowrap;">
+                            <input type="radio" name="wz-schedule-mode" value="hours" checked onchange="setWizardScheduleMode('hours')" style="margin: 0;">
+                            <span style="font-size: 1.1em;">⏱️</span>
+                            <span style="font-weight: bold; font-size: 0.9em; color: #0369a1;">時數模式</span>
                         </label>
-                        <label id="wz-mode-units-card" style="cursor: pointer; display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; border: 2px solid #cbd5e1; background: white; transition: all 0.2s; flex-wrap: wrap; width: 100%; box-sizing: border-box;">
-                            <input type="radio" name="wz-schedule-mode" value="units" onchange="setWizardScheduleMode('units')" style="margin: 0; flex-shrink: 0;">
-                            <span style="font-size: 1.2em; flex-shrink: 0;">📅</span>
-                            <span style="font-weight: bold; font-size: 0.9em; color: #475569; flex-shrink: 0; white-space: nowrap;">單元模式</span>
-                            <span class="wz-desc-text" data-full="用「每週讀完 N 個 unit」+「每 unit 幾天」pipeline 排程,每天讀 unit 一段" style="font-size: 0.8em; color: #475569; flex: 1 1 auto; min-width: 50px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">用「每週讀完 N 個 unit」+「每 unit 幾天」pipeline 排程,每天讀 unit 一段</span>
-                            <span style="font-size: 0.72em; color: #0369a1; font-weight: bold; flex-shrink: 0; white-space: nowrap; background: #f0f9ff; padding: 2px 6px; border-radius: 10px;">✅ 段考週狂掃</span>
+                        <label id="wz-mode-units-card" style="cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: 2px solid #cbd5e1; background: white; transition: all 0.2s; white-space: nowrap;">
+                            <input type="radio" name="wz-schedule-mode" value="units" onchange="setWizardScheduleMode('units')" style="margin: 0;">
+                            <span style="font-size: 1.1em;">📅</span>
+                            <span style="font-weight: bold; font-size: 0.9em; color: #475569;">單元模式</span>
                         </label>
                     </div>
-                    <div id="wz-schedule-mode-desc" style="margin-top: 8px; padding: 6px 12px; background: rgba(255,255,255,0.6); border-radius: 6px; font-size: 0.78em; color: #0369a1;">
+                    <div id="wz-schedule-mode-desc" style="margin-top: 10px; padding: 8px 14px; background: rgba(255,255,255,0.7); border-radius: 6px; font-size: 0.8em; color: #0369a1; text-align: center;">
                         ⏱️ 時數模式:每 unit 的時數切成 0.5hr chunks,平均塞進每天的讀書時數內。
                     </div>
                 </div>
