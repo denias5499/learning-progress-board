@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.145]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.146]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2046,13 +2046,13 @@
                 <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #7dd3fc; border-radius: 12px; padding: 14px 16px; margin-top: 10px;">
                     <div style="font-weight: bold; color: #0369a1; font-size: 1.05em; margin-bottom: 10px;">智慧排程模式</div>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                        <label id="wz-mode-hours-card" style="cursor: pointer; display: inline-block; padding: 8px 14px; border-radius: 8px; border: 2px solid #0ea5e9; background: #e0f2fe; font-size: 0.9em; line-height: 1.5;">
-                            <input type="radio" name="wz-schedule-mode" value="hours" checked onchange="setWizardScheduleMode('hours')" style="margin: 0 4px 0 0; vertical-align: middle;">
-                            <span style="vertical-align: middle;">⏱️</span><span style="color: #0369a1; font-weight: bold; vertical-align: middle;">時數模式</span>
+                        <label id="wz-mode-hours-card" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border-radius: 8px; border: 2px solid #0ea5e9; background: #e0f2fe; font-size: 14px; line-height: 1; white-space: nowrap; flex: 0 0 auto; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <input type="radio" name="wz-schedule-mode" value="hours" checked onchange="setWizardScheduleMode('hours')" style="margin: 0; cursor: pointer;">
+                            <span style="font-size: 16px;">⏱️</span><span style="color: #0369a1; font-weight: bold;">時數模式</span>
                         </label>
-                        <label id="wz-mode-units-card" style="cursor: pointer; display: inline-block; padding: 8px 14px; border-radius: 8px; border: 2px solid #cbd5e1; background: white; font-size: 0.9em; line-height: 1.5;">
-                            <input type="radio" name="wz-schedule-mode" value="units" onchange="setWizardScheduleMode('units')" style="margin: 0 4px 0 0; vertical-align: middle;">
-                            <span style="vertical-align: middle;">📅</span><span style="color: #475569; font-weight: bold; vertical-align: middle;">單元模式</span>
+                        <label id="wz-mode-units-card" style="cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 12px; border-radius: 8px; border: 2px solid #cbd5e1; background: white; font-size: 14px; line-height: 1; white-space: nowrap; flex: 0 0 auto; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            <input type="radio" name="wz-schedule-mode" value="units" onchange="setWizardScheduleMode('units')" style="margin: 0; cursor: pointer;">
+                            <span style="font-size: 16px;">📅</span><span style="color: #475569; font-weight: bold;">單元模式</span>
                         </label>
                     </div>
                     <div id="wz-schedule-mode-desc" style="margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.7); border-radius: 6px; font-size: 0.78em; color: #0369a1; line-height: 1.4;"></div>
@@ -5104,6 +5104,11 @@ loadBoardHeader();
             }
             if (el('wz-quickread-discount')) {
                 el('wz-quickread-discount').value = prefs.quickReadDiscount || 60;
+            }
+            // v1.6.146: 同步智慧排程模式 UI 狀態 (radio → 邊框/描述)
+            var initialModeRadio = document.querySelector('input[name="wz-schedule-mode"]:checked');
+            if (initialModeRadio && typeof setWizardScheduleMode === 'function') {
+                setWizardScheduleMode(initialModeRadio.value);
             }
 
             var dStart = new Date();
