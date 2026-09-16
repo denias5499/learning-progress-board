@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.148]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.149]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6366,6 +6366,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v1.6.142.2: 模式 B (單元) pipeline 排程 — 把每個 unit 的多個 chunks 重組成「每 unit 佔 N 個有效讀書日」
             // 策略: 對每個 mode='units' 的 ws, 把它的 chunks 按 unit 分組, 每組內的 chunks 沿 sortedDates 連續 N 天放置
             // 然後把所有 mode B 的 chunks 重新放回 allSubjectChunks
+            var tasksCreated = 0;
             var _hasUnitMode = wizardSubjects.some(function(ws) { return ws.scheduleMode === 'units' && ws.selectedUnitIds.length > 0; });
             if (_hasUnitMode) {
                 var unitModeAssignments = {}; // ds -> [{subject, unitId, vol, unitName, typeName, instanceName, prefix, startPage, endPage, cost, ws}]
@@ -6461,10 +6462,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             // 警告: 用戶設 daysPerUnit 但 unit chunk 數不夠, 剩餘 chunk 排不進
                             unitModeWarnings.push(ws.name + ' / ' + (chunksForUnit[0] ? chunksForUnit[0].unitName : uId) +
                                 ' : daysPerUnit=' + daysPerUnit + ' 但只有 ' + chunksForUnit.length + ' chunks');
-                            // 強行塞到接下來的日子
+                            // 強行塞到接下來的日子 (v1.6.149: 加 push 前 init, 修 TypeError)
                             for (var ri = placedThisUnit; ri < chunksForUnit.length; ri++) {
                                 if (dayCursor >= sortedDates.length) break;
                                 var ds2 = sortedDates[dayCursor];
+                                if (!unitModeAssignments[ds2]) unitModeAssignments[ds2] = [];
                                 unitModeAssignments[ds2].push(chunksForUnit[ri]);
                                 dayCursor++;
                             }
@@ -6516,7 +6518,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     if (unitModeWarnings.length > 5) warnMsg += '\n... 還有 ' + (unitModeWarnings.length - 5) + ' 個警告';
                     alert(warnMsg);
                 }
-                saveData();
+                saveToLocal();  // v1.6.149: 修 bug — saveData 不存在,改用 saveToLocal
                 closeModal('modal-wizard');
                 return; // 模式 B 短路,不走時數模式 A 邏輯
             }
@@ -6613,7 +6615,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 }
             }
 
-            var tasksCreated = 0;
             for (var ds in dateAssignments) {
                 var chunksDay = dateAssignments[ds];
                 var subjGroups = {};
