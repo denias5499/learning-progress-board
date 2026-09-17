@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.155]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.156]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5676,6 +5676,9 @@ function wzUpdateSubjects() {
                         // v1.6.152: 顯示單元統計 (總數/已選/已排過/未排過) — 幫助診斷「看不到單元」問題
                         var schedCount = ws.availableUnits.filter(function(u){return u.misMaxEnd>0;}).length;
                         var unschedCount = ws.availableUnits.length - schedCount;
+                        // v1.6.156: 把已排過/未排的 unit 名列出來 (最多各 5 個) — Denias 看了就能確認「看不到的單元到底是哪些」
+                        var schedNames = ws.availableUnits.filter(function(u){return u.misMaxEnd>0;}).slice(0, 5).map(function(u){return u.name;}).join(', ');
+                        var unschedNames = ws.availableUnits.filter(function(u){return u.misMaxEnd===0;}).slice(0, 5).map(function(u){return u.name;}).join(', ');
                         html += `<div style="background:#f0f9ff; border:1px solid #7dd3fc; border-radius:6px; padding:6px 12px; margin-bottom:8px; font-size:0.82em; color:#0369a1; display:flex; gap:12px; flex-wrap:wrap;">
                             <span>📦 <b>總計 ${ws.availableUnits.length}</b> 個單元</span>
                             <span>✅ 已選: <b>${ws.selectedUnitIds.length}</b></span>
@@ -5683,6 +5686,13 @@ function wzUpdateSubjects() {
                             <span>☀️ 未排: <b style="color:#15803d;">${unschedCount}</b></span>
                             ${schedCount > 0 ? '<span style="margin-left:auto; color:#7c2d12;">💡 已排過的排在後面</span>' : ''}
                         </div>`;
+                        // v1.6.156: 顯示「未排」unit 名稱前 5 個,讓 Denias 確認 list 上的單元有哪些
+                        if (unschedNames) {
+                            html += `<div style="font-size:0.78em; color:#15803d; margin-bottom:6px;">☀️ 未排 (顯示): ${escapeHtml(unschedNames)}${unschedCount > 5 ? ' …' : ''}</div>`;
+                        }
+                        if (schedNames) {
+                            html += `<div style="font-size:0.78em; color:#c2410c; margin-bottom:6px;">📅 已排過 (排在後面): ${escapeHtml(schedNames)}${schedCount > 5 ? ' …' : ''}</div>`;
+                        }
                         visibleUnits.forEach(u => {
                             html += renderWizardUnitRowHtml(ws, i, u);
                         });
