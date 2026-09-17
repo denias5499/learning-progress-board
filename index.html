@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.151]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.152]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5535,6 +5535,19 @@ function wzUpdateSubjects() {
                 });
             }
             renderWizardSubjects();
+            // v1.6.152: 顯示載入統計 (幫助診斷「看不到單元」)
+            try {
+                var totalAvail = 0, totalSelected = 0;
+                wizardSubjects.forEach(function(ws) {
+                    totalAvail += ws.availableUnits.length;
+                    totalSelected += ws.selectedUnitIds.length;
+                });
+                console.log('[v1.6.152 wzUpdateSubjects] ' + wizardSubjects.length + ' 個科目, ' + totalAvail + ' 個可用單元, ' + totalSelected + ' 個已選');
+                wizardSubjects.forEach(function(ws, i) {
+                    var scheduled = ws.availableUnits.filter(function(u) { return u.misMaxEnd > 0; }).length;
+                    console.log('  [' + i + '] ' + ws.name + ': ' + ws.availableUnits.length + ' 個可用 (' + scheduled + ' 已排, ' + (ws.availableUnits.length - scheduled) + ' 未排)');
+                });
+            } catch(e) {}
         }
         
         function renderWizardSubjects() { 
@@ -5617,15 +5630,25 @@ function wzUpdateSubjects() {
                         // v1.5.173: 模式 D 預設摺疊 (只顯示前 10 個 unit, 避免 Safari 一次 layout 太多 DOM)
                         // 解決「建立智慧排程」按鈕在 Safari 4-8 秒延遲 (root cause: Layout & Rendering, JS 瞬間)
                         var COLLAPSE_THRESHOLD = 10;
-                        var isCollapsed = ws._modeDCollapsed !== false;  // 預設 collapsed
+                        var isCollapsed = ws._modeDCollapsed === true;  // v1.6.152: 改預設展開 (讓用戶看到所有單元,包括已排過的)
                         var visibleUnits = isCollapsed ? ws.availableUnits.slice(0, COLLAPSE_THRESHOLD) : ws.availableUnits;
+                        // v1.6.152: 顯示單元統計 (總數/已選/已排過/未排過) — 幫助診斷「看不到單元」問題
+                        var schedCount = ws.availableUnits.filter(function(u){return u.misMaxEnd>0;}).length;
+                        var unschedCount = ws.availableUnits.length - schedCount;
+                        html += `<div style="background:#f0f9ff; border:1px solid #7dd3fc; border-radius:6px; padding:6px 12px; margin-bottom:8px; font-size:0.82em; color:#0369a1; display:flex; gap:12px; flex-wrap:wrap;">
+                            <span>📦 <b>總計 ${ws.availableUnits.length}</b> 個單元</span>
+                            <span>✅ 已選: <b>${ws.selectedUnitIds.length}</b></span>
+                            <span>📅 已排過: <b style="color:#c2410c;">${schedCount}</b></span>
+                            <span>☀️ 未排: <b style="color:#15803d;">${unschedCount}</b></span>
+                            ${schedCount > 0 ? '<span style="margin-left:auto; color:#7c2d12;">💡 已排過的排在後面</span>' : ''}
+                        </div>`;
                         visibleUnits.forEach(u => {
                             html += renderWizardUnitRowHtml(ws, i, u);
                         });
                         if (ws.availableUnits.length > COLLAPSE_THRESHOLD) {
                             var hidden = ws.availableUnits.length - COLLAPSE_THRESHOLD;
                             var subjKey = 'd_' + i;
-                            html += `<div class="wz-show-more" onclick="toggleWizardModeD(${i})">${isCollapsed ? '▶ 展開更多 (' + hidden + ' 個)' : '▼ 收合'}</div>`;
+                            html += `<div class="wz-show-more" onclick="toggleWizardModeD(${i})">${isCollapsed ? '▶ 展開更多 (' + hidden + ' 個)' : '▼ 收合 (只看前 ' + COLLAPSE_THRESHOLD + ' 個)'}</div>`;
                         }
                     } else {
                         // 模式 A/B/C/E：分組渲染
@@ -6925,6 +6948,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             saveToLocal();
             updatePlannerSelector();
             renderCalendar();
+            // v1.6.152: 顯示撤回後狀態 (幫助診斷)
+            console.log('[v1.6.152 executeRevertWizard] 已刪 ' + deletedCount + ' 筆, _schedCache 已清, grid keys: ' + Object.keys(plan.grid).length);
             
             if (deletedCount > 0) {
                 alert('✅ 已撤回 ' + deletedCount + ' 筆智慧排程任務\n\n💡 提示:撤回後再次進入智慧排程,剛才的單元會重新出現在選單中 (因為 cache 已清)。');
