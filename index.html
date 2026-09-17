@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.153]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.154]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5651,13 +5651,22 @@ function wzUpdateSubjects() {
                         var COLLAPSE_THRESHOLD = 10;
                         var isCollapsed = ws._modeDCollapsed === true;  // v1.6.152: 改預設展開 (讓用戶看到所有單元,包括已排過的)
                         var visibleUnits = isCollapsed ? ws.availableUnits.slice(0, COLLAPSE_THRESHOLD) : ws.availableUnits;
+                        // v1.6.154: 顯示 mission 與 master 範圍的比較,讓用戶了解為什麼有些 unit 不見
+                        var _debugCat = (el('wz-cat') && el('wz-cat').value) || '?';
+                        var _debugMis = (el('wz-mis') && el('wz-mis').value) || '?';
+                        var _misUnitCount = (appMissions[_debugCat] && appMissions[_debugCat][_debugMis]) ? appMissions[_debugCat][_debugMis].length : 0;
+                        var _masterUnitCount = ws.availableUnits.length;
+                        html += `<div style="background:#f5f3ff; border:1px solid #c4b5fd; border-radius:6px; padding:6px 12px; margin-bottom:6px; font-size:0.78em; color:#5b21b6;">
+                            🔍 任務「${escapeHtml(_debugMis)}」的 unitIds 數 = ${_misUnitCount} · 科目「${escapeHtml(ws.name)}」在 master 內 unit 數 = ${ws.availableUnits.length}
+                        </div>`;
                         // v1.6.153: 偵測 availableUnits 為 0 但科目應有 unit → 提示用戶
                         if (ws.availableUnits.length === 0) {
                             html += `<div style="background:#fee2e2; border:1px solid #fca5a5; border-radius:6px; padding:10px 14px; margin-bottom:8px; font-size:0.88em; color:#991b1b;">
-                                ⚠️ <b>本科目 (${escapeHtml(ws.name)}) 找不到單元</b><br>
+                                ⚠️ <b>本科目 (${escapeHtml(ws.name)}) 在當前任務 (${escapeHtml(_debugMis)}) 找不到單元</b><br>
+                                <span style="font-size:0.9em;">任務「${escapeHtml(_debugMis)}」內 ${escapeHtml(ws.name)} 的 unitId 數 = <b>${_misUnitCount}</b> (全部科目合計)</span><br>
                                 可能原因:
                                 <ul style="margin:4px 0 0 20px; padding:0;">
-                                    <li>所選任務 (mission) 不包含 ${escapeHtml(ws.name)} 的單元</li>
+                                    <li>當前任務 (mission) 不包含 ${escapeHtml(ws.name)} 的單元 (mission 切到別的任務了)</li>
                                     <li>教材庫 (master) 沒有 ${escapeHtml(ws.name)} 的單元資料</li>
                                     <li>所有單元皆在別的任務中,當前 mission 沒對應到</li>
                                 </ul>
