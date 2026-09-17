@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.156]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.157]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2260,7 +2260,8 @@
                 <button type="button" class="close-btn" onclick="closeUnitWarningsModal()">&times;</button>
             </div>
             <div style="background:#fffbeb; border:1px solid #fde047; border-radius:8px; padding:10px 14px; margin-bottom:10px; font-size:0.9em; color:#854d0e;">
-                💡 <b>每行意思:</b>「這單元只切成 N chunks,但你設了分 X 天讀」 → 技術上仍會排入,但會比較擠。
+                💡 <b>每行意思:</b> 這個 unit 切成 <b>N 個小塊 (chunks)</b>,但你設了「分 <b>X 天</b> 讀完」(daysPerUnit=X)。如果 N &lt; X,系統會把 N 個小塊硬塞進前 N 天,後面 X-N 天這個 unit 就不讀了,所以那幾天排程會比較「擠」(要塞其他 unit)。<br>
+👉 <b>建議:</b> 把「分 X 天讀」調成 ≤ N,或者把那個 unit 的時數調大。
             </div>
             <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
                 <span style="font-size:0.85em; color:#1e40af;"><b>共 <span id="unit-warnings-count">0</span> 個警告</b></span>
