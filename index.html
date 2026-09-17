@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.154]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.155]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6968,17 +6968,35 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             
             var deletedCount = 0;
+            var deletedUnits = {}; // v1.6.155: 收集被撤回的 unit
             Object.keys(plan.grid).forEach(function(dStr) {
                 var origLen = plan.grid[dStr].length;
                 if (latestRunTime > 0) {
                     plan.grid[dStr] = plan.grid[dStr].filter(function(t) {
                         if (!t.isAuto) return true;
                         if (!t.wizardRunId) return true;
-                        if (t.wizardRunTime && t.wizardRunTime >= latestRunTime - 1000) return false;
+                        if (t.wizardRunTime && t.wizardRunTime >= latestRunTime - 1000) {
+                            var uKey = t.unitId || '?';
+                            if (!deletedUnits[uKey]) {
+                                deletedUnits[uKey] = { name: t.unitName || uKey, count: 0, cat: t.cat || '', mis: t.mis || '' };
+                            }
+                            deletedUnits[uKey].count++;
+                            return false;
+                        }
                         return true;
                     });
                 } else {
-                    plan.grid[dStr] = plan.grid[dStr].filter(function(t) { return !t.isAuto; });
+                    plan.grid[dStr] = plan.grid[dStr].filter(function(t) {
+                        if (t.isAuto) {
+                            var uKey = t.unitId || '?';
+                            if (!deletedUnits[uKey]) {
+                                deletedUnits[uKey] = { name: t.unitName || uKey, count: 0, cat: t.cat || '', mis: t.mis || '' };
+                            }
+                            deletedUnits[uKey].count++;
+                            return false;
+                        }
+                        return true;
+                    });
                 }
                 deletedCount += (origLen - plan.grid[dStr].length);
                 if (plan.grid[dStr].length === 0) delete plan.grid[dStr];
@@ -6991,9 +7009,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
             renderCalendar();
             // v1.6.152: 顯示撤回後狀態 (幫助診斷)
             console.log('[v1.6.152 executeRevertWizard] 已刪 ' + deletedCount + ' 筆, _schedCache 已清, grid keys: ' + Object.keys(plan.grid).length);
+            // v1.6.155: 列出被刪的 unit 給用戶確認
+            if (Object.keys(deletedUnits).length > 0) {
+                var deletedArr = Object.keys(deletedUnits).map(function(uid){ return { id: uid, info: deletedUnits[uid] }; });
+                console.log('[v1.6.155 executeRevertWizard] 被撤回的 unit (共 ' + deletedArr.length + ' 種, ' + deletedCount + ' 筆任務):');
+                deletedArr.forEach(function(d){ console.log('  - ' + d.id + ' (' + d.info.name + ') x ' + d.info.count + (d.info.cat ? ' [' + d.info.cat + '/' + d.info.mis + ']' : '')); });
+            }
             
             if (deletedCount > 0) {
-                alert('✅ 已撤回 ' + deletedCount + ' 筆智慧排程任務\n\n💡 提示:撤回後再次進入智慧排程,剛才的單元會重新出現在選單中 (因為 cache 已清)。');
+                // v1.6.155: 列出被消失的 unit 讓用戶確認
+                var unitLines = Object.keys(deletedUnits).map(function(uid) {
+                    return '  - ' + deletedUnits[uid].name + ' (' + uid.substring(0, 8) + '...) x ' + deletedUnits[uid].count + ' 筆';
+                }).join('\n');
+                var firstInfo = Object.values(deletedUnits)[0];
+                var catMisInfo = (firstInfo && firstInfo.cat) ? ('\n類別: ' + firstInfo.cat + ' / 任務: ' + firstInfo.mis) : '';
+                alert('已撤回 ' + deletedCount + ' 筆智慧排程任務\n\n被撤回的單元 (共 ' + Object.keys(deletedUnits).length + ' 種)' + catMisInfo + ':\n' + unitLines + '\n\n提示:撤回後再次進入智慧排程,剛才的單元應會重新出現在選單中 (因為 cache 已清)。\n\n如果再進去還是看不到這些單元,請按 F12 看 console 並截圖給開發者');
             } else {
                 alert('❌ 沒有找到可撤回的任務 (目前的進度皆為手動建立)');
             }
