@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.160]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.161]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10247,6 +10247,105 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             return STORAGE_KEY_ACCURACY_BASE + '_' + uid;
         }
 
+        // v1.6.161: 從 master 反推某個 (subject, typeName, instanceName) 下某個 unitName 的所有 vol
+        function getUnitVolsFromMaster(sub, typeName, instanceName, unitName) {
+            try {
+                var s = appMaster && appMaster[sub];
+                if (!s || !s.materials || !s.materials[typeName]) return [];
+                var ins = (s.materials[typeName].instances || []).find(function(i) {
+                    var nm = i.alias || i.name;
+                    return nm === instanceName || (i.name === instanceName);
+                });
+                if (!ins || !ins.vols) return [];
+                var vols = [];
+                Object.keys(ins.vols).forEach(function(vol) {
+                    (ins.vols[vol] || []).forEach(function(u) {
+                        if (u.name === unitName) vols.push(vol);
+                    });
+                });
+                return vols;
+            } catch (e) { return []; }
+        }
+
+        // v1.6.161: 從 plan.task 反推某個 unit 在某個日期的 vol (取最常見)
+        function getUnitVolFromPlan(date, sub, unitName) {
+            try {
+                if (!Array.isArray(appPlans)) return null;
+                var counts = {};
+                appPlans.forEach(function(plan) {
+                    if (!plan.grid) return;
+                    var tasks = plan.grid[date] || [];
+                    tasks.forEach(function(t) {
+                        if (t && t.subject === sub && t.unitName === unitName && t.vol && t.vol !== 'custom') {
+                            counts[t.vol] = (counts[t.vol] || 0) + 1;
+                        }
+                    });
+                });
+                var best = null, bestCount = 0;
+                Object.keys(counts).forEach(function(v) {
+                    if (counts[v] > bestCount) { best = v; bestCount = counts[v]; }
+                });
+                return best;
+            } catch (e) { return null; }
+        }
+
+        // v1.6.161: 從 plan 反推某個 unit 在任何日期的 vol (fallback 萬一當天沒排程)
+        function getUnitVolFromPlanAnyDate(sub, unitName) {
+            try {
+                if (!Array.isArray(appPlans)) return null;
+                var counts = {};
+                appPlans.forEach(function(plan) {
+                    if (!plan.grid) return;
+                    Object.keys(plan.grid).forEach(function(d) {
+                        (plan.grid[d] || []).forEach(function(t) {
+                            if (t && t.subject === sub && t.unitName === unitName && t.vol && t.vol !== 'custom') {
+                                counts[t.vol] = (counts[t.vol] || 0) + 1;
+                            }
+                        });
+                    });
+                });
+                var best = null, bestCount = 0;
+                Object.keys(counts).forEach(function(v) {
+                    if (counts[v] > bestCount) { best = v; bestCount = counts[v]; }
+                });
+                return best;
+            } catch (e) { return null; }
+        }
+
+        // v1.6.161: 三層 fallback 反推 record 的 volMap
+        // Layer A: master 唯一 vol (95% 情況)
+        // Layer B: 同 date + 同 subject plan task (解決「第X回」這種 cross-vol unit)
+        // Layer C: 任何 date 同 subject plan task
+        function buildVolMapForRecord(r) {
+            var map = {};
+            if (!r || !r.wrongUnits) return map;
+            r.wrongUnits.forEach(function(wu) {
+                if (!wu) return;
+                var vols = getUnitVolsFromMaster(r.subject, r.typeName, r.instanceName, wu);
+                if (vols.length === 1) {
+                    map[wu] = vols[0];
+                    return;
+                }
+                if (vols.length > 1) {
+                    // 多 vol → 用 plan task 在同日期的 vol
+                    var planVol = r.date ? getUnitVolFromPlan(r.date, r.subject, wu) : null;
+                    if (planVol) { map[wu] = planVol; return; }
+                    // fallback: 任何日期
+                    var anyVol = getUnitVolFromPlanAnyDate(r.subject, wu);
+                    if (anyVol) { map[wu] = anyVol; return; }
+                    // 真多 vol 沒線索 → 不填 (match 時跨 vol 都會算)
+                    return;
+                }
+                // master 找不到 → 試 plan (例: plan 用 custom 但 master 不在)
+                var planVol2 = r.date ? getUnitVolFromPlan(r.date, r.subject, wu) : null;
+                if (planVol2) { map[wu] = planVol2; return; }
+                var anyVol2 = getUnitVolFromPlanAnyDate(r.subject, wu);
+                if (anyVol2) { map[wu] = anyVol2; return; }
+                // 都找不到 → 留空
+            });
+            return map;
+        }
+
         function loadAccuracyRecords() {
             try {
                 var records = JSON.parse(localStorage.getItem(accStorageKey()) || '[]');
@@ -10261,6 +10360,12 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             if (!e.typeName && r.typeName) e.typeName = r.typeName;
                             if (!e.instanceName && r.instanceName) e.instanceName = r.instanceName;
                         });
+                    });
+                    // v1.6.161: 自動 migration — 對舊 records 補 volMap (從 master/plan 反推每個 wrongUnit 的 vol)
+                    // 解決跨 vol 同名 unit 的亂 match (例: 英文/麻辣甲/L1~L2 第一冊~第六冊都有,沒 vol 就全部 match)
+                    records.forEach(function(r) {
+                        if (r._volMap) return;  // 已有 volMap (新格式或已 migrate)
+                        r._volMap = buildVolMapForRecord(r);
                     });
                 }
                 return records;
@@ -10292,6 +10397,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             return s.materials[typeName].instances || [];
         }
 
+        // v1.6.161: 改回傳帶 vol 的物件陣列 [{vol, name, key}]
         function getAccuracyUnits(subject, typeName, instanceId) {
             var s = appMaster[subject];
             if (!s || !s.materials || !s.materials[typeName]) return [];
@@ -10301,13 +10407,43 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var units = [];
             if (inst.vols) {
                 (inst.volOrder || Object.keys(inst.vols)).forEach(function(vol) {
-                    (inst.vols[vol] || []).forEach(function(u) { units.push(u.name || u.id); });
+                    (inst.vols[vol] || []).forEach(function(u) {
+                        var name = u.name || u.id;
+                        units.push({ vol: vol, name: name, key: vol + '|' + name });
+                    });
                 });
             }
             if (Array.isArray(inst.units)) {
-                inst.units.forEach(function(u) { units.push(u.name || u.id); });
+                inst.units.forEach(function(u) {
+                    var name = u.name || u.id;
+                    units.push({ vol: null, name: name, key: '|' + name });
+                });
             }
             return units;
+        }
+
+        // v1.6.161: 把 key (vol|name) 拆成顯示字串 "vol - name" 或 "name" (custom 無 vol)
+        function formatWrongUnitKey(key) {
+            if (!key) return '';
+            var idx = key.indexOf('|');
+            if (idx < 0) return key;
+            var vol = key.substring(0, idx);
+            var name = key.substring(idx + 1);
+            return vol ? (vol + ' - ' + name) : name;
+        }
+
+        // v1.6.161: 從 key 取 name (給舊邏輯用)
+        function keyToName(key) {
+            if (!key) return '';
+            var idx = key.indexOf('|');
+            return idx < 0 ? key : key.substring(idx + 1);
+        }
+
+        // v1.6.161: 從 key 取 vol
+        function keyToVol(key) {
+            if (!key) return null;
+            var idx = key.indexOf('|');
+            return idx < 0 ? null : key.substring(0, idx);
         }
 
         // v1.5.193: 從 unitId 找最後完成日期 (跨 plan 找 isDone task 的最新 dStr)
@@ -10402,8 +10538,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 }
                 var dateEl = el('acc-date');
                 if (dateEl) { dateEl.value = lastDate; }
-                // 6. 重置額外考卷清單
-                window._accWrongUnits = [ctx.unit.name];
+                // 6. 重置額外考卷清單 — v1.6.161: 用 key 帶 vol (null vol → custom 用純 name)
+                window._accWrongUnits = [(ctx.vol ? ctx.vol : '') + '|' + ctx.unit.name];
                 window._accExtraExams = [];
                 accRenderExtraExams();
                 // 7. 滾動到表單
@@ -10456,7 +10592,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         // v1.5.228: 加 subject/typeName/instanceName 三層 context filter (避免 cross-instance 污染)
         //            例: 生物/麻辣甲/第1回 不該去拉 數學/麻辣甲/第1回 100% 的 records
         // 用 loose match (雙向 substring): 處理 unit name 不完全相同的情況
-        function getUnitAccuracyRate(unitName, sub, typeName, instanceName) {
+        // v1.6.161: 加 vol 參數,嚴格 vol+name 比對,沒 vol 不跨冊 match (解決 cross-vol 同名 unit 亂 match)
+        function getUnitAccuracyRate(unitName, sub, typeName, instanceName, vol) {
             var records = loadAccuracyRecords();
             var rates = [];
             function looseMatch(a, b) {
@@ -10469,13 +10606,33 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 if (instanceName && r.instanceName !== instanceName) return false;
                 return true;
             }
+            // v1.6.161: 嚴格 vol+name 比對 — record._volMap 決定這個 unitName 在這筆 record 是哪 vol
+            // 沒 vol (migration 失敗) → 視為跨 vol match (向後兼容舊 records 完全沒 vol 線索)
+            function unitMatchInRecord(r, wu) {
+                // wu 可能是 key (vol|name) 或舊純 name
+                var wuName = keyToName(wu);
+                var wuVol = keyToVol(wu);  // 可能 null
+                if (!vol) {
+                    // 查詢端沒 vol → 寬鬆: 只比 name (舊行為)
+                    return wuName === unitName || (unitName.length >= 4 && looseMatch(wuName, unitName));
+                }
+                // 查詢端有 vol: record 端也必須能匹配同 vol
+                var recordVol = (r._volMap && r._volMap[wuName]) || null;
+                if (recordVol) {
+                    // record 有 vol: 嚴格比對 vol + name
+                    if (recordVol !== vol) return false;
+                    return wuName === unitName || (unitName.length >= 4 && looseMatch(wuName, unitName));
+                }
+                // record 沒 vol (migration 失敗): 視 record 為跨 vol — 為了避免亂 match 污染,直接跳過
+                // 但若 record date 與查詢時間接近且其他條件都吻合,可考慮 fallback (暫不啟用)
+                return false;
+            }
             records.forEach(function(r) {
                 if (!ctxMatch(r)) return;
-                // 主考試 (Row 2 metadata) - 用 wrongUnits 雙向 match
+                // 主考試 (Row 2 metadata) - 嚴格 vol+name 比對
                 if (r.wrongUnits && Array.isArray(r.wrongUnits)) {
-                    var exactMatched = r.wrongUnits.some(function(wu) { return wu === unitName; });
-                    var looseMatched = !exactMatched && unitName.length >= 4 && r.wrongUnits.some(function(wu) { return looseMatch(wu, unitName); });
-                    if ((exactMatched || looseMatched) && r.total > 0) rates.push(r.correct / r.total);
+                    var matched = r.wrongUnits.some(function(wu) { return unitMatchInRecord(r, wu); });
+                    if (matched && r.total > 0) rates.push(r.correct / r.total);
                 }
                 // 額外考卷 (chip 區) — 用同一個 ctx 過濾
                 // v1.6.160 FIX: 改成跟 ctxMatch 一致的嚴格邏輯 — 只檢查查詢端 truthy
@@ -10519,7 +10676,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         // v1.5.158: 取教材庫所有 unit + 記錄中出現過的 unit (合併去重)
         function getAllUnitsForFilter() {
             var set = new Set();
-            // 教材庫的 unit
+            // 教材庫的 unit (v1.6.161: 加 vol 前綴)
             Object.keys(appMaster || {}).forEach(function(sub) {
                 var s = appMaster[sub];
                 if (!s || !s.materials) return;
@@ -10530,20 +10687,27 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         if (inst.vols) {
                             (inst.volOrder || Object.keys(inst.vols)).forEach(function(vol) {
                                 (inst.vols[vol] || []).forEach(function(u) {
-                                    if (u.name) set.add(u.name);
+                                    if (u.name) set.add(vol + '|' + u.name);
                                 });
                             });
                         }
                         if (Array.isArray(inst.units)) {
-                            inst.units.forEach(function(u) { if (u.name) set.add(u.name); });
+                            inst.units.forEach(function(u) { if (u.name) set.add('|' + u.name); });
                         }
                     });
                 });
             });
-            // 記錄中出現過的 unit
+            // 記錄中出現過的 unit (v1.6.161: key 格式 vol|name)
             var records = loadAccuracyRecords();
             records.forEach(function(r) {
-                (r.wrongUnits || []).forEach(function(u) { set.add(u); });
+                (r.wrongUnits || []).forEach(function(u) {
+                    if (u && u.indexOf('|') >= 0) set.add(u);  // 新格式
+                    else if (u) {
+                        // 舊純 name + 有 volMap → 補 vol
+                        var v = (r._volMap && r._volMap[u]) || '';
+                        set.add(v + '|' + u);
+                    }
+                });
             });
             return Array.from(set);
         }
@@ -10618,7 +10782,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             html += '<label>單元</label>';
             html += '<select id="acc-filter-unit" class="accuracy-filter-sel" onchange="accOnFilterChange()"><option value="__ALL__">全部</option>';
             var allUnits = getAllUnitsForFilter();
-            allUnits.forEach(function(u) { html += '<option value="' + escapeHtml(u) + '">' + escapeHtml(u) + '</option>'; });
+            allUnits.forEach(function(u) { html += '<option value="' + escapeHtml(u) + '">' + escapeHtml(formatWrongUnitKey(u)) + '</option>'; });
             html += '</select>';
             html += '<label>排序</label>';
             html += '<select id="acc-filter-sort" class="accuracy-filter-sel" onchange="accOnFilterChange()">';
@@ -10636,7 +10800,18 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 if (fSub !== '__ALL__' && r.subject !== fSub) return false;
                 if (fType !== '__ALL__' && r.typeName !== fType) return false;
                 if (fUnit !== '__ALL__') {
-                    if (!r.wrongUnits || r.wrongUnits.indexOf(fUnit) === -1) return false;
+                    if (!r.wrongUnits) return false;
+                    var fName = keyToName(fUnit);
+                    var fVol = keyToVol(fUnit);
+                    var fMatched = r.wrongUnits.some(function(wu) {
+                        var wName = keyToName(wu);
+                        var wVol = (r._volMap && r._volMap[wName]) || keyToVol(wu) || '';
+                        if (fName !== wName) return false;
+                        // 兩端都有 vol 才嚴格比對,否則寬鬆 (避免 migration 失敗時完全篩不到)
+                        if (fVol && wVol) return fVol === wVol;
+                        return true;
+                    });
+                    if (!fMatched) return false;
                 }
                 return true;
             });
@@ -10676,8 +10851,22 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     var rate = r.total > 0 ? (r.correct / r.total * 100) : 0;
                     var rateColor = rate >= 96 ? '#27ae60' : (rate >= 90 ? '#f59e0b' : '#ef4444');
                     var barColor = rateColor;
-                    // v1.5.203: 高亮該 unit (#F3B8B1 醒目提示)
-                    var isHighlighted = window._highlightedUnitName && r.wrongUnits && r.wrongUnits.indexOf(window._highlightedUnitName) >= 0;
+                    // v1.5.203 + v1.6.161: 高亮該 unit (#F3B8B1 醒目提示)
+                    // v1.6.161: 用 _volMap 嚴格 vol+name 比對 (避免同名跨 vol 全部被高亮)
+                    var isHighlighted = false;
+                    if (window._highlightedUnitName) {
+                        var hlName = keyToName(window._highlightedUnitName);
+                        var hlVol = keyToVol(window._highlightedUnitName);
+                        isHighlighted = (r.wrongUnits || []).some(function(wu) {
+                            var wN = keyToName(wu);
+                            if (wN !== hlName) return false;
+                            if (hlVol) {
+                                var wV = (r._volMap && r._volMap[wN]) || keyToVol(wu);
+                                return wV === hlVol;
+                            }
+                            return true;
+                        });
+                    }
                     var rowStyle = isHighlighted ? ' style="background:#F3B8B1;"' : '';
                     html += '<tr' + rowStyle + '>';
                     html += '<td>' + (r.date || '-') + '</td>';
@@ -10689,7 +10878,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     html += '<td>';
                     html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; --bar-color:' + barColor + ';"></div><span class="accuracy-bar-text" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#00814A; font-weight:bold; font-size:0.9em; pointer-events:none; white-space:nowrap;">' + rate.toFixed(1) + '%</span></div>';
                     html += '</td>';
-                    html += '<td>' + (r.wrongUnits && r.wrongUnits.length > 0 ? r.wrongUnits.map(escapeHtml).join(', ') : '-') + '</td>';
+                    // v1.6.161: 顯示 "vol - name" 格式
+                    html += '<td>' + (r.wrongUnits && r.wrongUnits.length > 0 ? r.wrongUnits.map(function(wu) { return escapeHtml(formatWrongUnitKey(wu)); }).join(', ') : '-') + '</td>';
                     html += '<td style="white-space:nowrap;">';
                     // v1.5.209: 編輯按鈕 #99D6EA, 刪除按鈕 #A4303F
                     html += '<button type="button" onclick="accEditRecord(' + origIdx + ')" title="編輯" style="background:#99D6EA; color:#333; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8em; margin-right:4px;">✏️</button>';
@@ -10778,20 +10968,23 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 return;
             }
             var units = getAccuracyUnits(sub, typeName, instId);
-            unitSel.innerHTML = '<option value="">--選擇--</option>' + units.map(function(u) { return '<option value="' + escapeHtml(u) + '">' + escapeHtml(u) + '</option>'; }).join('');
+            // v1.6.161: 用 key (vol|name) 為 option value,顯示 "vol - name"
+            unitSel.innerHTML = '<option value="">--選擇--</option>' + units.map(function(u) {
+                return '<option value="' + escapeHtml(u.key) + '">' + escapeHtml(formatWrongUnitKey(u.key)) + '</option>';
+            }).join('');
             unitSel.disabled = false;
         }
 
         function accOnUnitChange() {
-            // v1.5.194: dropdown 選了直接加 chip (取代原本「+加入」按鈕)
+            // v1.6.161: dropdown value 改為 key (vol|name),_accWrongUnits 也存 key
             var unitSel = el('acc-unit');
-            var unitName = unitSel.value;
-            if (!unitName) return;
-            if (window._accWrongUnits.indexOf(unitName) >= 0) {
+            var unitKey = unitSel.value;
+            if (!unitKey) return;
+            if (window._accWrongUnits.indexOf(unitKey) >= 0) {
                 unitSel.value = '';
                 return;
             }
-            window._accWrongUnits.push(unitName);
+            window._accWrongUnits.push(unitKey);
             accRenderExtraExams();
             unitSel.value = '';  // reset 準備下次選
         }
@@ -13379,7 +13572,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
                         var scheduledDays = getUnitScheduledDays(u.id);
                         // v1.5.228: 傳入當前 unit 的 sub/typeName/instanceName 給 getUnitAccuracyRate filter
-                        var accuracyRate = getUnitAccuracyRate(u.name, optCtx && optCtx.sub, optCtx && optCtx.typeName, optCtx && optCtx.instanceName);
+                        var accuracyRate = getUnitAccuracyRate(u.name, optCtx && optCtx.sub, optCtx && optCtx.typeName, optCtx && optCtx.instanceName, optCtx && optCtx.vol);
                         var accuracyBarHtml = '';
                         if (accuracyRate !== null) {
                             var accPct = Math.round(accuracyRate * 100);
@@ -13444,7 +13637,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                                 html += '<ul class="tree-units">';
                             }
                             vol.units.forEach(function(u) {
-                                html += renderUnitRow(u, { sub: sub, typeName: inst.typeName, instanceName: inst.instanceName });
+                                html += renderUnitRow(u, { sub: sub, typeName: inst.typeName, instanceName: inst.instanceName, vol: vol });
                             });
                             if (volLabel) html += '</ul></ul>';
                         });
