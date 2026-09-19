@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.166]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.167]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10273,18 +10273,30 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     // v1.6.162 的 findUnitVols 是全局搜, 跨 instance 同名 (如 麻辣甲 L1~2 + 大滿貫甲 L1~2)
                     // 會誤判為 multi-vol 而跳過標註, 結果同一 instance 內其實唯一的單元 (如 L1~3, L4~6) 也漏掉
                     // v1.6.164 改成按 (sub, typeName, instanceId) 過濾, 只看同一 instance 內是否唯一
+                    // v1.6.167: appMaster 只有當前 cat, 跨 cat instance (例: 段考複習 看 會考複習 的 record) 會找不到
+                    // 改成掃 multiData[currentUserId].masters 所有 cat 找 (sub, typeName, instanceId)
                     var _v164Stats = { migrated: 0, skipped: 0, skippedReasons: {} };
+                    var _v167AllMasters = (typeof multiData !== 'undefined' && multiData[currentUserId] && multiData[currentUserId].masters) || {};
+                    function _v167FindIns(subName, typeName, instanceId) {
+                        var cats = Object.keys(_v167AllMasters);
+                        for (var ci = 0; ci < cats.length; ci++) {
+                            var catM = _v167AllMasters[cats[ci]];
+                            if (!catM || !catM[subName] || !catM[subName].materials) continue;
+                            var typeObj = catM[subName].materials[typeName];
+                            if (!typeObj || !Array.isArray(typeObj.instances)) continue;
+                            var found = typeObj.instances.find(function(i) { return i.id === instanceId; });
+                            if (found) return found;
+                        }
+                        return null;
+                    }
                     records.forEach(function(r) {
                         if (!r.wrongUnits || !Array.isArray(r.wrongUnits)) return;
                         var hasNewFormat = r.wrongUnits.some(function(wu) { return wu && wu.indexOf('|') > 0; });
                         if (hasNewFormat) { _v164Stats.skipped++; return; }
                         var _instanceId = r.instanceId;
                         if (!_instanceId) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-instanceId'] = (_v164Stats.skippedReasons['no-instanceId'] || 0) + 1; return; }
-                        var _sub = appMaster && appMaster[r.subject];
-                        if (!_sub || !_sub.materials) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-sub'] = (_v164Stats.skippedReasons['no-sub'] || 0) + 1; return; }
-                        var _typeObj = _sub.materials[r.typeName];
-                        if (!_typeObj || !Array.isArray(_typeObj.instances)) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-type'] = (_v164Stats.skippedReasons['no-type'] || 0) + 1; return; }
-                        var _ins = _typeObj.instances.find(function(i) { return i.id === _instanceId; });
+                        // v1.6.167: 跨 cat 找 instance (appMaster 只有當前 cat 的 subjects, 跨 cat record 會找不到)
+                        var _ins = _v167FindIns(r.subject, r.typeName, _instanceId);
                         if (!_ins || _ins.type !== 'volume' || !_ins.vols) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-vol-instance'] = (_v164Stats.skippedReasons['no-vol-instance'] || 0) + 1; return; }
                         var _newWrongUnits = [];
                         r.wrongUnits.forEach(function(wu) {
