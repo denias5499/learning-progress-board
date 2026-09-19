@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.162]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.163]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10712,9 +10712,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 html += '<h3 style="color:var(--primary); margin-bottom:10px;">📊 答對率總表 (共 ' + filtered.length + ' 筆)</h3>';
                 // v1.5.206: colgroup 設寬度, 答對率欄加大 (18%), 操作欄縮窄 (6%)
                 html += '<div class="accuracy-table-wrapper"><table class="accuracy-table"><colgroup>';
-                html += '<col style="width:10%"><col style="width:8%"><col style="width:10%"><col style="width:8%"><col style="width:6%"><col style="width:6%"><col style="width:18%"><col style="width:14%"><col style="width:6%">';
+                html += '<col style="width:8%"><col style="width:7%"><col style="width:10%"><col style="width:9%"><col style="width:8%"><col style="width:5%"><col style="width:5%"><col style="width:16%"><col style="width:12%"><col style="width:6%">';
                 html += '</colgroup><thead><tr>';
-                html += '<th>日期</th><th>科目</th><th>教材類型</th><th>教材版本</th><th>總題數</th><th>答對</th><th>答對率</th><th>單元名稱</th><th>操作</th>';
+                html += '<th>日期</th><th>科目</th><th>教材類型</th><th>教材版本</th><th>冊數</th><th>總題數</th><th>答對</th><th>答對率</th><th>單元名稱</th><th>操作</th>';
                 html += '</tr></thead><tbody>';
                 filtered.forEach(function(r) {
                     var origIdx = records.indexOf(r);
@@ -10743,6 +10743,14 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     html += '<td>' + escapeHtml(r.subject || '') + '</td>';
                     html += '<td>' + escapeHtml(r.typeName || '') + '</td>';
                     html += '<td>' + escapeHtml(r.instanceName || '') + '</td>';
+                    // v1.6.163: 冊數欄 — 從 wrongUnits 第一個取出 vol 標籤,沒有就顯示 '-'
+                    var _volTag = '-';
+                    if (r.wrongUnits && r.wrongUnits.length > 0) {
+                        var _firstWu = r.wrongUnits[0];
+                        var _vi = _firstWu && _firstWu.indexOf('|');
+                        if (_vi > 0) _volTag = _firstWu.substring(0, _vi);
+                    }
+                    html += '<td>' + escapeHtml(_volTag) + '</td>';
                     html += '<td>' + r.total + '</td>';
                     html += '<td>' + r.correct + '</td>';
                     html += '<td>';
