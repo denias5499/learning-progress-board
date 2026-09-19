@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.165]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.166]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5980,7 +5980,8 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                     Object.keys(inst.vols).forEach(function(volName) {
                         (inst.vols[volName] || []).forEach(function(u) {
                             if (u && u.id && !allUnits[u.id]) {
-                                allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj};
+                                // v1.6.166: 加 vol 欄位,讓 overlap 能區分跨冊 unit (例: L1~2 在第二冊 vs 第三冊 都有 P.1)
+                                allUnits[u.id] = {name: u.name, start: u.start, end: u.end, subj: subj, vol: volName};
                             }
                         });
                     });
@@ -6034,6 +6035,12 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                     if (taskUnitInfo && uid !== t.unitId && u.start === taskUnitInfo.start && u.end === taskUnitInfo.end) {
                         return;
                     }
+                    // v1.6.166 FIX: 跨冊 unit 不能互相污染
+                    // 例: 英文/複習卷/大滿貫甲 L1~2 在第二~六冊都是 P.1,
+                    //     如果 task 排到 第三冊 L1~2 (P.1), 不該污染 第二/四/五/六冊的 L1~2
+                    // 條件: task 有 vol 且 unit 有 vol 且不相等 → 跳過 (視為不同冊)
+                    // 向下相容: task 或 unit 沒 vol → 保留舊行為 (避免破壞現有資料)
+                    if (t.vol && u.vol && t.vol !== u.vol) return;
                     // v1.6.51: skip overlap if this unit was never directly scheduled (no tasks in appPlans)
                     // This prevents units that were never scheduled from showing false donePages via cross-unit overlap
                     if (!window._treeScheduledUnits || !window._treeScheduledUnits[uid] || window._treeScheduledUnits[uid].totalTasks === 0) return;
