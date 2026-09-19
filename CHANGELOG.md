@@ -1621,3 +1621,8 @@ if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理')
 ## v1.0 (2026-07-28) — 初版
 - 從 local file `進度看板131` 移轉上 GitHub
 - 加入 README.md 與本 CHANGELOG
+## v1.6.163 — 答對率總表加冊數欄
+- **答對率總表**:在「教材版本」後新增「冊數」欄位,自動從 `wrongUnits[0]` 解析 vol 標籤(雙軌制)
+- 雙軌制資料 (`vol|name`) → 冊數欄顯示 `vol`(如 `第一冊`)
+- 舊格式資料 (`name`) 或主題類(無 vol) → 冊數欄顯示 `-`
+- Unit test: 16 項全通過 (extractVolTag 11 + HTML render 5)
