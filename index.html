@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.164]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.165]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10799,10 +10799,13 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     html += '<div class="accuracy-bar"><div class="accuracy-bar-fill" style="width:' + rate + '%; --bar-color:' + barColor + ';"></div><span class="accuracy-bar-text" style="position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); color:#00814A; font-weight:bold; font-size:0.9em; pointer-events:none; white-space:nowrap;">' + rate.toFixed(1) + '%</span></div>';
                     html += '</td>';
                     // v1.6.162: 顯示時剝掉「vol|」prefix — 表格只顯示乾淨的 name, vol 資訊不混淆
+                    // v1.6.165: 改成「vol unit」格式 (有 vol 時加前綴), 沒 vol 時保持原樣
+                    //          這樣使用者可以一眼看出「這個 L1~3 是屬於哪一冊」
                     var _displayUnits = r.wrongUnits && r.wrongUnits.length > 0
                         ? r.wrongUnits.map(function(wu) {
-                            var i = wu && wu.indexOf('|');
-                            return (i > 0) ? wu.substring(i + 1) : wu;
+                            if (!wu) return '';
+                            var i = wu.indexOf('|');
+                            return (i > 0) ? (wu.substring(0, i) + ' ' + wu.substring(i + 1)) : wu;
                         })
                         : [];
                     html += '<td>' + (_displayUnits.length > 0 ? _displayUnits.map(escapeHtml).join(', ') : '-') + '</td>';
