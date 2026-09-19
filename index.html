@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.163]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.164]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10262,6 +10262,48 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             if (!e.instanceName && r.instanceName) e.instanceName = r.instanceName;
                         });
                     });
+                    // v1.6.164 MIGRATION: 自動標註「同 instance 內唯一」的 wrongUnits (vol|name 格式)
+                    // v1.6.162 的 findUnitVols 是全局搜, 跨 instance 同名 (如 麻辣甲 L1~2 + 大滿貫甲 L1~2)
+                    // 會誤判為 multi-vol 而跳過標註, 結果同一 instance 內其實唯一的單元 (如 L1~3, L4~6) 也漏掉
+                    // v1.6.164 改成按 (sub, typeName, instanceId) 過濾, 只看同一 instance 內是否唯一
+                    var _v164Stats = { migrated: 0, skipped: 0, skippedReasons: {} };
+                    records.forEach(function(r) {
+                        if (!r.wrongUnits || !Array.isArray(r.wrongUnits)) return;
+                        var hasNewFormat = r.wrongUnits.some(function(wu) { return wu && wu.indexOf('|') > 0; });
+                        if (hasNewFormat) { _v164Stats.skipped++; return; }
+                        var _instanceId = r.instanceId;
+                        if (!_instanceId) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-instanceId'] = (_v164Stats.skippedReasons['no-instanceId'] || 0) + 1; return; }
+                        var _sub = appMaster && appMaster[r.subject];
+                        if (!_sub || !_sub.materials) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-sub'] = (_v164Stats.skippedReasons['no-sub'] || 0) + 1; return; }
+                        var _typeObj = _sub.materials[r.typeName];
+                        if (!_typeObj || !Array.isArray(_typeObj.instances)) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-type'] = (_v164Stats.skippedReasons['no-type'] || 0) + 1; return; }
+                        var _ins = _typeObj.instances.find(function(i) { return i.id === _instanceId; });
+                        if (!_ins || _ins.type !== 'volume' || !_ins.vols) { _v164Stats.skipped++; _v164Stats.skippedReasons['no-vol-instance'] = (_v164Stats.skippedReasons['no-vol-instance'] || 0) + 1; return; }
+                        var _newWrongUnits = [];
+                        r.wrongUnits.forEach(function(wu) {
+                            if (!wu || wu.indexOf('|') > 0) { _newWrongUnits.push(wu); return; }
+                            var _matches = [];
+                            Object.keys(_ins.vols).forEach(function(vol) {
+                                (_ins.vols[vol] || []).forEach(function(u) {
+                                    if (u.name === wu) _matches.push(vol);
+                                });
+                            });
+                            if (_matches.length === 1) {
+                                _newWrongUnits.push(_matches[0] + '|' + wu);
+                                _v164Stats.migrated++;
+                            } else {
+                                _newWrongUnits.push(wu);  // 0 個 (單元已刪) 或 ≥2 個 (真的 multi-vol) → 保留舊格式
+                            }
+                        });
+                        r.wrongUnits = _newWrongUnits;
+                    });
+                    if (_v164Stats.migrated > 0 || _v164Stats.skipped > 0) {
+                        console.log('[v1.6.164 migration] migrated=' + _v164Stats.migrated + ' skipped=' + _v164Stats.skipped, _v164Stats.skippedReasons);
+                        // 持久化 migration 結果 (有動到 records 才寫, 避免不必要的 IO)
+                        if (_v164Stats.migrated > 0) {
+                            try { localStorage.setItem(accStorageKey(), JSON.stringify(records)); } catch(e) {}
+                        }
+                    }
                 }
                 return records;
             }
