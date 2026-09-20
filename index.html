@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.170]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.171]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4061,14 +4061,18 @@ loadBoardHeader();
                         var match = null;
                         if(t.typeName && t.instanceName) {
                             // 新任務：依 typeName + instanceName + unitName 精確配對
+                            // v1.6.171: 加 vol 鎖 (跟 _v164Migrate 一致 — 否則跨 vol 同名 unit 會被指到第一個找到的 vol)
                             match = allUnits.find(function(u){
-                                return u.name === t.unitName && u._typeName === t.typeName && u._instanceName === t.instanceName;
+                                return u.name === t.unitName && u._typeName === t.typeName && u._instanceName === t.instanceName &&
+                                       (!u.vol || !t.vol || u.vol === t.vol);
                             });
                         }
                         if(!match) {
                             // v1.6.64: 退階用 within-match (task 範圍在 unit 範圍內)
+                            // v1.6.171: 加 vol 鎖
                             match = allUnits.find(function(u){
                                 if(u.name !== t.unitName) return false;
+                                if(u.vol != null && t.vol && u.vol !== t.vol) return false;
                                 if(t.startPage != null && t.endPage != null && u.start != null && u.end != null) {
                                     return u.start <= t.startPage && u.end >= t.endPage;
                                 }

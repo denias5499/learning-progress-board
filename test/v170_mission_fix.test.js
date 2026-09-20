@@ -67,8 +67,8 @@ test('v1.6.170 架構: title 已更新到 [v1.6.170]', () => {
     const html = fs.readFileSync(
         path.join(__dirname, '..', 'index.html'), 'utf8'
     );
-    assert.match(html, /\[v1\.6\.170\]/,
-        'title 必須是 [v1.6.170]');
+    assert.match(html, /\[v1\.6\.(17[0-9]|18[0-9]|19[0-9])\]/,
+        'title 必須 >= [v1.6.170]');
 });
 
 test('v1.6.170 行為: buggy missions 跑完 _v164Migrate 後 [35] 被修正', () => {
