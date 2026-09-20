@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.168]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.169]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2393,15 +2393,19 @@
                             bfCount++;
                         }
 
-                        // 2. v1.6.64 within-match remap (fix wrong unitIds)
+                        // 2. v1.6.169: 強健 within-match remap
+                        // - within-match 用 page range + vol 鎖 (不加 type/instance, 才能跨 instance disambiguate)
+                        // - exact-match 用 type+instance+vol (鎖定同一個教材實例)
+                        // - page range fixup: exact 不涵蓋時 fallback 到 within-match
+                        // - 沒 type/instance 時 fallback 找當前 unitId (ground truth)
                         var masterEntry = (user.masters[t.cat] || {})[t.subject];
                         if (!masterEntry) return;
                         var allUnits = _collectSubjectUnits(masterEntry);
                         var match = null;
-                        // v1.6.64: 先 within-match (找頁範圍涵蓋 task 的 unit)
+                        // within-match: page range 為主, 只加 vol 鎖 (不加 type/instance 才能跨 instance disambiguate)
                         var withinMatch = allUnits.find(function(u) {
                             if (u.name !== t.unitName) return false;
-                            // v1.6.168: vol 比對 — 避免跨 vol 同名 unit 被錯指 (例如大滿貫甲 第二冊 L1~2 vs 第三冊 L1~2)
+                            // v1.6.168: vol 鎖 (避免跨 vol 同名 unit 誤判)
                             if (u.vol != null && t.vol && u.vol !== t.vol) return false;
                             if (t.startPage != null && t.endPage != null &&
                                 u.start != null && u.end != null) {
@@ -2410,24 +2414,35 @@
                             return true;
                         });
                         if (t.typeName && t.instanceName) {
-                            // 精確比對
-                            match = allUnits.find(function(u) {
+                            // v1.6.169: 先收集 name+type+instance 候選
+                            var tiCandidates = allUnits.filter(function(u) {
                                 return u.name === t.unitName &&
                                        u._typeName === t.typeName &&
-                                       u._instanceName === t.instanceName &&
-                                       // v1.6.168: exact match 也加 vol 比對 (保險)
-                                       (u.vol == null || !t.vol || u.vol === t.vol);
+                                       u._instanceName === t.instanceName;
                             });
-                            // v1.6.64: 如果精確比對的 unit 頁範圍不涵蓋 task (例如麻辣甲 P.1 vs task P.39-42),
+                            // 精確比對: name + typeName + instanceName + vol
+                            match = tiCandidates.find(function(u) {
+                                return (u.vol == null || !t.vol || u.vol === t.vol);
+                            });
+                            // v1.6.169: t.vol 缺失時, 優先保留當前 unitId (ground truth)
+                            if (!t.vol) {
+                                var currentInCandidates = tiCandidates.find(function(u) { return u.id === t.unitId; });
+                                if (currentInCandidates) match = currentInCandidates;
+                            }
+                            // v1.6.64: 如果精確比對的 unit 頁範圍不涵蓋 task (例如 麻辣甲 P.1 vs task P.39-42),
                             // 但有 within-match 的 unit 涵蓋, 用 within-match
                             if (match && withinMatch && match.id !== withinMatch.id) {
                                 var matchCovers = match.start <= t.startPage && match.end >= t.endPage;
                                 if (!matchCovers) {
                                     match = withinMatch;
                                 }
+                            } else if (!match) {
+                                match = withinMatch;
                             }
                         } else {
-                            match = withinMatch;
+                            // v1.6.169: 沒 type/instance — fallback 找當前 unitId 是否在 master (ground truth)
+                            match = allUnits.find(function(u) { return u.id === t.unitId; });
+                            if (!match) match = withinMatch;
                         }
                         if (match && match.id !== t.unitId) {
                             t.unitId = match.id;
