@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.167]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.168]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2401,6 +2401,8 @@
                         // v1.6.64: 先 within-match (找頁範圍涵蓋 task 的 unit)
                         var withinMatch = allUnits.find(function(u) {
                             if (u.name !== t.unitName) return false;
+                            // v1.6.168: vol 比對 — 避免跨 vol 同名 unit 被錯指 (例如大滿貫甲 第二冊 L1~2 vs 第三冊 L1~2)
+                            if (u.vol != null && t.vol && u.vol !== t.vol) return false;
                             if (t.startPage != null && t.endPage != null &&
                                 u.start != null && u.end != null) {
                                 return u.start <= t.startPage && u.end >= t.endPage;
@@ -2412,7 +2414,9 @@
                             match = allUnits.find(function(u) {
                                 return u.name === t.unitName &&
                                        u._typeName === t.typeName &&
-                                       u._instanceName === t.instanceName;
+                                       u._instanceName === t.instanceName &&
+                                       // v1.6.168: exact match 也加 vol 比對 (保險)
+                                       (u.vol == null || !t.vol || u.vol === t.vol);
                             });
                             // v1.6.64: 如果精確比對的 unit 頁範圍不涵蓋 task (例如麻辣甲 P.1 vs task P.39-42),
                             // 但有 within-match 的 unit 涵蓋, 用 within-match
