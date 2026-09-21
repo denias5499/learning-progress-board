@@ -17,3 +17,6 @@ Thumbs.db
 # Node
 node_modules/
 package-lock.json
+
+# OpenClaw working directory
+.openclaw/
