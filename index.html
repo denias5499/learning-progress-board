@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.171]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.172]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2481,7 +2481,29 @@
                 console.log('v1.6.170: ✅ fix missions.會考複習.二模[35] = id_j7l5x7jdz (第三冊 L1~2)');
                 user._v170_mission_fix_applied = true;
             }
-        };
+
+        // v1.6.172: 修正 plan.grid L1~2 tasks 跨 vol 匹配錯誤 (排程天數對應錯誤)
+        if (user && user.plans) {
+            user.plans.forEach(function(plan, pi){
+                if (!plan.grid) return;
+                Object.keys(plan.grid).forEach(function(dateStr){
+                    var tasks = plan.grid[dateStr] || [];
+                    tasks.forEach(function(t, i){
+                        if (!t || !t.unitName || (t.unitName !== 'L1~2' && t.unitName !== 'L1~L2')) return;
+                        var cat = t.cat || '會考複習';
+                        var sub = t.subject || '英文';
+                        var masterEntry = (((user.masters||{})[cat])||{})[sub];
+                        if (!masterEntry) return;
+                        var allUnits = _collectSubjectUnits(masterEntry);
+                        var match = allUnits.find(function(u){
+                            return u.name === t.unitName && u._typeName === t.typeName && u._instanceName === t.instanceName && u.vol === t.vol;
+                        });
+                        if (match && match.id !== t.unitId) t.unitId = match.id;
+                    });
+                });
+            });
+        }
+                };
         function el(id) { return document.getElementById(id); }
         function getLocalDateString(d) { var year = d.getFullYear(); var month = String(d.getMonth() + 1).padStart(2, '0'); var day = String(d.getDate()).padStart(2, '0'); return year + '-' + month + '-' + day; }
 
@@ -2876,43 +2898,113 @@
 
         // v1.6.141: 切換智慧排程模式 (頁面級)
         function setWizardScheduleMode(mode) {
-            // mode = 'hours' | 'units'
-            if (typeof wizardSubjects !== 'undefined') {
-                wizardSubjects.forEach(function(ws) {
-                    ws.scheduleMode = mode;
-                    // 模式 B 補預設值 (不覆蓋 user 已設定)
-                    if (mode === 'units') {
-                        if (!ws.progVal) ws.progVal = 3;
-                        if (!ws.daysPerUnit) ws.daysPerUnit = 2;
-                    }
-                });
-            }
-            // UI 視覺同步
-            var hoursCard = el('wz-mode-hours-card');
-            var unitsCard = el('wz-mode-units-card');
-            var desc = el('wz-schedule-mode-desc');
-            if (hoursCard && unitsCard) {
-                if (mode === 'hours') {
-                    hoursCard.style.border = '2px solid #0ea5e9';
-                    hoursCard.style.background = '#e0f2fe';
-                    hoursCard.querySelectorAll('span')[1].style.color = '#0369a1';
-                    unitsCard.style.border = '2px solid #cbd5e1';
-                    unitsCard.style.background = 'white';
-                    unitsCard.querySelectorAll('span')[1].style.color = '#475569';
-                    if (desc) desc.innerHTML = '⏱️ <b>時數模式</b>：每 unit 切成 0.5hr chunks，平均塞進每天時數內';
-                } else {
-                    hoursCard.style.border = '2px solid #cbd5e1';
-                    hoursCard.style.background = 'white';
-                    hoursCard.querySelectorAll('span')[1].style.color = '#475569';
-                    unitsCard.style.border = '2px solid #0ea5e9';
-                    unitsCard.style.background = '#e0f2fe';
-                    unitsCard.querySelectorAll('span')[1].style.color = '#0369a1';
-                    if (desc) desc.innerHTML = '📅 <b>單元模式</b>：每 unit 分 N 天讀，每天一個時段 (hrs÷N 小時)';
-                }
-            }
-            if (typeof renderWizardSubjects === 'function') renderWizardSubjects();
-            saveWizardPrefs();
+    // mode = 'hours' | 'units'
+    if (typeof wizardSubjects !== 'undefined') {
+        wizardSubjects.forEach(function(ws) {
+            ws.scheduleMode = mode;
+            // 模式 B 補預設值 (不覆蓋 user 已設定)
+            if (mode === 'units' && !ws.daysPerUnit) ws.daysPerUnit = 3;
+        });
+        saveWizardPrefs();
+    }
+    
+    var hoursCard = el('wz-mode-hours-card');
+    var unitsCard = el('wz-mode-units-card');
+    var desc = el('wz-schedule-mode-desc');
+    var globalHoursCard = el('global-mode-hours-card');
+    var globalUnitsCard = el('global-mode-units-card');
+    
+    if (mode === 'hours') {
+        if (hoursCard) {
+            hoursCard.style.border = '2px solid #0ea5e9';
+            hoursCard.style.background = '#e0f2fe';
+            hoursCard.querySelectorAll('span')[2].style.color = '#0369a1';
+            var radio = hoursCard.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
         }
+        if (unitsCard) {
+            unitsCard.style.border = '2px solid #cbd5e1';
+            unitsCard.style.background = 'white';
+            unitsCard.querySelectorAll('span')[2].style.color = '#475569';
+        }
+        if (globalHoursCard) {
+            globalHoursCard.style.border = '2px solid #0ea5e9';
+            globalHoursCard.style.background = '#e0f2fe';
+            globalHoursCard.querySelectorAll('span')[2].style.color = '#0369a1';
+            var radio2 = globalHoursCard.querySelector('input[type="radio"]');
+            if (radio2) radio2.checked = true;
+        }
+        if (globalUnitsCard) {
+            globalUnitsCard.style.border = '2px solid #cbd5e1';
+            globalUnitsCard.style.background = 'white';
+            globalUnitsCard.querySelectorAll('span')[2].style.color = '#475569';
+        }
+        if (desc) desc.innerHTML = '⏱️ <b>時數模式</b>：每 unit 切成 0.5hr chunks，平均塞進每天時數內';
+    } else {
+        if (hoursCard) {
+            hoursCard.style.border = '2px solid #cbd5e1';
+            hoursCard.style.background = 'white';
+            hoursCard.querySelectorAll('span')[2].style.color = '#475569';
+        }
+        if (unitsCard) {
+            unitsCard.style.border = '2px solid #0ea5e9';
+            unitsCard.style.background = '#e0f2fe';
+            unitsCard.querySelectorAll('span')[2].style.color = '#0369a1';
+            var radio = unitsCard.querySelector('input[type="radio"]');
+            if (radio) radio.checked = true;
+        }
+        if (globalHoursCard) {
+            globalHoursCard.style.border = '2px solid #cbd5e1';
+            globalHoursCard.style.background = 'white';
+            globalHoursCard.querySelectorAll('span')[2].style.color = '#475569';
+        }
+        if (globalUnitsCard) {
+            globalUnitsCard.style.border = '2px solid #0ea5e9';
+            globalUnitsCard.style.background = '#e0f2fe';
+            globalUnitsCard.querySelectorAll('span')[2].style.color = '#0369a1';
+            var radio2 = globalUnitsCard.querySelector('input[type="radio"]');
+            if (radio2) radio2.checked = true;
+        }
+        if (desc) desc.innerHTML = '📅 <b>單元模式</b>：每 unit 分 N 天讀，每天一個時段 (hrs÷N 小時)';
+    }
+    
+    // 儲存到偏好設定
+    if (window.preferences) {
+        window.preferences.scheduleMode = mode;
+        window.saveWizardPrefs();
+    }
+}
+
+// v1.6.173: 全局模式切換初始化
+function initGlobalScheduleMode() {
+    var globalHoursCard = el('global-mode-hours-card');
+    var globalUnitsCard = el('global-mode-units-card');
+    if (globalHoursCard && globalUnitsCard) {
+        // 綁定 click 事件
+        globalHoursCard.addEventListener('click', function(e) {
+            if (e.target.type !== 'radio') {
+                setWizardScheduleMode('hours');
+            }
+        });
+        globalUnitsCard.addEventListener('click', function(e) {
+            if (e.target.type !== 'radio') {
+                setWizardScheduleMode('units');
+            }
+        });
+        // 同步 radio 狀態
+        var globalRadioHours = globalHoursCard.querySelector('input[type="radio"]');
+        var globalRadioUnits = globalUnitsCard.querySelector('input[type="radio"]');
+        if (globalRadioHours && globalRadioUnits) {
+            globalRadioHours.addEventListener('change', function() {
+                if (this.checked) setWizardScheduleMode('hours');
+            });
+            globalRadioUnits.addEventListener('change', function() {
+                if (this.checked) setWizardScheduleMode('units');
+            });
+        }
+    }
+}
+
 
         // === v1.5.112: 全域 App Prefs (三大任務預設時數) ===
         var STORAGE_KEY_APP_PREFS = 'StudyMap_AppPrefs_V112';
