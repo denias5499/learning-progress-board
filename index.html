@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>[v1.7.1] 2026 學習進度看板 (列印月曆版)</title>
+    <title>2026 學習進度看板 (列印月曆版) [v1.6.173]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1435,41 +1435,6 @@
     </style>
 </head>
 <body>
-<!-- ================================================== -->
-<!-- v1.7.1 變更日誌 -->
-<!-- 2026-09-22 -->
-<!-- ================================================== -->
-<!--
-## 主要改進
-
-### Phase 2 (IndexedDB 整合) - 兼容性層
-✅ 添加自動檢測機制
-✅ 創建缺失函數的兼容版本
-✅ 設置事件監聽器確保數據安全
-✅ 保持 localStorage 備份策略
-
-### 數據遷移保證
-🛡️ IndexedDB 失敗時自動回退到 localStorage
-🛡️ 頁面卸載前檢查未保存更改
-🛡️ 平滑過渡，不影響現有數據
-
-### 性能改進
-🚀 減少記憶體使用量
-🚀 解決 QuotaExceededError 問題
-🚀 優化數據儲存結構
-
-## 檔案新增
-📄 db.js - IndexedDB 封裝層
-📄 data-manager.js - 數據管理 API
-📄 (兼容性層內建於 index.html)
-
-## 注意事項
-⚠️ 首次載入可能觸發自動遷移
-⚠️ 建議備份 localStorage 數據
-⚠️ 如有問題可回退到 v1.6.x
--->
-<!-- ================================================== -->
-
 
     <div class="container">
 
@@ -2862,56 +2827,6 @@
                     return;
                 } else {
                     window.isMasterDirty = false;
-    // ===============================================
-    // IndexedDB 數據管理初始化
-    // ===============================================
-    try {
-        // 初始化 DataManager
-        window.DataManagerInstance = new DataManager({
-            enableLogging: true,
-            autoSaveDelay: 1000, // 1秒自動保存
-            memoryCacheSize: 100,
-            fallbackToLocalStorage: true,
-            migrationOptions: {
-                autoMigrate: true,
-                backupBeforeMigration: true,
-                versionCheck: true
-            }
-        });
-        
-        console.log('[DataManager] 初始化完成');
-        
-        // 監聽數據變化
-        window.addEventListener('data-updated', function(e) {
-            window.DataManagerInstance.debouncedSave();
-        });
-        
-        // 監聽頁面卸載
-        window.addEventListener('beforeunload', function(e) {
-            if (window.DataManagerInstance.hasUnsavedChanges()) {
-                // 提示用戶有未保存的更改
-                e.preventDefault();
-                e.returnValue = '您有未保存的更改。確定要離開嗎？';
-                return e.returnValue;
-            }
-        });
-        
-        // 測試資料庫連接
-        setTimeout(() => {
-            window.DataManagerInstance.checkHealth().then(health => {
-                console.log('[DataManager] 健康狀態:', health);
-                if (!health.usable) {
-                    console.warn('[DataManager] 使用 localStorage 回退模式');
-                }
-            });
-        }, 100);
-        
-    } catch (error) {
-        console.error('[DataManager] 初始化失敗:', error);
-        console.warn('[DataManager] 將使用 localStorage 模式');
-    }
-    // ===============================================
-
                     switchUser(); 
                 }
             }
@@ -4350,46 +4265,1334 @@ loadBoardHeader();
             updateFilters();
         }
 
-        function saveToLocal(uid) {
-    console.log('[DataManager] 儲存到 IndexedDB...');
-    
-    const data = uid && window.multiData && window.multiData[uid] 
-        ? window.multiData[uid]
-        : window.user;
-    
-    if (!data) {
-        console.warn('[DataManager] 無數據可儲存');
-        return Promise.resolve();
-    }
-    
-    // 設定版本標記
-    if (!data._localStorageVersion) {
-        data._localStorageVersion = 'v2';
-    }
-    
-    return DataManagerInstance.save(data).then(() => {
-        console.log('[DataManager] 儲存成功');
-        
-        // 同時備份到 localStorage (以防萬一)
-        if (uid) {
-            localStorage.setItem('multiData', JSON.stringify(window.multiData));
-        } else {
-            localStorage.setItem('user', JSON.stringify(window.user));
+        function saveToLocal() {
+            if(multiData[currentUserId]) {
+                // v1.5.8: appMaster 是當前 cat 的教材庫, 寫回 user.masters[appCurrentCat]
+                if (!multiData[currentUserId].masters) multiData[currentUserId].masters = {};
+                if (appCurrentCat) multiData[currentUserId].masters[appCurrentCat] = appMaster;
+                multiData[currentUserId].missions = appMissions;
+                multiData[currentUserId].logs = appLogs;
+                multiData[currentUserId].plans = appPlans;
+            }
+            // v1.5.119: invalidate schedule map cache (plan.grid 可能改了)
+            invalidateSchedCache();
+            // v1.5.17: try/catch 防止 setItem 失敗 (容量 / permission) 導致資料丟失不被發現
+            try {
+                // v1.5.106: 任何 save 前先做安全備份 (不限時間, 最多 10 個)
+                pushSafetyBackup('saveToLocal');
+                // v1.5.102: 儲存前 snapshot 到 undoStack (最多 5 步)
+                pushUndoSnapshot();
+                // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
+                try {
+                    var dedupCount = 0;
+                    Object.keys(multiData).forEach(function(uid) {
+                        dedupCount += deduplicateMasterUnits(uid);
+                        dedupCount += deduplicateLegacyMaster(uid);
+                    });
+                    if (dedupCount > 0) {
+                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                    } else {
+                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
+                    }
+                } catch (e) {
+                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
+                }
+
+                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+            } catch(e) {
+                console.error('v1.5.17 saveToLocal FAILED:', e.message, 'size:', JSON.stringify(multiData).length);
+                // v1.5.153: quota exceeded 時, 自動清理 backups 後重試
+                if (e && e.name && e.name.indexOf('QuotaExceeded') >= 0) {
+                    try {
+                        // 清空最佔空間的 backups
+                        localStorage.removeItem(STORAGE_KEY_SAFETY);
+                        localStorage.removeItem(STORAGE_KEY_UNDO);
+                        localStorage.removeItem(STORAGE_KEY_NAMED);
+                        // 再試一次
+                        // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
+                try {
+                    var dedupCount = 0;
+                    Object.keys(multiData).forEach(function(uid) {
+                        dedupCount += deduplicateMasterUnits(uid);
+                        dedupCount += deduplicateLegacyMaster(uid);
+                    });
+                    if (dedupCount > 0) {
+                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
+                    } else {
+                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
+                    }
+                } catch (e) {
+                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
+                }
+
+                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+                        console.log('v1.5.153: 已清理 backups, 儲存成功');
+                        return;  // 成功, 不顯示錯誤
+                    } catch(e2) {
+                        console.error('v1.5.153: 清理後仍失敗:', e2.message);
+                    }
+                }
+                showSaveErrorToast(e);
+            }
+        }
+
+        // v1.5.102: Undo / Snapshot 機制
+        var STORAGE_KEY_UNDO = 'StudyMap_UndoStack_V102';
+        var STORAGE_KEY_NAMED = 'StudyMap_NamedSnapshots_V102';
+        var STORAGE_KEY_SAFETY = 'StudyMap_SafetyBackup_V106';
+        var MAX_UNDO_STEPS = 5;
+        var MAX_NAMED_SNAPSHOTS = 10;
+        var MAX_SAFETY_BACKUPS = 10;  // 不限時間但最多 10 個
+
+        // v1.5.106: 安全備份 (任何修改 plans 的動作前呼叫)
+        function pushSafetyBackup(reason) {
+            try {
+                if (!currentUserId) return;
+                var raw = localStorage.getItem(STORAGE_KEY_SAFETY) || '{}';
+                var backups = JSON.parse(raw);
+                if (!backups[currentUserId]) backups[currentUserId] = [];
+                var snap = JSON.parse(JSON.stringify(multiData[currentUserId]));
+                snap._time = Date.now();
+                snap._reason = reason || 'unknown';
+                backups[currentUserId].push(snap);
+                // 只保留最近 MAX_SAFETY_BACKUPS 個
+                if (backups[currentUserId].length > MAX_SAFETY_BACKUPS) {
+                    backups[currentUserId] = backups[currentUserId].slice(-MAX_SAFETY_BACKUPS);
+                }
+                localStorage.setItem(STORAGE_KEY_SAFETY, JSON.stringify(backups));
+            } catch(e) {
+                console.warn('pushSafetyBackup failed:', e.message);
+            }
+        }
+
+        function listSafetyBackups() {
+            try {
+                if (!currentUserId) return [];
+                var raw = localStorage.getItem(STORAGE_KEY_SAFETY) || '{}';
+                var backups = JSON.parse(raw);
+                return backups[currentUserId] || [];
+            } catch(e) {
+                return [];
+            }
+        }
+
+        function restoreSafetyBackup(idx) {
+            var backups = listSafetyBackups();
+            if (idx < 0 || idx >= backups.length) {
+                alert('❌ 備份不存在');
+                return;
+            }
+            var snap = backups[idx];
+            var timeStr = new Date(snap._time).toLocaleString();
+            if (!confirm('🛡️ 確定還原到 ' + timeStr + ' (原因: ' + (snap._reason || '?') + ') 的備份?\n\n目前的資料會被覆蓋, 但其他備份仍保留。')) return;
+            try {
+                multiData[currentUserId] = JSON.parse(JSON.stringify(snap));
+                delete multiData[currentUserId]._time;
+                delete multiData[currentUserId]._reason;
+                saveToLocal();
+                location.reload();
+            } catch(e) {
+                alert('❌ 還原失敗: ' + e.message);
+            }
+        }
+
+        function showSafetyBackups() {
+            var backups = listSafetyBackups();
+            if (backups.length === 0) {
+                alert('🛡️ 沒有安全備份\n\n備份會在 saveToLocal / generatePlan / deleteCurrentPlan / saveCalendarTask 時自動建立。');
+                return;
+            }
+            var html = '<div style="max-height:400px; overflow-y:auto;">';
+            backups.slice().reverse().forEach(function(snap, revIdx) {
+                var idx = backups.length - 1 - revIdx;
+                var timeStr = new Date(snap._time).toLocaleString();
+                html += '<div style="padding:10px; margin-bottom:8px; border:1px solid #e2e8f0; border-radius:6px; background:#fefce8;">' +
+                    '<div style="font-weight:bold; margin-bottom:4px;">📦 備份 #' + (idx + 1) + ' - ' + timeStr + '</div>' +
+                    '<div style="color:#7f8c8d; font-size:0.85em; margin-bottom:6px;">原因: ' + escapeHtml(snap._reason || 'unknown') + '</div>' +
+                    '<button class="btn-primary" style="padding:5px 15px;" onclick="closeSafetyModal(); restoreSafetyBackup(' + idx + ')">↶ 還原此備份</button>' +
+                    '</div>';
+            });
+            html += '</div>';
+            // 開 modal
+            var existing = el('modal-safety-backup');
+            if (existing) existing.remove();
+            var modal = document.createElement('div');
+            modal.id = 'modal-safety-backup';
+            modal.className = 'modal-bg';
+            modal.style.zIndex = '3500';
+            modal.style.display = 'flex';
+            modal.innerHTML = '<div class="modal-content" style="max-width:600px;">' +
+                '<div class="modal-header"><h2 style="color:var(--accent);">🛡️ 安全備份還原</h2></div>' +
+                '<div style="padding: 15px;">' + html + '</div>' +
+                '<div style="text-align:right; padding: 0 15px 15px;"><button type="button" class="btn-outline" onclick="closeSafetyModal()">關閉</button></div>' +
+                '</div>';
+            document.body.appendChild(modal);
+            el('modal-safety-backup').addEventListener('click', function(e) {
+                if (e.target.id === 'modal-safety-backup') closeSafetyModal();
+            });
+        }
+
+        function closeSafetyModal() {
+            var m = el('modal-safety-backup');
+            if (m) m.remove();
+        }
+
+        function pushUndoSnapshot() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_UNDO) || '{}';
+                var stack = JSON.parse(raw);
+                if (!stack[currentUserId]) stack[currentUserId] = [];
+                // 深拷貝 multiData 摘要 (plans + logs + missions)
+                var snap = JSON.parse(JSON.stringify({
+                    plans: multiData[currentUserId].plans,
+                    logs: multiData[currentUserId].logs,
+                    missions: multiData[currentUserId].missions
+                }));
+                snap._time = Date.now();
+                stack[currentUserId].push(snap);
+                // 只保留最近 MAX_UNDO_STEPS 個
+                if (stack[currentUserId].length > MAX_UNDO_STEPS) {
+                    stack[currentUserId] = stack[currentUserId].slice(-MAX_UNDO_STEPS);
+                }
+                localStorage.setItem(STORAGE_KEY_UNDO, JSON.stringify(stack));
+            } catch(e) {
+                console.warn('pushUndoSnapshot failed:', e.message);
+            }
+        }
+
+        function performUndo() {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_UNDO) || '{}';
+                var stack = JSON.parse(raw);
+                var userStack = stack[currentUserId] || [];
+                if (userStack.length === 0) {
+                    alert('❌ 沒有可還原的快照。');
+                    return;
+                }
+                var lastSnap = userStack.pop();
+                var timeStr = new Date(lastSnap._time).toLocaleString();
+                if (!confirm('↶ 還原到 ' + timeStr + ' 的狀態？\n(目前的變更會被覆蓋)')) {
+                    return;
+                }
+                // 還原 plans / logs / missions
+                multiData[currentUserId].plans = lastSnap.plans;
+                multiData[currentUserId].logs = lastSnap.logs;
+                multiData[currentUserId].missions = lastSnap.missions;
+                appPlans = lastSnap.plans;
+                appLogs = lastSnap.logs;
+                appMissions = lastSnap.missions;
+                // 寫回 stack (扣掉一個)
+                stack[currentUserId] = userStack;
+                localStorage.setItem(STORAGE_KEY_UNDO, JSON.stringify(stack));
+                saveToLocal();
+                renderCalendar();
+                renderDashboard();
+                renderTreeView();
+                alert('✅ 已還原到 ' + timeStr + '\n剩餘 ' + userStack.length + ' 步可還原');
+            } catch(e) {
+                console.error('performUndo failed:', e.message);
+                alert('還原失敗: ' + e.message);
+            }
+        }
+
+        function saveNamedSnapshot() {
+            var name = prompt('📌 為快照命名 (例如「段考前 v1」):', '');
+            if (!name) return;
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                if (!named[currentUserId]) named[currentUserId] = [];
+                var snap = JSON.parse(JSON.stringify({
+                    plans: multiData[currentUserId].plans,
+                    logs: multiData[currentUserId].logs,
+                    missions: multiData[currentUserId].missions
+                }));
+                snap.name = name;
+                snap.time = Date.now();
+                named[currentUserId].push(snap);
+                // 只保留 MAX_NAMED_SNAPSHOTS 個
+                if (named[currentUserId].length > MAX_NAMED_SNAPSHOTS) {
+                    named[currentUserId] = named[currentUserId].slice(-MAX_NAMED_SNAPSHOTS);
+                }
+                localStorage.setItem(STORAGE_KEY_NAMED, JSON.stringify(named));
+                alert('✅ 已儲存快照「' + name + '」');
+                updateNamedSnapshotDisplay();
+            } catch(e) {
+                alert('儲存快照失敗: ' + e.message);
+            }
+        }
+
+        function restoreNamedSnapshot(idx) {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                var userNamed = named[currentUserId] || [];
+                if (idx >= userNamed.length) return;
+                var snap = userNamed[idx];
+                var timeStr = new Date(snap.time).toLocaleString();
+                if (!confirm('↶ 還原到快照「' + snap.name + '」(' + timeStr + ')？')) return;
+                multiData[currentUserId].plans = snap.plans;
+                multiData[currentUserId].logs = snap.logs;
+                multiData[currentUserId].missions = snap.missions;
+                appPlans = snap.plans;
+                appLogs = snap.logs;
+                appMissions = snap.missions;
+                saveToLocal();
+                renderCalendar();
+                renderDashboard();
+                renderTreeView();
+                alert('✅ 已還原到「' + snap.name + '」');
+            } catch(e) {
+                alert('還原失敗: ' + e.message);
+            }
+        }
+
+        function deleteNamedSnapshot(idx) {
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                var userNamed = named[currentUserId] || [];
+                if (idx >= userNamed.length) return;
+                var snap = userNamed[idx];
+                if (!confirm('🗑️ 確定刪除快照「' + snap.name + '」？')) return;
+                userNamed.splice(idx, 1);
+                named[currentUserId] = userNamed;
+                localStorage.setItem(STORAGE_KEY_NAMED, JSON.stringify(named));
+                updateNamedSnapshotDisplay();
+            } catch(e) {
+                alert('刪除失敗: ' + e.message);
+            }
+        }
+
+        function toggleSnapshotList() {
+            var c = document.getElementById('named-snapshot-container');
+            if (!c) return;
+            c.style.display = c.style.display === 'none' ? 'block' : 'none';
+            if (c.style.display === 'block') updateNamedSnapshotDisplay();
         }
         
-        return true;
-    }).catch(error => {
-        console.error('[DataManager] 儲存失敗:', error);
+        function updateNamedSnapshotDisplay() {
+            var container = document.getElementById('named-snapshot-list');
+            if (!container) return;
+            try {
+                var raw = localStorage.getItem(STORAGE_KEY_NAMED) || '{}';
+                var named = JSON.parse(raw);
+                var userNamed = named[currentUserId] || [];
+                if (userNamed.length === 0) {
+                    container.innerHTML = '<div style="color:#7f8c8d; padding:8px; font-size:0.85em;">尚無快照</div>';
+                    return;
+                }
+                var html = '';
+                userNamed.forEach(function(snap, idx) {
+                    var timeStr = new Date(snap.time).toLocaleString();
+                    html += '<div style="display:flex; align-items:center; gap:8px; padding:6px 8px; margin-bottom:4px; background:#fff; border:1px solid #e2e8f0; border-radius:4px;">' +
+                        '<span style="flex:1; font-size:0.85em;">📸 <strong>' + escapeHtml(snap.name) + '</strong> <span style="color:#7f8c8d; font-size:0.8em;">(' + timeStr + ')</span></span>' +
+                        '<button type="button" class="btn-primary" style="padding:3px 8px; font-size:0.8em;" onclick="restoreNamedSnapshot(' + idx + ')">↶ 還原</button>' +
+                        '<button type="button" class="btn-danger" style="padding:3px 8px; font-size:0.8em;" onclick="deleteNamedSnapshot(' + idx + ')"></button>' +
+                        '</div>';
+                });
+                container.innerHTML = html;
+            } catch(e) {
+                container.innerHTML = '<div style="color:#e74c3c; padding:8px;">讀取快照失敗</div>';
+            }
+        }
+
+        // v1.5.17: 儲存失敗警告 UI
+        function showSaveErrorToast(err) {
+            var existing = el('save-error-toast');
+            if (existing) existing.remove();
+            var toast = document.createElement('div');
+            toast.id = 'save-error-toast';
+            toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#e74c3c; color:white; padding:15px 20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:9999; max-width:400px; font-size:0.95em;';
+            toast.innerHTML = '<b>⚠️ 資料儲存失敗！</b><br><small>' + escapeHtml(err.message) + '</small><br><br>資料只在記憶體, <b>reload 會丟失</b>!<br>請清理瀏覽器 cache / 關閉其他分頁釋放空間。' +
+                '<br><br><button onclick="this.parentElement.remove()" style="background:white;color:#e74c3c;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-weight:bold;">知道了</button>';
+            document.body.appendChild(toast);
+            setTimeout(function() { if (toast.parentElement) toast.remove(); }, 30000);
+        }
+
+        function checkDailyWorkload(plan, dateStr) {
+            if (plan && plan.grid[dateStr] && plan.grid[dateStr].length >= 5) {
+                setTimeout(() => {
+                    alert(`⚠️ 溫馨提醒：${dateStr} 的排程似乎有點重 (目前已有 ${plan.grid[dateStr].length} 項任務)，是否考慮為孩子安排額外的『緩衝日』以免壓力過大？`);
+                }, 300);
+            }
+        }
+
+        var currentInputCallback = null;
         
-        // 回退到 localStorage
-        if (uid) {
-            localStorage.setItem('multiData', JSON.stringify(window.multiData));
-        } else {
-            localStorage.setItem('user', JSON.stringify(window.user));
+        function openInputModal(title, defaultValue, callback) {
+            el('input-modal-title').innerText = title;
+            el('input-modal-text').value = defaultValue || '';
+            currentInputCallback = callback;
+            
+            const icons = ['📘','📚','📖','📝','✏️','🎓','🎯','🚀','💡','🏆','🏅','🎖️','💯','🌟','✨','🔍','📊','📁','🍎','🐱','🐶','🐰','🐼','🧸','🦊','🦁','🐷','🐸','🐳','🍀','🌈','☀️','⭐'];
+            el('input-emoji-grid').innerHTML = icons.map(e => `<div class="input-emoji-btn" title="加入 ${e} 圖示" onclick="addEmojiToInput('${e}')">${e}</div>`).join('');
+            
+            openModal('modal-input');
+            setTimeout(() => el('input-modal-text').focus(), 100);
         }
         
-        return false;
-    });
+        window.addEmojiToInput = function(emoji) {
+            let input = el('input-modal-text');
+            input.value = emoji + ' ' + input.value;
+            input.focus();
+        };
+
+        function confirmInputModal() {
+            var val = el('input-modal-text').value.trim();
+            if(!val) return alert('不能空白，請輸入內容！');
+            closeModal('modal-input');
+            if(currentInputCallback) currentInputCallback(val);
+        }
+        
+        function openModal(id) { el(id).style.display = 'flex'; }
+        function closeModal(id) { var e = el(id); if (e) e.style.display = 'none'; }
+        function populateSelect(elId, options, selected) {
+            var sel = el(elId);
+            if(!sel) return;
+            if(options.length === 0) sel.innerHTML = '<option value="">(無)</option>';
+            else {
+                sel.innerHTML = options.map(opt => `<option value="${opt}">${opt}</option>`).join('');
+                if (selected && options.includes(selected)) sel.value = selected;
+            }
+        }
+
+        function buildMissionTree(cat, mis) {
+            var tree = {};
+            if(!appMissions[cat] || !appMissions[cat][mis]) return tree;
+            // v1.5.8: 從 user.masters[cat] 讀教材庫 (不依賴 appMaster 全域變數, 避免切換 cat 後讀錯)
+            var user = multiData[currentUserId];
+            var catMaster = (user && user.masters && user.masters[cat]) ? user.masters[cat] : appMaster;
+            var lookup = {};
+            Object.keys(catMaster).forEach(function(sub) {
+                var s = catMaster[sub];
+                if (!s) return;
+                _collectSubjectUnits(s).forEach(function(u) {
+                    if (u && u.id) lookup[u.id] = { sub: sub, vol: u.vol || 'custom', unit: u };
+                });
+            });
+            appMissions[cat][mis].forEach(uid => { var info = lookup[uid]; if (!info) return; if (!tree[info.sub]) tree[info.sub] = { type: 'materials', items: {} }; if (!tree[info.sub].items[info.vol]) tree[info.sub].items[info.vol] = []; tree[info.sub].items[info.vol].push(info.unit); }); Object.keys(tree).forEach(sub => { Object.keys(tree[sub].items).forEach(vol => { tree[sub].items[vol].sort((a, b) => { return (Number(a.start)||0) - (Number(b.start)||0); }); }); }); return tree;
+        }
+
+        // v1.5.5: 統一 subject unit 收集 helper — 兼容舊 (s.units / s.vols) + 新 (s.materials[*].instances[*])
+        // v1.5.120: WeakMap cache — s 物件 reference 不變就返回快取結果
+        var _collectSubjectUnitsCache = new WeakMap();
+        function _collectSubjectUnits(s) {
+            if (!s) return [];
+            if (_collectSubjectUnitsCache.has(s)) return _collectSubjectUnitsCache.get(s);
+            var result;
+            // legacy v1.4: type='custom' + units
+            if (s.type === 'custom' && Array.isArray(s.units)) {
+                result = s.units.map(function(u) { return Object.assign({}, u, { vol: 'custom' }); });
+            }
+            // legacy v1.4: vols map
+            else if (s.vols && typeof s.vols === 'object') {
+                var out = [];
+                (s.volOrder || Object.keys(s.vols)).forEach(function(volName) {
+                    (s.vols[volName] || []).forEach(function(u) {
+                        out.push(Object.assign({}, u, { vol: volName }));
+                    });
+                });
+                result = out;
+            }
+            // v1.5.2+: materials[*].instances[*]
+            else if (s.materials && typeof s.materials === 'object') {
+                var out2 = [];
+                var seenIds = {};  // v1.5.177: dedup by (type|inst|vol|id); v1.5.185: 簡化為 (type|inst|id) — ins.vols 與 ins.units 兩個分支會放同一個 u.id, 必須跨分支去重
+                Object.keys(s.materials).forEach(function(typeName) {
+                    var typeObj = s.materials[typeName];
+                    if (!typeObj || !Array.isArray(typeObj.instances)) return;
+                    typeObj.instances.forEach(function(ins) {
+                        if (!ins) return;
+                        if (ins.vols && typeof ins.vols === 'object') {
+                            (ins.volOrder || Object.keys(ins.vols)).forEach(function(volName) {
+                                (ins.vols[volName] || []).forEach(function(u) {
+                                    if (u && u.id) {
+                                        var k = typeName + '|' + ins.name + '|' + u.id;
+                                        if (seenIds[k]) return;
+                                        seenIds[k] = true;
+                                        out2.push(Object.assign({}, u, { vol: volName, _typeName: typeName, _instanceName: ins.name }));
+                                    }
+                                });
+                            });
+                        }
+                        if (Array.isArray(ins.units)) {
+                            ins.units.forEach(function(u) {
+                                if (u && u.id) {
+                                    var k2 = typeName + '|' + ins.name + '|' + u.id;
+                                    if (seenIds[k2]) return;
+                                    seenIds[k2] = true;
+                                    out2.push(Object.assign({}, u, {
+                                        vol: ins.type === 'volume' ? (u.vol || 'custom') : typeName + '|' + ins.name,
+                                        _instanceName: ins.name,
+                                        _typeName: typeName
+                                    }));
+                                }
+                            });
+                        }
+                    });
+                });
+                result = out2;
+            }
+            else {
+                result = [];
+            }
+            _collectSubjectUnitsCache.set(s, result);
+            return result;
+        }
+
+        function openPlanner() { 
+            showPage('page-planner'); 
+            updatePlannerSelector(); 
+        }
+
+        function updatePlannerSelector() {
+            var sel = el('planner-selector');
+            if(appPlans.length === 0) {
+                sel.value = '';
+                el('calendar-grid').innerHTML = '<div style="grid-column: 1 / -1; padding: 50px; text-align: center; color: #95a5a6;">請點擊上方「🪄 建立智慧排程計畫」開始！</div>';
+                return;
+            }
+            sel.innerHTML = appPlans.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            sel.value = appPlans[appPlans.length - 1].id;
+            
+            var catFilter = el('planner-cat-filter');
+            if(catFilter) {
+                var dashCat = el('filter-category') ? el('filter-category').value : 'ALL';
+                var dashMis = el('filter-mission') ? el('filter-mission').value : 'ALL';
+
+                var catOpts = '<option value="ALL">🌟 全部顯示</option>';
+                Object.keys(appMissions).forEach(c => catOpts += `<option value="${c}">${c}</option>`);
+                catFilter.innerHTML = catOpts;
+                catFilter.value = Object.keys(appMissions).includes(dashCat) ? dashCat : 'ALL';
+                
+                onPlannerCatChange(true); 
+                var misFilter = el('planner-mis-filter');
+                if (misFilter) {
+                    let hasOpt = Array.from(misFilter.options).some(opt => opt.value === dashMis);
+                    misFilter.value = (dashMis !== 'ALL' && hasOpt) ? dashMis : 'ALL';
+                }
+            }
+            renderCalendar();
+        }
+        
+        function onPlannerCatChange(skipRender) {
+            let cat = el('planner-cat-filter').value;
+            let misSel = el('planner-mis-filter');
+            let currentMis = misSel.value || 'ALL';
+            
+            if (!cat || cat === 'ALL') {
+                misSel.innerHTML = '<option value="ALL">🌟 全部任務</option>';
+            } else {
+                let opts = '<option value="ALL">🌟 全部任務</option>';
+                if(appMissions[cat]) {
+                    Object.keys(appMissions[cat]).forEach(m => opts += `<option value="${m}">${m}</option>`);
+                }
+                misSel.innerHTML = opts;
+                if(appMissions[cat] && appMissions[cat][currentMis]) misSel.value = currentMis;
+                else misSel.value = 'ALL';
+            }
+            if(skipRender !== true) renderCalendar();
+        }
+
+        function changeMonth(delta) {
+            console.log('[changeMonth] 啟動, delta=' + delta + ', appPlans.length=' + (appPlans ? appPlans.length : 'NULL') + ', planner-selector.value=' + (el('planner-selector') ? el('planner-selector').value : 'NULL'));
+            currentViewDate.setMonth(currentViewDate.getMonth() + delta);
+            console.log('[changeMonth] currentViewDate=' + currentViewDate.toISOString());
+            try {
+                renderCalendar();
+                console.log('[changeMonth] renderCalendar 完成, grid.length=' + (el('calendar-grid') ? el('calendar-grid').innerHTML.length : 0));
+            } catch(e) {
+                console.error('[changeMonth] ERROR:', e.message, e.stack);
+            }
+        }
+
+        window.toggleTaskDone = function(e, pid, dateStr, taskId) {
+            e.stopPropagation();
+            var plan = appPlans.find(p => p.id === pid);
+            if (!plan) return;
+            var taskArr = plan.grid[dateStr];
+            if (!taskArr) return;
+            var task = taskArr.find(t => t.id === taskId);
+            if (task) {
+                task.isDone = e.target.checked;
+                
+                let getParsedUnit = (subject, text) => {
+                    if (!appMaster[subject]) return null;
+                    let sInfo = appMaster[subject];
+                    if (sInfo.type === 'custom') {
+                        let u = sInfo.units.find(x => text.includes(x.name));
+                        if(u) return { id: u.id, vol: '', name: u.name };
+                    } else {
+                        let vols = sInfo.volOrder || Object.keys(sInfo.vols);
+                        for(let v of vols) {
+                            let u = sInfo.vols[v].find(x => text.includes(x.name));
+                            if(u) return { id: u.id, vol: v, name: u.name };
+                        }
+                    }
+                    return null;
+                };
+
+                if(task.isDone) {
+                    let unitId = task.unitId;
+                    let vol = task.vol;
+                    let unitName = task.unitName;
+                    let cat = task.cat;
+                    let mis = task.mis;
+
+                    if (!unitId && task.subject) {
+                        let parsed = getParsedUnit(task.subject, task.text);
+                        if (parsed) {
+                            unitId = parsed.id;
+                            vol = parsed.vol;
+                            unitName = parsed.name;
+                        }
+                    }
+
+                    if (unitId && (!cat || !mis)) {
+                        for (let c in appMissions) {
+                            for (let m in appMissions[c]) {
+                                if (appMissions[c][m].includes(unitId)) {
+                                    cat = c; mis = m; break;
+                                }
+                            }
+                            if (cat) break;
+                        }
+                    }
+                    
+                    let extractedUnitName = unitName || task.text.replace(/\[.*?\] /, '').split(' P.')[0].replace(/^【.*?】\s*/, '').replace(/🔔\s*/g, '');
+
+                    var logEntry = {
+                        id: 'cal_' + task.id, 
+                        date: dateStr,
+                        category: cat || '手動排程',
+                        mission: mis || plan.name,
+                        subject: task.subject || '自訂',
+                        volume: vol || '',
+                        unitId: unitId || ('dummy_' + task.id),
+                        unitName: extractedUnitName,
+                        start: task.startPage || 0,
+                        end: task.endPage || 0,
+                        pages: (task.endPage && task.startPage && task.endPage >= task.startPage) ? (task.endPage - task.startPage + 1) : 1,
+                        detail: extractedUnitName
+                    };
+                    
+                    appLogs = appLogs.filter(l => l.id !== 'cal_' + task.id);
+                    appLogs.push(logEntry);
+
+                } else {
+                    appLogs = appLogs.filter(l => l.id !== 'cal_' + task.id);
+                }
+                
+                saveToLocal();
+                renderCalendar();
+                renderDashboard();
+                renderTreeView();  // v1.6.51: 同步更新 Tree View
+                if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
+            }
+        };
+
+        window.dragTask = function(e, pid, dateStr, taskId) { e.stopPropagation(); e.dataTransfer.setData("text/plain", JSON.stringify({pid, dateStr, taskId})); e.dataTransfer.effectAllowed = "move"; };
+        window.allowDrop = function(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; };
+        window.dropTask = function(e, targetDateStr) {
+            e.preventDefault();
+            var data = e.dataTransfer.getData("text/plain");
+            if(!data) return;
+            try {
+                var obj = JSON.parse(data);
+                if(obj.dateStr === targetDateStr) return; 
+                
+                var plan = appPlans.find(p => p.id === obj.pid);
+                if(!plan) return;
+                var taskArr = plan.grid[obj.dateStr];
+                if(!taskArr) return;
+                var taskIdx = taskArr.findIndex(t => t.id === obj.taskId);
+                
+                if(taskIdx > -1) {
+                    var task = taskArr.splice(taskIdx, 1)[0];
+                    if(!plan.grid[targetDateStr]) plan.grid[targetDateStr] = [];
+                    plan.grid[targetDateStr].push(task);
+                    
+                    appLogs.push({ id: genId(), date: obj.dateStr, category: '🔄 系統重排', mission: plan.name, subject: task.subject||'自訂', unitName: '拖曳順延/微調', start: task.startPage||0, end: task.endPage||0, pages: 0, detail: `手動拖曳將任務從 ${obj.dateStr} 移至 ${targetDateStr}` });
+                    
+                    var existLogIdx = appLogs.findIndex(l => l.id === 'cal_' + task.id);
+                    if (existLogIdx > -1) appLogs[existLogIdx].date = targetDateStr;
+
+                    saveToLocal();
+                    renderCalendar();
+                    checkDailyWorkload(plan, targetDateStr);
+                    if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
+                }
+            } catch(err) { console.error(err); }
+        };
+
+        function renderCalendar() {
+            autoMigrateLogsToCalendar();
+            var pid = el('planner-selector').value;
+            console.log('[renderCalendar] pid=' + JSON.stringify(pid) + ', appPlans.length=' + (appPlans ? appPlans.length : 'NULL'));
+            // v1.5.168: planner-selector 空時 fallback 用 last plan (避免從其他頁面跳入月曆後 changeMonth 看起來沒動作)
+            if (!pid && appPlans && appPlans.length > 0) {
+                var lastPlan = appPlans[appPlans.length - 1];
+                el('planner-selector').value = lastPlan.id;
+                pid = lastPlan.id;
+                console.log('[renderCalendar] fallback to last plan: ' + pid);
+            }
+            if(!pid) { console.log('[renderCalendar] pid 空, return'); el('calendar-grid').innerHTML = ''; return; }
+            var plan = appPlans.find(p => p.id === pid); 
+            console.log('[renderCalendar] plan=' + (plan ? plan.name : 'NULL'));
+            if(!plan) return;
+            
+            let fCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
+            let fMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
+            let allowedUnitIds = new Set();
+            let allowedSubjects = new Set();
+            
+            if (fCat !== 'ALL' && appMissions[fCat]) {  // v1.5.83: 加防呆 appMissions[fCat]
+                if (fMis !== 'ALL' && appMissions[fCat][fMis]) {
+                    (appMissions[fCat][fMis] || []).forEach(id => allowedUnitIds.add(id));
+                    let mTree = buildMissionTree(fCat, fMis);
+                    Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
+                } else if (fMis === 'ALL') {
+                    Object.keys(appMissions[fCat]).forEach(m => {
+                        (appMissions[fCat][m] || []).forEach(id => allowedUnitIds.add(id));
+                        let mTree = buildMissionTree(fCat, m);
+                        Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
+                    });
+                } else {
+                    // v1.5.83: fMis 找不到 (可能 emoji 被截斷),fallback 用 ALL
+                    Object.keys(appMissions[fCat]).forEach(m => {
+                        (appMissions[fCat][m] || []).forEach(id => allowedUnitIds.add(id));
+                        let mTree = buildMissionTree(fCat, m);
+                        Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
+                    });
+                }
+            }
+            
+            var year = currentViewDate.getFullYear();
+            var month = currentViewDate.getMonth();
+            el('current-month-display').innerText = `${year}年 ${month + 1}月`;
+
+            var firstDay = new Date(year, month, 1);
+            var startDate = new Date(firstDay);
+            startDate.setDate(startDate.getDate() - startDate.getDay());
+
+            var html = '';
+            var todayStr = getLocalDateString(new Date());
+            if(!plan.grid || typeof plan.grid !== 'object') plan.grid = {};
+
+            // v1.5.87: highlight 橫條改到獨立容器 (在月曆切換的同一排最左側)
+            var highlightUid = window._highlightUnitId;
+            var bannerEl = el('calendar-highlight-banner');
+            if (highlightUid && window._treeScheduledUnits && window._treeScheduledUnits[highlightUid]) {
+                var hsu = window._treeScheduledUnits[highlightUid];
+                var cleanMis = (hsu.firstMis || '').replace(/^[\uD800-\uDBFF][\uDC00-\uDFFF]+\s*/g, '').trim();
+                bannerEl.innerHTML = '<span class="banner-content">📌 ' + escapeHtml(hsu.unitName || '單元') + ' (' + escapeHtml(hsu.firstCat) + ' → ' + escapeHtml(cleanMis) + ')</span><button onclick="returnToTreeView()">← 返回樹狀圖</button>';
+                bannerEl.style.display = 'inline-flex';
+            } else {
+                bannerEl.style.display = 'none';
+            }
+
+            for(var i=0; i<42; i++) {
+                var d = new Date(startDate); d.setDate(startDate.getDate() + i);
+                var dStr = getLocalDateString(d);
+                var isOtherMonth = d.getMonth() !== month;
+                var isWeekend = d.getDay() === 0 || d.getDay() === 6;
+                var classStr = `calendar-day ${isOtherMonth ? 'other-month' : ''} ${isWeekend ? 'weekend' : ''}`;
+
+                // v1.5.164: 事件 chip (月曆 cell 頂部)
+                var eventsHtml = '';
+                var dayEvents = (plan.events || []).filter(function(ev) { return ev.date === dStr; });
+                if (dayEvents.length > 0) {
+                    eventsHtml = '<div style="margin-bottom:4px;">';
+                    dayEvents.forEach(function(ev) {
+                        var hoursText = (ev.hours === 0) ? '0hr' : (ev.hours + 'hr');
+                        var title = ev.name + (ev.type ? ' [' + ev.type + ']' : '') + ' | ' + hoursText;
+                        eventsHtml += '<span style="display:inline-block; background:#fef3c7; color:#92400e; font-size:0.7em; padding:2px 6px; border-radius:8px; margin:1px; cursor:pointer;" title="' + escapeHtml(title) + '" onclick="event.stopPropagation();openEventsModal(\'' + dStr + '\')">📌' + escapeHtml(ev.name) + '</span>';
+                    });
+                    eventsHtml += '</div>';
+                }
+
+                var tasksHtml = '';
+                var tasks = Array.isArray(plan.grid[dStr]) ? plan.grid[dStr] : [];
+                
+                let filteredTasks = [...tasks];
+                if (fCat !== 'ALL') {
+                    filteredTasks = filteredTasks.filter(t => {
+                        if (t.unitId) {
+                            return allowedUnitIds.has(t.unitId);
+                        }
+                        if (t.cat) {
+                            if (t.cat !== fCat) return false;
+                            if (fMis !== 'ALL' && t.mis !== fMis) return false;
+                            return true;
+                        }
+                        if (!appMaster[t.subject]) return true; 
+                        if (allowedSubjects && !allowedSubjects.has(t.subject)) return false;
+                        return true;
+                    });
+                }
+
+                var targetOrder = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
+                filteredTasks.sort((a, b) => {
+                    var idxA = targetOrder.indexOf(a.subject);
+                    var idxB = targetOrder.indexOf(b.subject);
+                    if (idxA === -1) idxA = 999;
+                    if (idxB === -1) idxB = 999;
+                    if (idxA !== idxB) return idxA - idxB;
+                    return (a.subject || '').localeCompare(b.subject || '');
+                });
+                
+                if(filteredTasks.length > 0) {
+                    filteredTasks.forEach(task => {
+                        var isOverdue = !task.isDone && dStr < todayStr;
+                        var isBottleneck = (task.postponeCount >= 3);
+                        var bottleneckMark = (isBottleneck && !task.isDone) ? `<span style="color:#c0392b; font-weight:900; margin-right:4px;" title="此任務已連續順延3次以上，建議調整難度！">🆘[卡關]</span>` : '';
+                        
+                        var cmCat = task.cat || '';
+                        var cmMis = task.mis || '';
+                        if (!cmCat || !cmMis) {
+                            if (task.unitId) {
+                                for(let c in appMissions) {
+                                    for(let m in appMissions[c]) {
+                                        if(appMissions[c][m].includes(task.unitId)) { cmCat = c; cmMis = m; break; }
+                                    }
+                                    if (cmCat) break;
+                                }
+                            }
+                        }
+
+                        var linkedLog = appLogs.find(l => l.id === 'cal_' + task.id);
+                        var prefixCat = cmCat;
+                        var prefixMis = cmMis;
+                        
+                        var cleanText = task.text.replace(/\[🔄 順延\]\s*/g, '').replace(/🔔\s*/g, '').replace(/^【.*?】\s*/, '');
+                        var isReminder = task.text.includes('🔔');
+
+                        // v1.5.106: 跨單元任務動態生成多色文字 (C+E 方案)
+                        var crossRanges = getCrossUnitRanges(task);
+                        var crossUnitHtml = null;
+                        if (crossRanges) {
+                            // 顏色: 第 1 個 unit 藍色 #3b82f6, 第 2 個 unit 綠色 #10b981
+                            var colors = ['#3b82f6', '#10b981'];
+                            var htmlParts = [];
+                            crossRanges.forEach(function(r, idx) {
+                                var color = colors[idx % 2];
+                                var pageStr = (r.start === r.end) ? 'P.' + r.start : 'P.' + r.start + '~' + r.end;
+                                htmlParts.push('<span style="color:' + color + '; font-weight:bold;">' + pageStr + ' ' + escapeHtml(r.name) + '</span>');
+                            });
+                            crossUnitHtml = htmlParts.join(' <span style="color:#94a3b8;">+</span> ');
+                        }
+
+                        if (linkedLog) {
+                            var detailStr = linkedLog.detail || linkedLog.unitName || '';
+                            var subStr = linkedLog.subject || task.subject || '';
+                            
+                            if (linkedLog.category && linkedLog.category !== '手動排程' && linkedLog.category !== '🔄 系統重排' && linkedLog.category !== '🗓️ 計畫管理') {
+                                prefixCat = linkedLog.category;
+                            }
+                            if (linkedLog.mission) {
+                                prefixMis = linkedLog.mission;
+                            }
+                            
+                            cleanText = `[${subStr}] ${detailStr}`;
+                            if (linkedLog.start && linkedLog.end && linkedLog.start !== linkedLog.end) {
+                                cleanText += ` P.${linkedLog.start}~${linkedLog.end}`;
+                            } else if (linkedLog.start && linkedLog.start === linkedLog.end) {
+                                cleanText += ` P.${linkedLog.start}`;
+                            }
+                        }
+
+                        var displayText = cleanText;
+                        if (isReminder) displayText = '🔔 ' + displayText;
+                        // v1.5.106: 跨單元任務用多色文字取代原本 P.XX~YY
+                        if (crossUnitHtml) {
+                            displayText = displayText.replace(/P\.\d+(~\d+)?\s*$/, '').trim() + ' ' + crossUnitHtml;
+                        }
+
+                        var titleAttr = (displayText || "").replace(/"/g, '&quot;');
+                        if (crossRanges) {
+                            titleAttr += ' | 跨單元: ' + crossRanges.map(function(r) { return r.name + ' (' + (r.end - r.start + 1) + '頁)'; }).join(' + ');
+                        }
+                        var taskClasses = `task-item ${task.isDone ? 'done' : ''} ${isOverdue ? 'overdue' : ''} ${(isBottleneck && !task.isDone) ? 'bottleneck' : ''}`;
+                        
+                        tasksHtml += `
+                        <div class="${taskClasses}" 
+                            draggable="true" 
+                            ondragstart="dragTask(event, '${pid}', '${dStr}', '${task.id}')"
+                            onclick="editCalendarTask('${pid}', '${dStr}', '${task.id}')" title="${titleAttr}">
+                            <div style="display:flex; align-items:flex-start; gap:6px;">
+                                <input type="checkbox" ${task.isDone ? 'checked' : ''} onclick="toggleTaskDone(event, '${pid}', '${dStr}', '${task.id}')" style="margin-top:3px; width:14px; height:14px; cursor:pointer; flex-shrink:0;">
+                                <span class="task-text" style="flex:1; word-break:break-all;">${bottleneckMark}${displayText}</span>
+                            </div>
+                        </div>`;
+                    });
+                }
+                
+                var isToday = dStr === todayStr ? 'background:var(--accent); color:white; border-radius:4px;' : '';
+                
+                // v1.5.86: 檢查這個日期是否有 highlight 單元的任務
+                var hasHighlight = false;
+                if (highlightUid && tasks && tasks.length > 0) {
+                    hasHighlight = tasks.some(function(t) { return t.unitId === highlightUid; });
+                }
+                var classStrWithHighlight = hasHighlight ? classStr + ' has-highlight' : classStr;
+                
+                html += `
+                <div class="${classStrWithHighlight}" ondragover="allowDrop(event)" ondrop="dropTask(event, '${dStr}')">
+                    ${hasHighlight ? '<span class="highlight-pin" title="包含醒目單元">📌</span>' : ''}
+                    <div class="date-label-container">
+                        <span class="date-num" style="${isToday}">${d.getDate()}</span>
+                        <button class="add-event-btn" title="手動新增自訂進度" onclick="openAddEventModal('${dStr}', '${pid}'); event.stopPropagation();">＋</button>
+                    </div>
+                    ${eventsHtml}${tasksHtml}
+                </div>`;
+            }
+            el('calendar-grid').innerHTML = html;
+        }
+
+        function openDoubleCheck() {
+            let pid = el('planner-selector').value;
+            if(!pid) return alert('請先選擇計畫！');
+            let plan = appPlans.find(p => p.id === pid);
+            let todayStr = getLocalDateString(new Date());
+            let overdueTasks = [];
+            
+            Object.keys(plan.grid).forEach(dateStr => {
+                if (dateStr < todayStr) {
+                    let tasks = plan.grid[dateStr] || [];
+                    tasks.forEach(t => {
+                        if (!t.isDone) {
+                            overdueTasks.push({ date: dateStr, task: t });
+                        }
+                    });
+                }
+            });
+            
+            overdueTasks.sort((a, b) => a.date.localeCompare(b.date));
+
+            if (overdueTasks.length === 0) {
+                return alert('🎉 太棒了！Double Check 完成，目前沒有任何落後未回報的進度！');
+            }
+            
+            let html = '';
+            overdueTasks.forEach((item, i) => {
+                let defaultNextDate = new Date();
+                defaultNextDate.setDate(defaultNextDate.getDate()); 
+                let dStr = getLocalDateString(defaultNextDate);
+                
+                html += `<div class="form-group" style="background:#fdf2e9; border:1px solid #fad7a1;">
+                    <div style="font-weight:bold; color:#d35400; margin-bottom:5px;">📅 原日期: ${item.date} | 📌 ${item.task.subject || '自訂'}</div>
+                    <div style="font-size:0.95em; color:var(--primary); margin-bottom:10px;">${item.task.text}</div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <label style="margin:0; font-size:0.9em;">延期至：</label>
+                        <input type="date" id="dc-date-${i}" value="${dStr}" style="width:auto; padding:5px;">
+                        <button class="btn-success" style="padding:6px 12px; font-size:0.9em;" onclick="rescheduleTask('${item.date}', '${item.task.id}', 'dc-date-${i}')">🔄 重新安排 (順延)</button>
+                        <button class="btn-danger" style="padding:6px 12px; font-size:0.9em;" onclick="deleteCalendarTaskDirect('${item.date}', '${item.task.id}')">🗑️ 刪除</button>
+                    </div>
+                </div>`;
+            });
+            
+            el('dc-list').innerHTML = html;
+            openModal('modal-double-check');
+        }
+
+        function rescheduleTask(oldDateStr, taskId, dateInputId) {
+            let pid = el('planner-selector').value;
+            let plan = appPlans.find(p => p.id === pid);
+            let newDateStr = el(dateInputId).value;
+            if(!newDateStr) return alert('請選擇新日期！');
+            
+            let tasks = plan.grid[oldDateStr];
+            let taskIdx = tasks.findIndex(t => t.id === taskId);
+            if (taskIdx === -1) return alert('任務找不到！');
+            
+            let task = tasks[taskIdx];
+            tasks.splice(taskIdx, 1); 
+            
+            if (!plan.grid[newDateStr]) plan.grid[newDateStr] = [];
+            task.text = task.text.replace(/\[🔄 順延\]\s*/g, '');
+            task.postponeCount = (task.postponeCount || 0) + 1;
+            
+            plan.grid[newDateStr].push(task);
+            
+            appLogs.push({ id: genId(), date: oldDateStr, category: '🔄 系統重排', mission: plan.name, subject: task.subject||'手動', unitName: 'DoubleCheck延期', start: task.startPage||0, end: task.endPage||0, pages: 0, detail: `從 ${oldDateStr} 手動順延至 ${newDateStr}` });
+            
+            saveToLocal();
+            openDoubleCheck(); 
+            renderCalendar();
+            checkDailyWorkload(plan, newDateStr);
+        }
+
+        function deleteCalendarTaskDirect(dateStr, taskId) {
+            if(!confirm("確定要直接刪除此落後任務嗎？")) return;
+            let pid = el('planner-selector').value;
+            let plan = appPlans.find(p => p.id === pid);
+            if(Array.isArray(plan.grid[dateStr])) {
+                plan.grid[dateStr] = plan.grid[dateStr].filter(t => t.id !== taskId);
+            }
+            appLogs = appLogs.filter(l => l.id !== 'cal_' + taskId);
+            saveToLocal();
+            openDoubleCheck();
+            renderCalendar();
+            renderDashboard();
+            if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
+        }
+
+        // ==========================================
+        // 修正處 2：修改開啓智慧排程精靈時的過濾邏輯
+        // 導入 getUnitScheduleStatus，並自動將「剩餘未完成範圍」帶入
+        // ==========================================
+        function openWizard() {
+            populateSelect('wz-cat', Object.keys(appMissions));
+            
+            var currentCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
+            var currentMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
+
+            if (currentCat !== 'ALL' && appMissions[currentCat]) {
+                el('wz-cat').value = currentCat;
+            }
+
+            wzUpdateMis();
+            
+            if (currentCat !== 'ALL' && currentMis !== 'ALL' && appMissions[currentCat] && appMissions[currentCat][currentMis]) {
+                el('wz-mis').value = currentMis;
+            }
+            wzUpdateSubjects();
+
+            var prefs = loadWizardPrefs();
+            for(let i=0; i<=6; i++) {
+                if(prefs.hours && prefs.hours[i] !== undefined) {
+                    el('wz-hrs-' + i).value = prefs.hours[i];
+                }
+            }
+            if (el('wz-quickread-discount')) {
+                el('wz-quickread-discount').value = prefs.quickReadDiscount || 60;
+            }
+            // v1.6.146: 同步智慧排程模式 UI 狀態 (radio → 邊框/描述)
+            var initialModeRadio = document.querySelector('input[name="wz-schedule-mode"]:checked');
+            if (initialModeRadio && typeof setWizardScheduleMode === 'function') {
+                setWizardScheduleMode(initialModeRadio.value);
+            }
+
+            var dStart = new Date();
+            el('wz-startdate').value = getLocalDateString(dStart);
+            var dEnd = new Date(); dEnd.setMonth(dEnd.getMonth() + 1);
+            el('wz-enddate').value = getLocalDateString(dEnd);
+
+            // v1.5.112: 確保當前 plan 有 hourConfig, 讀取其 defaults 填入 wz-hrs-X
+            var wizPlan = getCurrentWizardPlan();
+            if (wizPlan) {
+                ensurePlanHourConfig(wizPlan);
+                var hcDefaults = wizPlan.hourConfig.defaults;
+                for (let i = 0; i <= 6; i++) {
+                    if (hcDefaults && hcDefaults[i] !== undefined) {
+                        el('wz-hrs-' + i).value = hcDefaults[i];
+                    }
+                }
+                renderHourOverrides();
+            } else {
+                var ovContainer = el('wz-overrides-container');
+                if (ovContainer) ovContainer.innerHTML = '<div style="color:#7f8c8d; font-size:0.85em;">(請先選擇計畫名稱才能設定 override)</div>';
+                // v1.5.113: plan 為 null 時 disable 新增按鈕
+                var addBtn = document.querySelector('button[onclick="addHourOverride()"]');
+                if (addBtn) {
+                    addBtn.disabled = true;
+                    addBtn.style.opacity = '0.5';
+                    addBtn.style.cursor = 'not-allowed';
+                    addBtn.title = '請先選擇計畫';
+                }
+            }
+            // v1.5.113: 有 plan 時啟用按鈕
+            var addBtn2 = document.querySelector('button[onclick="addHourOverride()"]');
+            if (addBtn2 && wizPlan) {
+                addBtn2.disabled = false;
+                addBtn2.style.opacity = '1';
+                addBtn2.style.cursor = 'pointer';
+                addBtn2.title = '';
+            }
+
+            openModal('modal-wizard');
+        }
+
+        // v1.5.112: 取得 wizard 當前操作的 plan
+        function getCurrentWizardPlan() {
+            var pid = el('planner-selector').value;
+            if (pid) {
+                var p = appPlans.find(function(x){ return x.id === pid; });
+                if (p) return p;
+            }
+            return null;
+        }
+
+        // v1.5.112: 渲染 wizard 內的 overrides 列表
+        function renderHourOverrides() {
+            var container = el('wz-overrides-container');
+            if (!container) return;
+            var plan = getCurrentWizardPlan();
+            if (!plan) { container.innerHTML = ''; return; }
+            ensurePlanHourConfig(plan);
+            var overrides = plan.hourConfig.overrides || [];
+            if (overrides.length === 0) {
+                container.innerHTML = '<div style="color:#a8a29e; font-size:0.85em; padding:10px; text-align:center; background:rgba(255,255,255,0.6); border-radius:6px; border:1px dashed #fde047;">尚無設定 · 點上方「＋ 新增」建立</div>';
+                return;
+            }
+            var html = '';
+            overrides.forEach(function(ov, idx) {
+                var daysShort = ['日', '一', '二', '三', '四', '五', '六'];
+                // v1.5.114: 計算總時數
+                var totalHours = 0;
+                for (var i = 0; i <= 6; i++) {
+                    totalHours += (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
+                }
+                // 計算天數
+                var dayCount = 0;
+                if (ov.start && ov.end) {
+                    var s = new Date(ov.start), e = new Date(ov.end);
+                    dayCount = Math.round((e - s) / 86400000) + 1;
+                }
+                var noteStr = ov.note ? ' · ' + ov.note : '';
+                var specialDates = ov.specialDates || [];
+                var hasRange = ov.start && ov.end;
+                var hasSpecial = specialDates.length > 0;
+                html += '<div style="background:#fffbeb; border:1px solid #fde047; border-radius:8px; padding:10px 12px; margin-bottom:8px;">';
+                // 頂部: 日期 + 備註 + edit/delete
+                html += '<div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:' + (hasRange || hasSpecial ? '8px' : '0') + ';">';
+                html += '<div style="flex:1; min-width:0; overflow:hidden;">';
+                if (hasRange) {
+                    html += '<div style="display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:nowrap; white-space:nowrap; overflow:hidden;">';
+                    html += '<span style="background:#a16207; color:white; padding:2px 8px; border-radius:10px; font-size:0.85em; font-weight:bold; flex-shrink:0;">' + dayCount + ' 天</span>';
+                    var dateRangeStr = formatDateRange(ov.start, ov.end);
+                    html += '<strong style="color:#92400e; flex-shrink:0;" title="' + ov.start + ' ~ ' + ov.end + '">' + dateRangeStr + '</strong>';
+                    if (ov.note) html += '<span style="color:#a16207; font-size:0.85em; flex-shrink:1; overflow:hidden; text-overflow:ellipsis;">' + escapeHtml(ov.note) + '</span>';
+                    html += '</div>';
+                }
+                if (!hasRange && ov.note) {
+                    html += '<div style="color:#a16207; font-size:0.9em; font-weight:bold;">📍 ' + escapeHtml(ov.note) + '</div>';
+                }
+                if (!hasRange && !ov.note) {
+                    html += '<div style="color:#a16207; font-size:0.85em;">(未命名)</div>';
+                }
+                html += '</div>';
+                // 右: edit/delete 按鈕
+                html += '<div style="display:flex; gap:4px; flex-shrink:0;">';
+                html += '<button type="button" title="編輯" style="padding:4px 8px; background:#f59e0b; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="editHourOverride(' + idx + ')">✏️</button>';
+                html += '<button type="button" title="刪除" style="padding:4px 8px; background:#ef4444; color:white; border:none; border-radius:5px; cursor:pointer; font-size:0.85em;" onclick="deleteHourOverride(' + idx + ')"></button>';
+                html += '</div>';
+                html += '</div>';
+                // 中: 7 天時數條 + 總時數 (僅連續範圍)
+                if (hasRange) {
+                    html += '<div style="display:flex; gap:2px; align-items:center;">';
+                    for (var i = 0; i <= 6; i++) {
+                        var h = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
+                        var bgColor = h === 0 ? '#e5e7eb' : (h >= 1 ? '#3b82f6' : '#93c5fd');
+                        var textColor = h === 0 ? '#9ca3af' : 'white';
+                        html += '<div title="週' + daysShort[i] + ': ' + h + '小時" style="flex:1; min-width:24px; padding:3px 2px; text-align:center; background:' + bgColor + '; color:' + textColor + '; font-size:0.7em; border-radius:3px;">';
+                        html += daysShort[i] + '<br>' + h;
+                        html += '</div>';
+                    }
+                    html += '<div style="margin-left:8px; padding:2px 8px; background:#fef3c7; border:1px solid #fbbf24; border-radius:10px; font-size:0.8em; font-weight:bold; color:#92400e;">合計 ' + totalHours + 'h</div>';
+                    html += '</div>';
+                }
+                // 下: 特殊日期 chip
+                if (hasSpecial) {
+                    html += '<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #fde047; display:flex; gap:6px; flex-wrap:wrap; align-items:center;">';
+                    html += '<span style="font-size:0.75em; color:#1e40af; font-weight:bold;">📍 特殊日期:</span>';
+                    specialDates.forEach(function(sd) {
+                        var sdNote = sd.note ? ' · ' + escapeHtml(sd.note) : '';
+                        var sdColor = sd.hours === 0 ? '#94a3b8' : '#3b82f6';
+                        html += '<span style="background:#dbeafe; color:#1e40af; padding:2px 8px; border-radius:10px; font-size:0.8em; font-weight:bold; border:1px solid #' + sdColor + ';">' + sd.date + ' · ' + sd.hours + 'h' + sdNote + '</span>';
+                    });
+                    html += '</div>';
+                }
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        // v1.5.112: 新增 override
+        function addHourOverride() {
+            // v1.5.113: 防呆 - 如果沒有當前 plan, 不開 modal, 提示選 plan
+            var plan = getCurrentWizardPlan();
+            if (!plan) {
+                alert('請先在上方選擇計畫名稱！\n\n(計畫名稱欄位 = 大分類 + 任務組合)\n選擇後才能設定自訂日期時數。');
+                return;
+            }
+            window._editingOverrideIdx = -1;
+            el('hov-start').value = '';
+            el('hov-end').value = '';
+            el('hov-note').value = '';
+            for (var i = 0; i <= 6; i++) el('hov-h-' + i).value = 0;
+            // v1.5.115: 初始化特殊日期為空
+            window._hovSpecialDates = [];
+            renderSpecialDatesInModal();
+            openModal('modal-hour-override');
+        }
+
+        // v1.5.112: 編輯 override
+        function editHourOverride(idx) {
+            var plan = getCurrentWizardPlan();
+            if (!plan) return;
+            var ov = plan.hourConfig.overrides[idx];
+            if (!ov) return;
+            window._editingOverrideIdx = idx;
+            el('hov-start').value = ov.start || '';
+            el('hov-end').value = ov.end || '';
+            el('hov-note').value = ov.note || '';
+            for (var i = 0; i <= 6; i++) {
+                el('hov-h-' + i).value = (ov.dailyHours && ov.dailyHours[i] !== undefined) ? ov.dailyHours[i] : 0;
+            }
+            // v1.5.115: 載入特殊日期
+            window._hovSpecialDates = (ov.specialDates || []).map(function(sd) {
+                return { date: sd.date || '', hours: sd.hours !== undefined ? sd.hours : 1.0, note: sd.note || '' };
+            });
+            renderSpecialDatesInModal();
+            openModal('modal-hour-override');
+        }
+
+        // v1.5.112: 刪除 override
+        function deleteHourOverride(idx) {
+            var plan = getCurrentWizardPlan();
+            if (!plan) return;
+            ensurePlanHourConfig(plan);
+            if (!confirm('確定要刪除這個自訂日期範圍？')) return;
+            plan.hourConfig.overrides.splice(idx, 1);
+            saveToLocal();
+            renderHourOverrides();
+        }
+
+        // v1.5.112: 儲存 override (新增或編輯)
+        function saveHourOverride() {
+            var plan = getCurrentWizardPlan();
+            if (!plan) {
+                alert('請先選擇計畫！\n\n(請確認上方「計畫名稱」欄位已有值)\n選擇後才能儲存自訂日期時數。');
+                return;
+            }
+            // v1.5.113: iOS Safari 相容性 - 強制 blur 確保 date picker 同步 .value
+            try { el('hov-start').blur(); el('hov-end').blur(); } catch(e) {}
+            ensurePlanHourConfig(plan);
+            var start = el('hov-start').value;
+            var end = el('hov-end').value;
+            // v1.5.115: 允許只填特殊日期 (不需要連續範圍)
+            var hasSpecialDates = (window._hovSpecialDates && window._hovSpecialDates.length > 0);
+            if ((!start || !end) && !hasSpecialDates) {
+                alert('請填寫「連續範圍」或至少一個「特殊日期」！\n\n(目前連續範圍: 開始="' + start + '", 結束="' + end + '")');
+                return;
+            }
+            if (start && end && start > end) { alert('結束日期不能早於開始日期！'); return; }
+            var dailyHours = {};
+            for (var i = 0; i <= 6; i++) {
+                dailyHours[i] = Number(el('hov-h-' + i).value) || 0;
+            }
+            // v1.5.115: 收集特殊日期 (過濾空值)
+            var specialDates = [];
+            if (window._hovSpecialDates) {
+                window._hovSpecialDates.forEach(function(sd) {
+                    if (sd.date) {
+                        specialDates.push({
+                            date: sd.date,
+                            hours: Number(sd.hours) || 0,
+                            note: sd.note || ''
+                        });
+                    }
+                });
+            }
+            var ov = {
+                start: start || '',
+                end: end || '',
+                dailyHours: dailyHours,
+                note: el('hov-note').value || '',
+                specialDates: specialDates
+            };
+            var idx = window._editingOverrideIdx;
+            if (idx === undefined || idx < 0) {
+                plan.hourConfig.overrides.push(ov);
+            } else {
+                plan.hourConfig.overrides[idx] = ov;
+            }
+            window._editingOverrideIdx = -1;
+            window._hovSpecialDates = null;
+            saveToLocal();
+            closeModal('modal-hour-override');
+            renderHourOverrides();
+        }
+
+        // v1.5.115: 特殊日期 UI helpers
+        function addSpecialDateRow(date, hours, note) {
+            if (!window._hovSpecialDates) window._hovSpecialDates = [];
+            window._hovSpecialDates.push({
+                date: date || '',
+                hours: hours !== undefined ? hours : 1.0,
+                note: note || ''
+            });
+            renderSpecialDatesInModal();
+        }
+
+        function removeSpecialDateRow(idx) {
+            if (!window._hovSpecialDates) return;
+            window._hovSpecialDates.splice(idx, 1);
+            renderSpecialDatesInModal();
+        }
+
+        function renderSpecialDatesInModal() {
+            var container = el('hov-special-dates-container');
+            if (!container) return;
+            var list = window._hovSpecialDates || [];
+            if (list.length === 0) {
+                container.innerHTML = '<div style="color:#94a3b8; font-size:0.85em; padding:8px; text-align:center;">尚無無特殊日期</div>';
+                return;
+            }
+            var html = '';
+            list.forEach(function(sd, idx) {
+                html += '<div style="display:flex; gap:6px; align-items:center; background:white; padding:6px 8px; border-radius:6px; border:1px solid #cbd5e1; margin-bottom:6px;">';
+                html += '<input type="date" value="' + (sd.date || '') + '" onchange="updateSpecialDateField(' + idx + ', \'date\', this.value)" style="padding:3px; border-radius:4px; border:1px solid #cbd5e1; font-size:0.9em; width:130px;">';
+                html += '<input type="number" value="' + (sd.hours !== undefined ? sd.hours : 1.0) + '" min="0" step="0.5" onchange="updateSpecialDateField(' + idx + ', \'hours\', this.value)" style="padding:3px; border-radius:4px; border:1px solid #cbd5e1; font-size:0.9em; width:55px; text-align:center;">';
+                html += '<span style="font-size:0.8em; color:var(--secondary);">小時</span>';
+                html += '<input type="text" value="' + escapeHtml(sd.note || '') + '" placeholder="備註 (例: 模擬考)" onchange="updateSpecialDateField(' + idx + ', \'note\', this.value)" style="flex:1; padding:3px 6px; border-radius:4px; border:1px solid #cbd5e1; font-size:0.9em;">';
+                html += '<button type="button" onclick="removeSpecialDateRow(' + idx + ')" style="background:#ef4444; color:white; border:none; padding:3px 7px; border-radius:4px; cursor:pointer; font-size:0.8em;" title="刪除">🗑</button>';
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function updateSpecialDateField(idx, field, value) {
+            if (!window._hovSpecialDates || !window._hovSpecialDates[idx]) return;
+            window._hovSpecialDates[idx][field] = value;
+        }
+
+        function wzUpdateMis() { 
+            var cat = el('wz-cat').value; 
+            if(!cat || !appMissions[cat]) { populateSelect('wz-mis', []); } 
+            else { populateSelect('wz-mis', Object.keys(appMissions[cat])); } 
+            wzUpdateSubjects(); 
+        }
+
+        // v1.5.117: 預掃 plan.grid 建 Map[unitId] → {maxEnd, misMaxEnd}
+// 取代原先逐個 unit 呼叫 getUnitScheduleStatus 掃描整個 grid
+// 從 O(units × grid_size) 降到 O(grid_size + units) — 大幅加速
+function buildScheduleMap(targetCat, targetMis) {
+    var map = {};
+    var pid = el('planner-selector') ? el('planner-selector').value : null;
+    if (!pid && appPlans.length > 0) pid = appPlans[appPlans.length - 1].id;
+    var plan = pid ? appPlans.find(function(p) { return p.id === pid; }) : null;
+    if (!plan || !plan.grid) return map;
+    for (var dateStr in plan.grid) {
+        var tasks = plan.grid[dateStr];
+        if (!Array.isArray(tasks)) continue;
+        for (var ti = 0; ti < tasks.length; ti++) {
+            var t = tasks[ti];
+            if (!t.unitId) continue;
+            var ep = Number(t.endPage) || 0;
+            if (!map[t.unitId]) map[t.unitId] = { maxEnd: 0, misMaxEnd: 0 };
+            var entry = map[t.unitId];
+            if (ep > entry.maxEnd) entry.maxEnd = ep;
+            if (targetCat && targetMis && t.cat === targetCat && t.mis === targetMis) {
+                if (ep > entry.misMaxEnd) entry.misMaxEnd = ep;
+            } else if (!targetCat || !targetMis) {
+                entry.misMaxEnd = entry.maxEnd;
+            }
+        }
+    }
+    return map;
 }
 
 function wzUpdateSubjects() {
@@ -14204,12 +15407,7 @@ function renderViewPage() {
     if (container) container.innerHTML = '<div class="placeholder-text">📖 錯題筆記檢視功能施工中</div>';
 }
 
-</script>    <!-- 資料管理層 -->
-    <script src="data-manager.js"></script>
-
-    <!-- IndexedDB 資料庫層 -->
-    <script src="db.js"></script>
-
+</script>
 
 <!-- Phase 1: Crop Modal (full-screen overlay for crop/erase) -->
 <div id="crop-modal" class="wn-crop-area" style="display:none">
@@ -14340,150 +15538,6 @@ function renderViewPage() {
   // 延遲初始化以確保 DOM 準備好
   setTimeout(initButtonInteractions, 100);
 })();
-
-<!-- =============================================== -->
-<!-- Phase 2 v1.7.1 兼容性層 -->
-<!-- 確保 IndexedDB 遷移平滑進行 -->
-<!-- =============================================== -->
-    // [已移除問題代碼: HTML 標籤出現在 JS 中]
-(function() {
-    'use strict';
-    
-    console.log('🔧 Phase 2 兼容性層初始化...');
-    
-    // 1. 確保關鍵函數存在
-    window._checkPhase2Compat = function() {
-        var missing = [];
-        
-        // 檢查必要函數
-        if (typeof window.saveToLocal === 'undefined') {
-            console.warn('⚠️ saveToLocal 未定義，創建簡化版本');
-            window.saveToLocal = function(uid) {
-                console.log('[Compat] 儲存數據，uid:', uid);
-                try {
-                    // 保存到 localStorage
-                    if (uid && window.multiData && window.multiData[uid]) {
-                        localStorage.setItem('multiData', JSON.stringify(window.multiData));
-                    } else if (window.user) {
-                        localStorage.setItem('user', JSON.stringify(window.user));
-                    }
-                    console.log('[Compat] 儲存成功');
-                    return Promise.resolve(true);
-                } catch (e) {
-                    console.error('[Compat] 儲存失敗:', e);
-                    return Promise.resolve(false);
-                }
-            };
-        }
-        
-        // 檢查 DataManager
-        if (typeof window.DataManager === 'undefined') {
-            console.warn('⚠️ DataManager 未定義，創建兼容版本');
-            window.DataManager = class {
-                constructor(options) {
-                    this.options = options || {};
-                }
-                async load() {
-                    console.log('[CompatDB] 載入...');
-                    return JSON.parse(localStorage.getItem('multiData') || localStorage.getItem('user') || '{}');
-                }
-                async save(data) {
-                    console.log('[CompatDB] 儲存...');
-                    localStorage.setItem('multiData', JSON.stringify(data));
-                    return true;
-                }
-            };
-        }
-        
-        // 創建 DataManagerInstance（如果不存在）
-        if (typeof window.DataManagerInstance === 'undefined') {
-            console.log('📝 創建 DataManagerInstance...');
-            try {
-                window.DataManagerInstance = new DataManager({
-                    enableLogging: true,
-                    autoSaveDelay: 1000,
-                    fallbackToLocalStorage: true
-                });
-                console.log('✅ DataManagerInstance 創建成功');
-            } catch (e) {
-                console.error('❌ DataManagerInstance 創建失敗:', e);
-            }
-        }
-        
-        return missing.length === 0;
-    };
-    
-    // 2. 設置事件監聽器
-    function setupCompatEventListeners() {
-        console.log('🔗 設置兼容事件監聽器...');
-        
-        // 頁面卸載時檢查未保存更改
-        window.addEventListener('beforeunload', function(e) {
-            if (window.DataManagerInstance && 
-                window.DataManagerInstance.hasUnsavedChanges && 
-                window.DataManagerInstance.hasUnsavedChanges()) {
-                e.preventDefault();
-                e.returnValue = '有未保存的更改';
-            }
-        });
-        
-        // 監聽數據更新
-        if (typeof window.addEventListener === 'function') {
-            window.addEventListener('data-updated', function() {
-                console.log('[Compat] 數據更新事件');
-                if (typeof window.saveToLocal === 'function') {
-                    setTimeout(window.saveToLocal, 100);
-                }
-            });
-        }
-        
-        console.log('✅ 事件監聽器設置完成');
-    }
-    
-    // 3. 兼容性啟動函數
-    window.startPhase2Compatibility = function() {
-        console.log('🚀 啟動 Phase 2 兼容層');
-        
-        // 檢查函數
-        window._checkPhase2Compat();
-        
-        // 設置事件
-        setupCompatEventListeners();
-        
-        // 延遲健康檢查
-        setTimeout(function() {
-            console.log('🏥 執行兼容性健康檢查...');
-            
-            // 檢查 IndexedDB 支持
-            if (!window.indexedDB) {
-                console.warn('⚠️ 瀏覽器不支援 IndexedDB，使用純 localStorage');
-            } else {
-                console.log('✅ 瀏覽器支援 IndexedDB');
-            }
-            
-            // 檢查數據狀態
-            var hasData = localStorage.getItem('multiData') || localStorage.getItem('user');
-            console.log('📊 localStorage 數據狀態:', hasData ? '有數據' : '無數據');
-            
-            // 顯示版本信息
-            console.log('📝 版本: v1.7.1 (with IndexedDB + Enhanced Compatibility Layer)');
-            
-        }, 2000);
-    };
-    
-    // 自動啟動（如果頁面已加載）
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        setTimeout(window.startPhase2Compatibility, 500);
-    } else {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(window.startPhase2Compatibility, 500);
-        });
-    }
-    
-    console.log('🔧 Phase 2 兼容性層加載完成');
-})();
-</script>
-<!-- =============================================== -->
 </script>
 
 </body>
