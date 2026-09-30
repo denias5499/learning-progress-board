@@ -1,6 +1,11 @@
-// disk-db.js - v2.0.0 Complete IndexedDB Schema
+// disk-db.js - v2.0.0 Complete IndexedDB Schema with Setup
 // 完整的學習進度資料庫 — 所有資料皆可從 DB 存取
 // Composite primary key [typeName, instanceName, vol, unitName] 從結構面杜絕 vol 漏失問題
+//
+// 設計原則:
+// - DB 為 front-end 產物 (純瀏覽器 IndexedDB + OPFS)
+// - 資料存放在 local disk (由 web UI 全權控制)
+// - 完整 setup() 程序：建立資料夾結構 + 初始化 schema + 自動遷移
 
 (function() {
     'use strict';
@@ -8,6 +13,7 @@
     const DB_NAME = 'LearningProgressDB';
     const DB_VERSION = 3; // v2.0.0
     const STORAGE_KEY_FAMILY = 'StudyMap_Family_Data_V20';
+    const DB_FOLDER_NAME = 'StudyMap_DB'; // OPFS / Downloads 子資料夾名
 
     // ============================================================
     // Schema 定義 — 12 個 stores 涵蓋所有功能
@@ -91,6 +97,113 @@
     };
 
     // ============================================================
+    // OPFS (Origin Private File System) helpers
+    // 給 web UI 在 local disk 上建立 folder 結構用
+    // ============================================================
+    const OPFS = {
+        /**
+         * 檢查 OPFS 是否支援
+         */
+        isSupported() {
+            return !!(navigator.storage && navigator.storage.getDirectory);
+        },
+
+        /**
+         * 取得或建立 StudyMap_DB 根資料夾
+         */
+        async getRootFolder(create = true) {
+            if (!this.isSupported()) {
+                throw new Error('OPFS not supported in this browser');
+            }
+            const root = await navigator.storage.getDirectory();
+            return root.getDirectoryHandle(DB_FOLDER_NAME, { create });
+        },
+
+        /**
+         * 建立 12 個 store 子資料夾
+         */
+        async createStoreFolders() {
+            const root = await this.getRootFolder(true);
+            const created = {};
+            for (const storeName of Object.keys(SCHEMA)) {
+                try {
+                    await root.getDirectoryHandle(storeName, { create: true });
+                    created[storeName] = `${DB_FOLDER_NAME}/${storeName}`;
+                } catch (e) {
+                    created[storeName + '_error'] = e.message;
+                }
+            }
+            // 額外資料夾
+            await root.getDirectoryHandle('backups', { create: true });
+            await root.getDirectoryHandle('exports', { create: true });
+            created.backups = `${DB_FOLDER_NAME}/backups`;
+            created.exports = `${DB_FOLDER_NAME}/exports`;
+            return created;
+        },
+
+        /**
+         * 寫入檔案到 OPFS folder
+         */
+        async writeFile(folderPath, fileName, content) {
+            const root = await navigator.storage.getDirectory();
+            let dir = root;
+            const parts = folderPath.split('/');
+            for (const part of parts) {
+                if (part) dir = await dir.getDirectoryHandle(part, { create: true });
+            }
+            const fileHandle = await dir.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(content);
+            await writable.close();
+            return `${folderPath}/${fileName}`;
+        },
+
+        /**
+         * 讀取 OPFS 檔案
+         */
+        async readFile(folderPath, fileName) {
+            const root = await navigator.storage.getDirectory();
+            let dir = root;
+            const parts = folderPath.split('/');
+            for (const part of parts) {
+                if (part) dir = await dir.getDirectoryHandle(part, { create: false });
+            }
+            const fileHandle = await dir.getFileHandle(fileName, { create: false });
+            const file = await fileHandle.getFile();
+            return await file.text();
+        }
+    };
+
+    // ============================================================
+    // Browser Download helper
+    // 把檔案下載到使用者系統 Downloads 資料夾
+    // ============================================================
+    const Downloader = {
+        /**
+         * 觸發瀏覽器下載 (存到使用者系統 Downloads 資料夾)
+         */
+        downloadFile(filename, content, mimeType = 'application/json') {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            return { filename, size: blob.size };
+        },
+
+        /**
+         * 下載多個檔案 (連續觸發)
+         */
+        downloadFiles(files) {
+            return files.map(f => this.downloadFile(f.name, f.content, f.mimeType));
+        }
+    };
+
+    // ============================================================
     // LearningProgressDB Class
     // ============================================================
     class LearningProgressDB {
@@ -98,8 +211,12 @@
             this.dbName = DB_NAME;
             this.version = DB_VERSION;
             this.db = null;
+            this.setupLog = []; // setup() 過程記錄
         }
 
+        // ============================================================
+        // 初始化 DB 連線
+        // ============================================================
         async init() {
             if (this.db) return this;
             return new Promise((resolve, reject) => {
@@ -240,7 +357,114 @@
         }
 
         // ============================================================
-        // Migration from localStorage
+        // Setup 程序 (核心新增)
+        // 完整流程：建資料夾 → 初始化 schema → 自動遷移 → 寫 manifest
+        // ============================================================
+        async setup(options = {}) {
+            const userId = options.userId || 'config';
+            const log = [];
+            const startedAt = Date.now();
+
+            console.log('[diskDB.setup] 開始 setup 程序...');
+            log.push({ step: 'start', timestamp: startedAt });
+
+            // Step 1: 初始化 IndexedDB
+            try {
+                await this.init();
+                log.push({ step: 'init_db', status: 'ok', version: this.version });
+            } catch (e) {
+                log.push({ step: 'init_db', status: 'error', error: e.message });
+                throw e;
+            }
+
+            // Step 2: 建立 OPFS 資料夾結構 (browser-side local disk)
+            let folders = null;
+            if (options.createFolders !== false) {
+                if (OPFS.isSupported()) {
+                    try {
+                        folders = await OPFS.createStoreFolders();
+                        log.push({ step: 'create_folders', status: 'ok', folders });
+                        console.log('[diskDB.setup] ✅ OPFS folder 結構建立完成:', folders);
+                    } catch (e) {
+                        log.push({ step: 'create_folders', status: 'error', error: e.message });
+                        console.warn('[diskDB.setup] ⚠️ OPFS folder 建立失敗:', e);
+                    }
+                } else {
+                    log.push({ step: 'create_folders', status: 'skipped', reason: 'OPFS not supported' });
+                    console.log('[diskDB.setup] ℹ️ 瀏覽器不支援 OPFS, 跳過 folder 建立');
+                }
+            }
+
+            // Step 3: 自動遷移 (從 localStorage → IndexedDB)
+            let migration = null;
+            if (options.migrate !== false) {
+                try {
+                    migration = await this.migrateFromLocalStorage(userId);
+                    log.push({ step: 'migrate', status: 'ok', migration });
+                } catch (e) {
+                    log.push({ step: 'migrate', status: 'error', error: e.message });
+                    console.warn('[diskDB.setup] ⚠️ 遷移失敗:', e);
+                }
+            }
+
+            // Step 4: 驗證所有 stores 都建好
+            const stats = await this.getStats();
+            const missing = Object.keys(SCHEMA).filter(k => stats[k] === undefined || stats[k] < 0);
+            log.push({
+                step: 'verify',
+                status: missing.length === 0 ? 'ok' : 'error',
+                stats,
+                missing
+            });
+
+            // Step 5: 寫 setup manifest
+            const manifest = {
+                version: '2.0.0',
+                dbVersion: this.version,
+                timestamp: new Date().toISOString(),
+                startedAt,
+                duration: Date.now() - startedAt,
+                userId,
+                schema: Object.keys(SCHEMA),
+                folders,
+                stats,
+                migration,
+                log
+            };
+
+            // 寫到 meta store (永久)
+            await this.setMeta('setup_manifest', manifest);
+            log.push({ step: 'write_meta', status: 'ok' });
+
+            // 寫到 OPFS (local disk)
+            if (OPFS.isSupported() && folders) {
+                try {
+                    const path = await OPFS.writeFile(
+                        `${DB_FOLDER_NAME}/meta`,
+                        'setup_manifest.json',
+                        JSON.stringify(manifest, null, 2)
+                    );
+                    log.push({ step: 'write_opfs', status: 'ok', path });
+                } catch (e) {
+                    log.push({ step: 'write_opfs', status: 'error', error: e.message });
+                }
+            }
+
+            this.setupLog = log;
+            console.log(`[diskDB.setup] ✅ 完成 (${Date.now() - startedAt}ms)`, manifest.stats);
+            return {
+                success: true,
+                duration: Date.now() - startedAt,
+                stats,
+                folders,
+                migration,
+                log,
+                manifest
+            };
+        }
+
+        // ============================================================
+        // 從 localStorage 遷移 (含冪等檢查)
         // ============================================================
         async migrateFromLocalStorage(userId = 'config') {
             console.log('[diskDB] starting migration from localStorage → IndexedDB...');
@@ -290,7 +514,7 @@
                 settings: user.settings || {}
             }]);
 
-            // 2-7. Hierarchy: categories → projects → subjects → materialTypes → instances → vols
+            // 2-7. Hierarchy
             const catNameToId = {};
             Object.keys(user.masters || {}).forEach((catName, ci) => {
                 const catId = `cat_${userId}_${ci}`;
@@ -300,7 +524,6 @@
                 }]);
             });
 
-            // Default project per category
             const catNameToProjId = {};
             Object.keys(user.masters || {}).forEach((catName, ci) => {
                 const catId = catNameToId[catName];
@@ -312,7 +535,6 @@
                 }]);
             });
 
-            // Subjects → MaterialTypes → Instances → Vols → Units
             Object.entries(user.masters || {}).forEach(([catName, subjects]) => {
                 const catId = catNameToId[catName];
                 const projId = catNameToProjId[catName];
@@ -346,7 +568,6 @@
                                 order: ii, createdAt: Date.now()
                             }]);
 
-                            // Units from ins.units (custom type, no vol)
                             (ins.units || []).forEach(u => {
                                 if (!u || !u.name) return;
                                 allPuts.push(['units', {
@@ -360,7 +581,6 @@
                                 }]);
                             });
 
-                            // Units from ins.vols[vol][]
                             Object.entries(ins.vols || {}).forEach(([volName, volUnits]) => {
                                 const volId = `vol_${insId}_${volName}`;
                                 allPuts.push(['vols', {
@@ -426,7 +646,7 @@
                 });
             });
 
-            // 12. Meta: migration record
+            // 12. Meta
             allPuts.push(['meta', {
                 key: 'migration_v2',
                 value: {
@@ -443,17 +663,14 @@
                 updatedAt: Date.now()
             }]);
 
-            // Bulk insert
             console.log(`[diskDB] bulk-inserting ${allPuts.length} records...`);
 
-            // Group by store
             const byStore = {};
             allPuts.forEach(([storeName, record]) => {
                 if (!byStore[storeName]) byStore[storeName] = [];
                 byStore[storeName].push(record);
             });
 
-            // Execute all in sequence (transactions need separate calls)
             for (const [storeName, items] of Object.entries(byStore)) {
                 await this.bulkPut(storeName, items);
                 stats[storeName] = items.length;
@@ -464,36 +681,70 @@
         }
 
         // ============================================================
-        // Convenience API — High-level operations
+        // Export 全部資料 (JSON 格式)
+        // 供下載到 Downloads 資料夾
         // ============================================================
+        async exportAll() {
+            const data = {
+                exportedAt: new Date().toISOString(),
+                version: '2.0.0',
+                dbVersion: this.version,
+                stores: {}
+            };
+            for (const storeName of Object.keys(SCHEMA)) {
+                data.stores[storeName] = await this.getAll(storeName);
+            }
+            return data;
+        }
 
-        // 取得指定 (typeName, instanceName, vol, unitName) 的單元
+        async exportToDownload() {
+            const data = await this.exportAll();
+            const filename = `StudyMap_DB_export_${new Date().toISOString().split('T')[0]}.json`;
+            return Downloader.downloadFile(filename, JSON.stringify(data, null, 2));
+        }
+
+        async exportPerStoreToDownloads() {
+            const files = [];
+            for (const storeName of Object.keys(SCHEMA)) {
+                const items = await this.getAll(storeName);
+                files.push({
+                    name: `${storeName}.json`,
+                    content: JSON.stringify({
+                        store: storeName,
+                        count: items.length,
+                        exportedAt: new Date().toISOString(),
+                        items
+                    }, null, 2),
+                    mimeType: 'application/json'
+                });
+            }
+            return Downloader.downloadFiles(files);
+        }
+
+        // ============================================================
+        // Convenience API
+        // ============================================================
         async getUnit(typeName, instanceName, vol, unitName) {
             return this.get('units', [typeName, instanceName, vol, unitName]);
         }
 
-        // 用 legacy unitId 找單元 (向後相容)
         async getUnitByLegacyId(legacyId) {
             const results = await this.getByIndex('units', '_legacyUnitId', legacyId);
             return results[0] || null;
         }
 
-        // 取得某科目所有單元
         async getUnitsBySubject(subject) {
             return this.getByIndex('units', 'subject', subject);
         }
 
-        // 取得某日期所有任務
         async getTasksByDate(date) {
             return this.getByIndex('tasks', 'date', date);
         }
 
-        // 取得某單元所有任務
         async getTasksByUnit(typeName, instanceName, vol, unitName) {
             return this.getByIndex('tasks', 'unitKey', [typeName, instanceName, vol, unitName]);
         }
 
-        // 取得某使用者所有計畫
         async getPlansByUser(userId) {
             return this.getByIndex('plans', 'userId', userId);
         }
@@ -507,9 +758,6 @@
             return this.put('meta', { key, value, updatedAt: Date.now() });
         }
 
-        // ============================================================
-        // Stats
-        // ============================================================
         async getStats() {
             const stats = {};
             for (const storeName of Object.keys(SCHEMA)) {
@@ -541,24 +789,36 @@
         },
 
         /**
+         * 完整 setup() — 首次使用必跑 (建立資料夾 + 初始化 + 遷移)
+         * 用法: await window.diskDB.setup({ userId: 'config' })
+         */
+        setup: async function(options = {}) {
+            const db = await this.getInstance();
+            return db.setup(options);
+        },
+
+        /**
          * Get already-initialized instance (sync, may be null)
          */
         instance: function() { return _instance; },
 
         /**
-         * Schema constants (for inspection / debugging)
+         * Schema constants
          */
         SCHEMA: SCHEMA,
         DB_NAME: DB_NAME,
         DB_VERSION: DB_VERSION,
+        DB_FOLDER_NAME: DB_FOLDER_NAME,
         STORAGE_KEY_FAMILY: STORAGE_KEY_FAMILY,
 
         /**
-         * Direct class access
+         * Module 對外暴露
          */
-        LearningProgressDB: LearningProgressDB
+        LearningProgressDB: LearningProgressDB,
+        OPFS: OPFS,
+        Downloader: Downloader
     };
 
-    console.log('[diskDB] module loaded, version', DB_VERSION);
+    console.log('[diskDB] module loaded, version', DB_VERSION, '— 呼叫 window.diskDB.setup() 開始');
 
 })();

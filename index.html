@@ -15543,49 +15543,75 @@ function renderViewPage() {
 })();
 </script>
 
-<!-- v2.0.0: 初始化 Disk Database + 從 localStorage 自動遷移 -->
+<!-- v2.0.0: 完整 setup() — 建立 folder + 初始化 schema + 自動遷移 -->
 <script>
 (function() {
     'use strict';
 
-    async function _v200InitDiskDB() {
+    async function _v200Setup() {
         try {
-            console.log('[v2.0.0] 初始化 Disk Database...');
-            const db = await window.diskDB.getInstance();
+            console.log('[v2.0.0] 開始 setup() — 建立 Disk Database + OPFS folder + 遷移...');
+            const result = await window.diskDB.setup({
+                userId: 'config',
+                createFolders: true,  // 在 OPFS local disk 建立 StudyMap_DB 資料夾結構
+                migrate: true         // 從 localStorage 自動遷移
+            });
 
-            // 檢查是否已遷移
-            const migrationMeta = await db.getMeta('migration_v2');
-            if (migrationMeta) {
-                console.log('[v2.0.0] 已遷移於', new Date(migrationMeta.timestamp || 0).toISOString());
-                const stats = await db.getStats();
-                console.log('[v2.0.0] 當前資料統計:', stats);
-                return;
+            if (result.success) {
+                console.log('[v2.0.0] ✅ Setup 完成 (' + result.duration + 'ms)');
+                console.log('[v2.0.0] 📊 資料統計:', result.stats);
+                console.log('[v2.0.0] 📁 OPFS folders:', result.folders);
+
+                // 暴露給 debug console
+                window._diskDB = window.diskDB.instance();
+                window._setupResult = result;
+
+                // 顯示 setup 摘要到 UI (右下角小視窗)
+                setTimeout(() => {
+                    if (window._diskDB) {
+                        _showSetupBanner(result);
+                    }
+                }, 1500);
             }
-
-            // 執行遷移
-            console.log('[v2.0.0] 開始從 localStorage 遷移資料...');
-            const result = await db.migrateFromLocalStorage('config');
-            if (result.migrated) {
-                console.log('[v2.0.0] ✅ 遷移完成:', result.stats);
-            } else {
-                console.log('[v2.0.0] ⚠️ 無資料可遷移:', result.reason);
-            }
-
-            // 暴露給 debug console
-            window._diskDB = db;
-            const finalStats = await db.getStats();
-            console.log('[v2.0.0] 最終資料統計:', finalStats);
         } catch (e) {
-            console.error('[v2.0.0] ❌ DiskDB 初始化失敗，localStorage 模式繼續運作:', e);
+            console.error('[v2.0.0] ❌ Setup 失敗，localStorage 模式繼續運作:', e);
         }
+    }
+
+    function _showSetupBanner(result) {
+        // 簡單的 setup 狀態橫幅
+        const banner = document.createElement('div');
+        banner.id = 'diskdb-setup-banner';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#10b981;color:white;padding:10px 14px;border-radius:8px;font-size:12px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:340px;line-height:1.5;cursor:pointer;';
+
+        const stats = result.stats;
+        const total = Object.values(stats).reduce((a, b) => a + b, 0);
+        const folderCount = result.folders ? Object.keys(result.folders).length : 0;
+
+        banner.innerHTML = `
+            <div style="font-weight:600;margin-bottom:4px;">✅ v2.0.0 Disk Database 已就緒</div>
+            <div style="opacity:0.9;">📊 ${total} 筆資料 (${Object.keys(stats).filter(k => stats[k] > 0).length} 個 stores)</div>
+            <div style="opacity:0.9;">📁 ${folderCount} 個 OPFS folders 建立</div>
+            <div style="opacity:0.7;font-size:10px;margin-top:4px;">點此關閉 · 詳細: window._diskDB</div>
+        `;
+        banner.onclick = () => banner.remove();
+        document.body.appendChild(banner);
+
+        // 10 秒後自動淡出
+        setTimeout(() => {
+            if (banner.parentNode) {
+                banner.style.transition = 'opacity 1s';
+                banner.style.opacity = '0';
+                setTimeout(() => banner.remove(), 1000);
+            }
+        }, 10000);
     }
 
     // DOMContentLoaded 後啟動 (不阻塞主流程)
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', _v200InitDiskDB);
+        document.addEventListener('DOMContentLoaded', _v200Setup);
     } else {
-        // Script already at end of body, DOM is ready
-        _v200InitDiskDB();
+        _v200Setup();
     }
 })();
 </script>
