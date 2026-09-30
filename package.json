@@ -1,6 +1,6 @@
 {
   "name": "learning-progress-board",
-  "version": "1.5.172",
+  "version": "2.0.0",
   "description": "純前端、可離線使用、單檔 HTML 的學習進度看板",
   "private": true,
   "scripts": {

@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v1.6.173]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.0.0]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2340,6 +2340,9 @@
     </div>
 
     <div id="print-area"></div>
+
+    <!-- v2.0.0: Disk Database (IndexedDB) — 完整 schema + 自動遷移 -->
+    <script src="disk-db.js"></script>
 
     <script>
         function genId() { return 'id_' + Math.random().toString(36).substr(2, 9); }
@@ -15537,6 +15540,53 @@ function renderViewPage() {
   
   // 延遲初始化以確保 DOM 準備好
   setTimeout(initButtonInteractions, 100);
+})();
+</script>
+
+<!-- v2.0.0: 初始化 Disk Database + 從 localStorage 自動遷移 -->
+<script>
+(function() {
+    'use strict';
+
+    async function _v200InitDiskDB() {
+        try {
+            console.log('[v2.0.0] 初始化 Disk Database...');
+            const db = await window.diskDB.getInstance();
+
+            // 檢查是否已遷移
+            const migrationMeta = await db.getMeta('migration_v2');
+            if (migrationMeta) {
+                console.log('[v2.0.0] 已遷移於', new Date(migrationMeta.timestamp || 0).toISOString());
+                const stats = await db.getStats();
+                console.log('[v2.0.0] 當前資料統計:', stats);
+                return;
+            }
+
+            // 執行遷移
+            console.log('[v2.0.0] 開始從 localStorage 遷移資料...');
+            const result = await db.migrateFromLocalStorage('config');
+            if (result.migrated) {
+                console.log('[v2.0.0] ✅ 遷移完成:', result.stats);
+            } else {
+                console.log('[v2.0.0] ⚠️ 無資料可遷移:', result.reason);
+            }
+
+            // 暴露給 debug console
+            window._diskDB = db;
+            const finalStats = await db.getStats();
+            console.log('[v2.0.0] 最終資料統計:', finalStats);
+        } catch (e) {
+            console.error('[v2.0.0] ❌ DiskDB 初始化失敗，localStorage 模式繼續運作:', e);
+        }
+    }
+
+    // DOMContentLoaded 後啟動 (不阻塞主流程)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', _v200InitDiskDB);
+    } else {
+        // Script already at end of body, DOM is ready
+        _v200InitDiskDB();
+    }
 })();
 </script>
 
