@@ -1,19 +1,38 @@
-// disk-db.js - v2.0.0 Complete IndexedDB Schema with Setup
-// 完整的學習進度資料庫 — 所有資料皆可從 DB 存取
-// Composite primary key [typeName, instanceName, vol, unitName] 從結構面杜絕 vol 漏失問題
-//
-// 設計原則:
-// - DB 為 front-end 產物 (純瀏覽器 IndexedDB + OPFS)
-// - 資料存放在 local disk (由 web UI 全權控制)
-// - 完整 setup() 程序：建立資料夾結構 + 初始化 schema + 自動遷移
+/**
+ * disk-db.js — v2.1.0
+ * ============================================================
+ * Learning Progress Board — Disk Database Layer
+ *
+ * v2.1.0 重大改動：
+ *   1. 移除 OPFS (browser-internal, 用戶看不到)
+ *   2. 新增 File System Access API 整合 (showDirectoryPicker)
+ *   3. JSON 檔案儲存在用戶指定的 Mac 資料夾 (iCloud/Dropbox/NAS 自動 sync)
+ *   4. Folder handle 持久化到 IndexedDB (Chrome/Edge)
+ *   5. 權限檢查 + popup UX (權限被拒時彈出重選提示)
+ *   6. setup() 自動偵測 stored handle → 自動 re-authorize
+ *
+ * 跨瀏覽器支援：
+ *   - Chrome / Edge 86+: 完整 File System Access API
+ *   - Safari / Firefox: 不支援 showDirectoryPicker，僅用 IndexedDB (local cache)
+ *     並提供 exportToDownload() 手動備份
+ *
+ * 用法：
+ *   await window.diskDB.setup({ userId: 'config' })  // 完整初始化
+ *   await window.diskDB.pickFolder()                  // 讓用戶選 folder
+ *   await window.diskDB.syncAllToFolder()             // 寫 JSON 到 folder
+ *   await window.diskDB.syncAllFromFolder()           // 從 folder 讀 JSON
+ * ============================================================
+ */
 
 (function() {
     'use strict';
 
     const DB_NAME = 'LearningProgressDB';
-    const DB_VERSION = 3; // v2.0.0
+    const DB_VERSION = 4; // v2.1.0: + folder handle store
     const STORAGE_KEY_FAMILY = 'StudyMap_Family_Data_V20';
-    const DB_FOLDER_NAME = 'StudyMap_DB'; // OPFS / Downloads 子資料夾名
+    const DB_FOLDER_NAME = 'StudyMap_DB';
+    const FOLDER_HANDLE_KEY = 'folder_handle';
+    const FOLDER_INFO_KEY = 'folder_info';
 
     // ============================================================
     // Schema 定義 — 12 個 stores 涵蓋所有功能
@@ -90,98 +109,114 @@
                 'date': 'date'
             }
         },
-        // 12. 中介資料 (migration 狀態、currentUserId 等)
+        // 12. 中介資料 (folder handle、currentUserId 等)
         meta: {
             keyPath: 'key'
         }
     };
 
     // ============================================================
-    // OPFS (Origin Private File System) helpers
-    // 給 web UI 在 local disk 上建立 folder 結構用
+    // FSAccess — File System Access API helpers
+    // 取代 v2.0.0 的 OPFS。讓用戶選 Mac 資料夾 (iCloud/Dropbox/NAS 同步)
     // ============================================================
-    const OPFS = {
+    const FSAccess = {
         /**
-         * 檢查 OPFS 是否支援
+         * 檢查瀏覽器是否支援
          */
         isSupported() {
-            return !!(navigator.storage && navigator.storage.getDirectory);
+            return typeof window !== 'undefined' && 'showDirectoryPicker' in window;
         },
 
         /**
-         * 取得或建立 StudyMap_DB 根資料夾
+         * 彈出原生 picker 讓用戶選資料夾
          */
-        async getRootFolder(create = true) {
+        async pickFolder() {
             if (!this.isSupported()) {
-                throw new Error('OPFS not supported in this browser');
+                throw new Error('瀏覽器不支援 File System Access API。請用 Chrome 或 Edge。');
             }
-            const root = await navigator.storage.getDirectory();
-            return root.getDirectoryHandle(DB_FOLDER_NAME, { create });
+            return await window.showDirectoryPicker({
+                mode: 'readwrite',
+                id: 'studymap-db'
+            });
         },
 
         /**
-         * 建立 12 個 store 子資料夾
+         * 檢查/請求 handle 權限
          */
-        async createStoreFolders() {
-            const root = await this.getRootFolder(true);
-            const created = {};
-            for (const storeName of Object.keys(SCHEMA)) {
-                try {
-                    await root.getDirectoryHandle(storeName, { create: true });
-                    created[storeName] = `${DB_FOLDER_NAME}/${storeName}`;
-                } catch (e) {
-                    created[storeName + '_error'] = e.message;
-                }
+        async ensurePermission(handle, mode = 'readwrite') {
+            if (!handle) return false;
+            const opts = { mode };
+            try {
+                const cur = await handle.queryPermission(opts);
+                if (cur === 'granted') return true;
+            } catch (e) {
+                return false;
             }
-            // 額外資料夾
-            await root.getDirectoryHandle('backups', { create: true });
-            await root.getDirectoryHandle('exports', { create: true });
-            created.backups = `${DB_FOLDER_NAME}/backups`;
-            created.exports = `${DB_FOLDER_NAME}/exports`;
-            return created;
+            try {
+                const req = await handle.requestPermission(opts);
+                return req === 'granted';
+            } catch (e) {
+                return false;
+            }
         },
 
         /**
-         * 寫入檔案到 OPFS folder
+         * 寫 JSON 檔案到 directory handle
          */
-        async writeFile(folderPath, fileName, content) {
-            const root = await navigator.storage.getDirectory();
-            let dir = root;
-            const parts = folderPath.split('/');
-            for (const part of parts) {
-                if (part) dir = await dir.getDirectoryHandle(part, { create: true });
-            }
-            const fileHandle = await dir.getFileHandle(fileName, { create: true });
+        async writeJsonFile(dirHandle, fileName, data) {
+            const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
             const writable = await fileHandle.createWritable();
+            const content = JSON.stringify(data, null, 2);
             await writable.write(content);
             await writable.close();
-            return `${folderPath}/${fileName}`;
+            return { file: fileName, size: content.length };
         },
 
         /**
-         * 讀取 OPFS 檔案
+         * 從 directory handle 讀 JSON 檔案 (不存在回傳 null)
          */
-        async readFile(folderPath, fileName) {
-            const root = await navigator.storage.getDirectory();
-            let dir = root;
-            const parts = folderPath.split('/');
-            for (const part of parts) {
-                if (part) dir = await dir.getDirectoryHandle(part, { create: false });
+        async readJsonFile(dirHandle, fileName) {
+            try {
+                const fileHandle = await dirHandle.getFileHandle(fileName, { create: false });
+                const file = await fileHandle.getFile();
+                return JSON.parse(await file.text());
+            } catch (e) {
+                if (e.name === 'NotFoundError') return null;
+                throw e;
             }
-            const fileHandle = await dir.getFileHandle(fileName, { create: false });
-            const file = await fileHandle.getFile();
-            return await file.text();
+        },
+
+        /**
+         * 列出資料夾內所有 .json 檔案名
+         */
+        async listJsonFiles(dirHandle) {
+            const files = [];
+            for await (const entry of dirHandle.values()) {
+                if (entry.kind === 'file' && entry.name.endsWith('.json')) {
+                    files.push(entry.name);
+                }
+            }
+            return files;
+        },
+
+        /**
+         * 刪除檔案 (容錯)
+         */
+        async deleteFile(dirHandle, fileName) {
+            try {
+                await dirHandle.removeEntry(fileName);
+                return true;
+            } catch (e) {
+                return false;
+            }
         }
     };
 
     // ============================================================
-    // Browser Download helper
+    // Downloader — fallback for non-FSAccess browsers (Safari, Firefox)
     // 把檔案下載到使用者系統 Downloads 資料夾
     // ============================================================
     const Downloader = {
-        /**
-         * 觸發瀏覽器下載 (存到使用者系統 Downloads 資料夾)
-         */
         downloadFile(filename, content, mimeType = 'application/json') {
             const blob = new Blob([content], { type: mimeType });
             const url = URL.createObjectURL(blob);
@@ -195,9 +230,6 @@
             return { filename, size: blob.size };
         },
 
-        /**
-         * 下載多個檔案 (連續觸發)
-         */
         downloadFiles(files) {
             return files.map(f => this.downloadFile(f.name, f.content, f.mimeType));
         }
@@ -211,12 +243,10 @@
             this.dbName = DB_NAME;
             this.version = DB_VERSION;
             this.db = null;
-            this.setupLog = []; // setup() 過程記錄
+            this.setupLog = [];
+            this._activeFolderHandle = null;
         }
 
-        // ============================================================
-        // 初始化 DB 連線
-        // ============================================================
         async init() {
             if (this.db) return this;
             return new Promise((resolve, reject) => {
@@ -225,7 +255,7 @@
                 request.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     const oldV = e.oldVersion;
-                    console.log(`[diskDB] upgrade: ${oldV} → ${this.version}`);
+                    console.log('[diskDB] upgrade: ' + oldV + ' -> ' + this.version);
 
                     Object.entries(SCHEMA).forEach(([storeName, config]) => {
                         let store;
@@ -238,7 +268,6 @@
                             store = db.createObjectStore(storeName, opts);
                         }
 
-                        // Create indexes
                         if (config.indexes) {
                             Object.entries(config.indexes).forEach(([indexName, keyPath]) => {
                                 if (!store.indexNames.contains(indexName)) {
@@ -266,9 +295,6 @@
             });
         }
 
-        // ============================================================
-        // Generic CRUD
-        // ============================================================
         async _tx(storeName, mode) {
             if (!this.db) await this.init();
             return this.db.transaction(storeName, mode).objectStore(storeName);
@@ -357,16 +383,149 @@
         }
 
         // ============================================================
-        // Setup 程序 (核心新增)
-        // 完整流程：建資料夾 → 初始化 schema → 自動遷移 → 寫 manifest
+        // Folder Handle 管理 (File System Access API)
+        // ============================================================
+
+        /**
+         * 從 IndexedDB 取得 stored folder handle (Chrome/Edge 支援)
+         * 並嘗試取得 readwrite 權限
+         */
+        async tryStoredHandle() {
+            const r = await this.get('meta', FOLDER_HANDLE_KEY);
+            if (!r) return null;
+            const handle = (r.value && r.value.handle) || r.handle;
+            if (!handle) return null;
+            try {
+                if (await FSAccess.ensurePermission(handle, 'readwrite')) {
+                    return handle;
+                }
+            } catch (e) {
+                console.warn('[diskDB] stored handle invalid:', e.message);
+            }
+            return null;
+        }
+
+        /**
+         * 儲存 folder handle 到 IndexedDB (Chrome/Edge)
+         */
+        async storeHandle(handle) {
+            if (!handle) return;
+            await this.setMeta(FOLDER_HANDLE_KEY, {
+                handle,
+                name: handle.name,
+                savedAt: Date.now()
+            });
+            this._activeFolderHandle = handle;
+        }
+
+        /**
+         * 取得 folder 元資料 (name, savedAt)
+         */
+        async getFolderInfo() {
+            const r = await this.get('meta', FOLDER_INFO_KEY);
+            return r ? (r.value || r) : null;
+        }
+
+        async saveFolderInfo(handle) {
+            if (!handle) return;
+            await this.setMeta(FOLDER_INFO_KEY, {
+                name: handle.name,
+                savedAt: Date.now()
+            });
+        }
+
+        /**
+         * 取得當前 session 的 folder handle
+         */
+        getActiveHandle() {
+            return this._activeFolderHandle;
+        }
+
+        // ============================================================
+        // Sync — IndexedDB <-> JSON files in folder
+        // ============================================================
+
+        async syncAllToFolder(folderHandle) {
+            const result = { written: 0, errors: [], files: [] };
+            if (!folderHandle) {
+                result.errors.push({ error: 'no_handle' });
+                return result;
+            }
+            for (const storeName of Object.keys(SCHEMA)) {
+                try {
+                    const items = await this.getAll(storeName);
+                    const fileRes = await FSAccess.writeJsonFile(folderHandle, storeName + '.json', {
+                        store: storeName,
+                        count: items.length,
+                        updatedAt: new Date().toISOString(),
+                        items
+                    });
+                    result.written++;
+                    result.files.push(fileRes);
+                } catch (e) {
+                    result.errors.push({ store: storeName, error: e.message });
+                }
+            }
+            return result;
+        }
+
+        async syncAllFromFolder(folderHandle) {
+            const result = { loaded: 0, errors: [] };
+            if (!folderHandle) {
+                result.errors.push({ error: 'no_handle' });
+                return result;
+            }
+            for (const storeName of Object.keys(SCHEMA)) {
+                try {
+                    const data = await FSAccess.readJsonFile(folderHandle, storeName + '.json');
+                    if (!data) continue;
+                    if (!Array.isArray(data.items)) continue;
+                    await this.clear(storeName);
+                    if (data.items.length > 0) {
+                        await this.bulkPut(storeName, data.items);
+                    }
+                    result.loaded++;
+                } catch (e) {
+                    result.errors.push({ store: storeName, error: e.message });
+                }
+            }
+            return result;
+        }
+
+        async syncOneToFolder(folderHandle, storeName) {
+            if (!folderHandle) return null;
+            const items = await this.getAll(storeName);
+            return FSAccess.writeJsonFile(folderHandle, storeName + '.json', {
+                store: storeName,
+                count: items.length,
+                updatedAt: new Date().toISOString(),
+                items
+            });
+        }
+
+        async writeManifest(folderHandle, extra = {}) {
+            const stats = await this.getStats();
+            const manifest = {
+                version: '2.1.0',
+                dbVersion: this.version,
+                timestamp: new Date().toISOString(),
+                stats,
+                schema: Object.keys(SCHEMA),
+                ...extra
+            };
+            return FSAccess.writeJsonFile(folderHandle, 'MANIFEST.json', manifest);
+        }
+
+        // ============================================================
+        // Setup 程序 (v2.1.0 — File System Access API)
         // ============================================================
         async setup(options = {}) {
             const userId = options.userId || 'config';
             const log = [];
             const startedAt = Date.now();
 
-            console.log('[diskDB.setup] 開始 setup 程序...');
-            log.push({ step: 'start', timestamp: startedAt });
+            console.log('[diskDB.setup] v2.1.0 開始 setup 程序...');
+            log.push({ step: 'start', timestamp: startedAt, version: '2.1.0' });
 
             // Step 1: 初始化 IndexedDB
             try {
@@ -377,25 +536,52 @@
                 throw e;
             }
 
-            // Step 2: 建立 OPFS 資料夾結構 (browser-side local disk)
-            let folders = null;
-            if (options.createFolders !== false) {
-                if (OPFS.isSupported()) {
-                    try {
-                        folders = await OPFS.createStoreFolders();
-                        log.push({ step: 'create_folders', status: 'ok', folders });
-                        console.log('[diskDB.setup] ✅ OPFS folder 結構建立完成:', folders);
-                    } catch (e) {
-                        log.push({ step: 'create_folders', status: 'error', error: e.message });
-                        console.warn('[diskDB.setup] ⚠️ OPFS folder 建立失敗:', e);
-                    }
-                } else {
-                    log.push({ step: 'create_folders', status: 'skipped', reason: 'OPFS not supported' });
-                    console.log('[diskDB.setup] ℹ️ 瀏覽器不支援 OPFS, 跳過 folder 建立');
+            // Step 2: 取得 folder handle
+            let folderHandle = options.folderHandle || null;
+            let folderName = null;
+            let folderSource = null;
+
+            if (folderHandle) {
+                folderName = folderHandle.name;
+                folderSource = 'options';
+                this._activeFolderHandle = folderHandle;
+                log.push({ step: 'folder_from_options', status: 'ok', folderName });
+            } else if (options.tryStored !== false) {
+                folderHandle = await this.tryStoredHandle();
+                if (folderHandle) {
+                    folderName = folderHandle.name;
+                    folderSource = 'stored';
+                    this._activeFolderHandle = folderHandle;
+                    log.push({ step: 'try_stored_handle', status: 'ok', folderName });
                 }
             }
 
-            // Step 3: 自動遷移 (從 localStorage → IndexedDB)
+            if (!folderHandle && options.pickIfMissing !== false) {
+                if (FSAccess.isSupported()) {
+                    try {
+                        folderHandle = await FSAccess.pickFolder();
+                        folderName = folderHandle.name;
+                        folderSource = 'picker';
+                        this._activeFolderHandle = folderHandle;
+                        await this.storeHandle(folderHandle);
+                        log.push({ step: 'pick_folder', status: 'ok', folderName });
+                    } catch (e) {
+                        if (e.name === 'AbortError') {
+                            log.push({ step: 'pick_folder', status: 'cancelled' });
+                        } else {
+                            log.push({ step: 'pick_folder', status: 'error', error: e.message });
+                        }
+                    }
+                } else {
+                    log.push({
+                        step: 'pick_folder',
+                        status: 'unsupported',
+                        reason: 'File System Access API not available (use Chrome/Edge)'
+                    });
+                }
+            }
+
+            // Step 3: 自動遷移
             let migration = null;
             if (options.migrate !== false) {
                 try {
@@ -403,73 +589,85 @@
                     log.push({ step: 'migrate', status: 'ok', migration });
                 } catch (e) {
                     log.push({ step: 'migrate', status: 'error', error: e.message });
-                    console.warn('[diskDB.setup] ⚠️ 遷移失敗:', e);
+                    console.warn('[diskDB.setup] migration failed:', e);
                 }
             }
 
-            // Step 4: 驗證所有 stores 都建好
-            const stats = await this.getStats();
-            const missing = Object.keys(SCHEMA).filter(k => stats[k] === undefined || stats[k] < 0);
-            log.push({
-                step: 'verify',
-                status: missing.length === 0 ? 'ok' : 'error',
-                stats,
-                missing
-            });
+            // Step 4: 寫到 folder
+            let syncTo = null;
+            if (folderHandle && FSAccess.isSupported()) {
+                try {
+                    if (await FSAccess.ensurePermission(folderHandle, 'readwrite')) {
+                        syncTo = await this.syncAllToFolder(folderHandle);
+                        try {
+                            await this.writeManifest(folderHandle, { setupAt: new Date().toISOString() });
+                        } catch (e) {
+                            console.warn('[diskDB.setup] manifest write failed:', e);
+                        }
+                        log.push({ step: 'sync_to_folder', status: 'ok', written: syncTo.written });
+                    } else {
+                        log.push({ step: 'sync_to_folder', status: 'permission_denied' });
+                    }
+                } catch (e) {
+                    log.push({ step: 'sync_to_folder', status: 'error', error: e.message });
+                }
+            }
 
-            // Step 5: 寫 setup manifest
+            // Step 5: save folder info
+            if (folderHandle && folderName) {
+                await this.saveFolderInfo(folderHandle);
+                log.push({ step: 'save_folder_info', status: 'ok', folderName });
+            }
+
+            // Step 6: 驗證
+            const stats = await this.getStats();
+            log.push({ step: 'verify', status: 'ok', stats });
+
+            // Step 7: 寫 setup manifest
             const manifest = {
-                version: '2.0.0',
+                version: '2.1.0',
                 dbVersion: this.version,
                 timestamp: new Date().toISOString(),
                 startedAt,
                 duration: Date.now() - startedAt,
                 userId,
                 schema: Object.keys(SCHEMA),
-                folders,
+                folderName,
+                folderSource,
+                fsAccessSupported: FSAccess.isSupported(),
+                syncTo,
                 stats,
                 migration,
                 log
             };
 
-            // 寫到 meta store (永久)
             await this.setMeta('setup_manifest', manifest);
             log.push({ step: 'write_meta', status: 'ok' });
 
-            // 寫到 OPFS (local disk)
-            if (OPFS.isSupported() && folders) {
-                try {
-                    const path = await OPFS.writeFile(
-                        `${DB_FOLDER_NAME}/meta`,
-                        'setup_manifest.json',
-                        JSON.stringify(manifest, null, 2)
-                    );
-                    log.push({ step: 'write_opfs', status: 'ok', path });
-                } catch (e) {
-                    log.push({ step: 'write_opfs', status: 'error', error: e.message });
-                }
-            }
-
             this.setupLog = log;
-            console.log(`[diskDB.setup] ✅ 完成 (${Date.now() - startedAt}ms)`, manifest.stats);
+            console.log('[diskDB.setup] done in ' + (Date.now() - startedAt) + 'ms', stats);
+
             return {
                 success: true,
                 duration: Date.now() - startedAt,
-                stats,
-                folders,
+                folderHandle,
+                folderName,
+                folderSource,
+                fsAccessSupported: FSAccess.isSupported(),
+                syncTo,
                 migration,
+                stats,
                 log,
                 manifest
             };
         }
 
         // ============================================================
-        // 從 localStorage 遷移 (含冪等檢查)
+        // 從 localStorage 遷移 — 同 v2.0.0
         // ============================================================
         async migrateFromLocalStorage(userId = 'config') {
-            console.log('[diskDB] starting migration from localStorage → IndexedDB...');
+            console.log('[diskDB] starting migration from localStorage -> IndexedDB...');
 
-            // Check if already migrated
             const existing = await this.get('meta', 'migration_v2');
             if (existing) {
                 console.log('[diskDB] already migrated at', new Date(existing.value?.timestamp || existing.timestamp));
@@ -478,7 +676,7 @@
 
             const lsStr = localStorage.getItem(STORAGE_KEY_FAMILY);
             if (!lsStr) {
-                console.log('[diskDB] no localStorage data found, creating empty DB');
+                console.log('[diskDB] no localStorage data found');
                 await this.setMeta('migration_v2', { timestamp: Date.now(), stats: {} });
                 return { migrated: false, reason: 'no_data' };
             }
@@ -506,7 +704,6 @@
 
             const allPuts = [];
 
-            // 1. Users
             allPuts.push(['users', {
                 id: userId,
                 name: user.name || userId,
@@ -514,10 +711,9 @@
                 settings: user.settings || {}
             }]);
 
-            // 2-7. Hierarchy
             const catNameToId = {};
             Object.keys(user.masters || {}).forEach((catName, ci) => {
-                const catId = `cat_${userId}_${ci}`;
+                const catId = 'cat_' + userId + '_' + ci;
                 catNameToId[catName] = catId;
                 allPuts.push(['categories', {
                     id: catId, userId, name: catName, order: ci, createdAt: Date.now()
@@ -527,7 +723,7 @@
             const catNameToProjId = {};
             Object.keys(user.masters || {}).forEach((catName, ci) => {
                 const catId = catNameToId[catName];
-                const projId = `proj_${catId}_default`;
+                const projId = 'proj_' + catId + '_default';
                 catNameToProjId[catName] = projId;
                 allPuts.push(['projects', {
                     id: projId, categoryId: catId, name: '主要任務',
@@ -542,7 +738,7 @@
                 if (typeof subjects !== 'object') return;
 
                 Object.entries(subjects).forEach(([subjName, subData]) => {
-                    const subjId = `subj_${projId}_${subjName}`;
+                    const subjId = 'subj_' + projId + '_' + subjName;
                     allPuts.push(['subjects', {
                         id: subjId, projectId: projId, name: subjName,
                         order: 0, createdAt: Date.now()
@@ -551,7 +747,7 @@
                     if (!subData || !subData.materials) return;
 
                     Object.entries(subData.materials).forEach(([typeName, typeObj]) => {
-                        const mtId = `mt_${subjId}_${typeName}`;
+                        const mtId = 'mt_' + subjId + '_' + typeName;
                         allPuts.push(['materialTypes', {
                             id: mtId, subjectId: subjId, name: typeName,
                             order: 0, createdAt: Date.now()
@@ -561,8 +757,8 @@
 
                         typeObj.instances.forEach((ins, ii) => {
                             if (!ins) return;
-                            const insName = ins.name || `instance_${ii}`;
-                            const insId = `inst_${mtId}_${insName}_${ii}`;
+                            const insName = ins.name || 'instance_' + ii;
+                            const insId = 'inst_' + mtId + '_' + insName + '_' + ii;
                             allPuts.push(['instances', {
                                 id: insId, materialTypeId: mtId, name: insName,
                                 order: ii, createdAt: Date.now()
@@ -582,7 +778,7 @@
                             });
 
                             Object.entries(ins.vols || {}).forEach(([volName, volUnits]) => {
-                                const volId = `vol_${insId}_${volName}`;
+                                const volId = 'vol_' + insId + '_' + volName;
                                 allPuts.push(['vols', {
                                     id: volId, instanceId: insId, name: volName,
                                     order: 0, createdAt: Date.now()
@@ -605,9 +801,8 @@
                 });
             });
 
-            // 9-10. Tasks + Plans
             (user.plans || []).forEach((plan, pi) => {
-                const planId = plan.id || `plan_${userId}_${pi}`;
+                const planId = plan.id || 'plan_' + userId + '_' + pi;
                 allPuts.push(['plans', {
                     id: planId, userId,
                     name: plan.name || '',
@@ -624,7 +819,7 @@
                     (tasks || []).forEach(t => {
                         if (!t) return;
                         allPuts.push(['tasks', {
-                            id: t.id || `task_${Date.now()}_${Math.random().toString(36).slice(2,8)}`,
+                            id: t.id || 'task_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
                             planId, userId, date,
                             typeName: t.typeName || '',
                             instanceName: t.instanceName || '',
@@ -646,14 +841,13 @@
                 });
             });
 
-            // 12. Meta
             allPuts.push(['meta', {
                 key: 'migration_v2',
                 value: {
                     timestamp: Date.now(),
                     source: STORAGE_KEY_FAMILY,
                     userId,
-                    version: '2.0.0'
+                    version: '2.1.0'
                 },
                 updatedAt: Date.now()
             }]);
@@ -663,7 +857,7 @@
                 updatedAt: Date.now()
             }]);
 
-            console.log(`[diskDB] bulk-inserting ${allPuts.length} records...`);
+            console.log('[diskDB] bulk-inserting ' + allPuts.length + ' records...');
 
             const byStore = {};
             allPuts.forEach(([storeName, record]) => {
@@ -681,13 +875,12 @@
         }
 
         // ============================================================
-        // Export 全部資料 (JSON 格式)
-        // 供下載到 Downloads 資料夾
+        // Export (Download fallback)
         // ============================================================
         async exportAll() {
             const data = {
                 exportedAt: new Date().toISOString(),
-                version: '2.0.0',
+                version: '2.1.0',
                 dbVersion: this.version,
                 stores: {}
             };
@@ -699,7 +892,7 @@
 
         async exportToDownload() {
             const data = await this.exportAll();
-            const filename = `StudyMap_DB_export_${new Date().toISOString().split('T')[0]}.json`;
+            const filename = 'StudyMap_DB_export_' + new Date().toISOString().split('T')[0] + '.json';
             return Downloader.downloadFile(filename, JSON.stringify(data, null, 2));
         }
 
@@ -708,7 +901,7 @@
             for (const storeName of Object.keys(SCHEMA)) {
                 const items = await this.getAll(storeName);
                 files.push({
-                    name: `${storeName}.json`,
+                    name: storeName + '.json',
                     content: JSON.stringify({
                         store: storeName,
                         count: items.length,
@@ -777,9 +970,6 @@
     let _instance = null;
 
     window.diskDB = {
-        /**
-         * Get DB instance (async init)
-         */
         getInstance: async function() {
             if (!_instance) {
                 _instance = new LearningProgressDB();
@@ -788,37 +978,60 @@
             return _instance;
         },
 
-        /**
-         * 完整 setup() — 首次使用必跑 (建立資料夾 + 初始化 + 遷移)
-         * 用法: await window.diskDB.setup({ userId: 'config' })
-         */
         setup: async function(options = {}) {
             const db = await this.getInstance();
             return db.setup(options);
         },
 
-        /**
-         * Get already-initialized instance (sync, may be null)
-         */
+        pickFolder: async function() {
+            const db = await this.getInstance();
+            const handle = await FSAccess.pickFolder();
+            await db.storeHandle(handle);
+            await db.saveFolderInfo(handle);
+            return handle;
+        },
+
+        getStoredHandle: async function() {
+            const db = await this.getInstance();
+            return db.tryStoredHandle();
+        },
+
+        syncAllToFolder: async function(folderHandle = null) {
+            const db = await this.getInstance();
+            const handle = folderHandle || await db.tryStoredHandle();
+            if (!handle) throw new Error('No folder handle. Pick a folder first.');
+            return db.syncAllToFolder(handle);
+        },
+
+        syncAllFromFolder: async function(folderHandle = null) {
+            const db = await this.getInstance();
+            const handle = folderHandle || await db.tryStoredHandle();
+            if (!handle) throw new Error('No folder handle. Pick a folder first.');
+            return db.syncAllFromFolder(handle);
+        },
+
+        syncStoreToFolder: async function(storeName, folderHandle = null) {
+            const db = await this.getInstance();
+            const handle = folderHandle || await db.tryStoredHandle();
+            if (!handle) throw new Error('No folder handle. Pick a folder first.');
+            return db.syncOneToFolder(handle, storeName);
+        },
+
         instance: function() { return _instance; },
 
-        /**
-         * Schema constants
-         */
         SCHEMA: SCHEMA,
         DB_NAME: DB_NAME,
         DB_VERSION: DB_VERSION,
         DB_FOLDER_NAME: DB_FOLDER_NAME,
         STORAGE_KEY_FAMILY: STORAGE_KEY_FAMILY,
 
-        /**
-         * Module 對外暴露
-         */
         LearningProgressDB: LearningProgressDB,
-        OPFS: OPFS,
-        Downloader: Downloader
+        FSAccess: FSAccess,
+        Downloader: Downloader,
+
+        isFileSystemAccessSupported: () => FSAccess.isSupported()
     };
 
-    console.log('[diskDB] module loaded, version', DB_VERSION, '— 呼叫 window.diskDB.setup() 開始');
-
+    console.log('[diskDB] v2.1.0 module loaded — File System Access API');
+    console.log('[diskDB] call window.diskDB.setup() to initialize');
 })();

@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.0.0]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.1.0]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2341,7 +2341,7 @@
 
     <div id="print-area"></div>
 
-    <!-- v2.0.0: Disk Database (IndexedDB) — 完整 schema + 自動遷移 -->
+    <!-- v2.1.0: Disk Database — IndexedDB + File System Access API (Mac folder JSON files) -->
     <script src="disk-db.js"></script>
 
     <script>
@@ -15543,61 +15543,153 @@ function renderViewPage() {
 })();
 </script>
 
-<!-- v2.0.0: 完整 setup() — 建立 folder + 初始化 schema + 自動遷移 -->
+<!-- v2.1.0: File System Access API setup — 讓用戶選 Mac folder (iCloud/Dropbox/NAS 同步) -->
 <script>
 (function() {
     'use strict';
 
-    async function _v200Setup() {
+    /**
+     * v2.1.0 初始化流程
+     *
+     * 1. 自動 init IndexedDB (cache)
+     * 2. 嘗試取 stored folder handle → 自動 re-authorize
+     * 3. 若沒有 → 顯示「📁 選擇 DB folder」按鈕 (popup UX)
+     * 4. 用戶選 folder → 寫入所有 IndexedDB → JSON files
+     *
+     * 跨瀏覽器：
+     *   - Chrome / Edge 86+: 完整 File System Access API
+     *   - Safari / Firefox: 顯示提示要用 Chrome/Edge
+     */
+
+    let _diskDB = null;
+    let _activeHandle = null;
+    let _setupResult = null;
+
+    async function _v210Init() {
         try {
-            console.log('[v2.0.0] 開始 setup() — 建立 Disk Database + OPFS folder + 遷移...');
-            const result = await window.diskDB.setup({
-                userId: 'config',
-                createFolders: true,  // 在 OPFS local disk 建立 StudyMap_DB 資料夾結構
-                migrate: true         // 從 localStorage 自動遷移
-            });
+            console.log('[v2.1.0] 開始 init — File System Access API ...');
+            _diskDB = await window.diskDB.getInstance();
 
-            if (result.success) {
-                console.log('[v2.0.0] ✅ Setup 完成 (' + result.duration + 'ms)');
-                console.log('[v2.0.0] 📊 資料統計:', result.stats);
-                console.log('[v2.0.0] 📁 OPFS folders:', result.folders);
+            const fsSupported = window.diskDB.isFileSystemAccessSupported();
+            console.log('[v2.1.0] File System Access API 支援:', fsSupported);
 
-                // 暴露給 debug console
-                window._diskDB = window.diskDB.instance();
-                window._setupResult = result;
+            if (!fsSupported) {
+                console.warn('[v2.1.0] 瀏覽器不支援 showDirectoryPicker');
+                _showUnsupportedBanner();
+                return;
+            }
 
-                // 顯示 setup 摘要到 UI (右下角小視窗)
-                setTimeout(() => {
-                    if (window._diskDB) {
-                        _showSetupBanner(result);
-                    }
-                }, 1500);
+            // 嘗試取 stored handle (silent, no popup)
+            let storedHandle = null;
+            try {
+                storedHandle = await _diskDB.tryStoredHandle();
+            } catch (e) {
+                console.warn('[v2.1.0] tryStoredHandle 失敗:', e.message);
+            }
+
+            if (storedHandle) {
+                console.log('[v2.1.0] 使用 stored handle:', storedHandle.name);
+                _activeHandle = storedHandle;
+                _setupResult = await window.diskDB.setup({
+                    userId: 'config',
+                    folderHandle: storedHandle,
+                    tryStored: false,
+                    pickIfMissing: false,
+                    migrate: true
+                });
+                _showReadyBanner(_setupResult);
+            } else {
+                console.log('[v2.1.0] 沒有 stored handle, 顯示 picker UI');
+                _showPickerBanner();
             }
         } catch (e) {
-            console.error('[v2.0.0] ❌ Setup 失敗，localStorage 模式繼續運作:', e);
+            console.error('[v2.1.0] init 失敗:', e);
         }
     }
 
-    function _showSetupBanner(result) {
-        // 簡單的 setup 狀態橫幅
+    /**
+     * 顯示「請選 DB folder」按鈕
+     */
+    function _showPickerBanner() {
         const banner = document.createElement('div');
-        banner.id = 'diskdb-setup-banner';
-        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#10b981;color:white;padding:10px 14px;border-radius:8px;font-size:12px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:340px;line-height:1.5;cursor:pointer;';
-
-        const stats = result.stats;
-        const total = Object.values(stats).reduce((a, b) => a + b, 0);
-        const folderCount = result.folders ? Object.keys(result.folders).length : 0;
+        banner.id = 'diskdb-picker-banner';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#0ea5e9;color:white;padding:14px 16px;border-radius:8px;font-size:13px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:360px;line-height:1.5;';
 
         banner.innerHTML = `
-            <div style="font-weight:600;margin-bottom:4px;">✅ v2.0.0 Disk Database 已就緒</div>
-            <div style="opacity:0.9;">📊 ${total} 筆資料 (${Object.keys(stats).filter(k => stats[k] > 0).length} 個 stores)</div>
-            <div style="opacity:0.9;">📁 ${folderCount} 個 OPFS folders 建立</div>
+            <div style="font-weight:600;margin-bottom:6px;">📁 Disk Database 尚未綁定</div>
+            <div style="opacity:0.9;font-size:11px;margin-bottom:8px;">選擇 Mac 資料夾 (iCloud/Dropbox/文件夾/NAS 同步) 後，資料會自動存成 JSON 檔。</div>
+            <button id="diskdb-pick-btn" style="background:white;color:#0ea5e9;border:none;padding:6px 12px;border-radius:4px;font-weight:600;cursor:pointer;font-size:13px;width:100%;">📁 選擇 DB folder</button>
+            <button id="diskdb-skip-btn" style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.4);padding:4px 12px;border-radius:4px;cursor:pointer;font-size:11px;margin-top:6px;width:100%;">略過 (只用 IndexedDB 本機 cache)</button>
+        `;
+
+        document.body.appendChild(banner);
+
+        document.getElementById('diskdb-pick-btn').onclick = async () => {
+            banner.remove();
+            await _pickAndSetup();
+        };
+
+        document.getElementById('diskdb-skip-btn').onclick = async () => {
+            banner.remove();
+            await window.diskDB.setup({
+                userId: 'config',
+                tryStored: false,
+                pickIfMissing: false,
+                migrate: true
+            });
+        };
+    }
+
+    /**
+     * 顯示「請用 Chrome/Edge」banner (不支援的瀏覽器)
+     */
+    function _showUnsupportedBanner() {
+        const banner = document.createElement('div');
+        banner.id = 'diskdb-unsupported-banner';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#f59e0b;color:white;padding:12px 14px;border-radius:8px;font-size:12px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:340px;line-height:1.5;';
+
+        banner.innerHTML = `
+            <div style="font-weight:600;margin-bottom:4px;">⚠️ Disk DB 需要 Chrome 或 Edge</div>
+            <div style="opacity:0.9;font-size:11px;margin-bottom:6px;">此瀏覽器不支援 File System Access API。目前只用 IndexedDB 本機快取 (關閉瀏覽器資料會保留)。</div>
+            <button style="background:white;color:#f59e0b;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;" onclick="this.parentElement.remove()">了解</button>
+        `;
+        document.body.appendChild(banner);
+
+        // 仍然跑 init (只用 IndexedDB)
+        window.diskDB.setup({
+            userId: 'config',
+            tryStored: false,
+            pickIfMissing: false,
+            migrate: true
+        }).catch(e => console.warn('[v2.1.0] IndexedDB-only setup failed:', e));
+    }
+
+    /**
+     * 顯示「已就緒」banner (folder 已綁定)
+     */
+    function _showReadyBanner(result) {
+        // 移除舊 banner
+        const old = document.getElementById('diskdb-ready-banner');
+        if (old) old.remove();
+
+        const banner = document.createElement('div');
+        banner.id = 'diskdb-ready-banner';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#10b981;color:white;padding:10px 14px;border-radius:8px;font-size:12px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:340px;line-height:1.5;cursor:pointer;';
+
+        const stats = result.stats || {};
+        const total = Object.values(stats).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0);
+        const folderName = result.folderName || '(未綁定)';
+        const fileCount = result.syncTo ? result.syncTo.written : 0;
+
+        banner.innerHTML = `
+            <div style="font-weight:600;margin-bottom:4px;">✅ v2.1.0 Disk DB 已就緒</div>
+            <div style="opacity:0.9;">📁 ${folderName}</div>
+            <div style="opacity:0.9;">📊 ${total} 筆資料 · ${fileCount} 個 JSON 檔</div>
             <div style="opacity:0.7;font-size:10px;margin-top:4px;">點此關閉 · 詳細: window._diskDB</div>
         `;
         banner.onclick = () => banner.remove();
         document.body.appendChild(banner);
 
-        // 10 秒後自動淡出
         setTimeout(() => {
             if (banner.parentNode) {
                 banner.style.transition = 'opacity 1s';
@@ -15607,15 +15699,67 @@ function renderViewPage() {
         }, 10000);
     }
 
-    // DOMContentLoaded 後啟動 (不阻塞主流程)
+    /**
+     * 用戶按「選擇 DB folder」按鈕
+     */
+    async function _pickAndSetup() {
+        try {
+            const handle = await window.diskDB.pickFolder();
+            console.log('[v2.1.0] 用戶選了:', handle.name);
+            _activeHandle = handle;
+            _setupResult = await window.diskDB.setup({
+                userId: 'config',
+                folderHandle: handle,
+                tryStored: false,
+                pickIfMissing: false,
+                migrate: true
+            });
+            _showReadyBanner(_setupResult);
+        } catch (e) {
+            if (e.name === 'AbortError') {
+                console.log('[v2.1.0] 用戶取消 picker');
+                _showPickerBanner(); // 重新顯示
+            } else {
+                console.error('[v2.1.0] pickFolder 失敗:', e);
+                _showErrorBanner(e);
+            }
+        }
+    }
+
+    /**
+     * 顯示錯誤 banner (權限被拒 / folder 不可讀)
+     */
+    function _showErrorBanner(err) {
+        const banner = document.createElement('div');
+        banner.id = 'diskdb-error-banner';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#ef4444;color:white;padding:12px 14px;border-radius:8px;font-size:12px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:340px;line-height:1.5;';
+
+        banner.innerHTML = `
+            <div style="font-weight:600;margin-bottom:4px;">❌ Disk DB 錯誤</div>
+            <div style="opacity:0.9;font-size:11px;margin-bottom:6px;">${(err.message || String(err)).substring(0, 200)}</div>
+            <button id="diskdb-retry-btn" style="background:white;color:#ef4444;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;margin-right:6px;">重新選 folder</button>
+            <button style="background:transparent;color:white;border:1px solid rgba(255,255,255,0.4);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;" onclick="this.parentElement.remove()">關閉</button>
+        `;
+        document.body.appendChild(banner);
+
+        document.getElementById('diskdb-retry-btn').onclick = async () => {
+            banner.remove();
+            await _pickAndSetup();
+        };
+    }
+
+    // 暴露給 debug console
+    window._diskDB_getHandle = () => _activeHandle;
+    window._diskDB_pick = _pickAndSetup;
+
+    // DOMContentLoaded 後啟動
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', _v200Setup);
+        document.addEventListener('DOMContentLoaded', _v210Init);
     } else {
-        _v200Setup();
+        _v210Init();
     }
 })();
 </script>
 
 </body>
 </html>
-
