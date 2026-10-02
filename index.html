@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.1.0]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.2.0]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2341,7 +2341,7 @@
 
     <div id="print-area"></div>
 
-    <!-- v2.1.0: Disk Database — IndexedDB + File System Access API (Mac folder JSON files) -->
+    <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
     <script src="disk-db.js"></script>
 
     <script>
@@ -15565,16 +15565,16 @@ function renderViewPage() {
     let _activeHandle = null;
     let _setupResult = null;
 
-    async function _v210Init() {
+    async function _v220Init() {
         try {
-            console.log('[v2.1.0] 開始 init — File System Access API ...');
+            console.log('[v2.2.0] 開始 init — Hybrid Sync (IndexedDB + File System Access + cross-browser download) ...');
             _diskDB = await window.diskDB.getInstance();
 
             const fsSupported = window.diskDB.isFileSystemAccessSupported();
-            console.log('[v2.1.0] File System Access API 支援:', fsSupported);
+            console.log('[v2.2.0] File System Access API 支援:', fsSupported);
 
             if (!fsSupported) {
-                console.warn('[v2.1.0] 瀏覽器不支援 showDirectoryPicker');
+                console.warn('[v2.2.0] 瀏覽器不支援 showDirectoryPicker, 用 IndexedDB + 手動下載模式');
                 _showUnsupportedBanner();
                 return;
             }
@@ -15584,11 +15584,11 @@ function renderViewPage() {
             try {
                 storedHandle = await _diskDB.tryStoredHandle();
             } catch (e) {
-                console.warn('[v2.1.0] tryStoredHandle 失敗:', e.message);
+                console.warn('[v2.2.0] tryStoredHandle 失敗:', e.message);
             }
 
             if (storedHandle) {
-                console.log('[v2.1.0] 使用 stored handle:', storedHandle.name);
+                console.log('[v2.2.0] 使用 stored handle:', storedHandle.name);
                 _activeHandle = storedHandle;
                 _setupResult = await window.diskDB.setup({
                     userId: 'config',
@@ -15599,11 +15599,11 @@ function renderViewPage() {
                 });
                 _showReadyBanner(_setupResult);
             } else {
-                console.log('[v2.1.0] 沒有 stored handle, 顯示 picker UI');
+                console.log('[v2.2.0] 沒有 stored handle, 顯示 picker UI');
                 _showPickerBanner();
             }
         } catch (e) {
-            console.error('[v2.1.0] init 失敗:', e);
+            console.error('[v2.2.0] init 失敗:', e);
         }
     }
 
@@ -15646,14 +15646,55 @@ function renderViewPage() {
     function _showUnsupportedBanner() {
         const banner = document.createElement('div');
         banner.id = 'diskdb-unsupported-banner';
-        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#f59e0b;color:white;padding:12px 14px;border-radius:8px;font-size:12px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:340px;line-height:1.5;';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#f59e0b;color:white;padding:12px 14px;border-radius:8px;font-size:12px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:360px;line-height:1.5;';
 
         banner.innerHTML = `
-            <div style="font-weight:600;margin-bottom:4px;">⚠️ Disk DB 需要 Chrome 或 Edge</div>
-            <div style="opacity:0.9;font-size:11px;margin-bottom:6px;">此瀏覽器不支援 File System Access API。目前只用 IndexedDB 本機快取 (關閉瀏覽器資料會保留)。</div>
-            <button style="background:white;color:#f59e0b;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px;" onclick="this.parentElement.remove()">了解</button>
+            <div style="font-weight:600;margin-bottom:4px;">⚠️ v2.2.0 Safari/Firefox 模式</div>
+            <div style="opacity:0.9;font-size:11px;margin-bottom:6px;">不支援 File System Access API。<br>資料存於 IndexedDB (本機快取)。<br>用以下按鈕手動備份/載入,存到 iCloud/Drive 跨裝置讀。</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                <button id="diskdb-ff-download-btn" style="background:white;color:#f59e0b;border:none;padding:5px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;">💾 下載備份 (13 個 JSON)</button>
+                <button id="diskdb-ff-load-btn" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.5);padding:5px 10px;border-radius:4px;cursor:pointer;font-size:11px;">📂 載入備份</button>
+                <button id="diskdb-ff-close-btn" style="background:transparent;color:rgba(255,255,255,0.8);border:none;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:11px;">✕</button>
+            </div>
+            <input type="file" id="diskdb-ff-file-input" webkitdirectory multiple style="display:none;" />
         `;
         document.body.appendChild(banner);
+
+        document.getElementById('diskdb-ff-close-btn').onclick = () => banner.remove();
+
+        document.getElementById('diskdb-ff-download-btn').onclick = async () => {
+            try {
+                const r = await window.diskDB.syncAllToDisk();
+                console.log('[v2.2.0] Safari 下載模式:', r);
+                const toast = document.createElement('div');
+                toast.textContent = `✅ 已觸發 ${r.written} 個 JSON 下載,請存到 iCloud/Drive 同一個資料夾`;
+                toast.style.cssText = 'position:fixed;bottom:120px;right:10px;background:#f59e0b;color:white;padding:10px 14px;border-radius:6px;font-size:12px;z-index:100000;font-family:system-ui;max-width:340px;line-height:1.4;';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 5000);
+            } catch (e) {
+                console.error('[v2.2.0] 下載失敗:', e);
+            }
+        };
+
+        document.getElementById('diskdb-ff-load-btn').onclick = () => {
+            document.getElementById('diskdb-ff-file-input').click();
+        };
+
+        document.getElementById('diskdb-ff-file-input').onchange = async (e) => {
+            const files = e.target.files;
+            if (!files || files.length === 0) return;
+            try {
+                const r = await window.diskDB.loadFromJsonFiles(files);
+                console.log('[v2.2.0] Safari 載入:', r);
+                const toast = document.createElement('div');
+                toast.textContent = `✅ 從 disk 載入 ${r.loaded} 個 store (${r.errors.length} 個錯誤)`;
+                toast.style.cssText = 'position:fixed;bottom:120px;right:10px;background:#10b981;color:white;padding:10px 14px;border-radius:6px;font-size:12px;z-index:100000;font-family:system-ui;';
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.remove(); location.reload(); }, 2000);
+            } catch (err) {
+                console.error('[v2.2.0] 載入失敗:', err);
+            }
+        };
 
         // 仍然跑 init (只用 IndexedDB)
         window.diskDB.setup({
@@ -15661,7 +15702,9 @@ function renderViewPage() {
             tryStored: false,
             pickIfMissing: false,
             migrate: true
-        }).catch(e => console.warn('[v2.1.0] IndexedDB-only setup failed:', e));
+        }).then(() => {
+            console.log('[v2.2.0] IndexedDB-only init 完成 (Safari/Firefox)');
+        }).catch(e => console.warn('[v2.2.0] IndexedDB-only setup failed:', e));
     }
 
     /**
@@ -15682,13 +15725,66 @@ function renderViewPage() {
         const fileCount = result.syncTo ? result.syncTo.written : 0;
 
         banner.innerHTML = `
-            <div style="font-weight:600;margin-bottom:4px;">✅ v2.1.0 Disk DB 已就緒</div>
+            <div style="font-weight:600;margin-bottom:4px;">✅ v2.2.0 Disk DB 已就緒</div>
             <div style="opacity:0.9;">📁 ${folderName}</div>
             <div style="opacity:0.9;">📊 ${total} 筆資料 · ${fileCount} 個 JSON 檔</div>
-            <div style="opacity:0.7;font-size:10px;margin-top:4px;">點此關閉 · 詳細: window._diskDB</div>
+            <div style="margin-top:6px;display:flex;gap:4px;">
+                <button id="diskdb-backup-btn" style="background:white;color:#10b981;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:600;">💾 立即備份</button>
+                <button id="diskdb-load-btn" style="background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:4px 8px;border-radius:4px;cursor:pointer;font-size:11px;">🔄 從 disk 載入</button>
+                <button id="diskdb-unbind-btn" style="background:transparent;color:rgba(255,255,255,0.7);border:none;padding:4px 6px;border-radius:4px;cursor:pointer;font-size:11px;" title="解除綁定">✕</button>
+            </div>
+            <div style="opacity:0.7;font-size:10px;margin-top:4px;">每 30 秒自動 sync · 詳細: window._diskDB</div>
         `;
-        banner.onclick = () => banner.remove();
         document.body.appendChild(banner);
+
+        document.getElementById('diskdb-backup-btn').onclick = async (e) => {
+            e.stopPropagation();
+            try {
+                const r = await window.diskDB.syncAllToDisk();
+                console.log('[v2.2.0] 手動備份完成', r);
+                const toast = document.createElement('div');
+                toast.textContent = r.mode === 'folder' ? `✅ 已寫 ${r.written} 個 JSON 到 folder` : `✅ 已下載 ${r.written} 個 JSON (請存到 iCloud/Drive)`;
+                toast.style.cssText = 'position:fixed;bottom:80px;right:10px;background:#10b981;color:white;padding:8px 12px;border-radius:6px;font-size:12px;z-index:100000;font-family:system-ui;';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+            } catch (err) {
+                console.error('[v2.2.0] 備份失敗:', err);
+            }
+        };
+
+        document.getElementById('diskdb-load-btn').onclick = async (e) => {
+            e.stopPropagation();
+            try {
+                const r = await window.diskDB.loadFromDiskFolder();
+                const toast = document.createElement('div');
+                toast.textContent = `✅ 從 disk 載入 ${r.loaded} 個 store`;
+                toast.style.cssText = 'position:fixed;bottom:80px;right:10px;background:#10b981;color:white;padding:8px 12px;border-radius:6px;font-size:12px;z-index:100000;font-family:system-ui;';
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 3000);
+                // Reload to refresh UI
+                setTimeout(() => location.reload(), 1500);
+            } catch (err) {
+                console.error('[v2.2.0] 載入失敗:', err);
+            }
+        };
+
+        document.getElementById('diskdb-unbind-btn').onclick = async (e) => {
+            e.stopPropagation();
+            if (!confirm('確定要解除綁定這個 folder 嗎?\nIndexedDB 資料會保留,但不會再自動 sync。')) return;
+            const db = await window.diskDB.getInstance();
+            await db.clearMeta('folderHandles');
+            await db.clearMeta('folderInfo');
+            banner.remove();
+            _showPickerBanner();
+        };
+
+        // 安裝 auto-sync + unload sync
+        try {
+            await window.diskDB.setupAutoSync(30000);
+            window.diskDB.setupUnloadSync();
+        } catch (e) {
+            console.warn('[v2.2.0] auto-sync 設定失敗:', e.message);
+        }
 
         setTimeout(() => {
             if (banner.parentNode) {
@@ -15696,7 +15792,7 @@ function renderViewPage() {
                 banner.style.opacity = '0';
                 setTimeout(() => banner.remove(), 1000);
             }
-        }, 10000);
+        }, 15000);
     }
 
     /**
@@ -15705,7 +15801,7 @@ function renderViewPage() {
     async function _pickAndSetup() {
         try {
             const handle = await window.diskDB.pickFolder();
-            console.log('[v2.1.0] 用戶選了:', handle.name);
+            console.log('[v2.2.0] 用戶選了:', handle.name);
             _activeHandle = handle;
             _setupResult = await window.diskDB.setup({
                 userId: 'config',
@@ -15717,10 +15813,10 @@ function renderViewPage() {
             _showReadyBanner(_setupResult);
         } catch (e) {
             if (e.name === 'AbortError') {
-                console.log('[v2.1.0] 用戶取消 picker');
+                console.log('[v2.2.0] 用戶取消 picker');
                 _showPickerBanner(); // 重新顯示
             } else {
-                console.error('[v2.1.0] pickFolder 失敗:', e);
+                console.error('[v2.2.0] pickFolder 失敗:', e);
                 _showErrorBanner(e);
             }
         }
@@ -15754,9 +15850,9 @@ function renderViewPage() {
 
     // DOMContentLoaded 後啟動
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', _v210Init);
+        document.addEventListener('DOMContentLoaded', _v220Init);
     } else {
-        _v210Init();
+        _v220Init();
     }
 })();
 </script>

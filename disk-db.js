@@ -1,5 +1,5 @@
 /**
- * disk-db.js — v2.1.0
+ * disk-db.js — v2.2.0
  * ============================================================
  * Learning Progress Board — Disk Database Layer
  *
@@ -517,6 +517,163 @@
         }
 
         // ============================================================
+        // v2.2.0 — Hybrid Sync API (manual + auto + page-unload)
+        // ============================================================
+
+        /**
+         * 同步單一 store 到 disk (Chrome/Edge 直接寫, Safari 觸發下載)
+         */
+        async syncStoreToDisk(storeName) {
+            const handle = await this.tryStoredHandle();
+            if (handle) {
+                // Chrome/Edge: 直接寫 folder
+                return this.syncOneToFolder(handle, storeName);
+            } else {
+                // Safari/Firefox: 觸發單檔下載
+                const items = await this.getAll(storeName);
+                return Downloader.downloadJson(storeName, items);
+            }
+        }
+
+        /**
+         * 同步所有 stores 到 disk
+         * @returns {{written: number, mode: 'folder'|'download', files: string[], errors: Array}}
+         */
+        async syncAllToDisk() {
+            const handle = await this.tryStoredHandle();
+            if (handle) {
+                // Chrome/Edge 路徑: 寫 folder
+                const result = await this.syncAllToFolder(handle);
+                await this.writeManifest(handle);
+                return { ...result, mode: 'folder' };
+            } else {
+                // Safari/Firefox 路徑: 13 個檔案下載對話框
+                const stats = await this.getStats();
+                const files = [];
+                const errors = [];
+                for (const storeName of Object.keys(SCHEMA)) {
+                    try {
+                        const items = await this.getAll(storeName);
+                        const fname = Downloader.downloadJson(storeName, items);
+                        files.push(fname);
+                        // 小延遲避免瀏覽器擋多檔下載
+                        await new Promise(r => setTimeout(r, 100));
+                    } catch (e) {
+                        errors.push({ store: storeName, error: e.message });
+                    }
+                }
+                // Manifest 最後一個
+                const manifestName = Downloader.downloadJson('MANIFEST', {
+                    version: '2.2.0',
+                    dbVersion: this.version,
+                    timestamp: new Date().toISOString(),
+                    stats,
+                    schema: Object.keys(SCHEMA),
+                    mode: 'manual_download'
+                });
+                files.push(manifestName);
+                return { written: files.length, mode: 'download', files, errors };
+            }
+        }
+
+        /**
+         * 從 disk folder 載入 JSON 到 IndexedDB (Chrome/Edge)
+         */
+        async loadFromDiskFolder() {
+            const handle = await this.tryStoredHandle();
+            if (!handle) {
+                throw new Error('No stored folder handle. Pick a folder first.');
+            }
+            return this.syncAllFromFolder(handle);
+        }
+
+        /**
+         * 從用戶選的 files (Safari/Firefox 用 input[type=file][webkitdirectory]) 載入
+         * @param {FileList|Array<File>} files
+         */
+        async loadFromJsonFiles(files) {
+            const result = { loaded: 0, errors: [], stores: [] };
+            const fileArr = Array.from(files);
+
+            for (const file of fileArr) {
+                if (!file.name.endsWith('.json')) continue;
+                const storeName = file.name.replace(/\.json$/, '');
+                if (storeName === 'MANIFEST') continue;
+                if (!SCHEMA[storeName]) {
+                    result.errors.push({ file: file.name, error: 'unknown_store' });
+                    continue;
+                }
+                try {
+                    const text = await file.text();
+                    const data = JSON.parse(text);
+                    if (!Array.isArray(data.items)) {
+                        result.errors.push({ file: file.name, error: 'invalid_format' });
+                        continue;
+                    }
+                    await this.clear(storeName);
+                    if (data.items.length > 0) {
+                        await this.bulkPut(storeName, data.items);
+                    }
+                    result.loaded++;
+                    result.stores.push({ store: storeName, count: data.items.length });
+                } catch (e) {
+                    result.errors.push({ file: file.name, error: e.message });
+                }
+            }
+            return result;
+        }
+
+        /**
+         * 設定自動 sync (每 30 秒背景)
+         * @param {number} intervalMs 預設 30000
+         * @returns {{stop: Function}}
+         */
+        setupAutoSync(intervalMs = 30000) {
+            if (this._autoSyncInterval) {
+                clearInterval(this._autoSyncInterval);
+            }
+            const tick = async () => {
+                try {
+                    const handle = await this.tryStoredHandle();
+                    if (!handle) return; // 沒綁 folder, 不做事
+                    const result = await this.syncAllToFolder(handle);
+                    await this.writeManifest(handle);
+                    console.log('[diskDB.autoSync] written', result.written, 'files');
+                } catch (e) {
+                    console.warn('[diskDB.autoSync] error:', e.message);
+                }
+            };
+            this._autoSyncInterval = setInterval(tick, intervalMs);
+            console.log('[diskDB] auto-sync started, interval =', intervalMs, 'ms');
+            return {
+                stop: () => {
+                    if (this._autoSyncInterval) {
+                        clearInterval(this._autoSyncInterval);
+                        this._autoSyncInterval = null;
+                        console.log('[diskDB] auto-sync stopped');
+                    }
+                }
+            };
+        }
+
+        /**
+         * 頁面離開前 sync (Safari 不可靠, Chrome/Edge OK)
+         */
+        setupUnloadSync() {
+            const handler = () => {
+                // 同步觸發, 瀏覽器會 block async, 但 initiated 會跑
+                this.tryStoredHandle().then(handle => {
+                    if (handle) {
+                        this.syncAllToFolder(handle).catch(() => {});
+                    }
+                }).catch(() => {});
+            };
+            window.addEventListener('beforeunload', handler);
+            window.addEventListener('pagehide', handler);
+            console.log('[diskDB] unload-sync listener installed');
+        }
+
+        // ============================================================
         // Setup 程序 (v2.1.0 — File System Access API)
         // ============================================================
         async setup(options = {}) {
@@ -1017,6 +1174,46 @@
             return db.syncOneToFolder(handle, storeName);
         },
 
+        // ============================================================
+        // v2.2.0 — Hybrid Sync (cross-browser)
+        // ============================================================
+
+        /** 同步單一 store (Chrome/Edge: 寫 folder, Safari/FF: 下載 1 個 .json) */
+        syncStoreToDisk: async function(storeName) {
+            const db = await this.getInstance();
+            return db.syncStoreToDisk(storeName);
+        },
+
+        /** 同步所有 stores (Chrome/Edge: 寫 13 個檔, Safari/FF: 跳 13 個下載) */
+        syncAllToDisk: async function() {
+            const db = await this.getInstance();
+            return db.syncAllToDisk();
+        },
+
+        /** 從 disk folder 載入 (Chrome/Edge 用 stored handle) */
+        loadFromDiskFolder: async function() {
+            const db = await this.getInstance();
+            return db.loadFromDiskFolder();
+        },
+
+        /** 從 FileList (Safari webkitdirectory 選的) 載入 */
+        loadFromJsonFiles: async function(files) {
+            const db = await this.getInstance();
+            return db.loadFromJsonFiles(files);
+        },
+
+        /** 開啟背景 auto-sync (預設 30s) */
+        setupAutoSync: async function(intervalMs = 30000) {
+            const db = await this.getInstance();
+            return db.setupAutoSync(intervalMs);
+        },
+
+        /** 安裝 page unload listener, 離開前 sync */
+        setupUnloadSync: async function() {
+            const db = await this.getInstance();
+            return db.setupUnloadSync();
+        },
+
         instance: function() { return _instance; },
 
         SCHEMA: SCHEMA,
@@ -1032,6 +1229,6 @@
         isFileSystemAccessSupported: () => FSAccess.isSupported()
     };
 
-    console.log('[diskDB] v2.1.0 module loaded — File System Access API');
+    console.log('[diskDB] v2.2.0 module loaded — Hybrid Sync (auto + manual + cross-browser)')
     console.log('[diskDB] call window.diskDB.setup() to initialize');
 })();
