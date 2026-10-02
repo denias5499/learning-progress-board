@@ -15597,7 +15597,7 @@ function renderViewPage() {
                     pickIfMissing: false,
                     migrate: true
                 });
-                _showReadyBanner(_setupResult);
+                await _showReadyBanner(_setupResult);
             } else {
                 console.log('[v2.2.0] 沒有 stored handle, 顯示 picker UI');
                 _showPickerBanner();
@@ -15710,7 +15710,7 @@ function renderViewPage() {
     /**
      * 顯示「已就緒」banner (folder 已綁定)
      */
-    function _showReadyBanner(result) {
+    async function _showReadyBanner(result) {
         // 移除舊 banner
         const old = document.getElementById('diskdb-ready-banner');
         if (old) old.remove();
@@ -15810,7 +15810,7 @@ function renderViewPage() {
                 pickIfMissing: false,
                 migrate: true
             });
-            _showReadyBanner(_setupResult);
+            await _showReadyBanner(_setupResult);
         } catch (e) {
             if (e.name === 'AbortError') {
                 console.log('[v2.2.0] 用戶取消 picker');
