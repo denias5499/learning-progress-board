@@ -226,7 +226,7 @@
             };
             const filename = storeName + '.json';
             const content = JSON.stringify(data, null, 2);
-            return this.downloadFile(filename, content).then(() => filename);
+            return Promise.resolve(this.downloadFile(filename, content)).then(() => filename);
         },
 
         downloadFile(filename, content, mimeType = 'application/json') {
