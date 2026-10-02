@@ -15599,7 +15599,18 @@ function renderViewPage() {
                 });
                 await _showReadyBanner(_setupResult);
             } else {
-                console.log('[v2.2.0] 沒有 stored handle, 顯示 picker UI');
+                console.log('[v2.2.0] 沒有 stored handle, 先 migrate 確保 IndexedDB 有資料');
+                // 即使沒 folder handle,也先 migrate 讓 IndexedDB 有資料
+                try {
+                    await window.diskDB.setup({
+                        userId: 'config',
+                        tryStored: false,
+                        pickIfMissing: false,
+                        migrate: true
+                    });
+                } catch (e) {
+                    console.warn('[v2.2.0] pre-migrate 失敗:', e.message);
+                }
                 _showPickerBanner();
             }
         } catch (e) {
