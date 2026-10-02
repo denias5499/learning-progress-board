@@ -217,6 +217,18 @@
     // 把檔案下載到使用者系統 Downloads 資料夾
     // ============================================================
     const Downloader = {
+        downloadJson(storeName, items) {
+            const data = {
+                store: storeName,
+                count: Array.isArray(items) ? items.length : 0,
+                updatedAt: new Date().toISOString(),
+                items: items || []
+            };
+            const filename = storeName + '.json';
+            const content = JSON.stringify(data, null, 2);
+            return this.downloadFile(filename, content).then(() => filename);
+        },
+
         downloadFile(filename, content, mimeType = 'application/json') {
             const blob = new Blob([content], { type: mimeType });
             const url = URL.createObjectURL(blob);
