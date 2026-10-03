@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.2.0]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.0]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1379,7 +1379,43 @@
         .checkbox-group label { display: block; padding: 3px 0; font-size: 1.1em; font-weight: bold; cursor: pointer; }
         /* ===== End Phase 1 CSS ===== */
 
-        </style>
+        /* v2.3.0: Hover Tooltip 樣式 */
+        #hover-tooltip {
+            position: fixed;
+            z-index: 99999;
+            pointer-events: none;
+            background: #1f2937;
+            color: #f9fafb;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.5;
+            white-space: pre;
+            max-width: 340px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3), 0 1px 4px rgba(0,0,0,0.2);
+            opacity: 0;
+            transition: opacity 0.08s ease;
+            border-left: 4px solid #475569;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif;
+        }
+        #hover-tooltip.show { opacity: 1; }
+        #hover-tooltip::before {
+            content: '';
+            position: absolute;
+            left: -8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 4px solid transparent;
+            border-right-color: #1f2937;
+        }
+        #hover-tooltip.flip-left::before {
+            left: auto;
+            right: -8px;
+            border-right-color: transparent;
+            border-left-color: #1f2937;
+        }
+        [data-tooltip] { cursor: help; }
+</style>
 
     <style id="wz-hotfix">
         /* v1.6.142.2 強制修正：智慧排程模式按鈕文字顯示 */
@@ -1991,6 +2027,7 @@
         </div>
     </div>
 
+    <div id="hover-tooltip" style="display:none;"></div>
     <div id="modal-dash-detail" class="modal-bg" style="z-index: 2100;">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
@@ -5118,11 +5155,45 @@ loadBoardHeader();
                         }
                         var taskClasses = `task-item ${task.isDone ? 'done' : ''} ${isOverdue ? 'overdue' : ''} ${(isBottleneck && !task.isDone) ? 'bottleneck' : ''}`;
                         
+                        // v2.3.0: 組裝 hover tooltip — 顯示完整教材路徑
+                        var ttSub = task.subject || (linkedLog && linkedLog.subject) || '?';
+                        var ttType = (linkedLog && linkedLog.materialTypeName) || (linkedLog && linkedLog.type) || '?';
+                        var ttInst = (linkedLog && linkedLog.materialName) || (linkedLog && linkedLog.instanceName) || (linkedLog && linkedLog.instance) || '?';
+                        var ttVol = (linkedLog && linkedLog.vol) || '?';
+                        var ttUnit = (linkedLog && linkedLog.unitName) || task.unitName || '?';
+                        var ttStart = (linkedLog && linkedLog.start) || task.startPage || '';
+                        var ttEnd = (linkedLog && linkedLog.end) || task.endPage || '';
+                        var ttPageStr = '';
+                        if (ttStart && ttEnd) {
+                            ttPageStr = (ttStart === ttEnd) ? ('P.' + ttStart) : ('P.' + ttStart + '~' + ttEnd);
+                        }
+                        var ttCat = prefixCat || cmCat || '';
+                        var ttMis = prefixMis || cmMis || '';
+                        var ttStatus = task.isDone ? '✅ 已完成' : (isOverdue ? '⚠️ 逾期' : (isBottleneck ? '🆘 卡關' : '⏳ 待完成'));
+                        var ttDate = dStr;
+                        var tooltipLines = [
+                            '📚 教材路徑',
+                            '  📘 ' + ttSub + ' / ' + ttType + ' / ' + ttInst,
+                            '  📖 冊次: ' + ttVol,
+                            '  📝 單元: ' + ttUnit + (ttPageStr ? ' ' + ttPageStr : ''),
+                            '',
+                            '🏷️ ' + (ttCat || '無') + (ttMis ? ' / ' + ttMis : ''),
+                            '📅 ' + ttDate + ' · ' + ttStatus
+                        ];
+                        var tooltipText = tooltipLines.join('\n');
+                        var subjectColor = ({
+                            '國文':'#dc2626','數學':'#2563eb','英文':'#059669','歷史':'#9333ea',
+                            '地理':'#0891b2','公民':'#ea580c','生物':'#65a30d','理化':'#db2777'
+                        })[ttSub] || '#475569';
+                        
                         tasksHtml += `
                         <div class="${taskClasses}" 
                             draggable="true" 
                             ondragstart="dragTask(event, '${pid}', '${dStr}', '${task.id}')"
-                            onclick="editCalendarTask('${pid}', '${dStr}', '${task.id}')" title="${titleAttr}">
+                            onclick="editCalendarTask('${pid}', '${dStr}', '${task.id}')" 
+                            data-tooltip="${tooltipText}" 
+                            data-tooltip-color="${subjectColor}" 
+                            title="${titleAttr}">
                             <div style="display:flex; align-items:flex-start; gap:6px;">
                                 <input type="checkbox" ${task.isDone ? 'checked' : ''} onclick="toggleTaskDone(event, '${pid}', '${dStr}', '${task.id}')" style="margin-top:3px; width:14px; height:14px; cursor:pointer; flex-shrink:0;">
                                 <span class="task-text" style="flex:1; word-break:break-all;">${bottleneckMark}${displayText}</span>
@@ -14269,10 +14340,23 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                             totalPages += pTotal;
                             donePages += pDone;
                             
-                            if (isActuallyDone) {
+  if (isActuallyDone) {
+                                var _ctx = ctx || findUnitContext(u.id);
+                                var _tipColor = ({'國文':'#dc2626','數學':'#2563eb','英文':'#059669','歷史':'#9333ea','地理':'#0891b2','公民':'#ea580c','生物':'#65a30d','理化':'#db2777'})[sub] || '#475569';
+                                var _tipText = [
+                                    '📚 教材路徑',
+                                    '  📘 ' + sub + ' / ' + (_ctx?_ctx.typeName:'?') + ' / ' + (_ctx?_ctx.instance.name:'?'),
+                                    '  📖 冊次: ' + (_ctx?_ctx.vol:'?'),
+                                    '  📝 單元: ' + u.name,
+                                    '',
+                                    '🏷️ ' + cat + ' / ' + mis,
+                                    '✅ 已完成 · 花 ' + '天數計算中' + ' 天'
+                                ].join('\n');
                                 doneUnits.push({
                                     id: u.id,
                                     name: u.name,
+                                    _tooltip: _tipText,
+                                    _color: _tipColor,
                                     days: (function() {
                                         var days = new Set();
                                         if (Array.isArray(appPlans)) {
@@ -14289,12 +14373,25 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                                     })(),
                                     finishDate: getUnitLastDoneDate(u.id) || '未知' 
                                 });
-                            } else {
+  } else {
                                 // v1.5.149: 如果是 unit-based 但 task 實際沒 isDone, 重設 pDone
                                 if (isUnitBasedType(typeObj) && pDone > 0) pDone = 0;
+                                var _ctx2 = ctx || findUnitContext(u.id);
+                                var _tipColor2 = ({'國文':'#dc2626','數學':'#2563eb','英文':'#059669','歷史':'#9333ea','地理':'#0891b2','公民':'#ea580c','生物':'#65a30d','理化':'#db2777'})[sub] || '#475569';
+                                var _tipText2 = [
+                                    '📚 教材路徑',
+                                    '  📘 ' + sub + ' / ' + (_ctx2?_ctx2.typeName:'?') + ' / ' + (_ctx2?_ctx2.instance.name:'?'),
+                                    '  📖 冊次: ' + (_ctx2?_ctx2.vol:'?'),
+                                    '  📝 單元: ' + u.name + ' (' + (Math.max(0, pTotal - pDone)) + '/' + pTotal + ' 頁)',
+                                    '',
+                                    '🏷️ ' + cat + ' / ' + mis,
+                                    '⏳ 待完成'
+                                ].join('\n');
                                 todoUnits.push({
                                     id: u.id,
                                     name: u.name,
+                                    _tooltip: _tipText2,
+                                    _color: _tipColor2,
                                     pagesLeft: Math.max(0, pTotal - pDone),
                                     totalPages: pTotal,
                                     range: isUnitBasedType(typeObj) ? u.name : ('P.' + u.start + '~' + u.end),
@@ -14370,8 +14467,8 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 if(data.length === 0) html = '<div style="color:#7f8c8d;">目前無已完成的單元。</div>';
                 else {
                     html += '<table style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="border-bottom:2px solid #ccc; padding:10px;">單元名稱</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">花費天數</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">完成日期</th></tr>';
-                    data.forEach(d => {
-                        html += `<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">${d.name}</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--accent);">${d.days} 天</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--secondary);">${d.finishDate}</td></tr>`;
+  data.forEach(d => {
+                        html += '<tr data-tooltip="' + (d._tooltip||'') + '" data-tooltip-color="' + (d._color||'#475569') + '" style="cursor:help;"><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--accent);">' + d.days + ' 天</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--secondary);">' + d.finishDate + '</td></tr>';
                     });
                     html += '</table>';
                 }
@@ -14406,7 +14503,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                         }
                         var rangeTag = d.range ? ' <span style="font-size:0.7em;color:#7f8c8d;font-weight:normal;">(' + d.range + ')</span>' : '';
                         var openTag = (d.openTaskCount && d.openTaskCount > 0) ? ' <span style="font-size:0.7em;color:var(--danger);font-weight:normal;" title="在月曆排程中還有 ' + d.openTaskCount + ' 個未勾選的 task">⚠ ' + d.openTaskCount + ' 未勾</span>' : '';
-                        html += '<tr><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + rangeTag + openTag + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--danger); font-weight:bold;">' + d.pagesLeft + ' 頁</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; font-size:0.9em;">' + statusHtml + '</td></tr>';
+  html += '<tr data-tooltip="' + (d._tooltip||'') + '" data-tooltip-color="' + (d._color||'#475569') + '" style="cursor:help;"><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + rangeTag + openTag + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--danger); font-weight:bold;">' + d.pagesLeft + ' 頁</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; font-size:0.9em;">' + statusHtml + '</td></tr>';
                     });
                     html += '</table>';
                 }
@@ -15545,10 +15642,98 @@ function renderViewPage() {
 
 <!-- v2.1.0: File System Access API setup — 讓用戶選 Mac folder (iCloud/Dropbox/NAS 同步) -->
 <script>
+/**
+ * v2.3.0 HoverTooltip widget
+ * - 偵測 [data-tooltip] 元素, hover 時顯示浮動提示
+ * - 0ms delay (Q1 確認)
+ * - 自動避開視窗邊緣
+ */
+(function() {
+    'use strict';
+    var tip = null;
+    var activeEl = null;
+    
+    function ensureTip() {
+        if (tip) return tip;
+        tip = document.getElementById('hover-tooltip');
+        if (!tip) {
+            tip = document.createElement('div');
+            tip.id = 'hover-tooltip';
+            document.body.appendChild(tip);
+        }
+        tip.style.display = 'block';
+        return tip;
+    }
+    
+    function show(el) {
+        var text = el.getAttribute('data-tooltip');
+        if (!text) return;
+        var color = el.getAttribute('data-tooltip-color') || '#475569';
+        var t = ensureTip();
+        t.textContent = text;
+        t.style.borderLeftColor = color;
+        t.classList.remove('flip-left');
+        
+        // 定位: 預設在 target 右側,中央對齊
+        var rect = el.getBoundingClientRect();
+        var tipRect = t.getBoundingClientRect();
+        var x = rect.right + 8;
+        var y = rect.top + (rect.height / 2) - (tipRect.height / 2);
+        
+        // 邊界翻轉
+        if (x + tipRect.width > window.innerWidth - 10) {
+            x = rect.left - tipRect.width - 8;
+            t.classList.add('flip-left');
+        }
+        if (y + tipRect.height > window.innerHeight - 10) {
+            y = window.innerHeight - tipRect.height - 10;
+        }
+        if (y < 10) y = 10;
+        
+        t.style.left = x + 'px';
+        t.style.top = y + 'px';
+        t.classList.add('show');
+        activeEl = el;
+    }
+    
+    function hide() {
+        if (!tip) return;
+        tip.classList.remove('show');
+        activeEl = null;
+    }
+    
+    function onOver(e) {
+        var el = e.target.closest('[data-tooltip]');
+        if (!el) return;
+        if (el === activeEl) return;
+        show(el);
+    }
+    function onOut(e) {
+        var el = e.target.closest('[data-tooltip]');
+        if (!el) return;
+        // 移到 tooltip 自己時不要隱藏
+        if (e.relatedTarget === tip) return;
+        hide();
+    }
+    
+    // 用 capture + delegation, 0ms 立即觸發
+    document.addEventListener('mouseover', onOver, true);
+    document.addEventListener('mouseout', onOut, true);
+    document.addEventListener('focusin', onOver, true);
+    document.addEventListener('focusout', onOut, true);
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
+    
+    window.HoverTooltip = { show: show, hide: hide, _getTip: function() { return tip; } };
+    console.log('[HoverTooltip v2.3.0] mounted — 0ms delay, event delegation ready');
+})();
+</script>
+
+<script>
 (function() {
     'use strict';
 
-    /**
+/**
      * v2.1.0 初始化流程
      *
      * 1. 自動 init IndexedDB (cache)
