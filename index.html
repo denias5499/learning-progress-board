@@ -882,7 +882,6 @@
 
 /* v1.5.143: 列印設定月曆 grid */
 .print-cal-day {
-        .print-cal-day {
             text-align: center;
             padding: 6px 4px;
             border: 1px solid #e0e0e0;
@@ -908,6 +907,7 @@
             background: #fff9c4 !important;
             color: #5d4037 !important;
         }
+        } /* v2.3.0: closing outer .print-cal-day (was missing after invalid nesting fix) */
 
         .theme-toggle:hover { background: var(--card-bg); transform: rotate(20deg) scale(1.05); }
 
