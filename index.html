@@ -14560,14 +14560,15 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             if (data.length === 0) {
                 html = '<div style="color:#7f8c8d;">' + (isDone ? '目前無已完成的單元。' : '🎉 太棒了！所有單元均已完成。') + '</div>';
             } else {
+                // v2.3.1.4: 把 _key2/_dir2 宣告提到最前面, 給 note 文字 + 表頭共用
+                var _key2 = window._dashSortKey || null;
+                var _dir2 = window._dashSortDir || 'asc';
                 var _noteText;
                 if (_key2 === 'cat') _noteText = '目前排序: 進度分類（' + (_dir2==='asc'?'筆畫 由小到大':'筆畫 由大到小') + '）';
                 else if (_key2 === 'typeName') _noteText = '目前排序: 教材類型（' + (_dir2==='asc'?'筆畫 由小到大':'筆畫 由大到小') + '）';
                 else _noteText = isDone ? '預設排序: 已完成日期由舊到新（同日再按建立順序）' : '預設排序: 按建立順序由舊到新';
                 html += '<div class="dash-sort-note">📅 ' + _noteText + '　<span style="color:#94a3b8; font-size:12px;">（點擊「進度分類」或「教材類型」表頭可切換）</span></div>';
                 html += '<table class="dash-detail-6col"><thead><tr>';
-                var _key2 = window._dashSortKey || null;
-                var _dir2 = window._dashSortDir || 'asc';
                 function _sortTh(label, key) {
                     if (_key2 !== key) return '<th class="sortable" onclick="window.dashSortBy(\''+key+'\')" title="點擊按 ' + label + ' 排序">' + label + '</th>';
                     var arrow = _dir2 === 'asc' ? ' ▲' : ' ▼';
