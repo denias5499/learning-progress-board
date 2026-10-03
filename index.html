@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.1.0]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.1.1]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -642,18 +642,18 @@
 #dashboard-root { background: #c7eefb; padding: 12px; border-radius: 12px; }  /* v1.5.236: 看板底色 → #c7eefb */
 #dashboard-root .card { background: #EFF7F6; }  /* v1.5.210: 首頁各科目 card */
 
-/* v2.3.1.0: 首頁科目進度條下方 6 欄永遠顯示的 unit grid */
-.dash-unit-list { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
-.dash-unit-list th { background: #f1f5f9; color: #334155; font-weight: 600; padding: 6px 4px; border-bottom: 2px solid #cbd5e1; text-align: left; white-space: nowrap; }
-.dash-unit-list td { padding: 5px 4px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: top; }
-.dash-unit-list td.cat-cell { color: #0f172a; font-weight: 600; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
-.dash-unit-list td.mis-cell { color: #475569; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
-.dash-unit-list td.vol-cell { color: #475569; max-width: 80px; }
-.dash-unit-list tr.done-row td { background: rgba(167, 243, 208, 0.18); }
-.dash-unit-list tr.todo-row td { background: rgba(254, 240, 138, 0.15); }
-.dash-unit-list tr:hover td { background: rgba(59, 130, 246, 0.08); }
-.dash-unit-toggle { background: none; border: 1px dashed #94a3b8; color: #475569; padding: 4px 10px; margin-top: 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-.dash-unit-toggle:hover { background: #f1f5f9; }
+/* v2.3.1.1: 點 bar 跳出彈窗, 彈窗內 6 欄 grid */
+#dd-content .dash-detail-6col { width: 100%; border-collapse: collapse; font-size: 14px; }
+#dd-content .dash-detail-6col th { background: #f1f5f9; color: #334155; font-weight: 600; padding: 10px 8px; border-bottom: 2px solid #cbd5e1; text-align: left; white-space: nowrap; }
+#dd-content .dash-detail-6col td { padding: 8px 8px; border-bottom: 1px solid #e2e8f0; color: #1e293b; vertical-align: top; }
+#dd-content .dash-detail-6col td.cat-cell { color: #0f172a; font-weight: 600; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+#dd-content .dash-detail-6col td.mis-cell { color: #475569; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+#dd-content .dash-detail-6col td.vol-cell { color: #475569; max-width: 90px; }
+#dd-content .dash-detail-6col tr.done-row td { background: rgba(167, 243, 208, 0.18); }
+#dd-content .dash-detail-6col tr.todo-row td { background: rgba(254, 240, 138, 0.15); }
+#dd-content .dash-detail-6col tr:hover td { background: rgba(59, 130, 246, 0.08); }
+#modal-dash-detail { max-width: 95vw; width: 1000px; }
+#modal-dash-detail .modal-content { max-height: 80vh; overflow: auto; }
 #page-stats .page-card { background: #c7eefb; }   /* v1.5.209: 學習統計分析 */
 #page-settings .page-card { background: #c7eefb; } /* v1.5.209: 教材庫設定與備份 */
 #page-planner .page-card { background: #c7eefb; }  /* v1.5.209: 月計畫排程 */
@@ -14441,49 +14441,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                         var dataKey = 'key_' + genId();
                         window._dashDataStore[dataKey] = { done: doneUnits, todo: todoUnits };
 
-                        // v2.3.1.0: bar 下方永遠顯示 doneUnits + todoUnits 6 欄 grid (最多 10 筆 + 摺疊)
-                        var unitRowsHtml = '';
-                        var combined = [];
-                        doneUnits.forEach(function(d){ combined.push({kind:'done', u:d}); });
-                        todoUnits.forEach(function(t){ combined.push({kind:'todo', u:t}); });
-                        var MAX = 10;
-                        var needToggle = combined.length > MAX;
-                        var shown = needToggle ? combined.slice(0, MAX) : combined;
-                        unitRowsHtml += '<table class="dash-unit-list"><thead><tr>';
-                        unitRowsHtml += '<th>進度分類</th><th>任務</th><th>教材類型</th><th>教材名稱</th><th>冊次</th><th>單元名稱</th>';
-                        unitRowsHtml += '</tr></thead><tbody>';
-                        shown.forEach(function(item){
-                            var d = item.u;
-                            var rowCls = item.kind === 'done' ? 'done-row' : 'todo-row';
-                            var vol = d.vol || '無';
-                            unitRowsHtml += '<tr class="' + rowCls + '">';
-                            unitRowsHtml += '<td class="cat-cell" title="' + (d.cat||'') + '">' + (d.cat||'?') + '</td>';
-                            unitRowsHtml += '<td class="mis-cell" title="' + (d.mis||'') + '">' + (d.mis||'?') + '</td>';
-                            unitRowsHtml += '<td>' + (d.typeName||'?') + '</td>';
-                            unitRowsHtml += '<td>' + (d.instanceName||'?') + '</td>';
-                            unitRowsHtml += '<td class="vol-cell">' + vol + '</td>';
-                            unitRowsHtml += '<td>' + (d.unitName||'?') + '</td>';
-                            unitRowsHtml += '</tr>';
-                        });
-                        unitRowsHtml += '</tbody></table>';
-                        if (needToggle) {
-                            var hiddenRows = combined.slice(MAX).map(function(item){
-                                var d = item.u;
-                                var rowCls = item.kind === 'done' ? 'done-row' : 'todo-row';
-                                var vol = d.vol || '無';
-                                return '<tr class="' + rowCls + '" style="display:none;">'
-                                    + '<td class="cat-cell" title="' + (d.cat||'') + '">' + (d.cat||'?') + '</td>'
-                                    + '<td class="mis-cell" title="' + (d.mis||'') + '">' + (d.mis||'?') + '</td>'
-                                    + '<td>' + (d.typeName||'?') + '</td>'
-                                    + '<td>' + (d.instanceName||'?') + '</td>'
-                                    + '<td class="vol-cell">' + vol + '</td>'
-                                    + '<td>' + (d.unitName||'?') + '</td></tr>';
-                            }).join('');
-                            // 暫存 hidden HTML 到 dataset, toggle 時用 JS 補上
-                            window['_hidden_' + dataKey] = '<table class="dash-unit-list"><tbody>' + hiddenRows + '</tbody></table>';
-                            unitRowsHtml += '<button class="dash-unit-toggle" onclick="toggleUnitRows(this, \'' + dataKey + '\')">展開剩餘 ' + (combined.length - MAX) + ' 筆 ▼</button>';
-                        }
-
+                        // v2.3.1.1: bar 維持原貌 (不顯示 inline grid), 點擊 bar 跳 dialog 才顯示 6 欄 grid
                         var barHtml = `
                             <div class="card" style="padding: 15px;">
                                 <div class="subject-name" style="margin-bottom: 10px; border:none; padding:0;">📌 ${sub} <span style="font-size:0.8em; color:#7f8c8d; font-weight:normal;">(${donePages}/${totalPages} ${unitLabelText})</span></div>
@@ -14495,7 +14453,6 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                                         ${pctRemain > 8 ? pctRemain + '%' : ''}
                                     </div>
                                 </div>
-                                ${unitRowsHtml}
                             </div>
                         `;
                         misHtml += barHtml;
@@ -14511,83 +14468,34 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
         }
 
 
-        // v2.3.1.0: 摺疊 / 展開 dash unit 表格剩餘列
-        window.toggleUnitRows = function(btn, dataKey) {
-            var card = btn.parentElement;
-            var tbody = card.querySelector('.dash-unit-list tbody');
-            var hiddenTable = window['_hidden_' + dataKey];
-            if (!tbody || !hiddenTable) return;
-            var expanded = btn.getAttribute('data-expanded') === '1';
-            if (expanded) {
-                // 收合: 把 hidden rows 拿掉
-                var extra = card.querySelectorAll('.dash-unit-list tr.extra-row');
-                extra.forEach(function(r){ r.remove(); });
-                btn.setAttribute('data-expanded', '0');
-                btn.textContent = btn.getAttribute('data-label');
-            } else {
-                // 展開: parse hiddenTable 並插入
-                var hiddenTbody = hiddenTable.match(/<tbody>([\s\S]*)<\/tbody>/)[1];
-                var wrap = document.createElement('tbody');
-                wrap.innerHTML = hiddenTbody;
-                wrap.querySelectorAll('tr').forEach(function(r){ r.classList.add('extra-row'); tbody.appendChild(r); });
-                btn.setAttribute('data-expanded', '1');
-                var n = hiddenTbody.split('<tr').length - 1;
-                btn.setAttribute('data-label', btn.textContent);
-                btn.textContent = '收合剩餘 ' + n + ' 筆 ▲';
-            }
-        };
-
         window.showDashDetail = function(type, subject, dataKey) {
             var dataInfo = window._dashDataStore[dataKey];
             if (!dataInfo) return;
             var html = '';
-            
-            if (type === 'done') {
-                var data = dataInfo.done;
-                el('dd-title').innerHTML = `✅ ${subject} - 已完成單元`;
-                if(data.length === 0) html = '<div style="color:#7f8c8d;">目前無已完成的單元。</div>';
-                else {
-                    html += '<table style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="border-bottom:2px solid #ccc; padding:10px;">單元名稱</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">花費天數</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">完成日期</th></tr>';
-  data.forEach(d => {
-                        html += '<tr data-tooltip="' + (d._tooltip||'') + '" data-tooltip-color="' + (d._color||'#475569') + '" style="cursor:help;"><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--accent);">' + d.days + ' 天</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--secondary);">' + d.finishDate + '</td></tr>';
-                    });
-                    html += '</table>';
-                }
+            var isDone = (type === 'done');
+            var data = isDone ? dataInfo.done : dataInfo.todo;
+            var titleSuffix = isDone ? '✅ ' + subject + ' - 已完成單元' : '⏳ ' + subject + ' - 未完成單元';
+            el('dd-title').innerHTML = titleSuffix;
+            if (data.length === 0) {
+                html = '<div style="color:#7f8c8d;">' + (isDone ? '目前無已完成的單元。' : '🎉 太棒了！所有單元均已完成。') + '</div>';
             } else {
-                var data = dataInfo.todo;
-                var totalPagesSum = data.reduce((s, d) => s + (d.totalPages || 0), 0);
-                var totalLeftSum = data.reduce((s, d) => s + d.pagesLeft, 0);
-                var totalDoneSum = totalPagesSum - totalLeftSum;
-                var summaryLine = (totalPagesSum > 0)
-                    ? ' <span style="font-size:0.75em;color:var(--secondary);font-weight:normal;">(未完成單元 ' + totalPagesSum + ' 頁 / 已完成部分 ' + totalDoneSum + ' / 剩餘 ' + totalLeftSum + ')</span>'
-                    : '';
-                el('dd-title').innerHTML = '⏳ ' + subject + ' - 未完成單元' + summaryLine;
-                if(data.length === 0) html = '<div style="color:#7f8c8d;">🎉 太棒了！所有單元均已完成。</div>';
-                else {
-                    html += '<table style="width:100%; border-collapse:collapse; text-align:left;"><tr><th style="border-bottom:2px solid #ccc; padding:10px;">單元名稱</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">剩餘頁數</th><th style="border-bottom:2px solid #ccc; padding:10px; text-align:center;">狀態</th></tr>';
-                    data.forEach(d => {
-                        var statusHtml;
-                        if (d.expected) {
-                            var parts = d.expected.split('-');
-                            var mm = parseInt(parts[1], 10);
-                            var dd = parseInt(parts[2], 10);
-                            var todayStr = getLocalDateString(new Date());
-                            if (d.expected < todayStr) {
-                                statusHtml = '<span style="color:var(--warning); font-weight:bold;">原排 ' + mm + '/' + dd + '（逾期）</span>';
-                            } else if (d.expected === todayStr) {
-                                statusHtml = '<span style="color:var(--accent); font-weight:bold;">今天 ' + mm + '/' + dd + ' 完成</span>';
-                            } else {
-                                statusHtml = '<span style="color:var(--accent); font-weight:bold;">預定 ' + mm + '/' + dd + ' 完成</span>';
-                            }
-                        } else {
-                            statusHtml = '<span style="color:#7f8c8d;">待安排</span>';
-                        }
-                        var rangeTag = d.range ? ' <span style="font-size:0.7em;color:#7f8c8d;font-weight:normal;">(' + d.range + ')</span>' : '';
-                        var openTag = (d.openTaskCount && d.openTaskCount > 0) ? ' <span style="font-size:0.7em;color:var(--danger);font-weight:normal;" title="在月曆排程中還有 ' + d.openTaskCount + ' 個未勾選的 task">⚠ ' + d.openTaskCount + ' 未勾</span>' : '';
-  html += '<tr data-tooltip="' + (d._tooltip||'') + '" data-tooltip-color="' + (d._color||'#475569') + '" style="cursor:help;"><td style="border-bottom:1px solid #eee; padding:10px; font-weight:bold; color:var(--primary);">' + d.name + rangeTag + openTag + '</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; color:var(--danger); font-weight:bold;">' + d.pagesLeft + ' 頁</td><td style="border-bottom:1px solid #eee; padding:10px; text-align:center; font-size:0.9em;">' + statusHtml + '</td></tr>';
-                    });
-                    html += '</table>';
-                }
+                // v2.3.1.1: 6 欄 grid: 進度分類 / 任務 / 教材類型 / 教材名稱 / 冊次 / 單元名稱
+                html += '<table class="dash-detail-6col"><thead><tr>';
+                html += '<th>進度分類</th><th>任務</th><th>教材類型</th><th>教材名稱</th><th>冊次</th><th>單元名稱</th>';
+                html += '</tr></thead><tbody>';
+                data.forEach(function(d) {
+                    var vol = d.vol || '無';
+                    var rowCls = isDone ? 'done-row' : 'todo-row';
+                    html += '<tr class="' + rowCls + '">';
+                    html += '<td class="cat-cell" title="' + (d.cat||'') + '">' + (d.cat||'?') + '</td>';
+                    html += '<td class="mis-cell" title="' + (d.mis||'') + '">' + (d.mis||'?') + '</td>';
+                    html += '<td>' + (d.typeName||'?') + '</td>';
+                    html += '<td>' + (d.instanceName||'?') + '</td>';
+                    html += '<td class="vol-cell">' + vol + '</td>';
+                    html += '<td>' + (d.unitName||'?') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
             }
             el('dd-content').innerHTML = html;
             openModal('modal-dash-detail');
