@@ -673,16 +673,29 @@
          */
         setupUnloadSync() {
             const handler = () => {
-                // 同步觸發, 瀏覽器會 block async, 但 initiated 會跑
-                this.tryStoredHandle().then(handle => {
-                    if (handle) {
-                        this.syncAllToFolder(handle).catch(() => {});
+                // 卸載時 sync: 有 handle → 寫 folder; 沒 handle → 走下載 (Safari/FF)
+                // 注意: unload 觸發時瀏覽器可能 block async, 但 initiated 會跑
+                const runUnloadSync = async () => {
+                    try {
+                        const handle = await this.tryStoredHandle();
+                        if (handle) {
+                            // Chrome/Edge: 有 folder handle → 寫 folder (syncAllToDisk 會自動偵測)
+                            await this.syncAllToDisk().catch(() => {});
+                        } else {
+                            // Safari/FF 或未綁定: 走下載路徑
+                            // (unload 時下載對話框通常被 block, 但這是瀏覽器限制, 我們盡力)
+                            await this.syncAllToDisk().catch(() => {});
+                        }
+                    } catch (e) {
+                        // 卸載時靜默失敗
                     }
-                }).catch(() => {});
+                };
+                runUnloadSync();
             };
             window.addEventListener('beforeunload', handler);
             window.addEventListener('pagehide', handler);
-            console.log('[diskDB] unload-sync listener installed');
+            this._unloadHandler = handler;
+            console.log('[diskDB] unload-sync listener installed (syncAllToDisk 自動偵測 folder/下載)');
         }
 
         // ============================================================
@@ -1241,6 +1254,6 @@
         isFileSystemAccessSupported: () => FSAccess.isSupported()
     };
 
-    console.log('[diskDB] v2.2.0 module loaded — Hybrid Sync (auto + manual + cross-browser)')
+    console.log('[diskDB] v2.2.0.1 module loaded — Hybrid Sync + unload sync fix')
     console.log('[diskDB] call window.diskDB.setup() to initialize');
 })();
