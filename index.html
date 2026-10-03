@@ -14513,43 +14513,46 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             var modal = el('modal-dash-detail');
             var content = modal.querySelector('.modal-content');
             modal.style.display = 'flex';
-            modal.dataset.barClickX = evt ? evt.clientX : 0;
-            modal.dataset.barClickY = evt ? evt.clientY : 0;
-            
-            // 算位置: bar 中心為錨點, modal 寬 360-460px, 高 auto
-            var anchor = evt && evt.currentTarget ? evt.currentTarget : (evt && evt.target ? evt.target : null);
+
+            // 從 onclick 內容找對應 bar div (更可靠, 不依賴 evt.currentTarget)
+            var bars = document.querySelectorAll('.card [onclick]');
+            var anchor = null;
+            for (var k = 0; k < bars.length; k++) {
+                var oc = bars[k].getAttribute('onclick') || '';
+                if (oc.indexOf("showDashDetail(") >= 0 && oc.indexOf("'" + dataKey + "'") >= 0 && oc.indexOf("'" + type + "'") >= 0) {
+                    anchor = bars[k];
+                    break;
+                }
+            }
+            // fallback: evt.target
+            if (!anchor && evt && evt.target) anchor = evt.target;
             var rect;
             try { rect = anchor ? anchor.getBoundingClientRect() : null; } catch(e) {}
             if (!rect) {
-                // fallback: viewport 中央
                 content.style.position = 'absolute';
                 content.style.left = '50%';
                 content.style.top = '50%';
                 content.style.transform = 'translate(-50%, -50%)';
                 return;
             }
-            var barCenterX = rect.left + rect.width / 2;
-            var barCenterY = rect.top + rect.height / 2;
-            // 等 modal 內容自己算寬高
+            // 先量 modal 尺寸 (暫時顯示)
             content.style.position = 'absolute';
             content.style.visibility = 'hidden';
-            // 暫時顯示以量尺寸
-            var origDisplay = content.style.display;
             content.style.display = 'block';
             var cw = content.offsetWidth;
             var ch = content.offsetHeight;
             content.style.visibility = 'visible';
-            
+
             var GAP = 14;
             var padR = 10, padB = 10;
-            // 預設: bar 右側, 不夠就左側, 上下也對齊
+            // 預設: bar 右側, 不夠就左側
             var left = rect.right + GAP;
             if (left + cw > window.innerWidth - padR) left = rect.left - cw - GAP;
             if (left < padR) left = Math.max(padR, window.innerWidth - cw - padR);
-            var top = barCenterY - ch / 2;
+            var top = rect.top + rect.height / 2 - ch / 2;
             if (top < padB) top = padB;
             if (top + ch > window.innerHeight - padB) top = window.innerHeight - ch - padB;
-            
+
             content.style.left = left + 'px';
             content.style.top = top + 'px';
             content.style.transform = 'none';
