@@ -5154,30 +5154,34 @@ loadBoardHeader();
                         }
                         var taskClasses = `task-item ${task.isDone ? 'done' : ''} ${isOverdue ? 'overdue' : ''} ${(isBottleneck && !task.isDone) ? 'bottleneck' : ''}`;
                         
-                        // v2.3.0: 組裝 hover tooltip — 顯示完整教材路徑
-                        var ttSub = task.subject || (linkedLog && linkedLog.subject) || '?';
-                        var ttType = (linkedLog && linkedLog.materialTypeName) || (linkedLog && linkedLog.type) || '?';
-                        var ttInst = (linkedLog && linkedLog.materialName) || (linkedLog && linkedLog.instanceName) || (linkedLog && linkedLog.instance) || '?';
-                        var ttVol = (linkedLog && linkedLog.vol) || '?';
-                        var ttUnit = (linkedLog && linkedLog.unitName) || task.unitName || '?';
-                        var ttStart = (linkedLog && linkedLog.start) || task.startPage || '';
-                        var ttEnd = (linkedLog && linkedLog.end) || task.endPage || '';
+                        // v2.3.0.1: 組裝 hover tooltip — 顯示完整教材路徑 (含 mission 名稱在頂部 + 拿掉日期)
+                        // 先從 findUnitContext 拿完整教材資料 (typeName/instanceName/vol)
+                        var unitCtx = null;
+                        try { unitCtx = task.unitId ? findUnitContext(task.unitId) : null; } catch(e) {}
+                        var ttSub = (unitCtx && unitCtx.sub) || task.subject || (linkedLog && linkedLog.subject) || '?';
+                        var ttType = (unitCtx && unitCtx.typeName) || (linkedLog && linkedLog.materialTypeName) || (linkedLog && linkedLog.type) || '?';
+                        var ttInst = (unitCtx && unitCtx.instance && unitCtx.instance.name) || (linkedLog && linkedLog.materialName) || (linkedLog && linkedLog.instanceName) || (linkedLog && linkedLog.instance) || '?';
+                        var ttVol = (unitCtx && unitCtx.vol) || (linkedLog && linkedLog.vol) || '?';
+                        var ttUnit = (unitCtx && unitCtx.unit && unitCtx.unit.name) || (linkedLog && linkedLog.unitName) || task.unitName || '?';
+                        var ttStart = (linkedLog && linkedLog.start) || task.startPage || (unitCtx && unitCtx.unit && unitCtx.unit.startPage) || '';
+                        var ttEnd = (linkedLog && linkedLog.end) || task.endPage || (unitCtx && unitCtx.unit && unitCtx.unit.endPage) || '';
                         var ttPageStr = '';
-                        if (ttStart && ttEnd) {
+                        if (ttStart && ttEnd && ttStart !== '' && ttEnd !== '') {
                             ttPageStr = (ttStart === ttEnd) ? ('P.' + ttStart) : ('P.' + ttStart + '~' + ttEnd);
                         }
                         var ttCat = prefixCat || cmCat || '';
                         var ttMis = prefixMis || cmMis || '';
                         var ttStatus = task.isDone ? '✅ 已完成' : (isOverdue ? '⚠️ 逾期' : (isBottleneck ? '🆘 卡關' : '⏳ 待完成'));
-                        var ttDate = dStr;
+                        // v2.3.0.1: 任務名稱放第一行 + 拿掉日期
+                        var missionTitle = ttCat + (ttMis ? '：' + ttMis : '');
                         var tooltipLines = [
+                            '🏷️ ' + missionTitle,
                             '📚 教材路徑',
                             '  📘 ' + ttSub + ' / ' + ttType + ' / ' + ttInst,
                             '  📖 冊次: ' + ttVol,
                             '  📝 單元: ' + ttUnit + (ttPageStr ? ' ' + ttPageStr : ''),
                             '',
-                            '🏷️ ' + (ttCat || '無') + (ttMis ? ' / ' + ttMis : ''),
-                            '📅 ' + ttDate + ' · ' + ttStatus
+                            ttStatus
                         ];
                         var tooltipText = tooltipLines.join('\n');
                         var subjectColor = ({
@@ -14343,12 +14347,12 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                                 var _ctx = ctx || findUnitContext(u.id);
                                 var _tipColor = ({'國文':'#dc2626','數學':'#2563eb','英文':'#059669','歷史':'#9333ea','地理':'#0891b2','公民':'#ea580c','生物':'#65a30d','理化':'#db2777'})[sub] || '#475569';
                                 var _tipText = [
+                                    '🏷️ ' + cat + (mis?'：'+mis:''),
                                     '📚 教材路徑',
                                     '  📘 ' + sub + ' / ' + (_ctx?_ctx.typeName:'?') + ' / ' + (_ctx?_ctx.instance.name:'?'),
                                     '  📖 冊次: ' + (_ctx?_ctx.vol:'?'),
                                     '  📝 單元: ' + u.name,
                                     '',
-                                    '🏷️ ' + cat + ' / ' + mis,
                                     '✅ 已完成 · 花 ' + '天數計算中' + ' 天'
                                 ].join('\n');
                                 doneUnits.push({
@@ -14378,12 +14382,12 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                                 var _ctx2 = ctx || findUnitContext(u.id);
                                 var _tipColor2 = ({'國文':'#dc2626','數學':'#2563eb','英文':'#059669','歷史':'#9333ea','地理':'#0891b2','公民':'#ea580c','生物':'#65a30d','理化':'#db2777'})[sub] || '#475569';
                                 var _tipText2 = [
+                                    '🏷️ ' + cat + (mis?'：'+mis:''),
                                     '📚 教材路徑',
                                     '  📘 ' + sub + ' / ' + (_ctx2?_ctx2.typeName:'?') + ' / ' + (_ctx2?_ctx2.instance.name:'?'),
                                     '  📖 冊次: ' + (_ctx2?_ctx2.vol:'?'),
                                     '  📝 單元: ' + u.name + ' (' + (Math.max(0, pTotal - pDone)) + '/' + pTotal + ' 頁)',
                                     '',
-                                    '🏷️ ' + cat + ' / ' + mis,
                                     '⏳ 待完成'
                                 ].join('\n');
                                 todoUnits.push({
