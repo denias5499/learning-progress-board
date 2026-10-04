@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.1.6]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.1.7]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -14520,12 +14520,15 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 _m.setAttribute('data-cur-sub', subject);
                 _m.setAttribute('data-cur-key', dataKey);
             }
-            // v2.3.1.6: 從 user.master 構造 unitId → start page 對照表
+            // v2.3.1.6: 從 window.multiData[currentUserId].master 構造 unitId → start page 對照表
             // (因為 _dashDataStore 裡的 todoUnit/doneUnit 沒帶 start, 但排序想用頁碼)
+            // 注意: showDashDetail 是 module-level fn, 不能 access 函數 local 的 user/multiData
             var unitStartMap = (function() {
                 var map = {};
-                if (!user || !user.master || !user.master[subject]) return map;
-                var subData = user.master[subject];
+                if (typeof window.multiData === 'undefined' || typeof currentUserId === 'undefined') return map;
+                var _u = window.multiData[currentUserId];
+                if (!_u || !_u.master || !_u.master[subject]) return map;
+                var subData = _u.master[subject];
                 if (subData.type === 'custom') {
                     (subData.units || []).forEach(function(u) { map[u.id] = u.start; });
                 } else {
