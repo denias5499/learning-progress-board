@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.1.4]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.1.5]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -14528,7 +14528,13 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             var titleSuffix = isDone ? '✅ ' + subject + ' - 已完成單元' : '⏳ ' + subject + ' - 未完成單元';
             el('dd-title').innerHTML = titleSuffix;
             
-            // v2.3.1.4: 預設排序 + 表頭 sortable 切換覆寫
+            // v2.3.1.5: 排序規則
+            // - 預設 (沒點過表頭): done=完成日舊→新 (同日按 unit.start), todo=建立順序
+            // - 點了「進度分類」/「教材類型」: 主排序該欄位筆畫 asc/desc
+            //     同欄位內 tie-break:
+            //       - done: 改用 finishDate 新→舊 (最新完成在前)
+            //       - todo: 不變 (維持 unit.start 升冪)
+            //     再 tie: unitName 筆畫序
             var _sortKey = window._dashSortKey || null;  // 'cat' | 'typeName' | null
             var _sortDir = window._dashSortDir || 'asc';  // 'asc' | 'desc'
             var dataSorted = data.slice();
@@ -14538,16 +14544,26 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                     var sb = String(b[_sortKey] || '');
                     var cmp = sa.localeCompare(sb, 'zh-Hant-TW');
                     if (cmp !== 0) return _sortDir === 'asc' ? cmp : -cmp;
+                    // 同欄位: done 按完成日新→舊 (升冪 desc); todo 按 unit.start 升冪
+                    if (isDone) {
+                        var fa = a.finishDate && a.finishDate !== '未知' ? a.finishDate : '0000';
+                        var fb = b.finishDate && b.finishDate !== '未知' ? b.finishDate : '0000';
+                        if (fa !== fb) return fa < fb ? 1 : -1;  // 新→舊
+                    } else {
+                        var sa2 = Number(a.start) || 0;
+                        var sb2 = Number(b.start) || 0;
+                        if (sa2 !== sb2) return sa2 - sb2;
+                    }
                 } else {
                     // 預設排序
                     if (isDone) {
-                        var fa = a.finishDate && a.finishDate !== '未知' ? a.finishDate : '9999';
-                        var fb = b.finishDate && b.finishDate !== '未知' ? b.finishDate : '9999';
-                        if (fa !== fb) return fa < fb ? -1 : 1;
+                        var fa2 = a.finishDate && a.finishDate !== '未知' ? a.finishDate : '9999';
+                        var fb2 = b.finishDate && b.finishDate !== '未知' ? b.finishDate : '9999';
+                        if (fa2 !== fb2) return fa2 < fb2 ? -1 : 1;
                     }
-                    var sa2 = Number(a.start) || 0;
-                    var sb2 = Number(b.start) || 0;
-                    if (sa2 !== sb2) return sa2 - sb2;
+                    var sa3 = Number(a.start) || 0;
+                    var sb3 = Number(b.start) || 0;
+                    if (sa3 !== sb3) return sa3 - sb3;
                 }
                 var na = a.unitName || '';
                 var nb = b.unitName || '';
