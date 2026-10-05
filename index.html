@@ -1769,7 +1769,7 @@
                                 <button class="planner-action-btn" onclick="openWizard()">🪄 建立智慧排程計畫</button>
                                 <button class="btn-danger" onclick="showRevertWizardModal()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
                                 <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em;" onclick="performUndo()" title="回到上一步儲存前的狀態 (最近 5 步)">↶ Undo</button>
-                                <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em; background:#fef3c7;" onclick="showSafetyBackups()" title="查看 / 還原安全備份 (任何修改前自動建立)">🛡️ 備份還原</button>
+                                <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em; background:#F8F2DD;" onclick="showSafetyBackups()" title="查看 / 還原安全備份 (任何修改前自動建立)">🛡️ 備份還原</button>
                                 <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
                             </div>
                         </div>
@@ -15879,7 +15879,7 @@ function renderViewPage() {
     function _showPickerBanner() {
         const banner = document.createElement('div');
         banner.id = 'diskdb-picker-banner';
-        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#F6EBC8;color:#2c2410; /* v2.3.2.5: Pantone 11-0515 Lemon Icing */padding:14px 16px;border-radius:8px;font-size:13px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:360px;line-height:1.5;border:2px solid #8a7c3a;';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#F8F2DD;color:#2c2410; /* v2.3.2.5b: Pantone 11-0515 Lemon Icing (實際棉布色, 比官網模擬淡) */padding:14px 16px;border-radius:8px;font-size:13px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:360px;line-height:1.5;border:2px solid #8a7c3a;';
 
         banner.innerHTML = `
             <div style="font-weight:600;margin-bottom:6px;">📁 Disk Database 尚未綁定</div>
