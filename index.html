@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.3]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.4]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1754,24 +1754,20 @@
                 <div class="filter-bar" style="margin-bottom: 15px; border-left-color: var(--purple); display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: transparent; padding: 0; box-shadow: none; border-left: none;">
                     <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; align-items: center;">
                         <div style="display: none;"><select id="planner-selector" onchange="renderCalendar()"></select></div>
-                        <!-- v2.3.2.3: 篩選 + 計畫管理合併到同一排 (選單縮窄, 移除「計畫管理」標籤) -->
+                        <!-- v2.3.2.4: Undo/備份還原併入月計畫排程同一排 (最右邊), 刪除「復原工具」獨立 row -->
                         <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
-                            <!-- Row 1: 🔍 篩選 (選單縮窄) + 計畫管理 4 按鈕 (無標籤) -->
-                            <div style="display: flex; gap: 10px; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
+                            <!-- Row 1: 篩選 + 計畫管理 4 按鈕 + 復原工具 2 按鈕 (Undo/備份還原置右) -->
+                            <div style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
                                 <span style="font-weight: bold; color: var(--secondary); white-space: nowrap;">🔍 過濾:</span>
-                                <select id="planner-cat-filter" onchange="onPlannerCatChange()" style="min-width:110px;"></select>
+                                <select id="planner-cat-filter" onchange="onPlannerCatChange()" style="min-width:100px;"></select>
                                 <span style="color: var(--secondary); font-weight: bold;">➡️</span>
-                                <select id="planner-mis-filter" onchange="renderCalendar()" style="min-width:110px;"></select>
-                                <div style="flex: 0 0 8px;"></div>
+                                <select id="planner-mis-filter" onchange="renderCalendar()" style="min-width:100px;"></select>
+                                <div style="flex: 0 0 4px;"></div>
                                 <button class="planner-action-btn" onclick="openDoubleCheck()" style="font-weight: 900;">🔍 Double Check</button>
                                 <button class="planner-action-btn" onclick="openWizard()">🪄 建立智慧排程計畫</button>
                                 <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
-                                <div style="flex: 1;"></div>
+                                <div style="flex: 1; min-width: 8px;"></div>
                                 <button class="btn-danger" onclick="showRevertWizardModal()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
-                            </div>
-                            <!-- Row 2: 🔧 復原工具 (置左, 獨立) -->
-                            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                                <span style="font-size:0.8em; color:var(--secondary); margin-right:4px;">🔧 復原工具:</span>
                                 <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em;" onclick="performUndo()" title="回到上一步儲存前的狀態 (最近 5 步)">↶ Undo</button>
                                 <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em; background:#fef3c7;" onclick="showSafetyBackups()" title="查看 / 還原安全備份 (任何修改前自動建立)">🛡️ 備份還原</button>
                             </div>
