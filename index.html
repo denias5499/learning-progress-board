@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.4]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.5]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1749,6 +1749,13 @@
             <div class="page-card">
                 <div class="modal-header">
                     <h2>📅 月計畫排程</h2>
+                    <!-- v2.3.2.5: 篩選移到 modal header 中間 -->
+                    <div style="display: flex; gap: 10px; align-items: center; margin: 0 auto;">
+                        <span style="font-weight: bold; color: var(--secondary); white-space: nowrap;">🔍 分類/任務篩選</span>
+                        <select id="planner-cat-filter" onchange="onPlannerCatChange()" style="min-width:140px; padding: 4px 8px; font-size: 1em;"></select>
+                        <span style="color: var(--secondary); font-weight: bold;">➡️</span>
+                        <select id="planner-mis-filter" onchange="renderCalendar()" style="min-width:140px; padding: 4px 8px; font-size: 1em;"></select>
+                    </div>
                     <button type="button" class="close-btn" onclick="returnToHome()">&times;</button>
                 </div>
                 <div class="filter-bar" style="margin-bottom: 15px; border-left-color: var(--purple); display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: transparent; padding: 0; box-shadow: none; border-left: none;">
@@ -1756,19 +1763,14 @@
                         <div style="display: none;"><select id="planner-selector" onchange="renderCalendar()"></select></div>
                         <!-- v2.3.2.4: Undo/備份還原併入月計畫排程同一排 (最右邊), 刪除「復原工具」獨立 row -->
                         <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
-                            <!-- Row 1: 篩選 + 計畫管理 4 按鈕 + 復原工具 2 按鈕 (Undo/備份還原置右) -->
-                            <div style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: wrap;">
-                                <span style="font-weight: bold; color: var(--secondary); white-space: nowrap;">🔍 過濾:</span>
-                                <select id="planner-cat-filter" onchange="onPlannerCatChange()" style="min-width:100px;"></select>
-                                <span style="color: var(--secondary); font-weight: bold;">➡️</span>
-                                <select id="planner-mis-filter" onchange="renderCalendar()" style="min-width:100px;"></select>
-                                <div style="flex: 0 0 4px;"></div>
+                            <!-- v2.3.2.5: 篩選已搬到 modal header; 白框拉長只放 6 按鈕 (列印月曆最右) -->
+                            <div style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: nowrap; justify-content: space-between;">
                                 <button class="planner-action-btn" onclick="openDoubleCheck()" style="font-weight: 900;">🔍 Double Check</button>
                                 <button class="planner-action-btn" onclick="openWizard()">🪄 建立智慧排程計畫</button>
-                                <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
                                 <button class="btn-danger" onclick="showRevertWizardModal()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
                                 <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em;" onclick="performUndo()" title="回到上一步儲存前的狀態 (最近 5 步)">↶ Undo</button>
                                 <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em; background:#fef3c7;" onclick="showSafetyBackups()" title="查看 / 還原安全備份 (任何修改前自動建立)">🛡️ 備份還原</button>
+                                <button class="cal-sync-btn" onclick="openPrintModal()">🖨️ 列印月曆</button>
                             </div>
                         </div>
                     </div>
@@ -15877,7 +15879,7 @@ function renderViewPage() {
     function _showPickerBanner() {
         const banner = document.createElement('div');
         banner.id = 'diskdb-picker-banner';
-        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#fef3c7;color:#2c2410;padding:14px 16px;border-radius:8px;font-size:13px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:360px;line-height:1.5;border:2px solid #8a7c3a;';
+        banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#F6EBC8;color:#2c2410; /* v2.3.2.5: Pantone 11-0515 Lemon Icing */padding:14px 16px;border-radius:8px;font-size:13px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:360px;line-height:1.5;border:2px solid #8a7c3a;';
 
         banner.innerHTML = `
             <div style="font-weight:600;margin-bottom:6px;">📁 Disk Database 尚未綁定</div>
