@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.5f]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.5g]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1765,8 +1765,8 @@
                         <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
                             <!-- v2.3.2.5: 篩選已搬到 modal header; 白框拉長只放 6 按鈕 (列印月曆最右) -->
                             <div style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: nowrap; justify-content: space-between;">
-                                <button class="planner-action-btn" style="background:#EAE4E9;color:#3a2a35;" onclick="openDoubleCheck()" style="font-weight: 900;">🔍 Double Check</button>
-                                <button class="planner-action-btn" style="background:#CAE9E0;color:#1a4a3a;" onclick="openWizard()">🪄 建立智慧排程計畫</button>
+                                <button class="planner-action-btn" data-color="#EAE4E9" data-color-fg="#3a2a35" style="background:#EAE4E9;color:#3a2a35;font-weight:900;" onclick="openDoubleCheck()">🔍 Double Check</button>
+                                <button class="planner-action-btn" data-color="#CAE9E0" data-color-fg="#1a4a3a" style="background:#CAE9E0;color:#1a4a3a;" onclick="openWizard()">🪄 建立智慧排程計畫</button>
                                 <button class="btn-danger" style="background:#FDE2E4;color:#5a1a2a;" onclick="showRevertWizardModal()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
                                 <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em;background:#DFE7FD;color:#2a2a5a;border-color:#b8c4e8;" onclick="performUndo()" title="回到上一步儲存前的狀態 (最近 5 步)">↶ Undo</button>
                                 <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em; background:#F8F2DD;" onclick="showSafetyBackups()" title="查看 / 還原安全備份 (任何修改前自動建立)">🛡️ 備份還原</button>
@@ -2772,10 +2772,18 @@
         window.aeSubjectType = {};  // v1.5.37: 每個科目目前選擇的教材類型 (sub → typeName)
 
         function applyPlannerButtonsColors() {
-            const colors = ['#F3D2AC', '#F3B8B1'];
+            // v2.3.2.5g: 用 data-color 屬性指定每個 planner-action-btn 顏色 (取代 v1.5.x 的循環色)
             document.querySelectorAll('.planner-action-btn').forEach((btn, index) => {
-                btn.style.backgroundColor = colors[index % colors.length];
-                btn.style.color = '#2c3e50'; 
+                const c = btn.getAttribute('data-color');
+                if (c) {
+                    btn.style.backgroundColor = c;
+                    btn.style.color = btn.getAttribute('data-color-fg') || '#2c3e50';
+                } else {
+                    // fallback 給沒設 data-color 的
+                    const colors = ['#F3D2AC', '#F3B8B1'];
+                    btn.style.backgroundColor = colors[index % colors.length];
+                    btn.style.color = '#2c3e50'; 
+                }
             });
         }
 
