@@ -1904,6 +1904,10 @@
                         <select id="tree-type-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
                         <span class="tree-filter-label">📖 冊別 (單元):</span>
                         <select id="tree-vol-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
+                        <span class="tree-filter-label" style="color:#1a4a3a;">📊 複習卷 type:</span>
+                        <select id="tree-review-type-filter" onchange="onTreeReviewTypeChange()" style="min-width:130px;"></select>
+                        <span class="tree-filter-label" style="color:#2a4a6a;">📊 instance:</span>
+                        <select id="tree-review-inst-filter" onchange="renderTreeView()" style="min-width:130px;"></select>
                         <button type="button" class="tree-collapse-btn" onclick="resetTreeFilter()">↻ 重設</button>
                         <span class="tree-filter-hint">(只顯示選到的範圍)</span>
                     </div>
@@ -2835,6 +2839,127 @@
         }
 
         // v1.5.175: 樹狀圖 default 模式 — 顯示科目 summary cards
+        // v2.3.2.6: 收集 appLogs 已完成的 unitIds
+        function _collectDoneUnitIds() {
+            var set = new Set();
+            if (Array.isArray(appLogs)) {
+                appLogs.forEach(function(l) {
+                    if (!l || !l.unitId) return;
+                    if (l.category === '🔄 系統重排' || l.category === '🗓️ 計畫管理') return;
+                    set.add(l.unitId);
+                });
+            }
+            return set;
+        }
+        // v2.3.2.6: 算指定 (typeName, instanceName=null) 的進度
+        function calcProgressForType(subj, typeName, instanceName) {
+            var done = 0, total = 0, hasType = false;
+            if (!subj || !subj.materials || !subj.materials[typeName]) return { done: 0, total: 0, hasType: false };
+            hasType = true;
+            var typeObj = subj.materials[typeName];
+            var doneSet = _collectDoneUnitIds();
+            if (typeObj && Array.isArray(typeObj.instances)) {
+                typeObj.instances.forEach(function(inst) {
+                    if (instanceName && inst.name !== instanceName) return;
+                    if (inst.vols) {
+                        Object.keys(inst.vols).forEach(function(volName) {
+                            (inst.vols[volName] || []).forEach(function(u) {
+                                if (!u || !u.id) return;
+                                total++;
+                                if (doneSet.has(u.id)) done++;
+                            });
+                        });
+                    }
+                });
+            }
+            return { done: done, total: total, hasType: hasType };
+        }
+        function getTreeReviewFilter() {
+            var typeSel = el('tree-review-type-filter');
+            var instSel = el('tree-review-inst-filter');
+            return { typeName: typeSel ? typeSel.value : '', instanceName: instSel ? instSel.value : '' };
+        }
+        function collectAllReviewTypes() {
+            var user = multiData[currentUserId];
+            var typeSet = new Set();
+            if (user && user.masters) {
+                Object.keys(user.masters).forEach(function(c) {
+                    Object.keys(user.masters[c] || {}).forEach(function(sub) {
+                        var subj = user.masters[c][sub];
+                        if (subj && subj.materials) {
+                            Object.keys(subj.materials).forEach(function(t) {
+                                if (/複習卷|大滿貫|模擬題|模考|數字|考古/i.test(t)) typeSet.add(t);
+                            });
+                        }
+                    });
+                });
+            }
+            return Array.from(typeSet);
+        }
+        function collectInstancesForType(typeName) {
+            var user = multiData[currentUserId];
+            var instSet = new Set();
+            if (user && user.masters) {
+                Object.keys(user.masters).forEach(function(c) {
+                    Object.keys(user.masters[c] || {}).forEach(function(sub) {
+                        var subj = user.masters[c][sub];
+                        if (subj && subj.materials && subj.materials[typeName] && subj.materials[typeName].instances) {
+                            subj.materials[typeName].instances.forEach(function(inst) { instSet.add(inst.name); });
+                        }
+                    });
+                });
+            }
+            return Array.from(instSet);
+        }
+        function populateTreeReviewFilter() {
+            var typeSel = el('tree-review-type-filter');
+            var instSel = el('tree-review-inst-filter');
+            if (!typeSel || !instSel) return;
+            var prevType = typeSel.value;
+            var types = collectAllReviewTypes();
+            types.sort(function(a, b) {
+                if (/大滿貫甲/.test(a) && !/大滿貫甲/.test(b)) return -1;
+                if (!/大滿貫甲/.test(a) && /大滿貫甲/.test(b)) return 1;
+                if (a === '複習卷') return -1;
+                if (b === '複習卷') return 1;
+                return a.localeCompare(b, 'zh');
+            });
+            var html = '';
+            types.forEach(function(t) { html += '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; });
+            typeSel.innerHTML = html;
+            if (prevType && types.indexOf(prevType) >= 0) typeSel.value = prevType;
+            onTreeReviewTypeChange(true);
+        }
+        function onTreeReviewTypeChange(skipRender) {
+            var typeSel = el('tree-review-type-filter');
+            var instSel = el('tree-review-inst-filter');
+            if (!typeSel || !instSel) return;
+            var t = typeSel.value;
+            var prevInst = instSel.value;
+            var insts = collectInstancesForType(t);
+            insts.sort(function(a, b) {
+                if (a.indexOf('大滿貫甲') >= 0) return -1;
+                if (b.indexOf('大滿貫甲') >= 0) return 1;
+                return a.localeCompare(b, 'zh');
+            });
+            var html = '<option value="">(全部 instance)</option>';
+            insts.forEach(function(n) { html += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; });
+            instSel.innerHTML = html;
+            if (prevInst && insts.indexOf(prevInst) >= 0) instSel.value = prevInst;
+            else if (insts.indexOf('大滿貫甲') >= 0) instSel.value = '大滿貫甲';
+            if (!skipRender) renderTreeView();
+        }
+        function buildProgressBarHtml(label, done, total, color, labelColor) {
+            var pct = total > 0 ? Math.round(done / total * 100) : 0;
+            var fillColor = pct >= 70 ? '#1a4a3a' : (pct >= 40 ? '#8a6d2a' : '#8a2a3a');
+            return '<div class="tree-summary-progress-row">' +
+                '<span class="tree-summary-progress-label" style="color:' + labelColor + ';">' + label + '</span>' +
+                '<div class="tree-summary-progress-track"><div class="tree-summary-progress-fill" style="width:' + pct + '%; background:' + color + ';"></div></div>' +
+                '<span class="tree-summary-progress-pct" style="color:' + fillColor + ';">' + pct + '%</span>' +
+                '<span class="tree-summary-progress-detail">(' + done + ' / ' + total + ' 單元)</span>' +
+                '</div>';
+        }
+
         function renderTreeSubjectSummary(root, treeSubjects) {
             // v2.3.2.6: populate dropdowns + 算 2 條進度條
             populateTreeReviewFilter();
