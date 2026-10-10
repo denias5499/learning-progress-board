@@ -2965,7 +2965,8 @@
             insts.forEach(function(n) { html += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; });
             instSel.innerHTML = html;
             if (prevInst && insts.indexOf(prevInst) >= 0) instSel.value = prevInst;
-            else if (insts.indexOf('大滿貫甲') >= 0) instSel.value = '大滿貫甲';
+            // v2.3.2.11: 預設改成空字串 (代表「全部 instance」), 跟複習講義一致
+            else instSel.value = '';
             if (!skipRender) renderTreeView();
         }
         function buildProgressBarHtml(label, done, total, color, labelColor) {
