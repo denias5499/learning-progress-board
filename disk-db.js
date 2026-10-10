@@ -112,6 +112,14 @@
         // 12. 中介資料 (folder handle、currentUserId 等)
         meta: {
             keyPath: 'key'
+        },
+        // 13. 模考成績紀錄 (會考模擬考)
+        mockExams: {
+            keyPath: 'id',
+            indexes: {
+                userId: 'userId',
+                examDate: 'examDate'
+            }
         }
     };
 
