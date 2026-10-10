@@ -120,6 +120,11 @@
                 userId: 'userId',
                 examDate: 'examDate'
             }
+        },
+        // 14. 模考相關圖片 (級距表等, base64 存這裡避免 LS 5MB 上限)
+        mockExamImages: {
+            keyPath: 'id',
+            indexes: { examId: 'examId' }
         }
     };
 
