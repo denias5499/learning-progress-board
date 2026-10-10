@@ -1527,8 +1527,9 @@
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
                     <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;">📊 學習統計分析</button>
                     <button id="nav-btn-wrongnotes" class="nav-btn nav-btn-5" onclick="openWrongNotes()" style="background-color:#e8d5e8 !important;">📚 錯題資料庫</button>
-                    <button id="nav-btn-home" class="nav-btn nav-btn-4" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
-                    <button id="nav-btn-backup" class="nav-btn" data-action="export-backup" title="立即匯出全機備份 .json" style="background-color:#a8d8a8 !important;">備份</button>
+                    <button id="nav-btn-mockexam" class="nav-btn nav-btn-4" onclick="openMockExam()" style="background-color:#FFD4B2 !important;">📝 模考成績</button>
+                    <button id="nav-btn-home" class="nav-btn" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
+                    <!-- v2.3.2.12: 移除「備份」nav 按鈕, 已在右下角 -->
                 </div>
             </div>
         </div>
@@ -1651,7 +1652,7 @@
                     <div style="margin-bottom: 12px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid var(--border); display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                         <span style="font-weight: bold; color: var(--secondary);">📁 教材類型過濾：</span>
                         <select id="mis-type-filter" onchange="renderMissionCheckboxes()" style="padding: 6px 10px; font-size: 0.95em;">
-                            <option value="ALL">🌟 全部顯示</option>
+                            <!-- v2.3.2.12: 移除 🌟 --> <option value="ALL">全部顯示</option>
                             <!-- 動態生成, 預設只有 ALL -->
                         </select>
                         <span style="font-size: 0.85em; color: var(--secondary);">(只顯示選定的教材類型, 避免太多 instance 需捲動)</span>
@@ -3012,8 +3013,10 @@
                 html += '<div class="tree-subject-summary">' +
                     '<div class="tree-subject-summary-header" onclick="selectTreeSubject(\' + key + \')">' +
                     '<span class="tree-subject-summary-name">📘 ' + escapeHtml(info.name) + '</span>' +
-                    '<span class="tree-subject-summary-stats">' + typeCount + ' 類別 · ' + volCount + ' 冊 · ' + unitCount + ' 單元</span>' +
-                    '<span style="color: var(--secondary);">▶ 展開</span>' +
+                    // v2.3.2.12: 移除「X類別 X冊 X單元」stats 文字 (沒意義, 改用 progress bar 顯示) 
+                    '' +
+                    // v2.3.2.12: 展開鍵加 cursor pointer, 改為 button style 視覺
+                    '<span style="color: var(--secondary); cursor:pointer; font-weight:bold;" onclick="event.stopPropagation(); selectTreeSubject(\' + key + \')">▶ 展開</span>' +
                     '</div>' +
                     (bar1 || bar2 ? '<div class="tree-subject-summary-bars">' + bar1 + bar2 + '</div>' : '') +
                     '</div>';
@@ -9343,6 +9346,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v1.6.70: 錯題資料庫獨立 page
+        function openMockExam() {
+            // v2.3.2.12: 模考成績入口 (規劃中, 完整功能見後續 commit)
+            alert('📝 模考成績\n\n此功能開發中，敬請期待！\n\n規劃中的 4 個子分頁:\n• 成績總覽\n• 成績輸入\n• 成績分析\n• 檢討');
+        }
+
         function openWrongNotes() {
             showPage('page-wrongnotes');
             // 第一次進入時提示用戶建立資料夾
@@ -13479,7 +13487,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // v1.5.175: populate 科目 dropdown (所有科目, 不限 cat)
             if (treeSubjectSel) {
                 var prevSubj = treeSubjectSel.value;
-                var subjectOpts = '<option value="ALL">🌟 全部科目 (' + Object.keys(treeSubjects).length + ')</option>';
+                var subjectOpts = '<option value="ALL">全部科目 (' + Object.keys(treeSubjects).length + ')</option>';
                 Object.keys(treeSubjects).forEach(function(key) {
                     var subjName = treeSubjects[key].name;
                     subjectOpts += '<option value="' + key + '">' + subjName + '</option>';
