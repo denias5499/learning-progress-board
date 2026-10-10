@@ -1530,7 +1530,7 @@
                         <select id="user-selector" onchange="switchUser()"></select>
                         <button class="btn-outline" style="padding:2px 8px;font-size:0.85em;" onclick="openModal('modal-users'); renderUserManageList();">⚙️</button>
                     </div>
-                    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="切換深色 / 淺色模式" style="padding:4px 6px;">🌙</button>
+                    <!-- v2.3.2.14: 移除夜間模式切換按鈕 -->
                     <button id="nav-btn-settings" class="nav-btn nav-btn-1" onclick="openSettings()">⚙️ 教材庫與備份</button>
                     <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
                     <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;">📊 學習統計分析</button>
@@ -1951,6 +1951,7 @@
                 <button data-metab="overview" class="me-tab active">📊 成績總覽</button>
                 <button data-metab="input" class="me-tab">✏️ 成績輸入</button>
                 <button data-metab="analysis" class="me-tab">📈 成績分析</button>
+                <button data-metab="import" class="me-tab">📥 錯題匯入</button>
                 <button data-metab="review" class="me-tab">📝 檢討</button>
             </div>
             <div id="mockexam-content" class="me-content"></div>
@@ -9397,6 +9398,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (tab === 'overview') renderMockExamOverview(content);
             else if (tab === 'input') renderMockExamInput(content);
             else if (tab === 'analysis') renderMockExamAnalysis(content);
+            else if (tab === 'import') renderMockExamImport(content);
             else if (tab === 'review') renderMockExamReview(content);
         }
 
@@ -9412,6 +9414,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function renderMockExamAnalysis(c) {
             // v2.3.2.13: Commit 4 會實作 5 科折線圖 + 覆盤再前行
             c.innerHTML = '<div class="me-empty">📈 成績分析<br><br><small>將在 Commit 4 實作 (5 科折線趨勢圖 + 覆盤再前行)</small></div>';
+        }
+        function renderMockExamImport(c) {
+            // v2.3.2.14: 錯題匯入 (Commit 5 實作, 拖拉/框選/標記/存檔)
+            c.innerHTML = '<div class="me-empty">📥 錯題匯入<br><br><small>將在 Commit 5 實作 (拖拉/選檔 → 框選 → 標記模考科目單元 → 存錯題筆記)</small></div>';
         }
         function renderMockExamReview(c) {
             // v2.3.2.13: 檢討分頁 (未排程)
