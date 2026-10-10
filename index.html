@@ -626,6 +626,27 @@
         .me-tab.active { color: var(--primary); border-bottom-color: var(--accent); font-weight: bold; }
         .me-content { min-height: 400px; padding: 20px 0; }
         .me-empty { text-align: center; padding: 60px 20px; color: var(--secondary); font-size: 1.1em; background: rgba(255,255,255,0.5); border-radius: 12px; }
+        /* v2.3.2.15: 模考成績輸入 form */
+        .me-form { max-width: 900px; margin: 0 auto; }
+        .me-section { background: rgba(255,255,255,0.7); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; border: 1px solid var(--border); }
+        .me-section h3 { margin: 0 0 12px 0; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
+        .me-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+        .me-row label { display: flex; align-items: center; gap: 4px; font-size: 0.9em; color: var(--secondary); }
+        .me-row input, .me-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; min-width: 60px; }
+        .me-row input[type="text"] { min-width: 120px; }
+        .me-drop { border: 2px dashed var(--accent); border-radius: 12px; padding: 30px; text-align: center; color: var(--secondary); cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.4); }
+        .me-drop:hover, .me-drop.drag { background: rgba(255,228,181,0.3); border-color: var(--primary); }
+        .me-drop img { max-width: 100%; max-height: 200px; border-radius: 8px; margin-top: 10px; }
+        .me-btn { padding: 8px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; transition: all 0.2s; }
+        .me-btn:hover { background: var(--primary); transform: translateY(-1px); }
+        .me-btn-sec { background: #95a5a6; }
+        .me-btn-sec:hover { background: #7f8c8d; }
+        .me-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-top: 16px; }
+        .me-card { background: white; border-radius: 12px; padding: 14px 16px; border: 2px solid var(--border); cursor: pointer; transition: all 0.2s; }
+        .me-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .me-card h4 { margin: 0 0 8px 0; color: var(--primary); }
+        .me-card-row { display: flex; justify-content: space-between; font-size: 0.85em; color: var(--secondary); margin-bottom: 3px; }
+        .me-card-img { max-width: 100%; max-height: 80px; border-radius: 6px; margin-top: 6px; }
         .nav-btn.active-nav { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.2), inset 0 -2px 3px rgba(0,0,0,0.05); border-color: var(--accent) !important; z-index: 10; }
 
         .btn-home { background: #FFE17A; color: #000; font-weight: bold; font-size: 1em; padding: 6px 14px; border-radius: 20px; border: none; cursor: pointer; display: inline-block; vertical-align: middle; margin-left: 12px; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); position: relative; }
@@ -9406,10 +9427,427 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v2.3.2.13: Commit 3 會實作完整版 (參考截圖 4 雷達圖 + 表格)
             c.innerHTML = '<div class="me-empty">📊 成績總覽<br><br><small>將在 Commit 3 完整實作 (依截圖 4: 雷達圖 + 成績概況表 + 作文表)</small></div>';
         }
+        // v2.3.2.15: 成績輸入表單 (4 場模考, dropdown 切換)
+        var _meCurrentExam = null; // 當前編輯的 exam 物件
+        var _meLevelImageData = null; // 當前選擇的級距圖片 (base64 data URL)
+
         function renderMockExamInput(c) {
-            // v2.3.2.13: Commit 2 會實作表單 + 4 場考試 CRUD
-            var html = '<div class="me-empty">✏️ 成績輸入<br><br><small>將在 Commit 2 實作 (考試基本資料 + 各科輸入)<br>目前已記錄 ' + (appMockExams || []).length + ' 場考試</small></div>';
+            var html = '<div class="me-form">' +
+                // ===== 基本資料 =====
+                '<div class="me-section">' +
+                '<h3>📋 基本資料</h3>' +
+                '<div class="me-row">' +
+                '<label>考試名稱: <select id="me-exam-name" onchange="onMeExamNameChange()">' +
+                '<option value="第一次模考">第一次模考</option>' +
+                '<option value="第二次模考">第二次模考</option>' +
+                '<option value="第三次模考">第三次模考</option>' +
+                '<option value="第四次模考">第四次模考</option>' +
+                '</select></label>' +
+                '</div>' +
+                '<label style="display:block; margin-top:8px; color:var(--secondary); font-size:0.9em;">📐 級距圖片 (選填, 拖拉或點擊上傳):</label>' +
+                '<div class="me-drop" id="me-drop" onclick="document.getElementById(\'me-file\').click()" ondragover="event.preventDefault(); this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="onMeImageDrop(event)">' +
+                '📁 拖拉圖片到此 或 點擊選擇' +
+                '<input type="file" id="me-file" accept="image/*" style="display:none" onchange="onMeImageSelect(event)">' +
+                '<div id="me-level-preview"></div>' +
+                '</div>' +
+                '</div>' +
+
+                // ===== 5 科 =====
+                _meRenderSubjectForm('國文', 'guo', false) +
+                _meRenderSubjectForm('數學', 'math', true) +
+                _meRenderSubjectForm('英語', 'eng', true) +
+                _meRenderSubjectForm('社會', 'soc', false) +
+                _meRenderSubjectForm('自然', 'sci', false) +
+
+                // ===== 作文 =====
+                '<div class="me-section">' +
+                '<h3>✍️ 作文</h3>' +
+                '<div class="me-row">' +
+                '<label>級分(得): <input type="number" id="me-essay-level-got" min="0" step="0.5"></label>' +
+                '<label>/ (滿): <input type="number" id="me-essay-level-max" min="0" step="0.5" value="6"></label>' +
+                '<label>積分(得): <input type="number" id="me-essay-score-got" min="0" step="0.1"></label>' +
+                '<label>/ (滿): <input type="number" id="me-essay-score-max" min="0" step="0.1" value="1"></label>' +
+                '</div>' +
+                '</div>' +
+
+                // ===== 按鈕 =====
+                '<div style="text-align:center; margin-top:20px;">' +
+                '<button class="me-btn" onclick="saveMockExam()">💾 儲存</button> ' +
+                '<button class="me-btn me-btn-sec" onclick="clearMockExamForm()">🔄 清空</button>' +
+                '</div>' +
+
+                '</div>' +
+
+                // ===== 列表區 =====
+                '<div class="me-section">' +
+                '<h3>📚 已記錄的考試</h3>' +
+                '<div class="me-row">' +
+                '<label>顯示: <select id="me-list-filter" onchange="renderMockExamList()">' +
+                '<option value="latest">最新一次</option>' +
+                '<option value="all">全部</option>' +
+                '<option value="第一次模考">第一次模考</option>' +
+                '<option value="第二次模考">第二次模考</option>' +
+                '<option value="第三次模考">第三次模考</option>' +
+                '<option value="第四次模考">第四次模考</option>' +
+                '</select></label>' +
+                '</div>' +
+                '<div id="me-list-cards" class="me-list"></div>' +
+                '</div>';
+
             c.innerHTML = html;
+            // 預設選「最新一次」+ 載入資料
+            var filterEl = document.getElementById('me-list-filter');
+            if (filterEl) filterEl.value = 'latest';
+            renderMockExamList();
+            // 自動載入最新一次到表單
+            if (appMockExams && appMockExams.length > 0) {
+                var latest = appMockExams[appMockExams.length - 1];
+                loadExamToForm(latest);
+            } else {
+                clearMockExamForm();
+            }
+        }
+
+        function _meRenderSubjectForm(name, prefix, hasSub) {
+            var html = '<div class="me-section">' +
+                '<h3>' + _meSubjEmoji(name) + ' ' + name + '</h3>' +
+                '<div class="me-row">';
+            if (name === '數學' || name === '英語') {
+                html += '<label>加權分數: <input type="number" id="me-' + prefix + '-weighted" min="0" max="100" step="0.01"></label>';
+            } else {
+                html += '<label>答對: <input type="number" id="me-' + prefix + '-correct" min="0"></label>' +
+                        '<label>/ 總題: <input type="number" id="me-' + prefix + '-total" min="1"></label>' +
+                        '<label>答對率%: <input type="number" id="me-' + prefix + '-rate" min="0" max="100" step="0.01"></label>';
+            }
+            html += '<label>積分(得): <input type="number" id="me-' + prefix + '-score-got" min="0" step="0.1"></label>' +
+                    '<label>/ (滿): <input type="number" id="me-' + prefix + '-score-max" min="0" step="0.1" value="7"></label>' +
+                    '<label>能力等級: <select id="me-' + prefix + '-ability">' +
+                    '<option value="">(未選)</option>' +
+                    '<option value="精熟(A++)">精熟(A++)</option>' +
+                    '<option value="精熟(A+)">精熟(A+)</option>' +
+                    '<option value="精熟">精熟</option>' +
+                    '<option value="基礎">基礎</option>' +
+                    '<option value="待加強">待加強</option>' +
+                    '</select></label>' +
+                    '</div>';
+            if (hasSub) {
+                if (name === '數學') {
+                    html += '<div style="margin-top:6px; padding-left:12px; border-left:3px solid var(--accent);">' +
+                        '<strong style="font-size:0.9em;">選擇題:</strong> ' +
+                        '<label>答對 <input type="number" id="me-' + prefix + '-sub1-correct" min="0" style="width:50px"></label> ' +
+                        '/ 總題 <input type="number" id="me-' + prefix + '-sub1-total" min="1" style="width:50px"><br>' +
+                        '<strong style="font-size:0.9em;">非選題:</strong> ' +
+                        '<label>標示 <input type="text" id="me-' + prefix + '-sub2-mark" placeholder="例: 1/3" style="width:80px"></label>' +
+                        '</div>';
+                } else if (name === '英語') {
+                    html += '<div style="margin-top:6px; padding-left:12px; border-left:3px solid var(--accent);">' +
+                        '<strong style="font-size:0.9em;">閱讀題:</strong> ' +
+                        '<label>答對 <input type="number" id="me-' + prefix + '-sub1-correct" min="0" style="width:50px"></label> ' +
+                        '/ 總題 <input type="number" id="me-' + prefix + '-sub1-total" min="1" style="width:50px"><br>' +
+                        '<strong style="font-size:0.9em;">聽力題:</strong> ' +
+                        '<label>答對 <input type="number" id="me-' + prefix + '-sub2-correct" min="0" style="width:50px"></label> ' +
+                        '/ 總題 <input type="number" id="me-' + prefix + '-sub2-total" min="1" style="width:50px">' +
+                        '</div>';
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function _meSubjEmoji(name) {
+            var map = {'國文': '📖', '數學': '📐', '英語': '🌐', '社會': '🌍', '自然': '🔬'};
+            return map[name] || '📘';
+        }
+
+        function onMeExamNameChange() {
+            var name = document.getElementById('me-exam-name').value;
+            var existing = (appMockExams || []).find(function(e) { return e.name === name; });
+            if (existing) {
+                loadExamToForm(existing);
+            } else {
+                clearMockExamForm();
+                document.getElementById('me-exam-name').value = name;
+            }
+        }
+
+        function onMeImageDrop(e) {
+            e.preventDefault();
+            e.target.closest('.me-drop').classList.remove('drag');
+            var file = e.dataTransfer.files[0];
+            if (file) processMeImageFile(file);
+        }
+
+        function onMeImageSelect(e) {
+            var file = e.target.files[0];
+            if (file) processMeImageFile(file);
+        }
+
+        function processMeImageFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('請選擇圖片檔案');
+                return;
+            }
+            if (file.size > 2 * 1024 * 1024) {
+                if (!confirm('圖片 ' + (file.size/1024/1024).toFixed(1) + 'MB 較大, 繼續?')) return;
+            }
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                _meLevelImageData = e.target.result;
+                var preview = document.getElementById('me-level-preview');
+                if (preview) preview.innerHTML = '<img src="' + e.target.result + '" alt="級距預覽">';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearMockExamForm() {
+            _meCurrentExam = null;
+            _meLevelImageData = null;
+            var inputs = document.querySelectorAll('#mockexam-content input, #mockexam-content select');
+            for (var i = 0; i < inputs.length; i++) {
+                if (inputs[i].type === 'number' || inputs[i].type === 'text') inputs[i].value = '';
+                else if (inputs[i].tagName === 'SELECT') inputs[i].selectedIndex = 0;
+            }
+            // 重置級距預覽
+            var preview = document.getElementById('me-level-preview');
+            if (preview) preview.innerHTML = '';
+        }
+
+        function loadExamToForm(exam) {
+            _meCurrentExam = exam;
+            _meLevelImageData = null; // 重新選才更新
+            clearMockExamForm();
+            // 設考試名稱
+            var nameSel = document.getElementById('me-exam-name');
+            if (nameSel) nameSel.value = exam.name;
+            // 載入各科
+            if (exam.subjects) {
+                ['國文', '數學', '英語', '社會', '自然'].forEach(function(name) {
+                    var prefix = {國文:'guo', 數學:'math', 英語:'eng', 社會:'soc', 自然:'sci'}[name];
+                    var s = exam.subjects[name];
+                    if (!s) return;
+                    _meSetVal(prefix + '-weighted', s.weighted);
+                    _meSetVal(prefix + '-correct', s.correct);
+                    _meSetVal(prefix + '-total', s.total);
+                    _meSetVal(prefix + '-rate', s.rate);
+                    _meSetVal(prefix + '-score-got', s.score ? s.score.got : '');
+                    _meSetVal(prefix + '-score-max', s.score ? s.score.max : '');
+                    _meSetValSel(prefix + '-ability', s.ability);
+                    if (s.subItems) {
+                        if (s.subItems.選擇) {
+                            _meSetVal(prefix + '-sub1-correct', s.subItems.選擇.correct);
+                            _meSetVal(prefix + '-sub1-total', s.subItems.選擇.total);
+                        }
+                        if (s.subItems.非選) {
+                            _meSetVal(prefix + '-sub2-mark', s.subItems.非選.mark);
+                        }
+                        if (s.subItems.閱讀) {
+                            _meSetVal(prefix + '-sub1-correct', s.subItems.閱讀.correct);
+                            _meSetVal(prefix + '-sub1-total', s.subItems.閱讀.total);
+                        }
+                        if (s.subItems.聽力) {
+                            _meSetVal(prefix + '-sub2-correct', s.subItems.聽力.correct);
+                            _meSetVal(prefix + '-sub2-total', s.subItems.聽力.total);
+                        }
+                    }
+                });
+            }
+            // 載入作文
+            if (exam.essay) {
+                _meSetVal('essay-level-got', exam.essay.level ? exam.essay.level.got : '');
+                _meSetVal('essay-level-max', exam.essay.level ? exam.essay.level.max : '');
+                _meSetVal('essay-score-got', exam.essay.score ? exam.essay.score.got : '');
+                _meSetVal('essay-score-max', exam.essay.score ? exam.essay.score.max : '');
+            }
+            // 載入級距圖 (從 IDB 抓)
+            if (exam.levelChartImageId) {
+                loadMockExamImage(exam.levelChartImageId).then(function(dataUrl) {
+                    if (dataUrl) {
+                        _meLevelImageData = dataUrl;
+                        var preview = document.getElementById('me-level-preview');
+                        if (preview) preview.innerHTML = '<img src="' + dataUrl + '" alt="級距預覽">';
+                    }
+                });
+            }
+        }
+
+        function _meSetVal(id, val) {
+            var el = document.getElementById('me-' + id);
+            if (el && val !== undefined && val !== null) el.value = val;
+        }
+        function _meSetValSel(id, val) {
+            var el = document.getElementById('me-' + id);
+            if (el && val) { for (var i = 0; i < el.options.length; i++) { if (el.options[i].value === val) { el.selectedIndex = i; break; } } }
+        }
+
+        function saveMockExam() {
+            var name = document.getElementById('me-exam-name').value;
+            if (!name) { alert('請選擇考試名稱'); return; }
+            // 收集資料
+            var exam = _meCurrentExam ? JSON.parse(JSON.stringify(_meCurrentExam)) : {
+                id: 'exam_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                createdAt: new Date().toISOString()
+            };
+            exam.userId = (typeof currentUserId !== 'undefined') ? currentUserId : 'default';
+            exam.name = name;
+            exam.examDate = new Date().toISOString().split('T')[0];
+            exam.updatedAt = new Date().toISOString();
+            // 收集 5 科
+            exam.subjects = {};
+            ['國文', '數學', '英語', '社會', '自然'].forEach(function(name) {
+                var prefix = {國文:'guo', 數學:'math', 英語:'eng', 社會:'soc', 自然:'sci'}[name];
+                var s = {};
+                s.weighted = _meGetNum(prefix + '-weighted');
+                s.correct = _meGetNum(prefix + '-correct');
+                s.total = _meGetNum(prefix + '-total');
+                s.rate = _meGetNum(prefix + '-rate');
+                s.score = { got: _meGetNum(prefix + '-score-got'), max: _meGetNum(prefix + '-score-max') || 7 };
+                s.ability = _meGetStr(prefix + '-ability');
+                // sub-items
+                if (name === '數學') {
+                    s.subItems = {};
+                    var c1 = _meGetNum(prefix + '-sub1-correct'), t1 = _meGetNum(prefix + '-sub1-total');
+                    if (c1 || t1) s.subItems.選擇 = { correct: c1, total: t1 };
+                    var m2 = _meGetStr(prefix + '-sub2-mark');
+                    if (m2) s.subItems.非選 = { mark: m2 };
+                } else if (name === '英語') {
+                    s.subItems = {};
+                    var c1 = _meGetNum(prefix + '-sub1-correct'), t1 = _meGetNum(prefix + '-sub1-total');
+                    if (c1 || t1) s.subItems.閱讀 = { correct: c1, total: t1 };
+                    var c2 = _meGetNum(prefix + '-sub2-correct'), t2 = _meGetNum(prefix + '-sub2-total');
+                    if (c2 || t2) s.subItems.聽力 = { correct: c2, total: t2 };
+                }
+                exam.subjects[name] = s;
+            });
+            // 作文
+            exam.essay = {
+                level: { got: _meGetNum('essay-level-got'), max: _meGetNum('essay-level-max') || 6 },
+                score: { got: _meGetNum('essay-score-got'), max: _meGetNum('essay-score-max') || 1 }
+            };
+            // 儲存
+            if (!appMockExams) appMockExams = [];
+            var idx = appMockExams.findIndex(function(e) { return e.name === exam.name; });
+            if (idx >= 0) {
+                exam.id = appMockExams[idx].id; // 保留原本 id
+                exam.createdAt = appMockExams[idx].createdAt;
+                appMockExams[idx] = exam;
+            } else {
+                appMockExams.push(exam);
+            }
+            localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
+            // 存級距圖到 IDB
+            if (_meLevelImageData) {
+                saveMockExamImage(exam.id, _meLevelImageData).then(function(imgId) {
+                    exam.levelChartImageId = imgId;
+                    localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
+                    renderMockExamList();
+                    alert('✅ 已儲存 ' + name);
+                });
+            } else {
+                renderMockExamList();
+                alert('✅ 已儲存 ' + name);
+            }
+            _meCurrentExam = exam;
+        }
+
+        function _meGetNum(id) {
+            var el = document.getElementById('me-' + id);
+            if (!el || !el.value) return null;
+            return parseFloat(el.value);
+        }
+        function _meGetStr(id) {
+            var el = document.getElementById('me-' + id);
+            return el ? el.value : '';
+        }
+
+        // ===== 列表渲染 =====
+        function renderMockExamList() {
+            var container = document.getElementById('me-list-cards');
+            if (!container) return;
+            var filterEl = document.getElementById('me-list-filter');
+            var filter = filterEl ? filterEl.value : 'latest';
+            var exams = appMockExams || [];
+            if (filter === 'latest') {
+                exams = exams.length > 0 ? [exams[exams.length - 1]] : [];
+            } else if (filter !== 'all') {
+                exams = exams.filter(function(e) { return e.name === filter; });
+            }
+            if (exams.length === 0) {
+                container.innerHTML = '<div class="me-empty" style="grid-column:1/-1;">尚無資料</div>';
+                return;
+            }
+            var html = '';
+            exams.forEach(function(exam) {
+                var totalScore = 0;
+                ['國文', '數學', '英語', '社會', '自然'].forEach(function(n) {
+                    if (exam.subjects && exam.subjects[n] && exam.subjects[n].score) {
+                        totalScore += (exam.subjects[n].score.got || 0);
+                    }
+                });
+                html += '<div class="me-card" onclick="loadExamToFormAndSelect(' + "'" + exam.id + "'" + ')">' +
+                    '<h4>📝 ' + exam.name + '</h4>' +
+                    '<div class="me-card-row"><span>日期</span><span>' + (exam.examDate || '-') + '</span></div>' +
+                    '<div class="me-card-row"><span>總積分</span><span><b>' + totalScore.toFixed(1) + '</b></span></div>';
+                ['國文', '數學', '英語', '社會', '自然'].forEach(function(n) {
+                    var s = exam.subjects && exam.subjects[n];
+                    var sc = s && s.score ? s.score.got + '/' + s.score.max : '-';
+                    html += '<div class="me-card-row"><span>' + _meSubjEmoji(n) + ' ' + n + '</span><span>' + sc + '</span></div>';
+                });
+                if (exam.levelChartImageId) {
+                    html += '<div id="me-card-img-' + exam.id + '"></div>';
+                }
+                html += '</div>';
+            });
+            container.innerHTML = html;
+            // 載入級距縮圖
+            exams.forEach(function(exam) {
+                if (exam.levelChartImageId) {
+                    loadMockExamImage(exam.levelChartImageId).then(function(dataUrl) {
+                        if (dataUrl) {
+                            var imgEl = document.getElementById('me-card-img-' + exam.id);
+                            if (imgEl) imgEl.innerHTML = '<img class="me-card-img" src="' + dataUrl + '" alt="級距">';
+                        }
+                    });
+                }
+            });
+        }
+
+        function loadExamToFormAndSelect(id) {
+            var exam = (appMockExams || []).find(function(e) { return e.id === id; });
+            if (!exam) return;
+            // 切到 input 分頁
+            switchMockExamView('input');
+            setTimeout(function() { loadExamToForm(exam); }, 50);
+        }
+
+        // ===== IDB 圖片存取 =====
+        function saveMockExamImage(examId, dataUrl) {
+            return new Promise(function(resolve) {
+                if (typeof db === 'undefined' || !db) { resolve(null); return; }
+                var img = {
+                    id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                    examId: examId,
+                    data: dataUrl,
+                    createdAt: new Date().toISOString()
+                };
+                try {
+                    var tx = db.transaction(['mockExamImages'], 'readwrite');
+                    tx.objectStore('mockExamImages').put(img);
+                    tx.oncomplete = function() { resolve(img.id); };
+                    tx.onerror = function() { resolve(null); };
+                } catch(e) { resolve(null); }
+            });
+        }
+
+        function loadMockExamImage(imgId) {
+            return new Promise(function(resolve) {
+                if (typeof db === 'undefined' || !db) { resolve(null); return; }
+                try {
+                    var tx = db.transaction(['mockExamImages'], 'readonly');
+                    var req = tx.objectStore('mockExamImages').get(imgId);
+                    req.onsuccess = function() { resolve(req.result ? req.result.data : null); };
+                    req.onerror = function() { resolve(null); };
+                } catch(e) { resolve(null); }
+            });
         }
         function renderMockExamAnalysis(c) {
             // v2.3.2.13: Commit 4 會實作 5 科折線圖 + 覆盤再前行
