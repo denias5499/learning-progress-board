@@ -618,6 +618,14 @@
     color: var(--secondary); margin-top: 6px;
 }
         .nav-btn:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.2), inset 0 -2px 3px rgba(0,0,0,0.05); z-index: 10; }
+
+        /* v2.3.2.13: 模考成績分頁 */
+        .me-tabs { display: flex; gap: 8px; margin: 20px 0; border-bottom: 2px solid var(--border); flex-wrap: wrap; }
+        .me-tab { padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1em; color: var(--secondary); transition: all 0.2s; font-family: inherit; }
+        .me-tab:hover { color: var(--primary); }
+        .me-tab.active { color: var(--primary); border-bottom-color: var(--accent); font-weight: bold; }
+        .me-content { min-height: 400px; padding: 20px 0; }
+        .me-empty { text-align: center; padding: 60px 20px; color: var(--secondary); font-size: 1.1em; background: rgba(255,255,255,0.5); border-radius: 12px; }
         .nav-btn.active-nav { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.2), inset 0 -2px 3px rgba(0,0,0,0.05); border-color: var(--accent) !important; z-index: 10; }
 
         .btn-home { background: #FFE17A; color: #000; font-weight: bold; font-size: 1em; padding: 6px 14px; border-radius: 20px; border: none; cursor: pointer; display: inline-block; vertical-align: middle; margin-left: 12px; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); position: relative; }
@@ -1932,6 +1940,20 @@
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
             <iframe src="wrong-notes/" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+        </div>
+    </div>
+
+    <!-- v2.3.2.13: 模考成績 page -->
+    <div id="page-mockexam" class="page-view" style="display:none; background:#FFF4E6;">
+        <div class="container" style="max-width:1200px; margin:0 auto; padding:20px;">
+            <h1 style="margin-bottom:10px;">📝 模考成績</h1>
+            <div class="me-tabs">
+                <button data-metab="overview" class="me-tab active">📊 成績總覽</button>
+                <button data-metab="input" class="me-tab">✏️ 成績輸入</button>
+                <button data-metab="analysis" class="me-tab">📈 成績分析</button>
+                <button data-metab="review" class="me-tab">📝 檢討</button>
+            </div>
+            <div id="mockexam-content" class="me-content"></div>
         </div>
     </div>
 
@@ -9347,8 +9369,53 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // v1.6.70: 錯題資料庫獨立 page
         function openMockExam() {
-            // v2.3.2.12: 模考成績入口 (規劃中, 完整功能見後續 commit)
-            alert('📝 模考成績\n\n此功能開發中，敬請期待！\n\n規劃中的 4 個子分頁:\n• 成績總覽\n• 成績輸入\n• 成績分析\n• 檢討');
+            // v2.3.2.13: 模考成績入口
+            showPage('page-mockexam');
+            // 第一次進入時綁定 tab 點擊
+            if (!window._mockExamTabsBound) {
+                window._mockExamTabsBound = true;
+                document.querySelectorAll('[data-metab]').forEach(function(tab) {
+                    tab.addEventListener('click', function() {
+                        switchMockExamView(this.getAttribute('data-metab'));
+                    });
+                });
+            }
+            // 初始化 appMockExams 全域變數
+            if (typeof appMockExams === 'undefined') {
+                try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); }
+                catch(e) { appMockExams = []; }
+            }
+            switchMockExamView('overview');
+        }
+
+        function switchMockExamView(tab) {
+            document.querySelectorAll('[data-metab]').forEach(function(t) {
+                t.classList.toggle('active', t.getAttribute('data-metab') === tab);
+            });
+            var content = el('mockexam-content');
+            if (!content) return;
+            if (tab === 'overview') renderMockExamOverview(content);
+            else if (tab === 'input') renderMockExamInput(content);
+            else if (tab === 'analysis') renderMockExamAnalysis(content);
+            else if (tab === 'review') renderMockExamReview(content);
+        }
+
+        function renderMockExamOverview(c) {
+            // v2.3.2.13: Commit 3 會實作完整版 (參考截圖 4 雷達圖 + 表格)
+            c.innerHTML = '<div class="me-empty">📊 成績總覽<br><br><small>將在 Commit 3 完整實作 (依截圖 4: 雷達圖 + 成績概況表 + 作文表)</small></div>';
+        }
+        function renderMockExamInput(c) {
+            // v2.3.2.13: Commit 2 會實作表單 + 4 場考試 CRUD
+            var html = '<div class="me-empty">✏️ 成績輸入<br><br><small>將在 Commit 2 實作 (考試基本資料 + 各科輸入)<br>目前已記錄 ' + (appMockExams || []).length + ' 場考試</small></div>';
+            c.innerHTML = html;
+        }
+        function renderMockExamAnalysis(c) {
+            // v2.3.2.13: Commit 4 會實作 5 科折線圖 + 覆盤再前行
+            c.innerHTML = '<div class="me-empty">📈 成績分析<br><br><small>將在 Commit 4 實作 (5 科折線趨勢圖 + 覆盤再前行)</small></div>';
+        }
+        function renderMockExamReview(c) {
+            // v2.3.2.13: 檢討分頁 (未排程)
+            c.innerHTML = '<div class="me-empty">📝 檢討<br><br><small>功能規劃中</small></div>';
         }
 
         function openWrongNotes() {
