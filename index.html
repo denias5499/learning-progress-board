@@ -622,7 +622,7 @@
         /* v2.3.2.13: 模考成績分頁 */
         /* v2.3.2.20: 模考 sub-tabs 加大 + 邊框 + 截圖5 橙色高亮 */
         /* v2.3.2.21: sub-tabs 縮小 (比上層 nav-btn 小) + nav-btn 單行 */
-        /* v2.3.2.23: 日期 年/月/日 拆成獨立 label + gap 24 + sm-select 50-72 + wide-select 140 */
+        /* v2.3.2.24: 成績總覽 顯示最新級距圖 (從 IDB load + max-height 500px) */
         .me-tabs { display: flex; gap: 6px; margin: 14px 0; border-bottom: none; flex-wrap: wrap; }
         .me-tab {
             padding: 6px 14px;
@@ -707,6 +707,12 @@
         .me-drop { border: 2px dashed var(--accent); border-radius: 12px; padding: 30px; text-align: center; color: var(--secondary); cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.4); }
         .me-drop:hover, .me-drop.drag { background: rgba(255,228,181,0.3); border-color: var(--primary); }
         .me-drop img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 8px; margin-top: 10px; display: block; }
+        /* v2.3.2.24: 成績總覽 級距圖區塊 */
+        .me-overview-level { background: #fff; border: 2px solid var(--accent); border-radius: 12px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .me-overview-level h3 { margin: 0 0 10px 0; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; font-size: 1.05em; }
+        .me-overview-level img { width: 100%; max-height: 500px; object-fit: contain; border-radius: 8px; display: block; background: #f8f8f8; cursor: zoom-in; transition: transform 0.2s; }
+        .me-overview-level img:hover { transform: scale(1.01); }
+        .me-overview-level .level-meta { font-size: 0.85em; color: var(--secondary); margin-top: 8px; text-align: right; }
         .me-btn { padding: 8px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; transition: all 0.2s; }
         .me-btn:hover { background: var(--primary); transform: translateY(-1px); }
         .me-btn-sec { background: #95a5a6; }
@@ -9495,8 +9501,47 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function renderMockExamOverview(c) {
-            // v2.3.2.13: Commit 3 會實作完整版 (參考截圖 4 雷達圖 + 表格)
-            c.innerHTML = '<div class="me-empty">📊 成績總覽<br><br><small>將在 Commit 3 完整實作 (依截圖 4: 雷達圖 + 成績概況表 + 作文表)</small></div>';
+            // v2.3.2.24: 顯示最新一筆的級距圖；完整雷達圖/表格於 Commit 3 之後版本補
+            if (typeof appMockExams === 'undefined') {
+                try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); }
+                catch(e) { appMockExams = []; }
+            }
+            var exams = (appMockExams || []).slice().sort(function(a, b) {
+                // 日期新的在前；用 createdAt 或 examDate
+                var da = a.examDate || a.createdAt || '';
+                var db = b.examDate || b.createdAt || '';
+                return db.localeCompare(da);
+            });
+            var withImg = exams.find(function(e) { return e.levelChartImageId; });
+            var html = '';
+            if (withImg) {
+                html += '<div class="me-overview-level" id="me-overview-level">' +
+                    '<h3>📐 級距圖表 — ' + (withImg.name || '') + ' (' + (withImg.examDate || '') + ')</h3>' +
+                    '<div id="me-overview-level-img">⏳ 載入中...</div>' +
+                    '<div class="level-meta">💡 在「✏️ 成績輸入」上傳新級距會自動更新這裡</div>' +
+                    '</div>';
+            } else {
+                html += '<div class="me-overview-level" style="border-style:dashed;background:#fffaf2;">' +
+                    '<h3 style="color:var(--secondary);">📐 級距圖</h3>' +
+                    '<div style="padding:30px;text-align:center;color:var(--secondary);">尚無級距圖，請到「✏️ 成績輸入」上傳</div>' +
+                    '</div>';
+            }
+            html += '<div class="me-empty" style="margin-top:16px;">📊 完整成績概況 (雷達圖 + 5科表 + 作文表) 將於下一版實作</div>';
+            c.innerHTML = html;
+            // 載入最新一筆的級距圖
+            if (withImg) {
+                loadMockExamImage(withImg.levelChartImageId).then(function(dataUrl) {
+                    var slot = document.getElementById('me-overview-level-img');
+                    if (slot && dataUrl) {
+                        slot.innerHTML = '<img src="' + dataUrl + '" alt="級距圖" onclick="window.open(this.src, \'_blank\')">';
+                    } else if (slot) {
+                        slot.innerHTML = '<div style="padding:20px;color:#c00;">❌ 級距圖載入失敗</div>';
+                    }
+                }).catch(function() {
+                    var slot = document.getElementById('me-overview-level-img');
+                    if (slot) slot.innerHTML = '<div style="padding:20px;color:#c00;">❌ 級距圖載入失敗</div>';
+                });
+            }
         }
         // v2.3.2.15: 成績輸入表單 (4 場模考, dropdown 切換)
         var _meCurrentExam = null; // 當前編輯的 exam 物件
