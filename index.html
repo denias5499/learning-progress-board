@@ -631,12 +631,16 @@
         .me-section { background: rgba(255,255,255,0.7); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; border: 1px solid var(--border); }
         .me-section h3 { margin: 0 0 12px 0; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
         .me-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
-        .me-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; color: var(--secondary); white-space: nowrap; flex-shrink: 0; }
-        .me-row input, .me-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; min-width: 60px; flex-shrink: 0; }
+        .me-row label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9em; color: var(--secondary); white-space: nowrap; flex-shrink: 0; }
+        .me-row input, .me-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; min-width: 60px; flex-shrink: 0; box-sizing: border-box; }
         .me-row input[type="text"] { min-width: 80px; }
-        .me-row .sm-select { min-width: 60px; }
+        .me-row .sm-select { min-width: 48px; max-width: 70px; text-align: center; }
         .me-row .wide-select { min-width: 110px; }
         .me-row .num-mid { min-width: 70px; max-width: 100px; }
+        /* 拿掉 number input 的 spinner 按鈕, 讓視覺乾淨 */
+        .me-row input[type=number]::-webkit-inner-spin-button,
+        .me-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        .me-row input[type=number] { -moz-appearance: textfield; appearance: textfield; }
         .me-radio-row { display: flex; gap: 20px; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.6); border-radius: 8px; margin-bottom: 12px; flex-wrap: wrap; }
         .me-radio-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
         .me-radio-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; min-width: 140px; }
@@ -645,7 +649,7 @@
         .me-card { background: white; border-radius: 12px; padding: 14px 18px; border: 2px solid var(--border); cursor: pointer; transition: all 0.2s; }
         .me-card h4 { white-space: nowrap; }
         .me-sub-inline { display: inline-flex; align-items: center; gap: 12px; margin-left: 16px; padding-left: 12px; border-left: 3px solid var(--accent); flex-wrap: wrap; }
-        .me-sub-row { background: rgba(255,255,255,0.4); padding: 8px 12px; border-radius: 8px; margin-top: 6px; gap: 8px; }
+        .me-sub-row { background: rgba(255,255,255,0.4); padding: 8px 12px; border-radius: 8px; margin-top: 6px; gap: 10px; }
         .me-sub-inline label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; white-space: nowrap; }
         .me-sub-inline strong { font-size: 0.9em; color: var(--secondary); }
         .me-drop { border: 2px dashed var(--accent); border-radius: 12px; padding: 30px; text-align: center; color: var(--secondary); cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.4); }
