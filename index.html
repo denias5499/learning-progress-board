@@ -622,7 +622,7 @@
         /* v2.3.2.13: 模考成績分頁 */
         /* v2.3.2.20: 模考 sub-tabs 加大 + 邊框 + 截圖5 橙色高亮 */
         /* v2.3.2.21: sub-tabs 縮小 (比上層 nav-btn 小) + nav-btn 單行 */
-        /* v2.3.2.22: select 加 padding-right + gap 加大 + sm-select/wide-select 寬度 */
+        /* v2.3.2.23: 日期 年/月/日 拆成獨立 label + gap 24 + sm-select 50-72 + wide-select 140 */
         .me-tabs { display: flex; gap: 6px; margin: 14px 0; border-bottom: none; flex-wrap: wrap; }
         .me-tab {
             padding: 6px 14px;
@@ -653,12 +653,12 @@
         .me-form { max-width: 100%; margin: 0; }
         .me-section { background: rgba(255,255,255,0.7); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; border: 1px solid var(--border); }
         .me-section h3 { margin: 0 0 12px 0; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
-        .me-row { display: flex; gap: 20px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+        .me-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
         .me-row label { display: inline-flex; align-items: center; gap: 6px; font-size: 0.9em; color: var(--secondary); white-space: nowrap; flex-shrink: 0; }
         .me-row input, .me-row select { padding: 4px 8px; padding-right: 22px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; min-width: 60px; flex-shrink: 0; box-sizing: border-box; background-position: right 6px center; }
         .me-row input[type="text"] { min-width: 80px; }
-        .me-row .sm-select { min-width: 56px; max-width: 80px; text-align: center; }
-        .me-row .wide-select { min-width: 130px; padding-right: 24px; }
+        .me-row .sm-select { min-width: 50px; max-width: 72px; text-align: center; }
+        .me-row .wide-select { min-width: 140px; padding-right: 26px; }
         .me-row .num-mid { min-width: 70px; max-width: 100px; }
         /* 拿掉 number input 的 spinner 按鈕, 讓視覺乾淨 */
         .me-row input[type=number]::-webkit-inner-spin-button,
@@ -9525,11 +9525,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<option value="第三次模考">第三次模考</option>' +
                 '<option value="第四次模考">第四次模考</option>' +
                 '</select></label>' +
-                '<label>日期: ' +
-                '<select id="me-year" class="sm-select" onchange="onMeDateChange()"></select> 年 ' +
-                '<select id="me-month" class="sm-select" onchange="onMeDateChange()"></select> 月 ' +
-                '<select id="me-day" class="sm-select" onchange="onMeDateChange()"></select> 日' +
-                '</label>' +
+                '<label>日期</label>' +
+                '<label>年 <select id="me-year" class="sm-select" onchange="onMeDateChange()"></select></label>' +
+                '<label>月 <select id="me-month" class="sm-select" onchange="onMeDateChange()"></select></label>' +
+                '<label>日 <select id="me-day" class="sm-select" onchange="onMeDateChange()"></select></label>' +
                 '</div>' +
                 '<label style="display:block; margin-top:8px; color:var(--secondary); font-size:0.9em;">📐 級距圖片 (選填, 拖拉或點擊上傳):</label>' +
                 '<div class="me-drop" id="me-drop" onclick="document.getElementById(\'me-file\').click()" ondragover="event.preventDefault(); this.classList.add(\'drag\')" ondragleave="this.classList.remove(\'drag\')" ondrop="onMeImageDrop(event)">' +
