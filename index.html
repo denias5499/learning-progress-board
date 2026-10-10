@@ -630,16 +630,22 @@
         .me-form { max-width: 100%; margin: 0; }
         .me-section { background: rgba(255,255,255,0.7); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; border: 1px solid var(--border); }
         .me-section h3 { margin: 0 0 12px 0; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; }
-        .me-row { display: flex; gap: 14px; flex-wrap: nowrap; align-items: center; margin-bottom: 8px; overflow-x: auto; }
+        .me-row { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
         .me-row label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; color: var(--secondary); white-space: nowrap; flex-shrink: 0; }
-        .me-row input, .me-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; min-width: 50px; flex-shrink: 0; }
+        .me-row input, .me-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95em; min-width: 60px; flex-shrink: 0; }
         .me-row input[type="text"] { min-width: 80px; }
-        .me-row .sm-select { min-width: 50px; max-width: 70px; }
+        .me-row .sm-select { min-width: 60px; }
+        .me-row .wide-select { min-width: 110px; }
+        .me-row .num-mid { min-width: 70px; max-width: 100px; }
+        .me-radio-row { display: flex; gap: 20px; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.6); border-radius: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .me-radio-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+        .me-radio-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; min-width: 140px; }
         .me-section h3 { white-space: nowrap; }
         .me-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
         .me-card { background: white; border-radius: 12px; padding: 14px 18px; border: 2px solid var(--border); cursor: pointer; transition: all 0.2s; }
         .me-card h4 { white-space: nowrap; }
-        .me-sub-inline { display: inline-flex; align-items: center; gap: 12px; margin-left: 16px; padding-left: 12px; border-left: 3px solid var(--accent); }
+        .me-sub-inline { display: inline-flex; align-items: center; gap: 12px; margin-left: 16px; padding-left: 12px; border-left: 3px solid var(--accent); flex-wrap: wrap; }
+        .me-sub-row { background: rgba(255,255,255,0.4); padding: 8px 12px; border-radius: 8px; margin-top: 6px; gap: 8px; }
         .me-sub-inline label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.9em; white-space: nowrap; }
         .me-sub-inline strong { font-size: 0.9em; color: var(--secondary); }
         .me-drop { border: 2px dashed var(--accent); border-radius: 12px; padding: 30px; text-align: center; color: var(--secondary); cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.4); }
@@ -9441,11 +9447,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         function renderMockExamInput(c) {
             var html = '<div class="me-form">' +
-                // ===== 基本資料 =====
-                '<div class="me-section">' +
-                '<h3>📋 基本資料</h3>' +
-                '<div class="me-row" style="flex-wrap:wrap;">' +
-                '<label>模考名稱: <select id="me-exam-name" onchange="onMeExamNameChange()">' +
+                // ===== 模式選擇 radio =====
+                '<div class="me-radio-row">' +
+                '<label><input type="radio" name="me-mode" value="new" checked onchange="onMeModeChange()"> ✨ 輸入新成績</label>' +
+                '<label><input type="radio" name="me-mode" value="edit" onchange="onMeModeChange()"> ✏️ 更改已輸入成績</label>' +
+                '<select id="me-edit-select" style="display:none;" onchange="onMeEditSelectChange()">' +
+                '<option value="">-- 選擇模考 --</option>' +
+                '</select>' +
+                '</div>' +
+
+                // ===== 輸入各科成績 =====
+                '<div class="me-section" id="me-section-basic">' +
+                '<h3>📋 輸入各科成績</h3>' +
+                '<div class="me-row" id="me-exam-info-row">' +
+                '<label>模考名稱: <select id="me-exam-name" class="wide-select" onchange="onMeExamNameChange()">' +
                 '<option value="第一次模考">第一次模考</option>' +
                 '<option value="第二次模考">第二次模考</option>' +
                 '<option value="第三次模考">第三次模考</option>' +
@@ -9476,10 +9491,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<div class="me-section">' +
                 '<h3>✍️ 作文</h3>' +
                 '<div class="me-row">' +
-                '<label>級分(得): <input type="number" id="me-essay-level-got" min="0" step="0.5"></label>' +
-                '<label>/ (滿): <input type="number" id="me-essay-level-max" min="0" step="0.5" value="6"></label>' +
-                '<label>積分(得): <input type="number" id="me-essay-score-got" min="0" step="0.1"></label>' +
-                '<label>/ (滿): <input type="number" id="me-essay-score-max" min="0" step="0.1" value="1"></label>' +
+                '<label>級分(得): <input type="number" id="me-essay-level-got" min="0" step="0.5" class="num-mid"></label>' +
+                '<label>/ (滿): <input type="number" id="me-essay-level-max" min="0" step="0.5" class="num-mid" value="6"></label>' +
+                '<label>積分(得): <input type="number" id="me-essay-score-got" min="0" step="0.1" class="num-mid"></label>' +
+                '<label>/ (滿): <input type="number" id="me-essay-score-max" min="0" step="0.1" class="num-mid" value="1"></label>' +
                 '</div>' +
                 '</div>' +
 
@@ -9495,7 +9510,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<div class="me-section">' +
                 '<h3>📚 模考成績</h3>' +
                 '<div class="me-row">' +
-                '<label>顯示: <select id="me-list-filter" onchange="renderMockExamList()">' +
+                '<label>顯示: <select id="me-list-filter" class="wide-select" onchange="renderMockExamList()">' +
                 '<option value="latest">最新一次</option>' +
                 '<option value="all">全部</option>' +
                 '<option value="第一次模考">第一次模考</option>' +
@@ -9515,16 +9530,50 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var filterEl = document.getElementById('me-list-filter');
             if (filterEl) filterEl.value = 'latest';
             renderMockExamList();
-            // 自動載入最新一次到表單
-            if (appMockExams && appMockExams.length > 0) {
-                var latest = appMockExams[appMockExams.length - 1];
-                loadExamToForm(latest);
+            // 預設「輸入新成績」模式
+            clearMockExamForm();
+        }
+
+        function onMeModeChange() {
+            var mode = document.querySelector('input[name="me-mode"]:checked').value;
+            var editSel = document.getElementById('me-edit-select');
+            var examInfoRow = document.getElementById('me-exam-info-row');
+            if (mode === 'edit') {
+                // 顯示「更改」dropdown
+                if (editSel) {
+                    editSel.style.display = 'inline-block';
+                    var opts = '<option value="">-- 選擇模考 --</option>';
+                    (appMockExams || []).forEach(function(e) {
+                        opts += '<option value="' + e.id + '">' + e.name + (e.examDate ? ' (' + e.examDate + ')' : '') + '</option>';
+                    });
+                    editSel.innerHTML = opts;
+                }
+                // 隱藏原「模考名稱+日期」row
+                if (examInfoRow) examInfoRow.style.display = 'none';
+                clearMockExamForm();
             } else {
+                if (editSel) editSel.style.display = 'none';
+                if (examInfoRow) examInfoRow.style.display = 'flex';
                 clearMockExamForm();
             }
         }
 
+        function onMeEditSelectChange() {
+            var id = document.getElementById('me-edit-select').value;
+            if (!id) return;
+            var exam = (appMockExams || []).find(function(e) { return e.id === id; });
+            if (exam) loadExamToForm(exam);
+        }
+
         function _meRenderSubjectForm(name, prefix, hasSub) {
+            var abilitySelect = '<select id="me-' + prefix + '-ability" class="wide-select">' +
+                '<option value="">(未選)</option>' +
+                '<option value="精熟(A++)">精熟(A++)</option>' +
+                '<option value="精熟(A+)">精熟(A+)</option>' +
+                '<option value="精熟">精熟</option>' +
+                '<option value="基礎">基礎</option>' +
+                '<option value="待加強">待加強</option>' +
+                '</select>';
             var html = '<div class="me-section">' +
                 '<h3>' + _meSubjEmoji(name) + ' ' + name + '</h3>' +
                 '<div class="me-row">' +
@@ -9533,37 +9582,57 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<label>答對率%: <input type="number" id="me-' + prefix + '-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>' +
                 '<label>積分: <input type="number" id="me-' + prefix + '-score-got" min="0" step="0.1" class="sm-select"></label>' +
                 '<label>/ 滿分: <input type="number" id="me-' + prefix + '-score-max" min="0" step="0.1" class="sm-select" value="7"></label>' +
-                '<label>能力等級: <select id="me-' + prefix + '-ability" class="sm-select">' +
-                '<option value="">(未選)</option>' +
-                '<option value="精熟(A++)">精熟(A++)</option>' +
-                '<option value="精熟(A+)">精熟(A+)</option>' +
-                '<option value="精熟">精熟</option>' +
-                '<option value="基礎">基礎</option>' +
-                '<option value="待加強">待加強</option>' +
-                '</select></label>';
+                '<label>能力等級: ' + abilitySelect + '</label>' +
+                '</div>';
             if (hasSub) {
                 if (name === '數學') {
-                    html += '<span class="me-sub-inline">' +
-                        '<strong>選擇題:</strong>' +
-                        '<label>答對 <input type="number" id="me-' + prefix + '-sub1-correct" min="0" class="sm-select"></label>' +
-                        '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub1-total" min="1" class="sm-select"></label>' +
-                        '<strong>非選題:</strong>' +
-                        '<label>標示 <input type="text" id="me-' + prefix + '-sub2-mark" placeholder="例: 1/3" style="width:60px"></label>' +
-                        '</span>';
+                    // 選擇題: 答對/總題/答對率
+                    html += '<div class="me-row me-sub-row">' +
+                        '<strong>選擇題</strong>' +
+                        '<label>答對 <input type="number" id="me-' + prefix + '-sub1-correct" min="0" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub1\')"></label>' +
+                        '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub1-total" min="1" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub1\')"></label>' +
+                        '<label>答對率% <input type="number" id="me-' + prefix + '-sub1-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>' +
+                        '</div>';
+                    // 非選: 答對/總題/答對率 + 加權分數/積分/滿分
+                    html += '<div class="me-row me-sub-row">' +
+                        '<strong>非選</strong>' +
+                        '<label>答對 <input type="number" id="me-' + prefix + '-sub2-correct" min="0" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub2\')"></label>' +
+                        '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub2-total" min="1" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub2\')"></label>' +
+                        '<label>答對率% <input type="number" id="me-' + prefix + '-sub2-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>' +
+                        '<label>加權分數 <input type="number" id="me-' + prefix + '-sub2-weighted" min="0" max="100" step="0.01" class="sm-select"></label>' +
+                        '<label>積分 <input type="number" id="me-' + prefix + '-sub2-score-got" min="0" step="0.1" class="sm-select"></label>' +
+                        '<label>滿分 <input type="number" id="me-' + prefix + '-sub2-score-max" min="0" step="0.1" class="sm-select" value="7"></label>' +
+                        '</div>';
                 } else if (name === '英語') {
-                    html += '<span class="me-sub-inline">' +
-                        '<strong>閱讀題:</strong>' +
-                        '<label>答對 <input type="number" id="me-' + prefix + '-sub1-correct" min="0" class="sm-select"></label>' +
-                        '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub1-total" min="1" class="sm-select"></label>' +
-                        '<strong>聽力題:</strong>' +
-                        '<label>答對 <input type="number" id="me-' + prefix + '-sub2-correct" min="0" class="sm-select"></label>' +
-                        '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub2-total" min="1" class="sm-select"></label>' +
-                        '</span>';
+                    // 閱讀: 答對/總題/答對率
+                    html += '<div class="me-row me-sub-row">' +
+                        '<strong>閱讀</strong>' +
+                        '<label>答對 <input type="number" id="me-' + prefix + '-sub1-correct" min="0" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub1\')"></label>' +
+                        '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub1-total" min="1" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub1\')"></label>' +
+                        '<label>答對率% <input type="number" id="me-' + prefix + '-sub1-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>' +
+                        '</div>';
+                    // 聽力: 答對/總題/答對率 + 加權分數/積分/滿分
+                    html += '<div class="me-row me-sub-row">' +
+                        '<strong>聽力</strong>' +
+                        '<label>答對 <input type="number" id="me-' + prefix + '-sub2-correct" min="0" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub2\')"></label>' +
+                        '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub2-total" min="1" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub2\')"></label>' +
+                        '<label>答對率% <input type="number" id="me-' + prefix + '-sub2-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>' +
+                        '<label>加權分數 <input type="number" id="me-' + prefix + '-sub2-weighted" min="0" max="100" step="0.01" class="sm-select"></label>' +
+                        '<label>積分 <input type="number" id="me-' + prefix + '-sub2-score-got" min="0" step="0.1" class="sm-select"></label>' +
+                        '<label>滿分 <input type="number" id="me-' + prefix + '-sub2-score-max" min="0" step="0.1" class="sm-select" value="7"></label>' +
+                        '</div>';
                 }
             }
-            html += '</div>' +  // me-row
-                '</div>';  // me-section
+            html += '</div>';  // me-section
             return html;
+        }
+
+        function onMeSubRateCalc(prefix) {
+            var c = parseFloat(document.getElementById('me-' + prefix + '-correct').value);
+            var t = parseFloat(document.getElementById('me-' + prefix + '-total').value);
+            if (!isNaN(c) && !isNaN(t) && t > 0) {
+                document.getElementById('me-' + prefix + '-rate').value = (c / t * 100).toFixed(2);
+            }
         }
 
         function onMeSubjRateCalc(prefix) {
@@ -9708,20 +9777,35 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     _meSetVal(prefix + '-score-max', s.score ? s.score.max : '');
                     _meSetValSel(prefix + '-ability', s.ability);
                     if (s.subItems) {
-                        if (s.subItems.選擇) {
-                            _meSetVal(prefix + '-sub1-correct', s.subItems.選擇.correct);
-                            _meSetVal(prefix + '-sub1-total', s.subItems.選擇.total);
+                        if (s.subItems.選擇題) {
+                            _meSetVal(prefix + '-sub1-correct', s.subItems.選擇題.correct);
+                            _meSetVal(prefix + '-sub1-total', s.subItems.選擇題.total);
+                            _meSetVal(prefix + '-sub1-rate', s.subItems.選擇題.rate);
                         }
                         if (s.subItems.非選) {
-                            _meSetVal(prefix + '-sub2-mark', s.subItems.非選.mark);
+                            _meSetVal(prefix + '-sub2-correct', s.subItems.非選.correct);
+                            _meSetVal(prefix + '-sub2-total', s.subItems.非選.total);
+                            _meSetVal(prefix + '-sub2-rate', s.subItems.非選.rate);
+                            _meSetVal(prefix + '-sub2-weighted', s.subItems.非選.weighted);
+                            if (s.subItems.非選.score) {
+                                _meSetVal(prefix + '-sub2-score-got', s.subItems.非選.score.got);
+                                _meSetVal(prefix + '-sub2-score-max', s.subItems.非選.score.max);
+                            }
                         }
                         if (s.subItems.閱讀) {
                             _meSetVal(prefix + '-sub1-correct', s.subItems.閱讀.correct);
                             _meSetVal(prefix + '-sub1-total', s.subItems.閱讀.total);
+                            _meSetVal(prefix + '-sub1-rate', s.subItems.閱讀.rate);
                         }
                         if (s.subItems.聽力) {
                             _meSetVal(prefix + '-sub2-correct', s.subItems.聽力.correct);
                             _meSetVal(prefix + '-sub2-total', s.subItems.聽力.total);
+                            _meSetVal(prefix + '-sub2-rate', s.subItems.聽力.rate);
+                            _meSetVal(prefix + '-sub2-weighted', s.subItems.聽力.weighted);
+                            if (s.subItems.聽力.score) {
+                                _meSetVal(prefix + '-sub2-score-got', s.subItems.聽力.score.got);
+                                _meSetVal(prefix + '-sub2-score-max', s.subItems.聽力.score.max);
+                            }
                         }
                     }
                 });
@@ -9780,15 +9864,27 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (name === '數學') {
                     s.subItems = {};
                     var c1 = _meGetNum(prefix + '-sub1-correct'), t1 = _meGetNum(prefix + '-sub1-total');
-                    if (c1 || t1) s.subItems.選擇 = { correct: c1, total: t1 };
-                    var m2 = _meGetStr(prefix + '-sub2-mark');
-                    if (m2) s.subItems.非選 = { mark: m2 };
+                    if (c1 || t1) s.subItems.選擇題 = { correct: c1, total: t1, rate: _meGetNum(prefix + '-sub1-rate') };
+                    var c2 = _meGetNum(prefix + '-sub2-correct'), t2 = _meGetNum(prefix + '-sub2-total');
+                    if (c2 || t2 || _meGetNum(prefix + '-sub2-weighted')) {
+                        s.subItems.非選 = {
+                            correct: c2, total: t2, rate: _meGetNum(prefix + '-sub2-rate'),
+                            weighted: _meGetNum(prefix + '-sub2-weighted'),
+                            score: { got: _meGetNum(prefix + '-sub2-score-got'), max: _meGetNum(prefix + '-sub2-score-max') }
+                        };
+                    }
                 } else if (name === '英語') {
                     s.subItems = {};
                     var c1 = _meGetNum(prefix + '-sub1-correct'), t1 = _meGetNum(prefix + '-sub1-total');
-                    if (c1 || t1) s.subItems.閱讀 = { correct: c1, total: t1 };
+                    if (c1 || t1) s.subItems.閱讀 = { correct: c1, total: t1, rate: _meGetNum(prefix + '-sub1-rate') };
                     var c2 = _meGetNum(prefix + '-sub2-correct'), t2 = _meGetNum(prefix + '-sub2-total');
-                    if (c2 || t2) s.subItems.聽力 = { correct: c2, total: t2 };
+                    if (c2 || t2 || _meGetNum(prefix + '-sub2-weighted')) {
+                        s.subItems.聽力 = {
+                            correct: c2, total: t2, rate: _meGetNum(prefix + '-sub2-rate'),
+                            weighted: _meGetNum(prefix + '-sub2-weighted'),
+                            score: { got: _meGetNum(prefix + '-sub2-score-got'), max: _meGetNum(prefix + '-sub2-score-max') }
+                        };
+                    }
                 }
                 exam.subjects[name] = s;
             });
