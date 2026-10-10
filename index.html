@@ -293,7 +293,7 @@
         .btn-purple { background: var(--purple); } .btn-purple:hover { background: #732d91; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--secondary); } .btn-outline:hover { background: #e2e8f0; }
 
-        .nav-btn { border: 4px solid #ffffff !important; border-radius: 20px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 -2px 3px rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); font-weight: 900; padding: 10px 20px; color: #333333 !important; position: relative; }
+        .nav-btn { border: 4px solid #ffffff !important; border-radius: 20px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 -2px 3px rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); font-weight: 900; padding: 10px 20px; color: #333333 !important; position: relative; white-space: nowrap; flex-shrink: 0; font-size: 0.95em; }
         .nav-btn-1 { background-color: #f3d6ce !important; }
         .nav-btn-2 { background-color: #c8d5c0 !important; }
         .nav-btn-3 { background-color: #dfd2e5 !important; }
@@ -621,28 +621,30 @@
 
         /* v2.3.2.13: 模考成績分頁 */
         /* v2.3.2.20: 模考 sub-tabs 加大 + 邊框 + 截圖5 橙色高亮 */
-        .me-tabs { display: flex; gap: 10px; margin: 20px 0; border-bottom: none; flex-wrap: wrap; }
+        /* v2.3.2.21: sub-tabs 縮小 (比上層 nav-btn 小) + nav-btn 單行 */
+        .me-tabs { display: flex; gap: 6px; margin: 14px 0; border-bottom: none; flex-wrap: wrap; }
         .me-tab {
-            padding: 12px 22px;
+            padding: 6px 14px;
             background: rgba(255,255,255,0.7);
-            border: 2px solid var(--border);
-            border-radius: 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
             cursor: pointer;
-            font-size: 1.15em;
+            font-size: 0.9em;
             color: var(--secondary);
             transition: all 0.25s;
             font-family: inherit;
             font-weight: 500;
+            white-space: nowrap;
         }
         .me-tab:hover { background: rgba(255,212,178,0.3); transform: translateY(-2px); }
         .me-tab.active {
             background: #FFD4B2;
             border-color: #FF9F6B;
             color: #6B3410;
-            font-size: 1.3em;
+            font-size: 1em;
             font-weight: bold;
-            box-shadow: 0 4px 12px rgba(255,159,107,0.4);
-            transform: translateY(-2px);
+            box-shadow: 0 3px 8px rgba(255,159,107,0.4);
+            transform: translateY(-1px);
         }
         .me-content { min-height: 400px; padding: 20px 0; }
         .me-empty { text-align: center; padding: 60px 20px; color: var(--secondary); font-size: 1.1em; background: rgba(255,255,255,0.5); border-radius: 12px; }
