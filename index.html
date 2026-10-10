@@ -2849,6 +2849,17 @@
                     set.add(l.unitId);
                 });
             }
+            // v2.3.2.10: 補上 appPlans 的 done unitIds (排程標 isDone 但沒 log 也要算)
+            if (Array.isArray(appPlans)) {
+                appPlans.forEach(function(plan) {
+                    if (!plan.grid) return;
+                    Object.keys(plan.grid).forEach(function(d) {
+                        (plan.grid[d] || []).forEach(function(t) {
+                            if (t && t.isDone && t.unitId) set.add(t.unitId);
+                        });
+                    });
+                });
+            }
             return set;
         }
         // v2.3.2.6: 算指定 (typeName, instanceName=null) 的進度
@@ -2868,6 +2879,14 @@
                                 total++;
                                 if (doneSet.has(u.id)) done++;
                             });
+                        });
+                    }
+                    // v2.3.2.10: 補上 inst.units 分支 (custom-type 結構, e.g. 勝經)
+                    if (Array.isArray(inst.units)) {
+                        inst.units.forEach(function(u) {
+                            if (!u || !u.id) return;
+                            total++;
+                            if (doneSet.has(u.id)) done++;
                         });
                     }
                 });
