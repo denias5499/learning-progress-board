@@ -620,10 +620,30 @@
         .nav-btn:hover { transform: translateY(-5px) scale(1.05); box-shadow: 0 8px 15px rgba(0,0,0,0.2), inset 0 -2px 3px rgba(0,0,0,0.05); z-index: 10; }
 
         /* v2.3.2.13: 模考成績分頁 */
-        .me-tabs { display: flex; gap: 8px; margin: 20px 0; border-bottom: 2px solid var(--border); flex-wrap: wrap; }
-        .me-tab { padding: 10px 20px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-size: 1em; color: var(--secondary); transition: all 0.2s; font-family: inherit; }
-        .me-tab:hover { color: var(--primary); }
-        .me-tab.active { color: var(--primary); border-bottom-color: var(--accent); font-weight: bold; }
+        /* v2.3.2.20: 模考 sub-tabs 加大 + 邊框 + 截圖5 橙色高亮 */
+        .me-tabs { display: flex; gap: 10px; margin: 20px 0; border-bottom: none; flex-wrap: wrap; }
+        .me-tab {
+            padding: 12px 22px;
+            background: rgba(255,255,255,0.7);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.15em;
+            color: var(--secondary);
+            transition: all 0.25s;
+            font-family: inherit;
+            font-weight: 500;
+        }
+        .me-tab:hover { background: rgba(255,212,178,0.3); transform: translateY(-2px); }
+        .me-tab.active {
+            background: #FFD4B2;
+            border-color: #FF9F6B;
+            color: #6B3410;
+            font-size: 1.3em;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(255,159,107,0.4);
+            transform: translateY(-2px);
+        }
         .me-content { min-height: 400px; padding: 20px 0; }
         .me-empty { text-align: center; padding: 60px 20px; color: var(--secondary); font-size: 1.1em; background: rgba(255,255,255,0.5); border-radius: 12px; }
         /* v2.3.2.15: 模考成績輸入 form */
@@ -641,9 +661,38 @@
         .me-row input[type=number]::-webkit-inner-spin-button,
         .me-row input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .me-row input[type=number] { -moz-appearance: textfield; appearance: textfield; }
-        .me-radio-row { display: flex; gap: 20px; align-items: center; padding: 12px 16px; background: rgba(255,255,255,0.6); border-radius: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-        .me-radio-row label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
-        .me-radio-row select { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; min-width: 140px; }
+        /* v2.3.2.20: 自訂 radio button 樣式, 放大 + 選中文字高亮變色 */
+        .me-radio-row { display: flex; gap: 18px; align-items: center; padding: 14px 18px; background: rgba(255,255,255,0.6); border-radius: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        .me-radio-row .me-radio-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            white-space: nowrap;
+            padding: 8px 16px;
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            background: rgba(255,255,255,0.5);
+            transition: all 0.2s;
+            font-size: 0.95em;
+        }
+        .me-radio-row .me-radio-label:hover { background: rgba(255,212,178,0.2); }
+        .me-radio-row .me-radio-label input[type="radio"] {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            cursor: pointer;
+            accent-color: #FF9F6B;
+        }
+        .me-radio-row .me-radio-label.active {
+            background: #FFE5D0;
+            border-color: #FF9F6B;
+            color: #6B3410;
+            font-size: 1.15em;
+            font-weight: bold;
+            box-shadow: 0 3px 10px rgba(255,159,107,0.35);
+        }
+        .me-radio-row select { padding: 6px 10px; border: 2px solid var(--border); border-radius: 8px; min-width: 160px; font-size: 0.95em; }
         .me-section h3 { white-space: nowrap; }
         .me-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
         .me-card { background: white; border-radius: 12px; padding: 14px 18px; border: 2px solid var(--border); cursor: pointer; transition: all 0.2s; }
@@ -1563,7 +1612,7 @@
             <h1 id="main-app-title" title="🏠 點擊回到首頁" onclick="returnToHome()" style="cursor: pointer; user-select: none;"></h1>
             <div class="header-controls">
 
-                <div class="btn-group" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                <div class="btn-group" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
                     <div class="user-selector-container" style="display:flex;align-items:center;gap:4px;">
                         <img id="current-user-avatar" class="user-avatar-small" src="" style="display:none;" title="使用者頭貼">
                         <select id="user-selector" onchange="switchUser()"></select>
@@ -1576,7 +1625,8 @@
                     <button id="nav-btn-wrongnotes" class="nav-btn nav-btn-5" onclick="openWrongNotes()" style="background-color:#e8d5e8 !important;">📚 錯題資料庫</button>
                     <button id="nav-btn-mockexam" class="nav-btn nav-btn-4" onclick="openMockExam()" style="background-color:#FFD4B2 !important;">📝 模考成績</button>
                     <button id="nav-btn-home" class="nav-btn" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
-                    <!-- v2.3.2.12: 移除「備份」nav 按鈕, 已在右下角 -->
+                    <!-- v2.3.2.20: 回首頁已上移至此), 與模考成績同行) -->
+
                 </div>
             </div>
         </div>
@@ -9451,10 +9501,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         function renderMockExamInput(c) {
             var html = '<div class="me-form">' +
-                // ===== 模式選擇 radio =====
+                // ===== 模式選擇 radio (label click 也會觸發選取) =====
                 '<div class="me-radio-row">' +
-                '<label><input type="radio" name="me-mode" value="new" checked onchange="onMeModeChange()"> ✨ 輸入新成績</label>' +
-                '<label><input type="radio" name="me-mode" value="edit" onchange="onMeModeChange()"> ✏️ 更改已輸入成績</label>' +
+                '<label class="me-radio-label active" onclick="onMeRadioClick(this, \'new\')">' +
+                '<input type="radio" name="me-mode" value="new" checked onchange="onMeModeChange()"> ✨ 輸入新成績</label>' +
+                '<label class="me-radio-label" onclick="onMeRadioClick(this, \'edit\')">' +
+                '<input type="radio" name="me-mode" value="edit" onchange="onMeModeChange()"> ✏️ 更改已輸入成績</label>' +
                 '<select id="me-edit-select" style="display:none;" onchange="onMeEditSelectChange()">' +
                 '<option value="">-- 選擇模考 --</option>' +
                 '</select>' +
@@ -9538,11 +9590,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
             clearMockExamForm();
         }
 
+        function onMeRadioClick(lbl, val) {
+            // 點 label 也會選 radio
+            var r = lbl.querySelector('input[type="radio"]');
+            if (r) {
+                r.checked = true;
+                // 同步 active class
+                document.querySelectorAll('.me-radio-row .me-radio-label').forEach(function(l) { l.classList.remove('active'); });
+                lbl.classList.add('active');
+                onMeModeChange();
+            }
+        }
+
         function onMeModeChange() {
-            var mode = document.querySelector('input[name="me-mode"]:checked').value;
+            var mode = document.querySelector('input[name="me-mode"]:checked');
+            if (!mode) return;
+            var modeVal = mode.value;
+            // 同步 active class (處理程式觸發 onchange 時)
+            document.querySelectorAll('.me-radio-row .me-radio-label').forEach(function(l) {
+                var r = l.querySelector('input[type="radio"]');
+                if (r && r.value === modeVal) l.classList.add('active');
+                else l.classList.remove('active');
+            });
             var editSel = document.getElementById('me-edit-select');
             var examInfoRow = document.getElementById('me-exam-info-row');
-            if (mode === 'edit') {
+            if (modeVal === 'edit') {
                 // 顯示「更改」dropdown
                 if (editSel) {
                     editSel.style.display = 'inline-block';
