@@ -739,6 +739,38 @@
         .me-essay-table .me-essay-num { font-size: 1.3em; font-weight: bold; color: var(--primary); }
         .me-essay-table .me-essay-max { font-size: 0.85em; color: var(--secondary); font-weight: normal; }
         @media (max-width: 700px) { .me-score-table { font-size: 0.82em; } .me-score-table th, .me-score-table td { padding: 6px 6px; } }
+        /* v2.3.2.26: 成績分析 - 統計卡 + 折線圖 */
+        .me-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 12px 0 18px 0; }
+        .me-stat-card { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .me-stat-card .stat-emoji { font-size: 1.4em; margin-right: 4px; }
+        .me-stat-card .stat-subj { font-size: 0.92em; font-weight: bold; color: var(--primary); }
+        .me-stat-card .stat-row { display: flex; justify-content: space-between; font-size: 0.85em; margin: 3px 0; align-items: baseline; }
+        .me-stat-card .stat-row .stat-label { color: var(--secondary); }
+        .me-stat-card .stat-row .stat-val { font-weight: bold; }
+        .me-stat-card .stat-row .stat-val.up { color: #1e7e34; }
+        .me-stat-card .stat-row .stat-val.down { color: #a00; }
+        .me-stat-card .stat-row .stat-val.flat { color: var(--secondary); }
+        .me-stat-card .stat-trend { margin-top: 6px; font-size: 0.8em; color: var(--secondary); border-top: 1px dashed #eee; padding-top: 6px; }
+        .me-stat-card .stat-trend .up { color: #1e7e34; font-weight: bold; }
+        .me-stat-card .stat-trend .down { color: #a00; font-weight: bold; }
+        .me-stat-card .stat-trend .flat { color: var(--secondary); font-weight: bold; }
+
+        .me-overview-line { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .me-overview-line h3 { margin: 0 0 10px 0; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; font-size: 1.05em; }
+        .me-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+        .me-chart-card { background: linear-gradient(180deg, #fffaf2 0%, #fff3d6 100%); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px; }
+        .me-chart-card .ch-title { font-size: 0.95em; font-weight: bold; color: var(--primary); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .me-chart-card .ch-title .ch-latest { font-size: 0.85em; padding: 2px 8px; border-radius: 6px; background: var(--accent); color: #fff; }
+        .me-chart-card .ch-title .ch-latest.up { background: #28a745; }
+        .me-chart-card .ch-title .ch-latest.down { background: #dc3545; }
+        .me-chart-card .ch-title .ch-latest.flat { background: #6c757d; }
+        .me-chart-card .ch-meta { font-size: 0.78em; color: var(--secondary); margin-bottom: 6px; }
+        .me-chart-card .ch-svg-wrap { background: #fff; border-radius: 6px; padding: 4px; }
+        .me-chart-card .ch-stats { font-size: 0.82em; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #e8d4b8; display: flex; flex-wrap: wrap; gap: 8px 14px; }
+        .me-chart-card .ch-stats .cs-item { color: var(--secondary); }
+        .me-chart-card .ch-stats .cs-item b { color: var(--primary); }
+
+        @media (max-width: 700px) { .me-chart-grid { grid-template-columns: 1fr; } .me-stat-grid { grid-template-columns: 1fr 1fr; } }
         .me-btn { padding: 8px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; transition: all 0.2s; }
         .me-btn:hover { background: var(--primary); transform: translateY(-1px); }
         .me-btn-sec { background: #95a5a6; }
@@ -10357,9 +10389,278 @@ function renderWizardUnitRowHtml(ws, i, u) {
             });
         }
         function renderMockExamAnalysis(c) {
-            // v2.3.2.13: Commit 4 會實作 5 科折線圖 + 覆盤再前行
-            c.innerHTML = '<div class="me-empty">📈 成績分析<br><br><small>將在 Commit 4 實作 (5 科折線趨勢圖 + 覆盤再前行)</small></div>';
+            // v2.3.2.26 (Commit 4): 統計卡 + 5 科折線圖 + 跨科總圖
+            if (typeof appMockExams === 'undefined') {
+                try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); }
+                catch(e) { appMockExams = []; }
+            }
+            // 舊→新 (時間軸)
+            var examsAsc = (appMockExams || []).slice().sort(function(a, b) {
+                var da = a.examDate || a.createdAt || '';
+                var db = b.examDate || b.createdAt || '';
+                return da.localeCompare(db);
+            });
+            var rows = ['國文', '英語', '數學', '社會', '自然'];
+            var emojis = {'國文':'📖','英語':'🌐','數學':'📐','社會':'🌍','自然':'🔬'};
+            var html = '';
+
+            // ===== 統計卡 grid =====
+            html += '<div class="me-stat-grid">';
+            rows.forEach(function(subj) {
+                var stats = _meCalcStats(examsAsc, subj);
+                html += '<div class="me-stat-card">' +
+                    '<div><span class="stat-emoji">' + emojis[subj] + '</span><span class="stat-subj">' + subj + '</span></div>';
+                if (stats.count === 0) {
+                    html += '<div class="stat-row"><span class="stat-label" style="color:#ccc;">尚無資料</span></div>';
+                } else {
+                    html += '<div class="stat-row"><span class="stat-label">最高</span><span class="stat-val">' + stats.max + '%</span></div>' +
+                        '<div class="stat-row"><span class="stat-label">最低</span><span class="stat-val">' + stats.min + '%</span></div>' +
+                        '<div class="stat-row"><span class="stat-label">平均</span><span class="stat-val">' + stats.avg + '%</span></div>' +
+                        '<div class="stat-row"><span class="stat-label">最新</span><span class="stat-val">' + stats.latest + '%</span></div>';
+                    var trendCls = stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat');
+                    var trendSign = stats.trend > 0.5 ? '↑' : (stats.trend < -0.5 ? '↓' : '→');
+                    html += '<div class="stat-trend">總進步 <span class="' + trendCls + '">' + trendSign + ' ' + (stats.trend > 0 ? '+' : '') + stats.trend.toFixed(1) + ' 百分點</span></div>';
+                }
+                html += '</div>';
+            });
+            html += '</div>';
+
+            // ===== 5 科折線圖 grid =====
+            html += '<div class="me-overview-line">' +
+                '<h3>📈 五科答對率趨勢</h3>';
+            if (examsAsc.length < 2) {
+                html += '<div class="me-empty">📊 至少需要 2 場模考才能顯示趨勢（目前 ' + examsAsc.length + ' 場）</div>';
+            } else {
+                html += '<div class="me-chart-grid">';
+                rows.forEach(function(subj) {
+                    html += _meRenderSubjChart(examsAsc, subj, emojis[subj]);
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+
+            // ===== 跨科總平均折線 =====
+            html += '<div class="me-overview-line">' +
+                '<h3>🌐 跨科總平均趨勢 (各科平均)</h3>';
+            if (examsAsc.length < 2) {
+                html += '<div class="me-empty">📊 至少需要 2 場模考</div>';
+            } else {
+                html += '<div class="me-chart-card" style="background:linear-gradient(180deg,#fff8e8,#ffe9c9);">' +
+                    '<div class="ch-title">📊 整體走勢 <span style="font-size:0.78em;color:var(--secondary);">' + examsAsc.length + ' 場模考</span></div>' +
+                    '<div class="ch-svg-wrap">' + _meBuildCombinedSvg(examsAsc, rows) + '</div>' +
+                    '</div>';
+            }
+            html += '</div>';
+
+            c.innerHTML = html;
         }
+
+        // v2.3.2.26: 統計一科的 max/min/avg/latest/trend
+        function _meCalcStats(exams, subj) {
+            var rates = [];
+            exams.forEach(function(ex) {
+                var s = ex.subjects && ex.subjects[subj];
+                if (s && typeof s.rate === 'number') rates.push(s.rate);
+            });
+            if (rates.length === 0) return {count:0};
+            var max = Math.max.apply(null, rates);
+            var min = Math.min.apply(null, rates);
+            var sum = rates.reduce(function(a,b){return a+b;}, 0);
+            var avg = sum / rates.length;
+            var latest = rates[rates.length - 1];
+            var first = rates[0];
+            var trend = rates.length >= 2 ? (latest - first) : 0;
+            return {
+                count: rates.length,
+                max: max.toFixed(1),
+                min: min.toFixed(1),
+                avg: avg.toFixed(1),
+                latest: latest.toFixed(1),
+                trend: trend
+            };
+        }
+
+        // v2.3.2.26: 單科折線圖卡片
+        function _meRenderSubjChart(exams, subj, emoji) {
+            var stats = _meCalcStats(exams, subj);
+            if (stats.count === 0) {
+                return '<div class="me-chart-card">' +
+                    '<div class="ch-title">' + emoji + ' ' + subj + ' <span class="ch-latest flat" style="background:#ccc;">無資料</span></div>' +
+                    '<div style="padding:30px;text-align:center;color:#ccc;">尚無 ' + subj + ' 資料</div>' +
+                    '</div>';
+            }
+            var data = exams.map(function(ex) {
+                var s = ex.subjects && ex.subjects[subj];
+                var rate = s && typeof s.rate === 'number' ? s.rate : null;
+                return {label: ex.name || '', date: ex.examDate || '', rate: rate};
+            });
+            var trendCls = stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat');
+            var trendSign = stats.trend > 0.5 ? '↑' : (stats.trend < -0.5 ? '↓' : '→');
+            var latestBadge = stats.trend > 0.5 ? trendSign + ' +' + stats.trend.toFixed(1) :
+                              (stats.trend < -0.5 ? trendSign + ' ' + stats.trend.toFixed(1) : trendSign + ' 持平');
+            var html = '<div class="me-chart-card">' +
+                '<div class="ch-title"><span>' + emoji + ' ' + subj + '</span>' +
+                '<span class="ch-latest ' + trendCls + '">' + stats.latest + '% ' + latestBadge + '</span></div>' +
+                '<div class="ch-meta">' + stats.count + ' 場模考 · 範圍 ' + stats.min + '% – ' + stats.max + '%</div>' +
+                '<div class="ch-svg-wrap">' + _meBuildLineSvg(data) + '</div>' +
+                '<div class="ch-stats">' +
+                    '<span class="cs-item">最高 <b>' + stats.max + '%</b></span>' +
+                    '<span class="cs-item">最低 <b>' + stats.min + '%</b></span>' +
+                    '<span class="cs-item">平均 <b>' + stats.avg + '%</b></span>' +
+                    '</div>' +
+                '</div>';
+            return html;
+        }
+
+        // v2.3.2.26: 單科折線 SVG (X:場次  Y:答對率%  0-100)
+        function _meBuildLineSvg(data) {
+            var W = 320, H = 180;
+            var padL = 36, padR = 14, padT = 14, padB = 36;
+            var plotW = W - padL - padR, plotH = H - padT - padB;
+            var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block;" xmlns="http://www.w3.org/2000/svg">';
+            // Y 軸 (0/25/50/75/100)
+            for (var v = 0; v <= 100; v += 25) {
+                var y = padT + plotH * (1 - v/100);
+                svg += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW) + '" y2="' + y.toFixed(1) + '" stroke="#f0e2c4" stroke-width="1" stroke-dasharray="' + (v === 0 || v === 100 ? '0' : '3,3') + '"/>';
+                svg += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" font-size="10" text-anchor="end" fill="#aaa">' + v + '%</text>';
+            }
+            // 有效資料點
+            var valid = [];
+            data.forEach(function(d, i) {
+                if (d.rate !== null) valid.push({idx:i, rate:d.rate, label:d.label, date:d.date});
+            });
+            if (valid.length === 0) {
+                svg += '<text x="' + (W/2) + '" y="' + (H/2) + '" font-size="13" text-anchor="middle" fill="#ccc">無資料</text>';
+                svg += '</svg>';
+                return svg;
+            }
+            var xStep = valid.length > 1 ? plotW / (data.length - 1) : 0;
+            // 折線
+            var pts = [];
+            var labels = [];
+            data.forEach(function(d, i) {
+                var x = padL + i * xStep;
+                var y = d.rate !== null ? padT + plotH * (1 - d.rate/100) : null;
+                pts.push({x:x, y:y, rate:d.rate, label:d.label, date:d.date, idx:i});
+                labels.push({x:x, label: d.date ? d.date.slice(5) : (i+1)+''});  // MM-DD
+            });
+            // 連線 (only effective rate)
+            var path = '';
+            pts.forEach(function(p) {
+                if (p.rate !== null) {
+                    if (path === '') path = 'M ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+                    else path += ' L ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+                }
+            });
+            svg += '<path d="' + path + '" fill="none" stroke="#FF6B35" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
+            // 填充區域
+            var areaPath = path;
+            if (areaPath) {
+                var last = pts.slice().reverse().find(function(p){return p.rate !== null;});
+                var first = pts.find(function(p){return p.rate !== null;});
+                if (last && first && last.idx !== first.idx) {
+                    areaPath += ' L ' + last.x.toFixed(1) + ' ' + (padT + plotH).toFixed(1) +
+                                ' L ' + first.x.toFixed(1) + ' ' + (padT + plotH).toFixed(1) + ' Z';
+                    svg += '<path d="' + areaPath + '" fill="#FF9F6B" fill-opacity="0.18"/>';
+                }
+            }
+            // 點 + 數值
+            pts.forEach(function(p) {
+                if (p.rate === null) return;
+                var isLast = (p.idx === pts.length - 1);
+                var r = isLast ? 5 : 3.5;
+                var fill = isLast ? '#FF6B35' : '#fff';
+                svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r + '" fill="' + fill + '" stroke="#FF6B35" stroke-width="2"/>';
+                if (isLast || pts.length <= 4) {
+                    svg += '<text x="' + p.x.toFixed(1) + '" y="' + (p.y - 9).toFixed(1) + '" font-size="10" font-weight="bold" text-anchor="middle" fill="#6B3410">' + p.rate.toFixed(0) + '%</text>';
+                }
+            });
+            // X 軸標籤 (取首/中/末避免擠)
+            if (pts.length > 1) {
+                var toLabel = [];
+                if (pts.length <= 4) {
+                    toLabel = pts.map(function(p){return p;});
+                } else {
+                    toLabel = [pts[0], pts[Math.floor((pts.length-1)/2)], pts[pts.length-1]];
+                }
+                toLabel.forEach(function(p) {
+                    svg += '<text x="' + p.x.toFixed(1) + '" y="' + (padT + plotH + 14) + '" font-size="9" text-anchor="middle" fill="#888">' + (p.date ? p.date.slice(5) : (p.idx+1)) + '</text>';
+                });
+            } else if (pts.length === 1) {
+                var p = pts[0];
+                svg += '<text x="' + p.x.toFixed(1) + '" y="' + (padT + plotH + 14) + '" font-size="9" text-anchor="middle" fill="#888">' + (p.date ? p.date.slice(5) : '1') + '</text>';
+            }
+            // 框線
+            svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="#c9a06e" stroke-width="1"/>';
+            svg += '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (padL + plotW) + '" y2="' + (padT + plotH) + '" stroke="#c9a06e" stroke-width="1"/>';
+            svg += '</svg>';
+            return svg;
+        }
+
+        // v2.3.2.26: 跨科總平均折線 SVG (5 線)
+        function _meBuildCombinedSvg(exams, rows) {
+            var W = 720, H = 220;
+            var padL = 40, padR = 20, padT = 14, padB = 40;
+            var plotW = W - padL - padR, plotH = H - padT - padB;
+            var colors = {'國文':'#2563eb','英語':'#059669','數學':'#9333ea','社會':'#dc2626','自然':'#FF6B35'};
+            var emojis = {'國文':'📖','英語':'🌐','數學':'📐','社會':'🌍','自然':'🔬'};
+            var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block;" xmlns="http://www.w3.org/2000/svg">';
+            // Y 軸
+            for (var v = 0; v <= 100; v += 25) {
+                var y = padT + plotH * (1 - v/100);
+                svg += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW) + '" y2="' + y.toFixed(1) + '" stroke="#f0e2c4" stroke-width="1" stroke-dasharray="' + (v === 0 || v === 100 ? '0' : '3,3') + '"/>';
+                svg += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" font-size="10" text-anchor="end" fill="#aaa">' + v + '%</text>';
+            }
+            if (exams.length < 2) {
+                svg += '<text x="' + (W/2) + '" y="' + (H/2) + '" font-size="13" text-anchor="middle" fill="#ccc">資料不足</text>';
+                svg += '</svg>';
+                return svg;
+            }
+            var xStep = plotW / (exams.length - 1);
+            rows.forEach(function(subj) {
+                var pts = [];
+                exams.forEach(function(ex, i) {
+                    var s = ex.subjects && ex.subjects[subj];
+                    var rate = s && typeof s.rate === 'number' ? s.rate : null;
+                    var x = padL + i * xStep;
+                    var y = rate !== null ? padT + plotH * (1 - rate/100) : null;
+                    pts.push({x:x, y:y, rate:rate});
+                });
+                var path = '';
+                pts.forEach(function(p) {
+                    if (p.rate !== null) {
+                        if (path === '') path = 'M ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+                        else path += ' L ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
+                    }
+                });
+                svg += '<path d="' + path + '" fill="none" stroke="' + colors[subj] + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+                pts.forEach(function(p) {
+                    if (p.rate === null) return;
+                    var isLast = (p === pts[pts.length - 1]);
+                    svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + (isLast ? 5 : 3) + '" fill="' + (isLast ? colors[subj] : '#fff') + '" stroke="' + colors[subj] + '" stroke-width="2"/>';
+                });
+            });
+            // X 軸標籤 (場次日期)
+            exams.forEach(function(ex, i) {
+                if (exams.length > 6 && i !== 0 && i !== exams.length - 1 && i !== Math.floor((exams.length-1)/2)) return;
+                var x = padL + i * xStep;
+                var lbl = ex.examDate ? ex.examDate.slice(5) : (i+1);
+                svg += '<text x="' + x.toFixed(1) + '" y="' + (padT + plotH + 14) + '" font-size="9" text-anchor="middle" fill="#888">' + lbl + '</text>';
+            });
+            // 圖例 (放在圖下方)
+            var legY = padT + plotH + 28;
+            var legX = padL;
+            rows.forEach(function(subj) {
+                svg += '<rect x="' + legX + '" y="' + (legY - 7) + '" width="10" height="10" fill="' + colors[subj] + '" rx="2"/>';
+                svg += '<text x="' + (legX + 14) + '" y="' + (legY + 2) + '" font-size="11" fill="#6B3410">' + emojis[subj] + ' ' + subj + '</text>';
+                legX += 90;
+            });
+            svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="#c9a06e" stroke-width="1"/>';
+            svg += '<line x1="' + padL + '" y1="' + (padT + plotH) + '" x2="' + (padL + plotW) + '" y2="' + (padT + plotH) + '" stroke="#c9a06e" stroke-width="1"/>';
+            svg += '</svg>';
+            return svg;
+        }
+
         function renderMockExamImport(c) {
             // v2.3.2.14: 錯題匯入 (Commit 5 實作, 拖拉/框選/標記/存檔)
             c.innerHTML = '<div class="me-empty">📥 錯題匯入<br><br><small>將在 Commit 5 實作 (拖拉/選檔 → 框選 → 標記模考科目單元 → 存錯題筆記)</small></div>';
