@@ -713,6 +713,32 @@
         .me-overview-level img { width: 100%; max-height: 500px; object-fit: contain; border-radius: 8px; display: block; background: #f8f8f8; cursor: zoom-in; transition: transform 0.2s; }
         .me-overview-level img:hover { transform: scale(1.01); }
         .me-overview-level .level-meta { font-size: 0.85em; color: var(--secondary); margin-top: 8px; text-align: right; }
+        /* v2.3.2.25: 雷達圖 + 5科表 + 作文表 */
+        .me-overview-radar, .me-overview-table, .me-overview-essay { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 16px; margin: 12px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .me-overview-radar h3, .me-overview-table h3, .me-overview-essay h3 { margin: 0 0 10px 0; color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 6px; font-size: 1.05em; }
+        .me-radar-wrap { background: linear-gradient(180deg, #fff8e8 0%, #ffe9c9 100%); border-radius: 8px; padding: 8px; }
+        .me-radar-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; justify-content: center; }
+        .me-radar-leg-item { background: #fff8e8; padding: 5px 10px; border-radius: 6px; font-size: 0.82em; display: flex; flex-direction: column; min-width: 96px; border-left: 4px solid #ccc; }
+        .me-radar-leg-item .leg-name { font-weight: bold; color: #6B3410; }
+        .me-radar-leg-item .leg-date { color: var(--secondary); font-size: 0.85em; margin-top: 2px; }
+        .me-table-wrap { overflow-x: auto; }
+        .me-score-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
+        .me-score-table th, .me-score-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid #f0e2c4; }
+        .me-score-table thead th { background: var(--accent); color: #fff; font-weight: bold; white-space: nowrap; }
+        .me-score-table .me-th-subj { background: var(--primary); min-width: 96px; }
+        .me-score-table tbody tr:hover { background: #fff8e8; }
+        .me-td-subj { background: #fdf5e3; text-align: left !important; font-weight: bold; color: #6B3410; white-space: nowrap; }
+        .me-subj-pill { padding: 3px 8px; border-radius: 8px; display: inline-block; }
+        .me-rate { font-weight: bold; padding: 2px 8px; border-radius: 6px; display: inline-block; margin-bottom: 3px; min-width: 52px; }
+        .me-rate-good { background: #d4f5d4; color: #1e7e34; }
+        .me-rate-ok { background: #fff3cd; color: #856404; }
+        .me-rate-bad { background: #ffd4d4; color: #a00; }
+        .me-score-mini { color: var(--secondary); font-size: 0.85em; }
+        .me-ability-mini { color: var(--primary); font-size: 0.82em; font-weight: bold; margin-top: 2px; }
+        .me-empty-cell { color: #ccc; font-size: 1.2em; }
+        .me-essay-table .me-essay-num { font-size: 1.3em; font-weight: bold; color: var(--primary); }
+        .me-essay-table .me-essay-max { font-size: 0.85em; color: var(--secondary); font-weight: normal; }
+        @media (max-width: 700px) { .me-score-table { font-size: 0.82em; } .me-score-table th, .me-score-table td { padding: 6px 6px; } }
         .me-btn { padding: 8px 20px; background: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1em; font-weight: bold; transition: all 0.2s; }
         .me-btn:hover { background: var(--primary); transform: translateY(-1px); }
         .me-btn-sec { background: #95a5a6; }
@@ -9501,19 +9527,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function renderMockExamOverview(c) {
-            // v2.3.2.24: 顯示最新一筆的級距圖；完整雷達圖/表格於 Commit 3 之後版本補
+            // v2.3.2.25: 雷達圖 + 5科表 + 作文表
             if (typeof appMockExams === 'undefined') {
                 try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); }
                 catch(e) { appMockExams = []; }
             }
-            var exams = (appMockExams || []).slice().sort(function(a, b) {
-                // 日期新的在前；用 createdAt 或 examDate
+            // 最新在前 (radar 顯示); 表格用舊→新排序
+            var examsDesc = (appMockExams || []).slice().sort(function(a, b) {
                 var da = a.examDate || a.createdAt || '';
                 var db = b.examDate || b.createdAt || '';
                 return db.localeCompare(da);
             });
-            var withImg = exams.find(function(e) { return e.levelChartImageId; });
+            var examsAsc = examsDesc.slice().reverse();
             var html = '';
+            // ===== 級距圖 (latest, v2.3.2.24 既有) =====
+            var withImg = examsDesc.find(function(e) { return e.levelChartImageId; });
             if (withImg) {
                 html += '<div class="me-overview-level" id="me-overview-level">' +
                     '<h3>📐 級距圖表 — ' + (withImg.name || '') + ' (' + (withImg.examDate || '') + ')</h3>' +
@@ -9526,7 +9554,43 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     '<div style="padding:30px;text-align:center;color:var(--secondary);">尚無級距圖，請到「✏️ 成績輸入」上傳</div>' +
                     '</div>';
             }
-            html += '<div class="me-empty" style="margin-top:16px;">📊 完整成績概況 (雷達圖 + 5科表 + 作文表) 將於下一版實作</div>';
+            // ===== 雷達圖 (overlay 全部場次, 最新一場用主色) =====
+            html += '<div class="me-overview-radar">' +
+                '<h3>📊 五科學力雷達圖</h3>';
+            if (examsAsc.length === 0) {
+                html += '<div class="me-empty">尚無成績資料，請到「✏️ 成績輸入」新增模考</div>';
+            } else {
+                html += '<div class="me-radar-wrap">' + _meBuildRadarSvg(examsAsc) + '</div>';
+                html += '<div class="me-radar-legend">';
+                var colors = ['#2563eb', '#059669', '#9333ea', '#FF6B35'];
+                examsAsc.forEach(function(ex, i) {
+                    var isLatest = (i === examsAsc.length - 1);
+                    html += '<div class="me-radar-leg-item" style="border-left-color:' + colors[i % 4] + ';' + (isLatest ? 'background:#fff3d6;' : '') + '">' +
+                        '<span class="leg-name">' + (ex.name || '') + (isLatest ? ' ⭐' : '') + '</span>' +
+                        '<span class="leg-date">' + (ex.examDate || '') + '</span>' +
+                        '</div>';
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+            // ===== 5 科表 =====
+            html += '<div class="me-overview-table">' +
+                '<h3>📋 五科成績對照</h3>';
+            if (examsAsc.length === 0) {
+                html += '<div class="me-empty">尚無成績資料</div>';
+            } else {
+                html += _meRender5SubjTable(examsAsc);
+            }
+            html += '</div>';
+            // ===== 作文表 =====
+            html += '<div class="me-overview-essay">' +
+                '<h3>✍️ 作文成績對照</h3>';
+            if (examsAsc.length === 0) {
+                html += '<div class="me-empty">尚無成績資料</div>';
+            } else {
+                html += _meRenderEssayTable(examsAsc);
+            }
+            html += '</div>';
             c.innerHTML = html;
             // 載入最新一筆的級距圖
             if (withImg) {
@@ -9542,6 +9606,156 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     if (slot) slot.innerHTML = '<div style="padding:20px;color:#c00;">❌ 級距圖載入失敗</div>';
                 });
             }
+        }
+
+        // v2.3.2.25: SVG 手繪雷達圖 (舊→新, 最新一場用主色加重)
+        function _meBuildRadarSvg(exams) {
+            var cx = 220, cy = 220, R = 150;
+            var axes = ['國文', '英語', '數學', '自然', '社會'];
+            var N = axes.length;
+            var colors = ['#2563eb', '#059669', '#9333ea', '#FF6B35']; // 舊→新
+            var svg = '<svg viewBox="0 0 440 460" width="100%" style="max-width:480px;display:block;margin:auto;" xmlns="http://www.w3.org/2000/svg">';
+            // 5 層網格
+            for (var lvl = 1; lvl <= 5; lvl++) {
+                var r = R * lvl / 5;
+                var pts = [];
+                for (var i = 0; i < N; i++) {
+                    var ang = -Math.PI/2 + i * 2 * Math.PI / N;
+                    pts.push((cx + r * Math.cos(ang)).toFixed(1) + ',' + (cy + r * Math.sin(ang)).toFixed(1));
+                }
+                svg += '<polygon points="' + pts.join(' ') + '" fill="none" stroke="#e8d4b8" stroke-width="1"/>';
+            }
+            // 軸線 + 標籤
+            for (var i = 0; i < N; i++) {
+                var ang = -Math.PI/2 + i * 2 * Math.PI / N;
+                var xe = cx + R * Math.cos(ang);
+                var ye = cy + R * Math.sin(ang);
+                svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + xe.toFixed(1) + '" y2="' + ye.toFixed(1) + '" stroke="#c9a06e" stroke-width="1"/>';
+                var lx = cx + (R + 24) * Math.cos(ang);
+                var ly = cy + (R + 24) * Math.sin(ang);
+                var anc = Math.abs(Math.cos(ang)) < 0.2 ? 'middle' : (Math.cos(ang) > 0 ? 'start' : 'end');
+                svg += '<text x="' + lx.toFixed(1) + '" y="' + ly.toFixed(1) + '" font-size="18" font-weight="bold" text-anchor="' + anc + '" dominant-baseline="central" fill="#6B3410">' + axes[i] + '</text>';
+            }
+            // 0% / 100% 標籤
+            svg += '<text x="' + cx + '" y="' + (cy + 4) + '" font-size="11" text-anchor="middle" fill="#aaa">0%</text>';
+            svg += '<text x="' + cx + '" y="' + (cy - R - 6) + '" font-size="11" text-anchor="middle" fill="#aaa">100%</text>';
+            // 多邊形 (舊→新畫, 最新在最上層)
+            exams.forEach(function(ex, ei) {
+                var pts = [];
+                var arr = [];
+                var hasAny = false;
+                for (var i = 0; i < N; i++) {
+                    var s = ex.subjects && ex.subjects[axes[i]];
+                    var rate = s && (typeof s.rate === 'number') ? s.rate : null;
+                    var v = (rate !== null) ? Math.max(0, Math.min(100, rate)) : 0;
+                    if (rate !== null) hasAny = true;
+                    var ang = -Math.PI/2 + i * 2 * Math.PI / N;
+                    var r = R * v / 100;
+                    var px = (cx + r * Math.cos(ang)).toFixed(1);
+                    var py = (cy + r * Math.sin(ang)).toFixed(1);
+                    pts.push(px + ',' + py);
+                    arr.push({x: px, y: py, has: rate !== null});
+                }
+                if (!hasAny) return;
+                var c = colors[ei % 4];
+                var isLatest = (ei === exams.length - 1);
+                var fillOp = isLatest ? 0.22 : 0.08;
+                var strokeW = isLatest ? 3 : 1.6;
+                svg += '<polygon points="' + pts.join(' ') + '" fill="' + c + '" fill-opacity="' + fillOp + '" stroke="' + c + '" stroke-width="' + strokeW + '" stroke-linejoin="round"/>';
+                arr.forEach(function(p) {
+                    if (!p.has) return;
+                    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + (isLatest ? 5 : 3.5) + '" fill="' + c + '" stroke="#fff" stroke-width="1.5"/>';
+                });
+            });
+            svg += '</svg>';
+            return svg;
+        }
+
+        // v2.3.2.25: 5 科成績對照表 (橫軸:模考場次, 直軸:科目)
+        function _meRender5SubjTable(exams) {
+            var rows = ['國文', '英語', '數學', '社會', '自然'];
+            var html = '<div class="me-table-wrap"><table class="me-score-table"><thead><tr>' +
+                '<th class="me-th-subj">科目</th>';
+            exams.forEach(function(ex, i) {
+                var isLatest = (i === exams.length - 1);
+                html += '<th class="me-th-exam" style="' + (isLatest ? 'background:var(--primary);' : '') + '">' + (ex.name || '') + (isLatest ? ' ⭐' : '') +
+                    '<div style="font-size:0.78em;font-weight:normal;opacity:0.85;">' + (ex.examDate || '') + '</div></th>';
+            });
+            html += '</tr></thead><tbody>';
+            rows.forEach(function(subj) {
+                html += '<tr><td class="me-td-subj"><span class="me-subj-pill">' + _meSubjEmoji(subj) + ' ' + subj + '</span></td>';
+                exams.forEach(function(ex) {
+                    var s = ex.subjects && ex.subjects[subj];
+                    var rate = (s && typeof s.rate === 'number') ? s.rate : null;
+                    var sg = s && s.score ? s.score.got : null;
+                    var sm = s && s.score ? s.score.max : null;
+                    var ab = s ? (s.ability || '') : '';
+                    var html2 = '<td class="me-td-data">';
+                    if (rate === null && sg === null) {
+                        html2 += '<span class="me-empty-cell">—</span>';
+                    } else {
+                        if (rate !== null) {
+                            var cls = rate >= 80 ? 'me-rate-good' : (rate >= 60 ? 'me-rate-ok' : 'me-rate-bad');
+                            html2 += '<div class="me-rate ' + cls + '">' + rate.toFixed(1) + '%</div>';
+                        }
+                        if (sg !== null) {
+                            html2 += '<div class="me-score-mini">🎯 ' + sg + ' / ' + (sm !== null ? sm : 7) + '</div>';
+                        }
+                        if (ab) {
+                            html2 += '<div class="me-ability-mini">🏷️ ' + ab + '</div>';
+                        }
+                    }
+                    html2 += '</td>';
+                    html += html2;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        // v2.3.2.25: 作文成績對照表
+        function _meRenderEssayTable(exams) {
+            var html = '<div class="me-table-wrap"><table class="me-score-table me-essay-table"><thead><tr>' +
+                '<th class="me-th-subj">項目</th>';
+            exams.forEach(function(ex, i) {
+                var isLatest = (i === exams.length - 1);
+                html += '<th class="me-th-exam" style="' + (isLatest ? 'background:var(--primary);' : '') + '">' + (ex.name || '') + (isLatest ? ' ⭐' : '') +
+                    '<div style="font-size:0.78em;font-weight:normal;opacity:0.85;">' + (ex.examDate || '') + '</div></th>';
+            });
+            html += '</tr></thead><tbody>';
+            // 級分 row
+            html += '<tr><td class="me-td-subj"><span class="me-subj-pill">📝 級分</span></td>';
+            exams.forEach(function(ex) {
+                var e = ex.essay && ex.essay.level;
+                var got = e ? e.got : null;
+                var max = e && e.max ? e.max : 6;
+                html += '<td class="me-td-data">';
+                if (got === null || got === undefined) {
+                    html += '<span class="me-empty-cell">—</span>';
+                } else {
+                    html += '<div class="me-essay-num">' + got + '<span class="me-essay-max"> / ' + max + '</span></div>';
+                }
+                html += '</td>';
+            });
+            html += '</tr>';
+            // 積分 row
+            html += '<tr><td class="me-td-subj"><span class="me-subj-pill">📊 積分</span></td>';
+            exams.forEach(function(ex) {
+                var sc = ex.essay && ex.essay.score;
+                var got = sc ? sc.got : null;
+                var max = sc && sc.max ? sc.max : 1;
+                html += '<td class="me-td-data">';
+                if (got === null || got === undefined) {
+                    html += '<span class="me-empty-cell">—</span>';
+                } else {
+                    html += '<div class="me-essay-num">' + got + '<span class="me-essay-max"> / ' + max + '</span></div>';
+                }
+                html += '</td>';
+            });
+            html += '</tr>';
+            html += '</tbody></table></div>';
+            return html;
         }
         // v2.3.2.15: 成績輸入表單 (4 場模考, dropdown 切換)
         var _meCurrentExam = null; // 當前編輯的 exam 物件
