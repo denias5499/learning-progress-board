@@ -9583,8 +9583,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 html += '<div class="me-overview-level" style="border-style:dashed;background:#fffaf2;">' +
                     '<h3 style="color:var(--secondary);">📐 級距圖</h3>' +
-                    '<div style="padding:30px;text-align:center;color:var(--secondary);">尚無級距圖，請到「✏️ 成績輸入」上傳</div>' +
-                    '</div>';
+                    '<div style="padding:30px;text-align:center;color:var(--secondary);">' +
+                    '<div style="margin-bottom:14px;">⚠️ 尚無級距圖<br><small style="color:#999;">（提示：先選模考名稱 + 上傳圖片 + 點「儲存模考」才會生效）</small></div>' +
+                    '<button onclick="switchMockExamView(\'input\')" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">✏️ 前往上傳</button>' +
+                    '</div></div>';
             }
             // ===== 雷達圖 (overlay 全部場次, 最新一場用主色) =====
             html += '<div class="me-overview-radar">' +
@@ -9678,7 +9680,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var hasAny = false;
                 for (var i = 0; i < N; i++) {
                     var s = ex.subjects && ex.subjects[axes[i]];
-                    var rate = s && (typeof s.rate === 'number') ? s.rate : null;
+                    var rate = _meCalcSubjectRate(s, axes[i]);
                     var v = (rate !== null) ? Math.max(0, Math.min(100, rate)) : 0;
                     if (rate !== null) hasAny = true;
                     var ang = -Math.PI/2 + i * 2 * Math.PI / N;
@@ -9718,7 +9720,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<tr><td class="me-td-subj"><span class="me-subj-pill">' + _meSubjEmoji(subj) + ' ' + subj + '</span></td>';
                 exams.forEach(function(ex) {
                     var s = ex.subjects && ex.subjects[subj];
-                    var rate = (s && typeof s.rate === 'number') ? s.rate : null;
+                    var rate = _meCalcSubjectRate(s, subj);
                     var sg = s && s.score ? s.score.got : null;
                     var sm = s && s.score ? s.score.max : null;
                     var ab = s ? (s.ability || '') : '';
@@ -9946,13 +9948,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var html = '<div class="me-section">' +
                 '<h3>' + _meSubjEmoji(name) + ' ' + name + '</h3>' +
                 '<div class="me-row">' +
+                (hasSub ? '' :
                 '<label>答對: <input type="number" id="me-' + prefix + '-correct" min="0" class="sm-select" oninput="onMeSubjRateCalc(\'' + prefix + '\')"></label>' +
-                '<label>/ 總題: <input type="number" id="me-' + prefix + '-total" min="1" class="sm-select" oninput="onMeSubjRateCalc(\'' + prefix + '\')"></label>' +
-                '<label>答對率%: <input type="number" id="me-' + prefix + '-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>' +
-                '<label>積分: <input type="number" id="me-' + prefix + '-score-got" min="0" step="0.1" class="sm-select"></label>' +
-                '<label>/ 滿分: <input type="number" id="me-' + prefix + '-score-max" min="0" step="0.1" class="sm-select" value="7"></label>' +
-                '<label>能力等級: ' + abilitySelect + '</label>' +
-                '</div>';
+                                '<label>/ 總題: <input type="number" id="me-' + prefix + '-total" min="1" class="sm-select" oninput="onMeSubjRateCalc(\'' + prefix + '\')"></label>' +
+                                '<label>答對率%: <input type="number" id="me-' + prefix + '-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>') +
+                                '<label>積分: <input type="number" id="me-' + prefix + '-score-got" min="0" step="0.1" class="sm-select"></label>' +
+                                '<label>/ 滿分: <input type="number" id="me-' + prefix + '-score-max" min="0" step="0.1" class="sm-select" value="7"></label>' +
+                                '<label>能力等級: ' + abilitySelect + '</label>' +
+                (hasSub ? '<span style="font-size:0.82em;color:var(--secondary);align-self:center;">📊 由下方子項目加權平均</span>' : '') +
+                                '</div>';
+
             if (hasSub) {
                 if (name === '數學') {
                     // 選擇題: 答對/總題/答對率
@@ -10139,9 +10144,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     var prefix = {國文:'guo', 數學:'math', 英語:'eng', 社會:'soc', 自然:'sci'}[name];
                     var s = exam.subjects[name];
                     if (!s) return;
-                    _meSetVal(prefix + '-correct', s.correct);
-                    _meSetVal(prefix + '-total', s.total);
-                    _meSetVal(prefix + '-rate', s.rate);
+                    var _hasSub = (name === '數學' || name === '英語');
+                    if (!_hasSub) {
+                        _meSetVal(prefix + '-correct', s.correct);
+                        _meSetVal(prefix + '-total', s.total);
+                        _meSetVal(prefix + '-rate', s.rate);
+                    }
                     _meSetVal(prefix + '-score-got', s.score ? s.score.got : '');
                     _meSetVal(prefix + '-score-max', s.score ? s.score.max : '');
                     _meSetValSel(prefix + '-ability', s.ability);
@@ -10224,9 +10232,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
             ['國文', '數學', '英語', '社會', '自然'].forEach(function(name) {
                 var prefix = {國文:'guo', 數學:'math', 英語:'eng', 社會:'soc', 自然:'sci'}[name];
                 var s = {};
-                s.correct = _meGetNum(prefix + '-correct');
-                s.total = _meGetNum(prefix + '-total');
-                s.rate = _meGetNum(prefix + '-rate');
+                var _hasSub = (name === '數學' || name === '英語');
+                if (!_hasSub) {
+                    s.correct = _meGetNum(prefix + '-correct');
+                    s.total = _meGetNum(prefix + '-total');
+                    s.rate = _meGetNum(prefix + '-rate');
+                } else {
+                    // 數學英語由子項目 (選擇+非選 / 閱讀+聽力) 加權平均
+                    s.correct = null; s.total = null; s.rate = null;
+                }
                 s.score = { got: _meGetNum(prefix + '-score-got'), max: _meGetNum(prefix + '-score-max') || 7 };
                 s.ability = _meGetStr(prefix + '-ability');
                 // sub-items
@@ -10455,12 +10469,30 @@ function renderWizardUnitRowHtml(ws, i, u) {
             c.innerHTML = html;
         }
 
+        // v2.3.2.27: 取得單科 rate, 數學英語若頂層為 null, 用子項目加權平均
+        function _meCalcSubjectRate(s, subjName) {
+            if (!s) return null;
+            if (typeof s.rate === 'number') return s.rate;
+            if (!s.subItems) return null;
+            var subNames = subjName === '數學' ? ['選擇題', '非選'] : (subjName === '英語' ? ['閱讀', '聽力'] : []);
+            var sumC = 0, sumT = 0, ok = false;
+            subNames.forEach(function(sn) {
+                var si = s.subItems[sn];
+                if (si && typeof si.correct === 'number' && typeof si.total === 'number' && si.total > 0) {
+                    sumC += si.correct; sumT += si.total; ok = true;
+                }
+            });
+            if (!ok) return null;
+            return sumT > 0 ? +(sumC / sumT * 100).toFixed(2) : null;
+        }
+
         // v2.3.2.26: 統計一科的 max/min/avg/latest/trend
         function _meCalcStats(exams, subj) {
             var rates = [];
             exams.forEach(function(ex) {
                 var s = ex.subjects && ex.subjects[subj];
-                if (s && typeof s.rate === 'number') rates.push(s.rate);
+                var r = _meCalcSubjectRate(s, subj);
+                if (typeof r === 'number') rates.push(r);
             });
             if (rates.length === 0) return {count:0};
             var max = Math.max.apply(null, rates);
@@ -10491,7 +10523,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             var data = exams.map(function(ex) {
                 var s = ex.subjects && ex.subjects[subj];
-                var rate = s && typeof s.rate === 'number' ? s.rate : null;
+                var rate = _meCalcSubjectRate(s, subj);
                 return {label: ex.name || '', date: ex.examDate || '', rate: rate};
             });
             var trendCls = stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat');
@@ -10621,7 +10653,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var pts = [];
                 exams.forEach(function(ex, i) {
                     var s = ex.subjects && ex.subjects[subj];
-                    var rate = s && typeof s.rate === 'number' ? s.rate : null;
+                    var rate = _meCalcSubjectRate(s, subj);
                     var x = padL + i * xStep;
                     var y = rate !== null ? padT + plotH * (1 - rate/100) : null;
                     pts.push({x:x, y:y, rate:rate});
