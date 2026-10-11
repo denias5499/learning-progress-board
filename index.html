@@ -10502,9 +10502,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // ===== 5 科折線圖 grid =====
             html += '<div class="me-overview-line">' +
                 '<h3>📈 五科答對率趨勢</h3>';
-            if (examsAsc.length < 2) {
-                html += '<div class="me-empty">📊 至少需要 2 場模考才能顯示趨勢（目前 ' + examsAsc.length + ' 場）</div>';
+            if (examsAsc.length < 1) {
+                html += '<div class="me-empty">📊 尚無模考資料</div>';
             } else {
+                if (examsAsc.length < 2) {
+                    html += '<div class="me-empty" style="background:#fff8e8;color:#856404;border:1px dashed #f0c040;">📊 目前只有 1 場模考，單點圖僅顯示當前成績（輸入第 2 場後會自動連成折線）</div>';
+                }
                 html += '<div class="me-chart-grid">';
                 rows.forEach(function(subj) {
                     html += _meRenderSubjChart(examsAsc, subj, emojis[subj]);
@@ -10516,13 +10519,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // ===== 跨科總平均折線 =====
             html += '<div class="me-overview-line">' +
                 '<h3>🌐 跨科總平均趨勢 (各科平均)</h3>';
-            if (examsAsc.length < 2) {
-                html += '<div class="me-empty">📊 至少需要 2 場模考</div>';
+            if (examsAsc.length < 1) {
+                html += '<div class="me-empty">📊 尚無模考資料</div>';
             } else {
                 html += '<div class="me-chart-card" style="background:linear-gradient(180deg,#fff8e8,#ffe9c9);">' +
                     '<div class="ch-title">📊 整體走勢 <span style="font-size:0.78em;color:var(--secondary);">' + examsAsc.length + ' 場模考</span></div>' +
                     '<div class="ch-svg-wrap">' + _meBuildCombinedSvg(examsAsc, rows) + '</div>' +
                     '</div>';
+                if (examsAsc.length < 2) {
+                    html += '<div class="me-empty" style="background:#fff8e8;color:#856404;border:1px dashed #f0c040;">📊 目前只有 1 場模考，單點圖僅顯示當前成績</div>';
+                }
             }
             html += '</div>';
 
@@ -10586,14 +10592,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var rate = _meCalcSubjectRate(s, subj);
                 return {label: ex.name || '', date: ex.examDate || '', rate: rate};
             });
-            var trendCls = stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat');
-            var trendSign = stats.trend > 0.5 ? '↑' : (stats.trend < -0.5 ? '↓' : '→');
-            var latestBadge = stats.trend > 0.5 ? trendSign + ' +' + stats.trend.toFixed(1) :
-                              (stats.trend < -0.5 ? trendSign + ' ' + stats.trend.toFixed(1) : trendSign + ' 持平');
+            var trendCls = stats.count < 2 ? 'flat' : (stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat'));
+            var trendSign = stats.count < 2 ? '·' : (stats.trend > 0.5 ? '↑' : (stats.trend < -0.5 ? '↓' : '→'));
+            var latestBadge = stats.count < 2 ? stats.latest + '% 單場' :
+                              (stats.trend > 0.5 ? trendSign + ' +' + stats.trend.toFixed(1) :
+                              (stats.trend < -0.5 ? trendSign + ' ' + stats.trend.toFixed(1) : trendSign + ' 持平'));
+            var metaText = stats.count < 2 ? '1 場模考 · 當前 ' + stats.latest + '%' :
+                           stats.count + ' 場模考 · 範圍 ' + stats.min + '% – ' + stats.max + '%';
             var html = '<div class="me-chart-card">' +
                 '<div class="ch-title"><span>' + emoji + ' ' + subj + '</span>' +
-                '<span class="ch-latest ' + trendCls + '">' + stats.latest + '% ' + latestBadge + '</span></div>' +
-                '<div class="ch-meta">' + stats.count + ' 場模考 · 範圍 ' + stats.min + '% – ' + stats.max + '%</div>' +
+                '<span class="ch-latest ' + trendCls + '">' + latestBadge + '</span></div>' +
+                '<div class="ch-meta">' + metaText + '</div>' +
                 '<div class="ch-svg-wrap">' + _meBuildLineSvg(data) + '</div>' +
                 '<div class="ch-stats">' +
                     '<span class="cs-item">最高 <b>' + stats.max + '%</b></span>' +
@@ -10680,7 +10689,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             } else if (pts.length === 1) {
                 var p = pts[0];
+                // 大點突出單場
+                svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="11" fill="#FF6B35" fill-opacity="0.15"/>';
                 svg += '<text x="' + p.x.toFixed(1) + '" y="' + (padT + plotH + 14) + '" font-size="9" text-anchor="middle" fill="#888">' + (p.date ? p.date.slice(5) : '1') + '</text>';
+                svg += '<text x="' + (W/2) + '" y="' + (padT + 10) + '" font-size="9" text-anchor="middle" fill="#aaa">📍 單場數據（輸入第 2 場後會自動連線）</text>';
             }
             // 框線
             svg += '<line x1="' + padL + '" y1="' + padT + '" x2="' + padL + '" y2="' + (padT + plotH) + '" stroke="#c9a06e" stroke-width="1"/>';
@@ -10703,12 +10715,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 svg += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW) + '" y2="' + y.toFixed(1) + '" stroke="#f0e2c4" stroke-width="1" stroke-dasharray="' + (v === 0 || v === 100 ? '0' : '3,3') + '"/>';
                 svg += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" font-size="10" text-anchor="end" fill="#aaa">' + v + '%</text>';
             }
-            if (exams.length < 2) {
-                svg += '<text x="' + (W/2) + '" y="' + (H/2) + '" font-size="13" text-anchor="middle" fill="#ccc">資料不足</text>';
-                svg += '</svg>';
-                return svg;
-            }
-            var xStep = plotW / (exams.length - 1);
+            var singleCol = exams.length < 2;
+            var xStep = exams.length > 1 ? plotW / (exams.length - 1) : 0;
             rows.forEach(function(subj) {
                 var pts = [];
                 exams.forEach(function(ex, i) {
@@ -10739,6 +10747,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var lbl = ex.examDate ? ex.examDate.slice(5) : (i+1);
                 svg += '<text x="' + x.toFixed(1) + '" y="' + (padT + plotH + 14) + '" font-size="9" text-anchor="middle" fill="#888">' + lbl + '</text>';
             });
+            // 單場提示
+            if (singleCol) {
+                svg += '<text x="' + (W/2) + '" y="' + (padT + 8) + '" font-size="10" text-anchor="middle" fill="#aaa">📍 單場數據（輸入第 2 場後會自動連線）</text>';
+            }
             // 圖例 (放在圖下方)
             var legY = padT + plotH + 28;
             var legX = padL;
