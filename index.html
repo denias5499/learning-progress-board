@@ -293,7 +293,8 @@
         .btn-purple { background: var(--purple); } .btn-purple:hover { background: #732d91; }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--secondary); } .btn-outline:hover { background: #e2e8f0; }
 
-        .nav-btn { border: 4px solid #ffffff !important; border-radius: 20px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 -2px 3px rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); font-weight: 900; padding: 10px 20px; color: #333333 !important; position: relative; white-space: nowrap; flex-shrink: 0; font-size: 0.95em; }
+        /* v2.3.2.36: nav-btn 平均放大 (flex:1 撐滿 + font-size 1em) */
+        .nav-btn { border: 4px solid #ffffff !important; border-radius: 20px !important; box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 -2px 3px rgba(0,0,0,0.05); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); font-weight: 900; padding: 12px 14px; color: #333333 !important; position: relative; white-space: nowrap; flex-shrink: 1; font-size: 1em; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .nav-btn-1 { background-color: #f3d6ce !important; }
         .nav-btn-2 { background-color: #c8d5c0 !important; }
         .nav-btn-3 { background-color: #dfd2e5 !important; }
@@ -738,7 +739,13 @@
         .me-score-table { width: 100%; border-collapse: collapse; font-size: 0.92em; }
         .me-score-table th, .me-score-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid #f0e2c4; }
         .me-score-table thead th { background: var(--accent); color: #fff; font-weight: bold; white-space: nowrap; }
-        .me-score-table .me-th-subj { background: var(--primary); min-width: 96px; }
+        /* v2.3.2.36: 科目欄底色與其他欄一致, 拿掉 var(--primary) 深底 */
+        .me-score-table .me-th-norm { background: var(--accent); min-width: 96px; }
+        .me-score-table .me-td-norm { background: transparent; }
+        /* 子項名稱塞進答對題數 cell (國文以外) */
+        .me-score-table .me-td-ct-stack { display: flex; flex-direction: column; align-items: center; gap: 1px; line-height: 1.15; }
+        .me-score-table .me-td-subname { font-size: 0.78em; color: var(--secondary); font-weight: bold; }
+        .me-score-table .me-td-ct { font-size: 0.95em; color: #333; }
         .me-score-table tbody tr:hover { background: #fff8e8; }
         .me-td-subj { background: #fdf5e3; text-align: left !important; font-weight: bold; color: #6B3410; white-space: nowrap; }
         .me-subj-pill { padding: 3px 8px; border-radius: 8px; display: inline-block; }
@@ -755,6 +762,9 @@
         /* v2.3.2.26: 成績分析 - 統計卡 + 折線圖 */
         .me-stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 12px 0 18px 0; }
         .me-stat-card { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        /* v2.3.2.36: 統計卡 header 與等級 badge */
+        .me-stat-card .stat-head { display:flex; align-items:center; gap:6px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #e8d8b8; }
+        .me-stat-card .stat-ability { margin-left:auto; padding:3px 10px; border-radius:10px; color:#fff; font-weight:bold; font-size:0.85em; min-width:42px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.15); }
         .me-stat-card .stat-emoji { font-size: 1.4em; margin-right: 4px; }
         .me-stat-card .stat-subj { font-size: 0.92em; font-weight: bold; color: var(--primary); }
         .me-stat-card .stat-row { display: flex; justify-content: space-between; font-size: 0.85em; margin: 3px 0; align-items: baseline; }
@@ -1688,25 +1698,25 @@
             <a href="#" onclick="exportDataToFile(); return false;">立即匯出備份</a> 以免本地資料意外遺失
         </div>
 
-        <div class="header">
-            <h1 id="main-app-title" title="🏠 點擊回到首頁" onclick="returnToHome()" style="cursor: pointer; user-select: none;"></h1>
+        <!-- v2.3.2.36: 首頁排版 — user box 移到 .header 右側 (學習進度看板旁), nav 按鈕平均放大置第二行 -->
+        <div class="header" style="flex-direction:column;align-items:stretch;">
+            <div class="header-top" style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px;">
+                <h1 id="main-app-title" title="🏠 點擊回到首頁" onclick="returnToHome()" style="cursor: pointer; user-select: none; margin:0;"></h1>
+                <div class="user-selector-container" style="display:flex;align-items:center;gap:4px;">
+                    <img id="current-user-avatar" class="user-avatar-small" src="" style="display:none;" title="使用者頭貼">
+                    <select id="user-selector" onchange="switchUser()"></select>
+                    <button class="btn-outline" style="padding:2px 8px;font-size:0.85em;" onclick="openModal('modal-users'); renderUserManageList();">⚙️</button>
+                </div>
+            </div>
             <div class="header-controls">
-
-                <div class="btn-group" style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap;">
-                    <div class="user-selector-container" style="display:flex;align-items:center;gap:4px;">
-                        <img id="current-user-avatar" class="user-avatar-small" src="" style="display:none;" title="使用者頭貼">
-                        <select id="user-selector" onchange="switchUser()"></select>
-                        <button class="btn-outline" style="padding:2px 8px;font-size:0.85em;" onclick="openModal('modal-users'); renderUserManageList();">⚙️</button>
-                    </div>
+                <div class="btn-group" style="display:flex;align-items:center;gap:8px;flex-wrap:nowrap;width:100%;">
                     <!-- v2.3.2.14: 移除夜間模式切換按鈕 -->
-                    <button id="nav-btn-settings" class="nav-btn nav-btn-1" onclick="openSettings()">⚙️ 教材庫與備份</button>
-                    <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()">📅 月曆計畫表</button>
-                    <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;">📊 學習統計分析</button>
-                    <button id="nav-btn-wrongnotes" class="nav-btn nav-btn-5" onclick="openWrongNotes()" style="background-color:#e8d5e8 !important;">📚 錯題資料庫</button>
-                    <button id="nav-btn-mockexam" class="nav-btn nav-btn-4" onclick="openMockExam()" style="background-color:#FFD4B2 !important;">📝 模考成績</button>
-                    <button id="nav-btn-home" class="nav-btn" onclick="returnToHome()" style="background-color:#FFE17A !important;">🏠 回首頁</button>
-                    <!-- v2.3.2.20: 回首頁已上移至此), 與模考成績同行) -->
-
+                    <button id="nav-btn-settings" class="nav-btn nav-btn-1" onclick="openSettings()" style="flex:1;">⚙️ 教材庫與備份</button>
+                    <button id="nav-btn-planner" class="nav-btn nav-btn-2" onclick="openPlanner()" style="flex:1;">📅 月曆計畫表</button>
+                    <button id="nav-btn-stats" class="nav-btn nav-btn-3" onclick="openStats()" style="background-color:#c4e0f9 !important;flex:1;">📊 學習統計分析</button>
+                    <button id="nav-btn-wrongnotes" class="nav-btn nav-btn-5" onclick="openWrongNotes()" style="background-color:#e8d5e8 !important;flex:1;">📚 錯題資料庫</button>
+                    <button id="nav-btn-mockexam" class="nav-btn nav-btn-4" onclick="openMockExam()" style="background-color:#FFD4B2 !important;flex:1;">📝 模考成績</button>
+                    <button id="nav-btn-home" class="nav-btn" onclick="returnToHome()" style="background-color:#FFE17A !important;flex:1;">🏠 回首頁</button>
                 </div>
             </div>
         </div>
@@ -9588,14 +9598,37 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 return db.localeCompare(da);
             });
             var examsAsc = examsDesc.slice().reverse();
+            // v2.3.2.36: 預設顯示最新一場 (examsAsc index = 0)
+            var _meOverviewExamIdx = 0;
             var html = '';
-            // ===== 級距圖 (latest, v2.3.2.24 既有) =====
-            var withImg = examsDesc.find(function(e) { return e.levelChartImageId; });
+            // v2.3.2.36: 模考選擇器 (dropdown)
+            if (examsAsc.length >= 1) {
+                html += '<div class="me-exam-picker" style="display:flex;align-items:center;gap:10px;margin:0 0 12px 0;padding:8px 12px;background:#fff;border:2px solid #d4b478;border-radius:8px;">';
+                html += '<label style="font-weight:bold;color:#6B3410;">📅 選擇模考:</label>';
+                html += '<select id="me-overview-exam-picker" class="wide-select" onchange="_meOnOverviewExamChange()" style="flex:1;max-width:280px;">';
+                examsAsc.forEach(function(ex, i) {
+                    var isLatest = (i === examsAsc.length - 1);
+                    var sel = isLatest ? ' selected' : '';
+                    var star = isLatest ? ' ⭐' : '';
+                    var lbl = ex.name + (ex.examDate ? ' (' + ex.examDate + ')' : '') + star;
+                    html += '<option value="' + ex.id + '"' + sel + '>' + lbl + '</option>';
+                });
+                html += '</select>';
+                html += '<span style="font-size:11px;color:var(--secondary);">共 ' + examsAsc.length + ' 場</span>';
+                html += '</div>';
+            }
+            // v2.3.2.36: 級距圖也跟著所選的 exam 顯示
+            var pickerSel = document.getElementById('me-overview-exam-picker');
+            var selectedExamId = pickerSel ? pickerSel.value : null;
+            var selectedExam = selectedExamId ? (appMockExams || []).find(function(e) { return e.id === selectedExamId; }) : null;
+            if (!selectedExam && examsAsc.length > 0) selectedExam = examsAsc[examsAsc.length - 1]; // fallback = latest
+            // ===== 級距圖 (跟著 dropdown 選擇, v2.3.2.24 既有) =====
+            var withImg = selectedExam && selectedExam.levelChartImageId ? selectedExam : examsDesc.find(function(e) { return e.levelChartImageId; });
             if (withImg) {
                 html += '<div class="me-overview-level" id="me-overview-level">' +
                     '<h3>📐 級距圖表 — ' + (withImg.name || '') + ' (' + (withImg.examDate || '') + ')</h3>' +
                     '<div id="me-overview-level-img">⏳ 載入中...</div>' +
-                    '<div class="level-meta">💡 在「✏️ 成績輸入」上傳新級距會自動更新這裡</div>' +
+                    '<div class="level-meta">💡 切換上方 dropdown 可看其他場次; 在「✏️ 成績輸入」上傳新級距會自動更新這裡</div>' +
                     '</div>';
             } else {
                 html += '<div class="me-overview-level" style="border-style:dashed;background:#fffaf2;">' +
@@ -9630,7 +9663,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (examsAsc.length === 0) {
                 html += '<div class="me-empty">尚無成績資料</div>';
             } else {
-                html += _meRender5SubjTable(examsAsc);
+                // v2.3.2.36: 把所選 exam 的 index 傳進去 (新→舊, examsAsc 是舊→新)
+                var selectedIdx = selectedExam ? examsAsc.findIndex(function(e) { return e.id === selectedExam.id; }) : (examsAsc.length - 1);
+                html += _meRender5SubjTable(examsAsc, selectedIdx >= 0 ? selectedIdx : examsAsc.length - 1);
             }
             html += '</div>';
             // ===== 作文表 (v2.3.2.31 已併入 _meRender5SubjTable) =====
@@ -9649,6 +9684,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     if (slot) slot.innerHTML = '<div style="padding:20px;color:#c00;">❌ 級距圖載入失敗</div>';
                 });
             }
+        }
+
+        // v2.3.2.36: dropdown 切換時, 重新 render 成績總覽
+        function _meOnOverviewExamChange() {
+            var content = el('mockexam-content');
+            if (content) renderMockExamOverview(content);
         }
 
         // v2.3.2.25: SVG 手繪雷達圖 (舊→新, 最新一場用主色加重)
@@ -9724,40 +9765,40 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v2.3.2.31: 5 科成績對照表 (樣式如截圖5: 科目, 答對題數, 答對率, 加權分數, 能力等級, 積分, 複點)
-        function _meRender5SubjTable(exams) {
+        // v2.3.2.36: 5 科表 — 子項名稱塞進「答對題數」cell, 科目欄底色與其他欄一致, 刪除「積點」欄
+        function _meRender5SubjTable(exams, examIdx) {
+            if (typeof examIdx !== 'number') examIdx = 0;
             var rows = ['國文', '數學', '英語', '社會', '自然'];
             var html = '<h3 style="margin:14px 0 8px;color:#6B3410;">📋 成績概況</h3>';
             html += '<div class="me-table-wrap"><table class="me-score-table me-v231-table">' +
                 '<thead><tr>' +
-                '<th class="me-th-subj">科目</th>' +
+                '<th class="me-th-norm">科目</th>' +
                 '<th>答對題數</th>' +
                 '<th>答對率</th>' +
                 '<th>加權分數</th>' +
                 '<th>能力等級</th>' +
                 '<th>積分</th>' +
-                '<th>複點</th>' +
                 '</tr></thead><tbody>';
+            var ex = exams[examIdx] || exams[0];
             rows.forEach(function(subj, idx) {
-                var latestEx = exams[0]; // 最新一場
-                var s = latestEx.subjects && latestEx.subjects[subj];
+                var s = ex.subjects && ex.subjects[subj];
                 var _hasSub = (subj === '數學' || subj === '英語');
                 if (_hasSub) {
                     // 數學: 兩行 (選擇題 + 非選)
                     var subNames = subj === '數學' ? ['選擇題', '非選'] : ['閱讀', '聽力'];
                     html += '<tr>' +
-                        '<td class="me-td-subj" rowspan="' + subNames.length + '">' +
+                        '<td class="me-td-norm" rowspan="' + subNames.length + '">' +
                         '<span class="me-subj-pill">' + _meSubjEmoji(subj) + ' ' + subj + '</span></td>';
                     subNames.forEach(function(sn, si) {
                         var si_data = s && s.subItems && s.subItems[sn];
                         var correct = si_data ? si_data.correct : null;
                         var total = si_data ? si_data.total : null;
                         var rate = si_data ? si_data.rate : null;
-                        var weighted = si_data ? si_data.weighted : null;
                         if (si > 0) html += '<tr>';
-                        html += '<td class="me-td-subname">' + sn + '</td>';
-                        // 答對題數
+                        // 答對題數 cell: 內含子項名稱 (例如 「選擇題 41/42」), 與其他科對齊
                         var ct = (correct !== null && total !== null) ? (correct + '/' + total) : '—';
-                        html += '<td>' + ct + '</td>';
+                        var ctHtml = '<div class="me-td-ct-stack"><span class="me-td-subname">' + sn + '</span><span class="me-td-ct">' + ct + '</span></div>';
+                        html += '<td>' + ctHtml + '</td>';
                         // 答對率
                         html += '<td>' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
                         // 加權分數 (只有第一個子項顯示, 與第二個子項並列時由 rowspan 統一)
@@ -9771,21 +9812,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             html += '<td rowspan="' + subNames.length + '">' + (s.ability ? s.ability : '—') + '</td>';
                             // 積分 (整科)
                             html += '<td rowspan="' + subNames.length + '">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
-                            // 複點 (整科)
-                            html += '<td rowspan="' + subNames.length + '">—</td>';
                         }
                         html += '</tr>';
                     });
                 } else {
                     // 國文/社會/自然: 一行
                     html += '<tr>' +
-                        '<td class="me-td-subj"><span class="me-subj-pill">' + _meSubjEmoji(subj) + ' ' + subj + '</span></td>' +
+                        '<td class="me-td-norm"><span class="me-subj-pill">' + _meSubjEmoji(subj) + ' ' + subj + '</span></td>' +
                         '<td>' + (s && s.correct !== null && s.total !== null ? s.correct + '/' + s.total : '—') + '</td>' +
                         '<td>' + (s && s.rate !== null && s.rate !== undefined ? s.rate.toFixed(2) : '—') + '</td>' +
                         '<td>—</td>' +
                         '<td>' + (s && s.ability ? s.ability : '—') + '</td>' +
                         '<td>' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
-                        '<td>—</td>' +
                         '</tr>';
                 }
             });
@@ -9796,15 +9834,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<th>科目</th>' +
                 '<th>級分</th>' +
                 '<th>積分</th>' +
-                '<th>複點</th>' +
                 '</tr></thead><tbody>';
-            var latestEx2 = exams[0];
-            var e = latestEx2.essay;
+            var e = ex.essay;
             html += '<tr>' +
-                '<td class="me-td-subj"><span class="me-subj-pill">📝 作文</span></td>' +
+                '<td class="me-td-norm"><span class="me-subj-pill">📝 作文</span></td>' +
                 '<td>' + (e && e.level ? e.level.got + '/' + e.level.max : '—') + '</td>' +
                 '<td>' + (e && e.score ? e.score.got + '/' + e.score.max : '—') + '</td>' +
-                '<td>—</td>' +
                 '</tr>';
             html += '</tbody></table>';
             html += '</div>';
@@ -10387,7 +10422,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
             // 存級距圖到 IDB
-            var _afterSave = function() {
+            var _afterSave = function(warnMsg) {
                 renderMockExamList();
                 // 如果目前在 overview 分頁, 立即重整 (讓級距圖即時顯示)
                 var overviewTab = document.querySelector('[data-metab="overview"]');
@@ -10398,9 +10433,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var msg = '✅ 已儲存模考: ' + name;
                 if (_meLevelImageData) msg += '\n(含級距圖)';
                 msg += '\n\n日期: ' + exam.examDate + '\nID: ' + exam.id;
+                if (warnMsg) msg = warnMsg + '\n\n' + msg;
                 alert(msg);
             };
             if (_meLevelImageData) {
+                // v2.3.2.36: IDB 寫入失敗時只顯示一個非阻斷的提示, 不彈 modal alert
                 saveMockExamImage(exam.id, _meLevelImageData).then(function(imgId) {
                     if (imgId) {
                         exam.levelChartImageId = imgId;
@@ -10408,14 +10445,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         console.log('[模考儲存] 級距圖已存 IDB:', imgId, 'exam.levelChartImageId =', imgId);
                         _afterSave();
                     } else {
-                        console.error('[模考儲存] 級距圖 IDB 寫入失敗, imgId 為 null');
-                        alert('⚠️ 級距圖儲存失敗 (IDB 寫入)\n\n可能原因: 瀏覽器隱私模式 / 儲存空間不足\n\n模考本身已儲存, 但「成績總覽」不會顯示級距圖。');
-                        _afterSave();
+                        console.warn('[模考儲存] 級距圖 IDB 寫入失敗, imgId 為 null (隱私模式/空間不足) — 已略過, 不影響模考本身');
+                        _afterSave('⚠️ 級距圖無法儲存 (瀏覽器隱私模式 / 空間不足), 但模考資料已存。');
                     }
                 }).catch(function(err) {
-                    console.error('[模考儲存] 級距圖 IDB exception:', err);
-                    alert('⚠️ 級距圖儲存發生錯誤: ' + (err && err.message ? err.message : err) + '\n\n模考本身已儲存。');
-                    _afterSave();
+                    console.warn('[模考儲存] 級距圖 IDB exception:', err, '— 已略過, 不影響模考本身');
+                    _afterSave('⚠️ 級距圖無法儲存 (IDB 異常), 但模考資料已存。');
                 });
             } else {
                 // 沒新圖: 保留舊的 levelChartImageId (如果有)
@@ -10585,12 +10620,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var emojis = {'國文':'📖','英語':'🌐','數學':'📐','社會':'🌍','自然':'🔬'};
             var html = '';
 
-            // ===== 統計卡 grid =====
+            // v2.3.2.36: 統計卡 — 科目右側加 等級 badge, 對齊「最高」％x; trend 留白直到下次模考
             html += '<div class="me-stat-grid">';
             rows.forEach(function(subj) {
                 var stats = _meCalcStats(examsAsc, subj);
+                // 取最新一場的能力等級 (直接讀 subj.ability)
+                var latestEx = examsAsc.length > 0 ? examsAsc[examsAsc.length - 1] : null;
+                var latestSubj = latestEx && latestEx.subjects ? latestEx.subjects[subj] : null;
+                var abilStr = (latestSubj && latestSubj.ability) ? latestSubj.ability : '—';
+                var abilShort = abilStr.replace('精熟(', '').replace(')', '').replace('基礎(', '').replace('待加強', 'C');
+                // badge 顏色: A++ 紅, A+ 橙, A 黃, B++ 綠, B+ 青, B 藍, C 灰
+                var abilColor = '#999';
+                if (abilShort.indexOf('A++') >= 0) abilColor = '#dc2626';
+                else if (abilShort.indexOf('A+') >= 0) abilColor = '#ea580c';
+                else if (abilShort === 'A') abilColor = '#ca8a04';
+                else if (abilShort.indexOf('B++') >= 0) abilColor = '#16a34a';
+                else if (abilShort.indexOf('B+') >= 0) abilColor = '#0891b2';
+                else if (abilShort === 'B') abilColor = '#2563eb';
+
                 html += '<div class="me-stat-card">' +
-                    '<div><span class="stat-emoji">' + emojis[subj] + '</span><span class="stat-subj">' + subj + '</span></div>';
+                    '<div class="stat-head">' +
+                    '<span class="stat-emoji">' + emojis[subj] + '</span>' +
+                    '<span class="stat-subj">' + subj + '</span>' +
+                    // v2.3.2.36: 等級 badge (對齊「最高」％x 欄, 即右側)
+                    '<span class="stat-ability" style="background:' + abilColor + ';">' + abilShort + '</span>' +
+                    '</div>';
                 if (stats.count === 0) {
                     html += '<div class="stat-row"><span class="stat-label" style="color:#ccc;">尚無資料</span></div>';
                 } else {
@@ -10598,21 +10652,24 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         '<div class="stat-row"><span class="stat-label">最低</span><span class="stat-val">' + stats.min + '%</span></div>' +
                         '<div class="stat-row"><span class="stat-label">平均</span><span class="stat-val">' + stats.avg + '%</span></div>' +
                         '<div class="stat-row"><span class="stat-label">最新</span><span class="stat-val">' + stats.latest + '%</span></div>';
-                    var trendCls = stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat');
-                    var trendSign = stats.trend > 0.5 ? '↑' : (stats.trend < -0.5 ? '↓' : '→');
-                    html += '<div class="stat-trend">總進步 <span class="' + trendCls + '">' + trendSign + ' ' + (stats.trend > 0 ? '+' : '') + stats.trend.toFixed(1) + ' 百分點</span></div>';
+                    // v2.3.2.36: 總進步 百分點 — 只有 ≥2 場才填值, 否則留白
+                    if (stats.count >= 2) {
+                        var trendCls = stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat');
+                        var trendSign = stats.trend > 0.5 ? '↑' : (stats.trend < -0.5 ? '↓' : '→');
+                        html += '<div class="stat-trend">總進步 <span class="' + trendCls + '">' + trendSign + ' ' + (stats.trend > 0 ? '+' : '') + stats.trend.toFixed(1) + ' 百分點</span></div>';
+                    } else {
+                        html += '<div class="stat-trend" style="color:#bbb;">總進步 <span style="color:#ccc;">— 百分點 (下次模考後填入)</span></div>';
+                    }
                 }
                 html += '</div>';
             });
             html += '</div>';
 
             // ===== 紙本式折線趨勢圖 (v2.3.2.30) =====
+            // v2.3.2.36: 移除「只有 1 場模考」提示, 讓圖表直接顯示
             if (examsAsc.length < 1) {
                 html += '<div class="me-empty">📊 尚無模考資料</div>';
             } else {
-                if (examsAsc.length < 2) {
-                    html += '<div class="me-empty" style="background:#fff8e8;color:#856404;border:1px dashed #f0c040;">📊 目前只有 1 場模考，已顯示單點；輸入第 2 場後會自動連成折線</div>';
-                }
                 html += _meBuildPaperTrendGrid(examsAsc);
             }
 
@@ -10758,7 +10815,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v2.3.2.30: 5 科紙本式折線趨勢圖 grid (取代 v2.3.2.26 的 5 科折線圖 grid)
         function _meBuildPaperTrendGrid(examsAsc) {
             var levels = _mePaperData.levels;
-            var subjList = ['國文', '數學', '自然', '英語', '社會'];
+            // v2.3.2.36: 折線圖科目順序 → 國文, 數學, 英文, 社會, 自然
+            var subjList = ['國文', '數學', '英語', '社會', '自然'];
             var emojis = {'國文':'📖','數學':'📐','自然':'🔬','英語':'🌐','社會':'🌍'};
 
             var html = '<div class="me-overview-line" style="background:#fffbe9;border:2px solid #d4b478;border-radius:10px;padding:14px 16px;margin-bottom:14px;">';
