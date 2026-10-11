@@ -3239,6 +3239,7 @@
         }
 
         function returnToHome() {
+            try {
             if (el('page-settings') && el('page-settings').style.display === 'block' && window.isMasterDirty) {
                 if (confirm('警告：您在教材庫設定有尚未儲存的變更！\n按「確定」儲存變更，或按「取消」(否) 不儲存並離開。')) {
                     saveSettingsAndAlert(true); 
@@ -3260,6 +3261,9 @@
             });
             updateFilters();
             renderDashboard();
+            } catch (e) {
+                console.error('[returnToHome] 錯誤:', e);
+            }
         }
 
         function loadWizardPrefs() {
@@ -16041,7 +16045,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // switchStatsView('tree') - 在 openStats 裡已處理
         }
         
-        function renderDashboard() { 
+        function renderDashboard() { try {
             // v1.6.67: 強制 sync appPlans 跟清 cache
             if (multiData && multiData[currentUserId]) {
                 appPlans = multiData[currentUserId].plans || [];
@@ -16265,6 +16269,18 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 if (catHasContent) root.innerHTML += catHtml; 
             }); 
             if (totalRendered === 0) root.innerHTML = '<div style="text-align:center; color:#94a3b8; margin-top: 50px; font-size: 1.2em;"><h3>📭 目前篩選的範圍內沒有內容</h3></div>'; 
+            } catch (e) {
+                console.error('[renderDashboard] 錯誤:', e);
+                var _rdRoot = el('dashboard-root');
+                if (_rdRoot) {
+                    _rdRoot.innerHTML = '<div style="padding:20px;background:#fff3cd;border-radius:8px;margin:20px 0;color:#856404;">' +
+                        '<h3>⚠️ 首頁渲染發生錯誤</h3>' +
+                        '<p style="font-family:monospace;font-size:0.85em;white-space:pre-wrap;">' + (e.stack || e.message || e.toString()) + '</p>' +
+                        '<p>請按 F12 打開 DevTools 看 Console 完整錯誤, 並回報給 William。</p>' +
+                        '<button onclick="location.reload()" style="background:#856404;color:#fff;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;">🔄 重新載入</button>' +
+                        '</div>';
+                }
+            }
         }
 
 
