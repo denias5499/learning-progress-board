@@ -9762,9 +9762,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         html += '<td>' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
                         // 加權分數 (只有第一個子項顯示, 與第二個子項並列時由 rowspan 統一)
                         if (si === 0) {
-                            // 算兩個子項的加權分數 (如果有)
-                            var w = (s && s.subItems && s.subItems.非選) ? s.subItems.非選.weighted :
-                                    (s && s.subItems && s.subItems.聽力) ? s.subItems.聽力.weighted : null;
+                            // 算兩個子項的加權分數 (如果有) — 加括號避免 nested ternary 解析錯誤
+                            var wNon = (s && s.subItems && s.subItems.非選) ? s.subItems.非選.weighted : null;
+                            var wAud = (s && s.subItems && s.subItems.聽力) ? s.subItems.聽力.weighted : null;
+                            var w = wNon !== null ? wNon : wAud;
                             html += '<td rowspan="' + subNames.length + '">' + (w !== null && w !== undefined ? w : '—') + '</td>';
                             // 能力等級 (整科)
                             html += '<td rowspan="' + subNames.length + '">' + (s.ability ? s.ability : '—') + '</td>';
@@ -9839,7 +9840,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 積分 row
         }
 
-        function onMeImageDrop(e) {
         var _meCurrentExam = null; // 當前編輯的 exam 物件
         var _meLevelImageData = null; // 當前選擇的級距圖片 (base64 data URL)
 
