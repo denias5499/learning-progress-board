@@ -698,6 +698,9 @@
         .me-radio-row select { padding: 6px 10px; border: 2px solid var(--border); border-radius: 8px; min-width: 160px; font-size: 0.95em; }
         .me-section h3 { white-space: nowrap; }
         .me-list { display: flex; flex-direction: column; gap: 12px; margin-top: 16px; }
+        /* v2.3.2.32: card 內 5 科小區塊 */
+        .me-card-subj { margin-top: 6px; padding: 6px 8px; background: #fff8e8; border-radius: 6px; border: 1px solid #f0e2c4; }
+        .me-card-subj-head { font-size: 0.88em; font-weight: bold; color: #6B3410; margin-bottom: 3px; padding-bottom: 3px; border-bottom: 1px dashed #d4b478; }
         /* v2.3.2.31: 截圖5 樣式對照表 */
         .me-v231-table { width: 100%; border-collapse: separate; border-spacing: 0; background: #fff; border: 1px solid #d4b478; border-radius: 8px; overflow: hidden; }
         .me-v231-table thead th { background: #d4b478; color: #fff; padding: 10px 8px; text-align: center; font-weight: bold; font-size: 0.9em; border-bottom: 2px solid #a08456; }
@@ -9906,8 +9909,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<h3>📚 模考成績</h3>' +
                 '<div class="me-row">' +
                 '<label>顯示: <select id="me-list-filter" class="wide-select" onchange="renderMockExamList()">' +
-                '<option value="latest">最新一次</option>' +
-                '<option value="all">全部</option>' +
+                '<option value="all">全部 (新→舊)</option>' +
                 '<option value="第一次模考">第一次模考</option>' +
                 '<option value="第二次模考">第二次模考</option>' +
                 '<option value="第三次模考">第三次模考</option>' +
@@ -9921,9 +9923,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 初始化日期 dropdown
             _mePopulateDateDropdowns();
             _meSetDateString(null); // 預設今天
-            // 預設選「最新一次」+ 載入資料
+            // v2.3.2.32: 預設「全部 (新→舊)」
             var filterEl = document.getElementById('me-list-filter');
-            if (filterEl) filterEl.value = 'latest';
+            if (filterEl) filterEl.value = 'all';
             renderMockExamList();
             // 預設「輸入新成績」模式
             clearMockExamForm();
@@ -10437,10 +10439,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var filter = filterEl ? filterEl.value : 'latest';
             var exams = appMockExams || [];
             if (filter === 'latest') {
-                exams = exams.length > 0 ? [exams[exams.length - 1]] : [];
-            } else if (filter !== 'all') {
+                // v2.3.2.32: 顯示全部 (新→舊, 最新在第一排)
+                exams = exams.slice();
+            } else if (filter === 'all') {
+                exams = exams.slice();
+            } else {
                 exams = exams.filter(function(e) { return e.name === filter; });
             }
+            // v2.3.2.32: 統一排序: examDate desc (新→舊), 沒 examDate 用 createdAt
+            exams.sort(function(a, b) {
+                var da = a.examDate || a.createdAt || '';
+                var db = b.examDate || b.createdAt || '';
+                return db.localeCompare(da);
+            });
             if (exams.length === 0) {
                 container.innerHTML = '<div class="me-empty" style="grid-column:1/-1;">尚無資料</div>';
                 return;
@@ -10464,10 +10475,38 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     '<h4>📝 ' + exam.name + '</h4>' +
                     '<div class="me-card-row"><span>日期</span><span>' + (exam.examDate || '-') + '</span></div>' +
                     '<div class="me-card-row"><span>總積分</span><span><b>' + totalScore.toFixed(1) + ' / ' + totalMaxScore.toFixed(1) + '</b></span></div>';
+                // v2.3.2.32: 5 科顯示 級分 / 答對題數 / 答對率 / 積分
                 ['國文', '數學', '英語', '社會', '自然'].forEach(function(n) {
                     var s = exam.subjects && exam.subjects[n];
-                    var sc = s && s.score ? s.score.got + '/' + s.score.max : '-';
-                    html += '<div class="me-card-row"><span>' + _meSubjEmoji(n) + ' ' + n + '</span><span>' + sc + '</span></div>';
+                    var rate = s ? _meCalcSubjectRate(s, n) : null;
+                    var ctTxt = '-';
+                    var rateTxt = '-';
+                    if (s) {
+                        if (s.correct !== null && s.total !== null) {
+                            ctTxt = s.correct + '/' + s.total;
+                        } else if (s.subItems) {
+                            // 數學/英語: 把子項答對/總題合併
+                            var subNames = n === '數學' ? ['選擇題', '非選'] : ['閱讀', '聽力'];
+                            var sumC = 0, sumT = 0;
+                            subNames.forEach(function(sn) {
+                                if (s.subItems[sn]) {
+                                    sumC += (s.subItems[sn].correct || 0);
+                                    sumT += (s.subItems[sn].total || 0);
+                                }
+                            });
+                            if (sumT > 0) ctTxt = sumC + '/' + sumT;
+                        }
+                        if (rate !== null && rate !== undefined) rateTxt = rate.toFixed(2) + '%';
+                    }
+                    var abTxt = (s && s.ability) ? s.ability : '-';
+                    var scTxt = (s && s.score) ? (s.score.got + '/' + s.score.max) : '-';
+                    html += '<div class="me-card-subj">' +
+                        '<div class="me-card-subj-head">' + _meSubjEmoji(n) + ' ' + n + '</div>' +
+                        '<div class="me-card-row"><span>級分</span><span>' + abTxt + '</span></div>' +
+                        '<div class="me-card-row"><span>答對題數</span><span>' + ctTxt + '</span></div>' +
+                        '<div class="me-card-row"><span>答對率</span><span>' + rateTxt + '</span></div>' +
+                        '<div class="me-card-row"><span>積分</span><span>' + scTxt + '</span></div>' +
+                        '</div>';
                 });
                 if (exam.levelChartImageId) {
                     html += '<div id="me-card-img-' + exam.id + '"></div>';
