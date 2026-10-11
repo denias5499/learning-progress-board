@@ -9585,7 +9585,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     '<h3 style="color:var(--secondary);">📐 級距圖</h3>' +
                     '<div style="padding:30px;text-align:center;color:var(--secondary);">' +
                     '<div style="margin-bottom:14px;">⚠️ 尚無級距圖<br><small style="color:#999;">（提示：先選模考名稱 + 上傳圖片 + 點「儲存模考」才會生效）</small></div>' +
-                    '<button onclick="switchMockExamView(\'input\')" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">✏️ 前往上傳</button>' +
+                    '<button onclick="_meGotoLastExamForEdit()" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">✏️ 前往上傳</button>' +
                     '</div></div>';
             }
             // ===== 雷達圖 (overlay 全部場次, 最新一場用主色) =====
@@ -9897,6 +9897,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
         }
 
+        // v2.3.2.28: 「前往上傳」一鍵: 切 input + 切 edit 模式 + 選最新 exam + 載入表單
+        function _meGotoLastExamForEdit() {
+            switchMockExamView('input');
+            setTimeout(function() {
+                var r = document.querySelector('input[name="me-mode"][value="edit"]');
+                if (r) {
+                    r.checked = true;
+                    onMeModeChange();
+                    setTimeout(function() {
+                        var es = document.getElementById('me-edit-select');
+                        if (es && appMockExams && appMockExams.length > 0) {
+                            // 選最新一筆 (或 levelChartImageId 為空的)
+                            var target = null;
+                            for (var i = appMockExams.length - 1; i >= 0; i--) {
+                                if (!appMockExams[i].levelChartImageId) { target = appMockExams[i]; break; }
+                            }
+                            if (!target) target = appMockExams[appMockExams.length - 1];
+                            es.value = target.id;
+                            onMeEditSelectChange();
+                        }
+                    }, 50);
+                }
+            }, 50);
+        }
+
         function onMeModeChange() {
             var mode = document.querySelector('input[name="me-mode"]:checked');
             if (!mode) return;
@@ -9912,18 +9937,23 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (modeVal === 'edit') {
                 // 顯示「更改」dropdown
                 if (editSel) {
+                    var prevValue = editSel.value;
                     editSel.style.display = 'inline-block';
                     var opts = '<option value="">-- 選擇模考 --</option>';
                     (appMockExams || []).forEach(function(e) {
                         opts += '<option value="' + e.id + '">' + e.name + (e.examDate ? ' (' + e.examDate + ')' : '') + '</option>';
                     });
                     editSel.innerHTML = opts;
+                    editSel.value = prevValue || '';
                 }
                 // 隱藏原「模考名稱+日期」row
                 if (examInfoRow) examInfoRow.style.display = 'none';
                 clearMockExamForm();
             } else {
-                if (editSel) editSel.style.display = 'none';
+                if (editSel) {
+                    editSel.style.display = 'none';
+                    editSel.value = '';
+                }
                 if (examInfoRow) examInfoRow.style.display = 'flex';
                 clearMockExamForm();
             }
@@ -10119,23 +10149,38 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function clearMockExamForm() {
             _meCurrentExam = null;
             _meLevelImageData = null;
-            var inputs = document.querySelectorAll('#mockexam-content input, #mockexam-content select');
+            var inputs = document.querySelectorAll('#mockexam-content input');
             for (var i = 0; i < inputs.length; i++) {
+                if (inputs[i].id === 'me-file') continue; // 不清檔案 input
                 if (inputs[i].type === 'number' || inputs[i].type === 'text') inputs[i].value = '';
-                else if (inputs[i].tagName === 'SELECT') inputs[i].selectedIndex = 0;
             }
+            // select 跳過 me-edit-select (它的 value 反映當前編輯中的 exam, 由 loadExamToForm/onMeModeChange 控制)
+            var editSel = document.getElementById('me-edit-select');
+            var editSelValue = editSel ? editSel.value : null;
+            var selects = document.querySelectorAll('#mockexam-content select');
+            for (var i = 0; i < selects.length; i++) {
+                if (selects[i].id === 'me-edit-select') continue;
+                selects[i].selectedIndex = 0;
+            }
+            if (editSel) editSel.value = editSelValue || '';
             // 重置級距預覽
             var preview = document.getElementById('me-level-preview');
             if (preview) preview.innerHTML = '';
         }
 
         function loadExamToForm(exam) {
-            _meCurrentExam = exam;
+            // v2.3.2.28: 先把 edit-select 設好, 然後 clearMockExamForm 才不會清掉
+            var editSel0 = document.getElementById('me-edit-select');
+            if (editSel0) editSel0.value = exam.id;
             _meLevelImageData = null; // 重新選才更新
             clearMockExamForm();
+            _meCurrentExam = exam; // clearMockExamForm 會把它設成 null, 所以設在後面
             // 設考試名稱
             var nameSel = document.getElementById('me-exam-name');
             if (nameSel) nameSel.value = exam.name;
+            // 重新設 edit-select (因 clearMockExamForm 後又被同 id set value)
+            var editSel1 = document.getElementById('me-edit-select');
+            if (editSel1) editSel1.value = exam.id;
             // 載入日期
             if (exam.examDate) _meSetDateString(exam.examDate);
             // 載入各科
@@ -10288,16 +10333,31 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
             // 存級距圖到 IDB
+            var _afterSave = function() {
+                renderMockExamList();
+                // 如果目前在 overview 分頁, 立即重整 (讓級距圖即時顯示)
+                var overviewTab = document.querySelector('[data-metab="overview"]');
+                if (overviewTab && overviewTab.classList.contains('active')) {
+                    var content = el('mockexam-content');
+                    if (content) renderMockExamOverview(content);
+                }
+                var msg = '✅ 已儲存模考: ' + name;
+                if (_meLevelImageData) msg += '\n(含級距圖)';
+                msg += '\n\n日期: ' + exam.examDate + '\nID: ' + exam.id;
+                alert(msg);
+            };
             if (_meLevelImageData) {
                 saveMockExamImage(exam.id, _meLevelImageData).then(function(imgId) {
                     exam.levelChartImageId = imgId;
                     localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
-                    renderMockExamList();
-                    alert('✅ 已儲存 ' + name);
+                    _afterSave();
+                }).catch(function(err) {
+                    alert('⚠️ 級距圖儲存失敗: ' + err + '\n(模考本身已儲存)');
+                    _afterSave();
                 });
             } else {
-                renderMockExamList();
-                alert('✅ 已儲存 ' + name);
+                localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
+                _afterSave();
             }
             _meCurrentExam = exam;
         }
