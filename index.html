@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.39]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.40]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9821,12 +9821,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         html += '</tr>';
                     });
                 } else {
-                    // 國文/社會/自然: 一行, 科名醒目; 子項欄空白
+                    // v2.3.2.40: 國文/社會/自然 — 子項欄不再顯示, 合併到下一欄
                     html += '<tr>' +
                         '<td class="me-td-norm" style="text-align:center;vertical-align:middle;">' +
                         '<div class="me-subj-pill" style="font-size:1.5em;font-weight:900;color:#1e40af;letter-spacing:2px;">' + subj + '</div></td>' +
-                        '<td style="text-align:center;color:#bbb;">—</td>' +
-                        '<td style="text-align:center;color:#333;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (s && s.correct !== null && s.total !== null ? s.correct + '/' + s.total : '—') + '</td>' +
+                        // 子項欄 不輸出 (rowspan 由 _hasSub 處理; 國文單一 cell)
+                        '<td style="text-align:center;color:#333;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;" colspan="2">' + (s && s.correct !== null && s.total !== null ? s.correct + '/' + s.total : '—') + '</td>' +
                         '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (s && s.rate !== null && s.rate !== undefined ? s.rate.toFixed(2) : '—') + '</td>' +
                         '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">—</td>' +
                         '<td style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.3em;">' + (s && s.ability ? s.ability : '—') + '</td>' +
@@ -10598,51 +10598,98 @@ function renderWizardUnitRowHtml(ws, i, u) {
             setTimeout(function() { loadExamToForm(exam); }, 50);
         }
 
-        // ===== IDB 圖片存取 (v2.3.2.39: 加 diskDB init 檢查, 確保 IDB handle 真實可用) =====
-        function _meEnsureDiskDBReady() {
-            return new Promise(function(resolve, reject) {
-                if (typeof window.diskDB === 'undefined' || !window.diskDB) {
-                    reject(new Error('window.diskDB 不存在 (disk-db.js 尚未載入)'));
+        // ===== IDB 圖片存取 (v2.3.2.40 終極版: 自己直接 open IndexedDB, 不依賴 diskDB.setup() 流程) =====
+        // 因為 diskDB.setup() 會跑 migration + folder picker, 可能 hang;
+        // 我們只 mock exam 圖片, 自己開 'mockExamImgDB' (獨立 DB) 更簡單可靠
+        var _meImgDB = null; // IDBDatabase
+        var _meImgDBReady = null; // Promise
+        function _meOpenImgDB() {
+            if (_meImgDBReady) return _meImgDBReady;
+            _meImgDBReady = new Promise(function(resolve, reject) {
+                if (typeof indexedDB === 'undefined') {
+                    reject(new Error('瀏覽器不支援 IndexedDB'));
                     return;
                 }
-                if (window.diskDB.db) { resolve(); return; }
-                // 沒 init 過, 立刻呼叫 init() 開 IDB
-                if (typeof window.diskDB.init === 'function') {
-                    window.diskDB.init().then(resolve).catch(reject);
-                } else {
-                    reject(new Error('diskDB 沒有 init 方法'));
-                }
+                console.log('[mockExamImageDB] opening IndexedDB...');
+                var req = indexedDB.open('mockExamImgDB', 1);
+                req.onupgradeneeded = function(e) {
+                    var db = e.target.result;
+                    if (!db.objectStoreNames.contains('mockExamImages')) {
+                        var store = db.createObjectStore('mockExamImages', { keyPath: 'id' });
+                        store.createIndex('examId', 'examId', { unique: false });
+                    }
+                };
+                req.onsuccess = function(e) {
+                    _meImgDB = e.target.result;
+                    console.log('[mockExamImageDB] opened, version', _meImgDB.version);
+                    resolve(_meImgDB);
+                };
+                req.onerror = function(e) {
+                    console.error('[mockExamImageDB] open ERROR:', e.target.error);
+                    reject(e.target.error);
+                };
+                req.onblocked = function() {
+                    console.warn('[mockExamImageDB] open blocked (close other tabs?)');
+                };
             });
+            return _meImgDBReady;
         }
 
         function saveMockExamImage(examId, dataUrl) {
             return new Promise(function(resolve) {
-                _meEnsureDiskDBReady().then(function() {
+                _meOpenImgDB().then(function(db) {
                     var img = {
                         id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
                         examId: examId,
                         data: dataUrl,
                         createdAt: new Date().toISOString()
                     };
-                    return window.diskDB.put('mockExamImages', img).then(function() { return img.id; });
+                    return new Promise(function(res, rej) {
+                        var tx = db.transaction(['mockExamImages'], 'readwrite');
+                        var req = tx.objectStore('mockExamImages').put(img);
+                        req.onsuccess = function() { res(img.id); };
+                        req.onerror = function(e) { rej(new Error('put failed: ' + (e.target.error ? e.target.error.message : 'unknown'))); };
+                    });
                 }).then(function(imgId) {
+                    console.log('[saveMockExamImage] OK, id=' + imgId);
                     resolve(imgId);
                 }).catch(function(err) {
-                    console.error('[saveMockExamImage] 失敗:', err && err.message ? err.message : err, '(diskDB.db =', window.diskDB && window.diskDB.db, ')');
+                    console.error('[saveMockExamImage] 失敗:', err && err.message ? err.message : err);
                     resolve(null);
                 });
             });
         }
 
-        // v2.3.2.37: 列出所有 IDB mock exam images (供掃描修復用)
+        // v2.3.2.40: loadMockExamImage — 用 _meImgDB 直接 get
+        function loadMockExamImage(imgId) {
+            return new Promise(function(resolve) {
+                _meOpenImgDB().then(function(db) {
+                    return new Promise(function(res, rej) {
+                        var tx = db.transaction(['mockExamImages'], 'readonly');
+                        var req = tx.objectStore('mockExamImages').get(imgId);
+                        req.onsuccess = function() { res(req.result); };
+                        req.onerror = function(e) { rej(new Error('get failed: ' + (e.target.error ? e.target.error.message : 'unknown'))); };
+                    });
+                }).then(function(rec) {
+                    resolve(rec && rec.data ? rec.data : null);
+                }).catch(function(err) {
+                    console.warn('[loadMockExamImage] 失敗:', err);
+                    resolve(null);
+                });
+            });
+        }
+
+        // v2.3.2.40: 列出所有 IDB mock exam images (debug 用)
         function _meListAllImages() {
             return new Promise(function(resolve) {
-                if (typeof window.diskDB === 'undefined' || !window.diskDB) { resolve([]); return; }
-                window.diskDB._tx('mockExamImages', 'readonly').then(function(store) {
-                    var req = store.getAll();
-                    req.onsuccess = function() { resolve(req.result || []); };
-                    req.onerror = function() { resolve([]); };
-                }).catch(function() { resolve([]); });
+                _meOpenImgDB().then(function(db) {
+                    return new Promise(function(res, rej) {
+                        var tx = db.transaction(['mockExamImages'], 'readonly');
+                        var req = tx.objectStore('mockExamImages').getAll();
+                        req.onsuccess = function() { res(req.result || []); };
+                        req.onerror = function() { res([]); };
+                    });
+                }).then(function(arr) { resolve(arr || []); }).catch(function() { resolve([]); });
             });
         }
         function renderMockExamAnalysis(c) {
