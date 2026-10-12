@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.43]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.44]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10725,8 +10725,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var emojis = {'國文':'📖','英語':'🌐','數學':'📐','社會':'🌍','自然':'🔬'};
             var html = '';
 
-            // v2.3.2.38: 統計卡 — 順序改 國文/數學/英文/社會/自然, 顯示答對/總題 + 答對率, 英文/數學拆子項
-            // v2.3.2.43: 統計卡 — 答對題數 統一大小 + 淺藍 (#c4e0f9); 答對率 對齊 數學/英文 (用 2-col table)
+            // v2.3.2.44: 統計卡 — 國文/社會/自然 答對率 降下一行; 答對率 對齊 數學/英文 (用 table + 答對率在最後 row)
             var cardOrder = ['國文', '數學', '英語', '社會', '自然'];
             html += '<div class="me-stat-grid">';
             cardOrder.forEach(function(subj) {
@@ -10738,7 +10737,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var abilColor = '#c4e0f9';
                 var ctText = '—';
                 var rateText = '—';
-                var subRows = []; // v2.3.2.43: 子項 rows (數學/英文)
+                var subRows = [];
                 if (latestSubj) {
                     if (latestSubj.correct !== null && latestSubj.total !== null) {
                         ctText = latestSubj.correct + '/' + latestSubj.total;
@@ -10760,43 +10759,48 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 html += '<div class="me-stat-card">' +
                     '<div class="stat-head">' +
                     '<span class="stat-subj" style="font-size:1.4em;font-weight:900;color:#1e3a8a;letter-spacing:2px;">' + subj + '</span>' +
-                    // v2.3.2.43: 能力等級 A++ 字體稍微放大並加深
                     '<span class="stat-ability" style="background:' + abilColor + ';font-size:1.05em;font-weight:900;color:#1e3a8a;">' + abilShort + '</span>' +
                     '</div>';
                 if (stats.count === 0) {
                     html += '<div class="stat-row"><span class="stat-label" style="color:#ccc;">尚無資料</span></div>';
                 } else {
-                    // v2.3.2.43: 用 2-col table 對齊 答對率
+                    // v2.3.2.44: 答對率 統一在 最後 row (跟 數學/英文 答對率 對齊)
                     html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;margin-bottom:6px;">';
                     if (subRows.length === 0) {
-                        // 國文/社會/自然 — 1 行 答對/總題, 1 行 答對率
+                        // 國文/社會/自然: 1 行 答對/總題
                         html += '<tr>' +
                             '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;width:50%;">答對/總題</td>' +
-                            '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;text-align:right;background:#c4e0f9;font-family:Consolas,Courier New,monospace;font-size:1.15em;border-radius:4px;">' + ctText + '</td>' +
-                            '</tr>' +
-                            '<tr>' +
-                            '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
-                            '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;text-align:right;font-family:Consolas,Courier New,monospace;">' + rateText + '</td>' +
+                            '<td style="padding:3px 0;text-align:right;background:#c4e0f9;font-family:Consolas,Courier New,monospace;font-size:1.15em;font-weight:bold;color:#1e3a8a;border-radius:4px;">' + ctText + '</td>' +
                             '</tr>';
                     } else {
-                        // 數學/英語 — 多行 (子項 2 行 + 答對率 對齊)
+                        // v2.3.2.44: 數學/英語 — 子項名 固定寬度, 數字 個位對個位 (等寬字體)
                         subRows.forEach(function(row, si2) {
-                            html += '<tr>' +
-                                '<td style="padding:3px 0;' + (si2 === 0 ? 'font-weight:bold;color:#1e3a8a;' : 'color:transparent;') + '">' + (si2 === 0 ? '答對/總題' : '·') + '</td>' +
-                                '<td style="padding:3px 0;color:#1e3a8a;text-align:right;background:' + (si2 === 0 ? '#c4e0f9' : 'transparent') + ';font-family:Consolas,Courier New,monospace;' + (si2 === 0 ? 'font-size:1.15em;font-weight:bold;border-radius:4px;' : '') + '">' +
-                                '<span style="color:#6B3410;font-weight:bold;margin-right:4px;">' + row.label + '</span>' +
-                                '<b>' + row.ct + '</b>' +
-                                '</td>' +
-                                '</tr>';
+                            if (si2 === 0) {
+                                html += '<tr>' +
+                                    '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;width:50%;">答對/總題</td>' +
+                                    '<td style="padding:3px 6px;text-align:right;background:#c4e0f9;font-size:1.15em;font-weight:bold;color:#1e3a8a;border-radius:4px;">' +
+                                    '<span style="display:inline-block;width:32px;color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;">' + row.label + '</span>' +
+                                    '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;">' + row.ct + '</span>' +
+                                    '</td>' +
+                                    '</tr>';
+                            } else {
+                                html += '<tr>' +
+                                    '<td style="padding:3px 0;color:transparent;">·</td>' +
+                                    '<td style="padding:3px 6px;text-align:right;font-size:1.15em;color:#1e3a8a;">' +
+                                    '<span style="display:inline-block;width:32px;color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;">' + row.label + '</span>' +
+                                    '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;font-weight:bold;">' + row.ct + '</span>' +
+                                    '</td>' +
+                                    '</tr>';
+                            }
                         });
-                        // 答對率 對齊子項 第 1 行
-                        html += '<tr>' +
-                            '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
-                            '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;text-align:right;font-family:Consolas,Courier New,monospace;">' + rateText + '</td>' +
-                            '</tr>';
                     }
+                    // 答對率 統一在最後 row
+                    html += '<tr>' +
+                        '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
+                        '<td style="padding:3px 0;text-align:right;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;">' + rateText + '</td>' +
+                        '</tr>';
                     html += '</table>';
-                    // 最高/最低/平均/最新 — 等寬字體
+                    // 最高/最低/平均/最新
                     html += '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最高</span><span class="stat-val" style="font-family:Consolas,Courier New,monospace;">' + stats.max + '%</span></div>' +
                         '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最低</span><span class="stat-val" style="font-family:Consolas,Courier New,monospace;">' + stats.min + '%</span></div>' +
                         '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">平均</span><span class="stat-val" style="font-family:Consolas,Courier New,monospace;">' + stats.avg + '%</span></div>' +
@@ -10874,132 +10878,152 @@ function renderWizardUnitRowHtml(ws, i, u) {
         //  Y: 7 等級 (top=A++, bottom=C)
         //  X: exams (1~4 場, 由左而右 一模/二模/三模/四模)
 
-        // v2.3.2.43: 折線趨勢圖 — 改為**單一 4×7 大網格** (依用戶截圖5, 5 科 5 條折線)
-        //   縱軸: A++/A+/A/B++/B+/B/C (7 等級)
-        //   橫軸: 一模/二模/三模/四模 (4 場)
-        //   5 條彩色折線 (國/數/英/社/自)
+        // v2.3.2.44: 折線趨勢圖 — 退回 5 子表 (用戶截圖3 範例: 自然 範例)
+        //   5 個子表, 每科 1 個 table, 7 等級 × 4 場 + 答對題數/總題 row 對齊
         function _meBuildPaperTrendGrid(examsAsc) {
             var levels = _mePaperData.levels;
             var subjList = ['國文', '數學', '英語', '社會', '自然'];
-            // 5 科顏色 (依用戶截圖)
-            var subjColor = {
-                '國文': '#dc2626', // 紅
-                '數學': '#ea580c', // 橙
-                '英語': '#0891b2', // 青
-                '社會': '#16a34a', // 綠
-                '自然': '#7c3aed'  // 紫
+            // 5 科 layout: row1 label, row2 (null 表示 1 行), total, row1Key, row2Key
+            var subLayouts = {
+                '國文': { row1: '答對題數', row2: '作文成績', row1Key: 'normal', row2Key: 'essay', row1Total: 42, row2Total: 6 },
+                '數學': { row1: '答對題數', row2: '非選成績', row1Key: '選擇', row2Key: '非選', row1Total: 25, row2Total: 6 },
+                '英語': { row1: '閱讀答對', row2: '聽力答對', row1Key: '閱讀', row2Key: '聽力', row1Total: 43, row2Total: 21 },
+                '社會': { row1: '答對題數', row2: null, row1Key: 'normal', row2Key: null, row1Total: 54, row2Total: null },
+                '自然': { row1: '答對題數', row2: null, row1Key: 'normal', row2Key: null, row1Total: 50, row2Total: null }
             };
-            // 計算每科每場的 level idx
+            // 5 科顏色
+            var subjColor = { '國文': '#dc2626', '數學': '#ea580c', '英語': '#0891b2', '社會': '#16a34a', '自然': '#7c3aed' };
+            function getCell(subj, row, exIdx) {
+                var ex = examsAsc[exIdx];
+                var layout = subLayouts[subj];
+                if (!ex || !ex.subjects || !ex.subjects[subj]) {
+                    var emptyTotal = (row === 1) ? layout.row1Total : layout.row2Total;
+                    return { got: null, total: emptyTotal, hint: '尚無成績' };
+                }
+                var s = ex.subjects[subj];
+                if (row === 1) {
+                    if (layout.row1Key === 'normal') {
+                        return { got: s.correct, total: s.total, hint: '尚無成績' };
+                    } else {
+                        var si = s.subItems && s.subItems[layout.row1Key];
+                        return { got: si ? si.correct : null, total: si && si.total ? si.total : layout.row1Total, hint: '尚無成績' };
+                    }
+                } else if (row === 2 && layout.row2Key) {
+                    if (layout.row2Key === 'essay') {
+                        if (ex.essay && ex.essay.level) return { got: ex.essay.level.got, total: ex.essay.level.max, hint: '尚無成績' };
+                        return { got: null, total: layout.row2Total, hint: '尚無成績' };
+                    } else {
+                        var si2 = s.subItems && s.subItems[layout.row2Key];
+                        return { got: si2 ? si2.correct : null, total: si2 && si2.total ? si2.total : layout.row2Total, hint: '尚無成績' };
+                    }
+                }
+                return { got: null, total: layout.row1Total, hint: '' };
+            }
             function getLevelAt(subj, exIdx) {
                 var ex = examsAsc[exIdx];
                 if (!ex || !ex.subjects || !ex.subjects[subj]) return null;
                 return _meRateToLevelIdx(ex.subjects[subj], subj);
             }
-            // 每科 4 場 level idx
-            var levelPts = {}; // {subj: [{ei, li}]}
-            subjList.forEach(function(subj) {
-                levelPts[subj] = [];
+            function buildLinePath(subj) {
+                var pts = [];
                 for (var ei = 0; ei < 4; ei++) {
                     var li = getLevelAt(subj, ei);
-                    if (li !== null) levelPts[subj].push({ ei: ei, li: li });
+                    if (li === null) continue;
+                    pts.push({ ei: ei, li: li });
                 }
-            });
+                return pts;
+            }
 
             var html = '<div class="me-overview-line" style="background:#fffbe9;border:2px solid #d4b478;border-radius:10px;padding:14px 16px;margin-bottom:14px;">';
             html += '<h3 style="margin:0 0 10px;color:#6B3410;font-size:1.25em;">📈 折線趨勢圖 (四次模考比較表)</h3>';
-            html += '<div style="font-size:0.8em;color:#856404;margin-bottom:8px;">✨ 5 科 × 4 場次 等級折線, 命中格顯示對應科色圓點</div>';
 
-            // ===== 單一大表 (4 場 × 7 等級) =====
-            html += '<div style="position:relative;background:#fff;border:2px solid #6B3410;border-radius:6px;padding:8px;overflow:hidden;">';
-
-            // 圖例 (5 科)
-            html += '<div style="display:flex;gap:12px;justify-content:center;margin-bottom:8px;flex-wrap:wrap;">';
+            // 5 子表 (3 col grid)
+            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">';
             subjList.forEach(function(subj) {
-                html += '<div style="display:flex;align-items:center;gap:4px;font-size:0.9em;font-weight:bold;color:' + subjColor[subj] + ';">' +
-                    '<span style="display:inline-block;width:16px;height:3px;background:' + subjColor[subj] + ';"></span>' +
-                    subj + '</div>';
+                var slogan = _mePaperData.slogans[subj] || '';
+                var layout = subLayouts[subj];
+                var pts = buildLinePath(subj);
+                var c = subjColor[subj];
+
+                html += '<div style="background:#fff;border:2px solid #6B3410;border-radius:6px;padding:0;position:relative;">';
+                // 科名 + slogan
+                html += '<div style="background:#fffbe9;border-bottom:1.5px solid #6B3410;padding:6px 10px;display:flex;align-items:baseline;gap:6px;">';
+                html += '<b style="font-size:1.2em;font-weight:900;color:' + c + ';letter-spacing:2px;">' + subj + '</b>';
+                html += '<span style="font-size:0.65em;color:#999;font-style:italic;flex:1;">' + slogan + '</span>';
+                html += '</div>';
+
+                // 主表: 5 col × (7 等級 + row1 + row2)
+                html += '<table style="width:100%;border-collapse:collapse;font-family:Calibri,&quot;微軟正黑體&quot;,sans-serif;position:relative;">';
+                // 表頭
+                html += '<thead><tr style="background:#fffbe9;">';
+                html += '<th style="border:1px solid #6B3410;width:50px;padding:3px 0;color:#6B3410;font-size:0.85em;">　</th>';
+                for (var ci = 0; ci < 4; ci++) {
+                    html += '<th style="border:1px solid #6B3410;padding:4px 0;color:#6B3410;font-size:0.95em;font-weight:bold;">' + (['一模','二模','三模','四模'][ci]) + '</th>';
+                }
+                html += '</tr></thead><tbody>';
+
+                // 7 個等級 rows
+                for (var li = 0; li < 7; li++) {
+                    html += '<tr>';
+                    html += '<td style="border:1px solid #6B3410;text-align:center;font-weight:bold;color:' + c + ';font-size:0.95em;background:#fffbe9;height:32px;">' + levels[li] + '</td>';
+                    for (var ci2 = 0; ci2 < 4; ci2++) {
+                        var hit = pts.find(function(p) { return p.ei === ci2 && p.li === li; });
+                        var cellBg = hit ? 'background:radial-gradient(circle, ' + c + '30 35%, transparent 70%);' : '';
+                        html += '<td style="border:1px solid #6B3410;height:32px;text-align:center;vertical-align:middle;position:relative;' + cellBg + ';">';
+                        if (hit) {
+                            html += '<span style="display:inline-block;width:14px;height:14px;background:' + c + ';border-radius:50%;box-shadow:0 0 6px ' + c + '99;"></span>';
+                        }
+                        html += '</td>';
+                    }
+                    html += '</tr>';
+                }
+                // 折線 SVG overlay (7 等級 + 4 場)
+                if (pts.length > 0) {
+                    var svgW2 = 100, svgH2 = 7 * 32 + 26;
+                    var padL2 = 50;
+                    var cellW2 = (svgW2 - padL2) / 4;
+                    var linePath = '';
+                    pts.forEach(function(p, idx) {
+                        var x = padL2 + cellW2 * (p.ei + 0.5);
+                        var y = p.li * 32 + 16;
+                        if (idx === 0) linePath = 'M ' + x + ' ' + y;
+                        else linePath += ' L ' + x + ' ' + y;
+                    });
+                    html += '<svg viewBox="0 0 ' + svgW2 + ' ' + svgH2 + '" style="position:absolute;left:0;top:26px;width:100%;height:' + (7 * 32) + 'px;pointer-events:none;z-index:2;" preserveAspectRatio="none">';
+                    html += '<path d="' + linePath + '" fill="none" stroke="' + c + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.9"/>';
+                    html += '</svg>';
+                }
+
+                // 答對題數 row
+                html += '<tr>';
+                html += '<td style="border:1px solid #6B3410;padding:4px 6px;font-size:0.85em;color:' + c + ';font-weight:bold;background:#fffbe9;">' + layout.row1 + '</td>';
+                for (var ci3 = 0; ci3 < 4; ci3++) {
+                    var c1 = getCell(subj, 1, ci3);
+                    var ct1 = c1.got != null ? (c1.got + '/' + c1.total) : ('/' + c1.total);
+                    var color1 = c1.got != null ? c : '#999';
+                    html += '<td style="border:1px solid #6B3410;padding:4px 6px;text-align:center;font-size:1em;font-weight:bold;color:' + color1 + ';font-family:Consolas,Courier New,monospace;">' + ct1 + '</td>';
+                }
+                html += '</tr>';
+
+                // 第 2 行 (作文/非選/聽力)
+                if (layout.row2) {
+                    html += '<tr>';
+                    html += '<td style="border:1px solid #6B3410;padding:4px 6px;font-size:0.85em;color:' + c + ';font-weight:bold;background:#fffbe9;">' + layout.row2 + '</td>';
+                    for (var ci4 = 0; ci4 < 4; ci4++) {
+                        var c2 = getCell(subj, 2, ci4);
+                        var ct2 = c2.got != null ? (c2.got + '/' + c2.total) : '/' + c2.total;
+                        var color2 = c2.got != null ? c : '#999';
+                        html += '<td style="border:1px solid #6B3410;padding:4px 6px;text-align:center;font-size:1em;font-weight:bold;color:' + color2 + ';font-family:Consolas,Courier New,monospace;">' + ct2 + '</td>';
+                    }
+                    html += '</tr>';
+                }
+
+                html += '</tbody></table>';
+                html += '</div>';
             });
             html += '</div>';
 
-            // 主表
-            html += '<table style="width:100%;border-collapse:collapse;font-family:Calibri,&quot;微軟正黑體&quot;,sans-serif;position:relative;">';
-            // 表頭: | 空白 | 一模 | 二模 | 三模 | 四模 |
-            html += '<thead><tr style="background:#fffbe9;">';
-            html += '<th style="border:1px solid #6B3410;width:50px;padding:4px 0;color:#6B3410;font-size:0.95em;">　</th>';
-            for (var ci = 0; ci < 4; ci++) {
-                html += '<th style="border:1px solid #6B3410;padding:6px 0;color:#6B3410;font-size:1em;font-weight:bold;">' + (['一模','二模','三模','四模'][ci]) + '</th>';
-            }
-            html += '</tr></thead><tbody>';
-
-            // 7 個等級 rows
-            for (var li = 0; li < 7; li++) {
-                html += '<tr>';
-                html += '<td style="border:1px solid #6B3410;text-align:center;font-weight:bold;color:#1e3a8a;font-size:1.05em;background:#fffbe9;height:42px;">' + levels[li] + '</td>';
-                for (var ci2 = 0; ci2 < 4; ci2++) {
-                    // 收集在 (ci2, li) 命中的所有科目
-                    var hits = [];
-                    subjList.forEach(function(subj) {
-                        var pts = levelPts[subj];
-                        for (var pi = 0; pi < pts.length; pi++) {
-                            if (pts[pi].ei === ci2 && pts[pi].li === li) {
-                                hits.push(subj);
-                                break;
-                            }
-                        }
-                    });
-                    var cellBg = hits.length > 0 ? 'background:linear-gradient(135deg, rgba(220,38,38,0.06) 0%, rgba(124,58,237,0.06) 100%);' : '';
-                    html += '<td style="border:1px solid #6B3410;height:42px;text-align:center;vertical-align:middle;position:relative;' + cellBg + '">';
-                    if (hits.length > 0) {
-                        // 顯示所有命中科目的小圓點 (顏色對應科目)
-                        html += '<div style="display:flex;justify-content:center;align-items:center;gap:3px;flex-wrap:wrap;">';
-                        hits.forEach(function(subj) {
-                            html += '<span title="' + subj + '" style="display:inline-block;width:14px;height:14px;background:' + subjColor[subj] + ';border-radius:50%;box-shadow:0 0 4px ' + subjColor[subj] + '80;"></span>';
-                        });
-                        html += '</div>';
-                    }
-                    html += '</td>';
-                }
-                html += '</tr>';
-            }
-            html += '</tbody></table>';
-
-            // 折線 SVG overlay (5 條線, 5 色)
-            // 計算 layout: 50px 第一欄 (左), 4 等分其他
-            // 7 等級 × 42px = 294px (含 header 28px = 322px)
-            // 為了簡化, 用 100% 寬 / 100% 高, 跟 grid 對齊
-            var svgW = 800, svgH = 7 * 42 + 30; // 跟 table 對齊
-            var padL = 50, padR = 0, padT = 30, padB = 0; // header 28 + 一些 padding
-            var plotW = svgW - padL - padR;
-            var plotH = svgH - padT - padB;
-            // 折線路徑 (各科)
-            var linesHtml = '';
-            subjList.forEach(function(subj) {
-                var pts = levelPts[subj];
-                if (pts.length === 0) return;
-                var path = '';
-                pts.forEach(function(p, idx) {
-                    var x = padL + plotW * ((p.ei + 0.5) / 4);
-                    var y = padT + plotH * (p.li / 6);
-                    if (idx === 0) path = 'M ' + x.toFixed(1) + ' ' + y.toFixed(1);
-                    else path += ' L ' + x.toFixed(1) + ' ' + y.toFixed(1);
-                });
-                linesHtml += '<path d="' + path + '" fill="none" stroke="' + subjColor[subj] + '" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.85"/>';
-                // 圓點
-                pts.forEach(function(p) {
-                    var x = padL + plotW * ((p.ei + 0.5) / 4);
-                    var y = padT + plotH * (p.li / 6);
-                    linesHtml += '<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="3" fill="#fff" stroke="' + subjColor[subj] + '" stroke-width="1.8"/>';
-                });
-            });
-            html += '<svg viewBox="0 0 ' + svgW + ' ' + svgH + '" preserveAspectRatio="none" style="position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:2;">';
-            html += linesHtml;
-            html += '</svg>';
-
-            html += '</div>'; // 結束大表 div
-
-            // 覆盤欄 (保留) — 移到 檢討分頁
-            // v2.3.2.43: 覆盤欄從 折線圖頁 移到 檢討分頁
-            /* 暫時刪除, 移到 renderMockExamReview */
+            // 覆盤欄 v2.3.2.43 已移到 檢討分頁, 這裡不顯示
             html += '</div>';
             return html;
         }
@@ -11307,8 +11331,57 @@ function renderWizardUnitRowHtml(ws, i, u) {
             return sorted[slot] || null;
         }
 
+        // v2.3.2.44: 檢討分頁 — 已輸入完成卡片用 宋體-繁 + 醒目樣式 + 編輯按鈕
+        function _meIsReviewFilled(review) {
+            if (!review) return false;
+            if (review.text && review.text.trim().length > 0) return true;
+            if (review.images && review.images.length > 0) return true;
+            return false;
+        }
+        function _meRenderReviewFilled(exam, review, slot, lbl) {
+            var html = '<div style="background:linear-gradient(135deg, #fffbe9 0%, #fff5d8 100%);border:2.5px solid #6B3410;border-radius:10px;padding:14px 16px;box-shadow:0 4px 10px rgba(107,52,16,0.15);position:relative;">';
+            html += '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid #6B3410;">';
+            html += '<b style="color:#6B3410;font-size:1.15em;font-family:&quot;PMingLiU&quot;,&quot;新細明體&quot;,&quot;SimSun&quot;,宋體,serif;">📝 ' + lbl + ' (已輸入完成)</b>';
+            html += '<span style="color:#999;font-size:0.85em;font-family:Calibri,微軟正黑體,sans-serif;">' + exam.name + (exam.examDate ? ' (' + exam.examDate + ')' : '') + '</span>';
+            html += '<button onclick="_meToggleReviewEdit(' + slot + ')" style="margin-left:auto;padding:5px 12px;background:#FF9F6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85em;font-weight:bold;">✏️ 編輯</button>';
+            html += '</div>';
+            var safeText = (review.text || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
+            if (safeText) {
+                html += '<div style="font-family:&quot;PMingLiU&quot;,&quot;新細明體&quot;,&quot;SimSun&quot;,宋體,serif;font-size:1.15em;line-height:1.7;color:#1e3a8a;white-space:pre-wrap;padding:8px 4px;">' + safeText + '</div>';
+            }
+            html += '<div id="me-review-images-' + slot + '" data-slot="' + slot + '" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;"></div>';
+            html += '</div>';
+            return html;
+        }
+        function _meRenderReviewEditor(exam, review, slot, lbl) {
+            var text = (review && review.text) || '';
+            var exId = exam.id;
+            var html = '<div style="background:#fffbe9;border:1.5px dashed #d4b478;border-radius:8px;padding:10px 12px;min-height:200px;">';
+            html += '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed #d4b478;">';
+            html += '<b style="color:#6B3410;font-size:1.05em;">📝 ' + lbl + ' (編輯中)</b>';
+            html += '<span style="color:#999;font-size:0.82em;">' + exam.name + (exam.examDate ? ' (' + exam.examDate + ')' : '') + '</span>';
+            if (_meIsReviewFilled(review)) {
+                html += '<button onclick="_meToggleReviewEdit(' + slot + ')" style="margin-left:auto;padding:4px 10px;background:#999;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85em;">取消</button>';
+            }
+            html += '</div>';
+            html += '<textarea id="me-review-text-' + slot + '" data-slot="' + slot + '" data-exam="' + exId + '" placeholder="輸入覆盤文字..." style="width:100%;min-height:80px;border:1px solid #d4b478;border-radius:4px;padding:6px;font-family:&quot;PMingLiU&quot;,&quot;新細明體&quot;,&quot;SimSun&quot;,宋體,serif;font-size:1em;box-sizing:border-box;background:#fffdf7;">' + text.replace(/</g, '&lt;') + '</textarea>';
+            html += '<div style="margin-top:6px;display:flex;gap:6px;align-items:center;">';
+            html += '<input type="file" id="me-review-file-' + slot + '" accept="image/*" multiple style="font-size:0.8em;flex:1;">';
+            html += '<button class="btn-primary" data-slot="' + slot + '" data-exam="' + exId + '" onclick="_meSaveReview(' + slot + ')" style="padding:4px 10px;font-size:0.85em;">💾 儲存</button>';
+            html += '</div>';
+            html += '<div id="me-review-images-' + slot + '" data-slot="' + slot + '" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>';
+            html += '</div>';
+            return html;
+        }
+        var _meReviewEditMode = {};
+        function _meToggleReviewEdit(slot) {
+            _meReviewEditMode[slot] = !_meReviewEditMode[slot];
+            var content = el('mockexam-content');
+            if (content) renderMockExamReview(content);
+        }
+
         function renderMockExamReview(c) {
-            // v2.3.2.43: 檢討分頁 — 覆盤再前行 (4 卡片)
+            // v2.3.2.44: 檢討分頁 — 覆盤再前行 (4 卡片, 已輸入完成顯示宋體-繁卡片 + 編輯)
             try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); } catch(e) { appMockExams = []; }
             var html = '<h3 style="margin:14px 0 10px;color:#1e40af;font-size:1.5em;font-weight:900;letter-spacing:2px;">📝 覆盤再前行</h3>';
             html += '<div style="font-size:0.85em;color:#666;margin-bottom:14px;">覆盤方向: 想對自己說的一句加油打氣的話, 我要維持的強科及方法, 我要補強的弱科及方法, 下次模考自己設立的小目標</div>';
@@ -11316,31 +11389,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var reviewLabels = ['一模後', '二模後', '三模後', '四模後'];
             reviewLabels.forEach(function(lbl, slot) {
                 var exam = _meGetReviewExam(slot);
-                var exId = exam ? exam.id : '';
-                var exName = exam ? exam.name : '尚無模考';
-                var exDate = exam ? (exam.examDate || '') : '';
-                var review = exam && exam.review ? exam.review : { text: '', images: [] };
-                var text = review.text || '';
-                html += '<div style="background:#fffbe9;border:1.5px solid #d4b478;border-radius:8px;padding:10px 12px;min-height:240px;">';
-                html += '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px dashed #d4b478;">';
-                html += '<b style="color:#6B3410;font-size:1.05em;">📝 ' + lbl + '</b>';
                 if (exam) {
-                    html += '<span style="color:#999;font-size:0.82em;">' + exName + (exDate ? ' (' + exDate + ')' : '') + '</span>';
+                    var review = exam.review || { text: '', images: [] };
+                    if (_meIsReviewFilled(review) && !_meReviewEditMode[slot]) {
+                        html += _meRenderReviewFilled(exam, review, slot, lbl);
+                    } else {
+                        html += _meRenderReviewEditor(exam, review, slot, lbl);
+                    }
                 } else {
+                    html += '<div style="background:#fffbe9;border:1.5px dashed #d4b478;border-radius:8px;padding:14px 12px;min-height:160px;">';
+                    html += '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px;">';
+                    html += '<b style="color:#6B3410;font-size:1.05em;">📝 ' + lbl + '</b>';
                     html += '<span style="color:#ccc;font-size:0.82em;">尚無模考</span>';
-                }
-                html += '</div>';
-                if (exam) {
-                    html += '<textarea id="me-review-text-' + slot + '" data-slot="' + slot + '" data-exam="' + exId + '" placeholder="輸入覆盤文字..." style="width:100%;min-height:80px;border:1px solid #d4b478;border-radius:4px;padding:6px;font-family:inherit;font-size:0.9em;box-sizing:border-box;background:#fffdf7;">' + (text.replace(/</g, '&lt;')) + '</textarea>';
-                    html += '<div style="margin-top:6px;display:flex;gap:6px;align-items:center;">';
-                    html += '<input type="file" id="me-review-file-' + slot + '" accept="image/*" multiple style="font-size:0.8em;flex:1;">';
-                    html += '<button class="btn-primary" data-slot="' + slot + '" data-exam="' + exId + '" onclick="_meSaveReview(' + slot + ')" style="padding:4px 10px;font-size:0.85em;">💾 儲存</button>';
                     html += '</div>';
-                    html += '<div id="me-review-images-' + slot + '" data-slot="' + slot + '" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;"></div>';
-                } else {
                     html += '<div style="color:#ccc;text-align:center;padding:30px 0;font-size:0.85em;">輸入第 ' + (slot + 1) + ' 場模考後填寫</div>';
+                    html += '</div>';
                 }
-                html += '</div>';
             });
             html += '</div>';
             c.innerHTML = html;
@@ -11350,17 +11414,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var exam = _meGetReviewExam(slot);
                 if (exam) {
                     _meGetReviewImages(exam.id, slot).then(function(imgs) {
-                        var slot = arguments[0].length ? arguments[0] : [];
-                        // placeholder
-                    });
-                    // 重新呼叫, 取得 imgs
-                    _meGetReviewImages(exam.id, slot).then(function(imgs) {
                         var slotEl = document.getElementById('me-review-images-' + slot);
                         if (!slotEl) return;
-                        imgs.forEach(function(img) {
+                        (imgs || []).forEach(function(img) {
                             var wrap = document.createElement('div');
                             wrap.style.cssText = 'position:relative;width:80px;height:80px;border:1px solid #d4b478;border-radius:4px;overflow:hidden;';
-                            wrap.innerHTML = '<img src="' + img.data + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="window.open(this.src,\"_blank\")">' +
+                            wrap.innerHTML = '<img src="' + img.data + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="window.open(this.src,&quot;_blank&quot;)">' +
                                 '<button data-id="' + img.id + '" data-slot="' + slot + '" style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.6);color:#fff;border:none;width:18px;height:18px;cursor:pointer;font-size:11px;line-height:1;" onclick="_meDelReviewImg(\'' + img.id + '\',' + slot + ')">×</button>';
                             slotEl.appendChild(wrap);
                         });
@@ -11384,62 +11443,75 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                 reader.readAsDataURL(f);
                             });
                         });
+                        var slot2 = slot;
                         Promise.all(promises).then(function(results) {
                             var chain = Promise.resolve();
                             results.forEach(function(r) {
-                                chain = chain.then(function() { return _meSaveReviewImage(exam.id, slot, r.data, r.name); });
+                                chain = chain.then(function() { return _meSaveReviewImage(exam.id, slot2, r.data, r.name); });
                             });
                             chain.then(function() {
-                                // 重新 render 該 slot
-                                var slotEl = document.getElementById('me-review-images-' + slot);
+                                var slotEl = document.getElementById('me-review-images-' + slot2);
                                 if (slotEl) slotEl.innerHTML = '';
-                                return _meGetReviewImages(exam.id, slot);
+                                return _meGetReviewImages(exam.id, slot2);
                             }).then(function(imgs) {
-                                var slotEl = document.getElementById('me-review-images-' + slot);
+                                var slotEl = document.getElementById('me-review-images-' + slot2);
                                 if (!slotEl) return;
-                                imgs.forEach(function(img) {
+                                (imgs || []).forEach(function(img) {
                                     var wrap = document.createElement('div');
                                     wrap.style.cssText = 'position:relative;width:80px;height:80px;border:1px solid #d4b478;border-radius:4px;overflow:hidden;';
-                                    wrap.innerHTML = '<img src="' + img.data + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="window.open(this.src,\"_blank\")">' +
-                                        '<button style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.6);color:#fff;border:none;width:18px;height:18px;cursor:pointer;font-size:11px;line-height:1;" onclick="_meDelReviewImg(\'' + img.id + '\',' + slot + ')">×</button>';
+                                    wrap.innerHTML = '<img src="' + img.data + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="window.open(this.src,&quot;_blank&quot;)">' +
+                                        '<button style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.6);color:#fff;border:none;width:18px;height:18px;cursor:pointer;font-size:11px;line-height:1;" onclick="_meDelReviewImg(\'' + img.id + '\',' + slot2 + ')">×</button>';
                                     slotEl.appendChild(wrap);
                                 });
                             });
                         });
-                        this.value = ''; // 重置 input
+                        this.value = '';
                     });
                 }
             });
         }
 
-        // v2.3.2.43: 儲存覆盤文字 (按鈕)
+        // v2.3.2.44: 儲存覆盤文字 (按鈕)
         function _meSaveReview(slot) {
             var ex = _meGetReviewExam(slot);
             if (!ex) return;
             var textEl = document.getElementById('me-review-text-' + slot);
             if (!textEl) return;
             var text = textEl.value || '';
-            // 更新 appMockExams + LS
             try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); } catch(e) { appMockExams = []; }
             var target = (appMockExams || []).find(function(e) { return e.id === ex.id; });
             if (target) {
                 if (!target.review) target.review = { text: '', images: [] };
                 target.review.text = text;
                 localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
-                console.log('[覆盤] 文字儲存 OK, exam=' + ex.id + ' slot=' + slot);
-                // 簡短提示
-                var btn = document.querySelector('button[data-slot="' + slot + '"][onclick^="_meSaveReview"]');
-                if (btn) {
-                    var orig = btn.textContent;
-                    btn.textContent = '✅ 已儲存';
-                    setTimeout(function() { btn.textContent = orig; }, 1500);
-                }
+                // 離開編輯模式 (回到顯示卡片)
+                _meReviewEditMode[slot] = false;
+                var content = el('mockexam-content');
+                if (content) renderMockExamReview(content);
             } else {
                 alert('找不到對應模考 (id=' + ex.id + ')');
             }
         }
 
-        // v2.3.2.43: 刪除覆盤圖片
+        // v2.3.2.44: 刪除覆盤圖片
+        function _meDelReviewImg(imgId, slot) {
+            _meDelReviewImage(imgId).then(function() {
+                var ex = _meGetReviewExam(slot);
+                if (!ex) return;
+                _meGetReviewImages(ex.id, slot).then(function(imgs) {
+                    var slotEl = document.getElementById('me-review-images-' + slot);
+                    if (!slotEl) return;
+                    slotEl.innerHTML = '';
+                    (imgs || []).forEach(function(img) {
+                        var wrap = document.createElement('div');
+                        wrap.style.cssText = 'position:relative;width:80px;height:80px;border:1px solid #d4b478;border-radius:4px;overflow:hidden;';
+                        wrap.innerHTML = '<img src="' + img.data + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="window.open(this.src,&quot;_blank&quot;)">' +
+                            '<button style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.6);color:#fff;border:none;width:18px;height:18px;cursor:pointer;font-size:11px;line-height:1;" onclick="_meDelReviewImg(\'' + img.id + '\',' + slot + ')">×</button>';
+                        slotEl.appendChild(wrap);
+                    });
+                });
+            });
+        }
         function _meDelReviewImg(imgId, slot) {
             _meDelReviewImage(imgId).then(function() {
                 // 重 render 該 slot 圖片
