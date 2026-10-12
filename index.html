@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.46]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.47]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10769,15 +10769,19 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // v2.3.2.44: 答對率 統一在 最後 row (跟 數學/英文 答對率 對齊)
 html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;margin-bottom:6px;">';
                     if (subRows.length === 0) {
-                        // v2.3.2.45: 國文/社會/自然 — 答對率 跟 數學/英語 對齊
-                        // 數學/英語 答對率 用 rowspan=2 (跨子項 1+2 行), 國文用 colspan 讓 rate 在固定 row
+                        // v2.3.2.47: 國文/社會/自然 — 答對/總題 下面加一個空 row, 答對率 降下一行 跟 數學/英語 對齊
                         html += '<tr>' +
                             '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;width:50%;">答對/總題</td>' +
                             '<td style="padding:3px 6px;text-align:right;background:#c4e0f9;font-family:Consolas,Courier New,monospace;font-size:1.15em;font-weight:bold;color:#1e3a8a;border-radius:4px;">' + ctText + '</td>' +
                             '</tr>';
+                        // 空 row (跟 數學/英語 子項第 2 行對齊)
+                        html += '<tr>' +
+                            '<td style="padding:3px 0;color:transparent;">　</td>' +
+                            '<td style="padding:3px 6px;">　</td>' +
+                            '</tr>';
                         html += '<tr>' +
                             '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
-                            '<td style="padding:3px 6px;text-align:right;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
+                            '<td style="padding:3px 6px;text-align:center;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
                             '</tr>';
                     } else {
                         // v2.3.2.45: 數學/英語 — 答對率 rowspan=2 對齊 國文/社會/自然 答對率
@@ -10896,7 +10900,7 @@ html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;marg
                 '自然': { row1: '答對題數', row2: null, row1Key: 'normal', row2Key: null, row1Total: 50, row2Total: null }
             };
             // 5 科顏色
-            var subjColor = { '國文': '#0891b2', '數學': '#0891b2', '英語': '#0891b2', '社會': '#0891b2', '自然': '#0891b2' }; // v2.3.2.45: 統一青色 (跟英語同)
+            var subjColor = { '國文': '#6366f1', '數學': '#6366f1', '英語': '#6366f1', '社會': '#6366f1', '自然': '#6366f1' }; // v2.3.2.47: 統一藍紫
             function getCell(subj, row, exIdx) {
                 var ex = examsAsc[exIdx];
                 var layout = subLayouts[subj];
