@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.45]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.46]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9812,8 +9812,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var rate = si_data ? si_data.rate : null;
                         var ct = (correct !== null && total !== null) ? (correct + '/' + total) : '—';
                         html += '<td style="text-align:right;padding-right:12px;' + mono + navy + 'font-weight:bold;font-size:1.2em;">' + ct + '</td>';
-                        // 答對率 — 等寬 + 右對齊
-                        html += '<td style="text-align:right;padding-right:12px;' + mono + 'font-weight:bold;font-size:1.2em;">' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
+                        // 答對率 — 等寬 + center 對齊 (跟表頭 center 對齊)
+                        html += '<td style="text-align:center;' + mono + 'font-weight:bold;font-size:1.2em;">' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
                         // 加權分數 (整科) — 只第 1 行
                         if (si === 0) {
                             var wNon = (s && s.subItems && s.subItems.非選) ? s.subItems.非選.weighted : null;
@@ -10956,8 +10956,10 @@ html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;marg
                 html += '<span style="font-size:0.65em;color:#999;font-style:italic;flex:1;">' + slogan + '</span>';
                 html += '</div>';
 
-                // 主表: 5 col × (7 等級 + row1 + row2)
-                html += '<table style="width:100%;border-collapse:collapse;font-family:Calibri,&quot;微軟正黑體&quot;,sans-serif;position:relative;">';
+                // v2.3.2.46: 主表 表格 5 col 等寬 (table-layout:fixed + col widths)
+                html += '<table style="width:100%;border-collapse:collapse;font-family:Calibri,&quot;微軟正黑體&quot;,sans-serif;position:relative;table-layout:fixed;">';
+                // 用 colgroup 指定 5 欄寬度 (科目欄 60px, 4 場 1fr)
+                html += '<colgroup><col style="width:60px;"><col><col><col><col></colgroup>';
                 // 表頭
                 html += '<thead><tr style="background:#fffbe9;">';
                 html += '<th style="border:1px solid #6B3410;width:50px;padding:3px 0;color:#6B3410;font-size:0.85em;">　</th>';
@@ -11347,7 +11349,8 @@ html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;marg
             html += '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1.5px solid #6B3410;">';
             html += '<b style="color:#6B3410;font-size:1.15em;font-family:&quot;PMingLiU&quot;,&quot;新細明體&quot;,&quot;SimSun&quot;,宋體,serif;">📝 ' + lbl + ' (已輸入完成)</b>';
             html += '<span style="color:#999;font-size:0.85em;font-family:Calibri,微軟正黑體,sans-serif;">' + exam.name + (exam.examDate ? ' (' + exam.examDate + ')' : '') + '</span>';
-            html += '<button onclick="_meToggleReviewEdit(' + slot + ')" style="margin-left:auto;padding:5px 12px;background:#FF9F6B;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85em;font-weight:bold;">✏️ 編輯</button>';
+            // v2.3.2.46: 編輯按鈕底色 改淺 (#FFD4B2) + 深棕字 ("編輯" 兩字 更易判讀)
+            html += '<button onclick="_meToggleReviewEdit(' + slot + ')" style="margin-left:auto;padding:5px 12px;background:#FFD4B2;color:#6B3410;border:1px solid #FF9F6B;border-radius:6px;cursor:pointer;font-size:0.85em;font-weight:bold;">✏️ 編輯</button>';
             html += '</div>';
             var safeText = (review.text || '').replace(/</g, '&lt;').replace(/\n/g, '<br>');
             if (safeText) {
