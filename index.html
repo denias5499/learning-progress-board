@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.34]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.37]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -625,13 +625,14 @@
         /* v2.3.2.21: sub-tabs 縮小 (比上層 nav-btn 小) + nav-btn 單行 */
         /* v2.3.2.24: 成績總覽 顯示最新級距圖 (從 IDB load + max-height 500px) */
         .me-tabs { display: flex; gap: 6px; margin: 14px 0; border-bottom: none; flex-wrap: wrap; }
+        /* v2.3.2.37: me-tab 字體加大, 但小於 .nav-btn (1em) — 0.9 → 0.95 / 1 → 1.05 */
         .me-tab {
-            padding: 6px 14px;
+            padding: 7px 16px;
             background: rgba(255,255,255,0.7);
             border: 1.5px solid var(--border);
             border-radius: 8px;
             cursor: pointer;
-            font-size: 0.9em;
+            font-size: 0.95em;
             color: var(--secondary);
             transition: all 0.25s;
             font-family: inherit;
@@ -643,7 +644,7 @@
             background: #FFD4B2;
             border-color: #FF9F6B;
             color: #6B3410;
-            font-size: 1em;
+            font-size: 1.05em;
             font-weight: bold;
             box-shadow: 0 3px 8px rgba(255,159,107,0.4);
             transform: translateY(-1px);
@@ -764,7 +765,8 @@
         .me-stat-card { background: #fff; border: 2px solid var(--border); border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
         /* v2.3.2.36: 統計卡 header 與等級 badge */
         .me-stat-card .stat-head { display:flex; align-items:center; gap:6px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #e8d8b8; }
-        .me-stat-card .stat-ability { margin-left:auto; padding:3px 10px; border-radius:10px; color:#fff; font-weight:bold; font-size:0.85em; min-width:42px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.15); }
+        /* v2.3.2.37: 等級 badge 用「成績分析」按鈕的 #c4e0f9 淺藍底 + 深藍字 (跟 nav-btn-stats 一致) */
+        .me-stat-card .stat-ability { margin-left:auto; padding:3px 10px; border-radius:10px; color:#1e40af; font-weight:900; font-size:0.9em; min-width:42px; text-align:center; background:#c4e0f9; box-shadow:0 1px 3px rgba(0,0,0,0.15); border:1px solid #93c5fd; }
         .me-stat-card .stat-emoji { font-size: 1.4em; margin-right: 4px; }
         .me-stat-card .stat-subj { font-size: 0.92em; font-weight: bold; color: var(--primary); }
         .me-stat-card .stat-row { display: flex; justify-content: space-between; font-size: 0.85em; margin: 3px 0; align-items: baseline; }
@@ -2122,10 +2124,10 @@
         </div>
     </div>
 
-    <!-- v2.3.2.13: 模考成績 page -->
+    <!-- v2.3.2.37: 模考成績 page (標題距離縮小 + sub-tabs 字體加大但小於 nav) -->
     <div id="page-mockexam" class="page-view" style="display:none; background:#FFF4E6;">
-        <div class="container" style="max-width:1200px; margin:0 auto; padding:20px;">
-            <h1 style="margin-bottom:10px;">📝 模考成績</h1>
+        <div class="container" style="max-width:1200px; margin:0 auto; padding:8px 20px 20px 20px;">
+            <h1 style="margin:0 0 4px 0; line-height:1.2;">📝 模考成績</h1>
             <div class="me-tabs">
                 <button data-metab="overview" class="me-tab active">📊 成績總覽</button>
                 <button data-metab="input" class="me-tab">✏️ 成績輸入</button>
@@ -9614,7 +9616,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     html += '<option value="' + ex.id + '"' + sel + '>' + lbl + '</option>';
                 });
                 html += '</select>';
-                html += '<span style="font-size:11px;color:var(--secondary);">共 ' + examsAsc.length + ' 場</span>';
+                // v2.3.2.37: 刪除「共 X 場」文字
                 html += '</div>';
             }
             // v2.3.2.36: 級距圖也跟著所選的 exam 顯示
@@ -9765,65 +9767,70 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v2.3.2.31: 5 科成績對照表 (樣式如截圖5: 科目, 答對題數, 答對率, 加權分數, 能力等級, 積分, 複點)
-        // v2.3.2.36: 5 科表 — 子項名稱塞進「答對題數」cell, 科目欄底色與其他欄一致, 刪除「積點」欄
+        // v2.3.2.37: 5 科表 — 整體字體加大, 科名醒目, 「科目」對齊「國文」, 子項名稱移到「科目: 數學/英文」欄, 答對率（％）
         function _meRender5SubjTable(exams, examIdx) {
             if (typeof examIdx !== 'number') examIdx = 0;
             var rows = ['國文', '數學', '英語', '社會', '自然'];
-            var html = '<h3 style="margin:14px 0 8px;color:#6B3410;">📋 成績概況</h3>';
-            html += '<div class="me-table-wrap"><table class="me-score-table me-v231-table">' +
+            var html = '<h3 style="margin:14px 0 8px;color:#6B3410;font-size:1.2em;">📋 成績概況</h3>';
+            html += '<div class="me-table-wrap" style="font-size:1.08em;"><table class="me-score-table me-v231-table">' +
                 '<thead><tr>' +
-                '<th class="me-th-norm">科目</th>' +
-                '<th>答對題數</th>' +
-                '<th>答對率</th>' +
-                '<th>加權分數</th>' +
-                '<th>能力等級</th>' +
-                '<th>積分</th>' +
+                '<th class="me-th-norm" style="text-align:center;vertical-align:middle;">科目</th>' +
+                '<th style="text-align:center;vertical-align:middle;">答對題數</th>' +
+                '<th style="text-align:center;vertical-align:middle;">答對率（％）</th>' +
+                '<th style="text-align:center;vertical-align:middle;">加權分數</th>' +
+                '<th style="text-align:center;vertical-align:middle;">能力等級</th>' +
+                '<th style="text-align:center;vertical-align:middle;">積分</th>' +
                 '</tr></thead><tbody>';
             var ex = exams[examIdx] || exams[0];
             rows.forEach(function(subj, idx) {
                 var s = ex.subjects && ex.subjects[subj];
                 var _hasSub = (subj === '數學' || subj === '英語');
                 if (_hasSub) {
-                    // 數學: 兩行 (選擇題 + 非選)
-                    var subNames = subj === '數學' ? ['選擇題', '非選'] : ['閱讀', '聽力'];
+                    // v2.3.2.37: 數學/英語 — 子項名稱「選擇/非選」「閱讀/聽力」移到「科目」欄 (rowspan 內, 下方)
+                    var subNames = subj === '數學' ? ['選擇', '非選'] : ['閱讀', '聽力'];
                     html += '<tr>' +
-                        '<td class="me-td-norm" rowspan="' + subNames.length + '">' +
-                        '<span class="me-subj-pill">' + _meSubjEmoji(subj) + ' ' + subj + '</span></td>';
+                        '<td class="me-td-norm" rowspan="' + subNames.length + '" style="text-align:center;vertical-align:middle;">' +
+                        '<div class="me-subj-pill" style="font-size:1.15em;font-weight:900;color:#1e40af;">' + _meSubjEmoji(subj) + ' ' + subj + '</div>' +
+                        '<div style="margin-top:8px;display:flex;flex-direction:column;gap:2px;">';
+                    subNames.forEach(function(sn, si) {
+                        html += '<span style="font-size:0.85em;color:#6B3410;font-weight:bold;">' + sn + '</span>';
+                    });
+                    html += '</div></td>';
                     subNames.forEach(function(sn, si) {
                         var si_data = s && s.subItems && s.subItems[sn];
                         var correct = si_data ? si_data.correct : null;
                         var total = si_data ? si_data.total : null;
                         var rate = si_data ? si_data.rate : null;
                         if (si > 0) html += '<tr>';
-                        // 答對題數 cell: 內含子項名稱 (例如 「選擇題 41/42」), 與其他科對齊
+                        // 答對題數 cell: 只顯示數字 (與其他科一致, 子項名已在科目欄)
                         var ct = (correct !== null && total !== null) ? (correct + '/' + total) : '—';
-                        var ctHtml = '<div class="me-td-ct-stack"><span class="me-td-subname">' + sn + '</span><span class="me-td-ct">' + ct + '</span></div>';
-                        html += '<td>' + ctHtml + '</td>';
+                        html += '<td style="text-align:center;color:#333;">' + ct + '</td>';
                         // 答對率
-                        html += '<td>' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
-                        // 加權分數 (只有第一個子項顯示, 與第二個子項並列時由 rowspan 統一)
+                        html += '<td style="text-align:center;">' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
+                        // 加權分數 (只有第一個子項顯示, rowspan 統一)
                         if (si === 0) {
-                            // 算兩個子項的加權分數 (如果有) — 加括號避免 nested ternary 解析錯誤
                             var wNon = (s && s.subItems && s.subItems.非選) ? s.subItems.非選.weighted : null;
                             var wAud = (s && s.subItems && s.subItems.聽力) ? s.subItems.聽力.weighted : null;
                             var w = wNon !== null ? wNon : wAud;
-                            html += '<td rowspan="' + subNames.length + '">' + (w !== null && w !== undefined ? w : '—') + '</td>';
-                            // 能力等級 (整科)
-                            html += '<td rowspan="' + subNames.length + '">' + (s.ability ? s.ability : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;">' + (w !== null && w !== undefined ? w : '—') + '</td>';
+                            // 能力等級 (整科) — 加粗加色
+                            var abCol = '#c4e0f9'; // v2.3.2.37: 用 #c4e0f9 (跟 nav-btn-stats 一致)
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:' + abCol + ';color:#1e40af;font-weight:900;">' + (s.ability ? s.ability : '—') + '</td>';
                             // 積分 (整科)
-                            html += '<td rowspan="' + subNames.length + '">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
                         }
                         html += '</tr>';
                     });
                 } else {
-                    // 國文/社會/自然: 一行
+                    // 國文/社會/自然: 一行, 科名醒目
                     html += '<tr>' +
-                        '<td class="me-td-norm"><span class="me-subj-pill">' + _meSubjEmoji(subj) + ' ' + subj + '</span></td>' +
-                        '<td>' + (s && s.correct !== null && s.total !== null ? s.correct + '/' + s.total : '—') + '</td>' +
-                        '<td>' + (s && s.rate !== null && s.rate !== undefined ? s.rate.toFixed(2) : '—') + '</td>' +
-                        '<td>—</td>' +
-                        '<td>' + (s && s.ability ? s.ability : '—') + '</td>' +
-                        '<td>' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
+                        '<td class="me-td-norm" style="text-align:center;vertical-align:middle;">' +
+                        '<div class="me-subj-pill" style="font-size:1.15em;font-weight:900;color:#1e40af;">' + _meSubjEmoji(subj) + ' ' + subj + '</div></td>' +
+                        '<td style="text-align:center;color:#333;">' + (s && s.correct !== null && s.total !== null ? s.correct + '/' + s.total : '—') + '</td>' +
+                        '<td style="text-align:center;">' + (s && s.rate !== null && s.rate !== undefined ? s.rate.toFixed(2) : '—') + '</td>' +
+                        '<td style="text-align:center;">—</td>' +
+                        '<td style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;">' + (s && s.ability ? s.ability : '—') + '</td>' +
+                        '<td style="text-align:center;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
                         '</tr>';
                 }
             });
@@ -9831,15 +9838,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 作文表 (同樣樣式)
             html += '<table class="me-score-table me-v231-table essay" style="margin-top:14px;">' +
                 '<thead><tr>' +
-                '<th>科目</th>' +
-                '<th>級分</th>' +
-                '<th>積分</th>' +
+                '<th style="text-align:center;">科目</th>' +
+                '<th style="text-align:center;">級分</th>' +
+                '<th style="text-align:center;">積分</th>' +
                 '</tr></thead><tbody>';
             var e = ex.essay;
             html += '<tr>' +
-                '<td class="me-td-norm"><span class="me-subj-pill">📝 作文</span></td>' +
-                '<td>' + (e && e.level ? e.level.got + '/' + e.level.max : '—') + '</td>' +
-                '<td>' + (e && e.score ? e.score.got + '/' + e.score.max : '—') + '</td>' +
+                '<td class="me-td-norm" style="text-align:center;vertical-align:middle;">' +
+                '<div class="me-subj-pill" style="font-size:1.15em;font-weight:900;color:#1e40af;">📝 作文</div></td>' +
+                '<td style="text-align:center;">' + (e && e.level ? e.level.got + '/' + e.level.max : '—') + '</td>' +
+                '<td style="text-align:center;">' + (e && e.score ? e.score.got + '/' + e.score.max : '—') + '</td>' +
                 '</tr>';
             html += '</tbody></table>';
             html += '</div>';
@@ -10077,9 +10085,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
             if (hasSub) {
                 if (name === '數學') {
-                    // 選擇題: 答對/總題/答對率
+                    // 選擇: 答對/總題/答對率
                     html += '<div class="me-row me-sub-row">' +
-                        '<strong>選擇題</strong>' +
+                        '<strong>選擇</strong>' +
                         '<label>答對 <input type="number" id="me-' + prefix + '-sub1-correct" min="0" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub1\')"></label>' +
                         '<label>/ 總題 <input type="number" id="me-' + prefix + '-sub1-total" min="1" class="sm-select" oninput="onMeSubRateCalc(\'' + prefix + '-sub1\')"></label>' +
                         '<label>答對率% <input type="number" id="me-' + prefix + '-sub1-rate" min="0" max="100" step="0.01" class="sm-select" readonly style="background:#f0f0f0;"></label>' +
@@ -10288,10 +10296,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     _meSetVal(prefix + '-score-max', s.score ? s.score.max : '');
                     _meSetValSel(prefix + '-ability', s.ability);
                     if (s.subItems) {
-                        if (s.subItems.選擇題) {
-                            _meSetVal(prefix + '-sub1-correct', s.subItems.選擇題.correct);
-                            _meSetVal(prefix + '-sub1-total', s.subItems.選擇題.total);
-                            _meSetVal(prefix + '-sub1-rate', s.subItems.選擇題.rate);
+                        if (s.subItems.選擇) {
+                            _meSetVal(prefix + '-sub1-correct', s.subItems.選擇.correct);
+                            _meSetVal(prefix + '-sub1-total', s.subItems.選擇.total);
+                            _meSetVal(prefix + '-sub1-rate', s.subItems.選擇.rate);
                         }
                         if (s.subItems.非選) {
                             _meSetVal(prefix + '-sub2-correct', s.subItems.非選.correct);
@@ -10381,7 +10389,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (name === '數學') {
                     s.subItems = {};
                     var c1 = _meGetNum(prefix + '-sub1-correct'), t1 = _meGetNum(prefix + '-sub1-total');
-                    if (c1 || t1) s.subItems.選擇題 = { correct: c1, total: t1, rate: _meGetNum(prefix + '-sub1-rate') };
+                    if (c1 || t1) s.subItems.選擇 = { correct: c1, total: t1, rate: _meGetNum(prefix + '-sub1-rate') };
                     var c2 = _meGetNum(prefix + '-sub2-correct'), t2 = _meGetNum(prefix + '-sub2-total');
                     if (c2 || t2 || _meGetNum(prefix + '-sub2-weighted')) {
                         s.subItems.非選 = {
@@ -10510,41 +10518,56 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     totalScore += (exam.essay.score.got || 0);
                     totalMaxScore += (exam.essay.score.max || 0);
                 }
-                html += '<div class="me-card" onclick="loadExamToFormAndSelect(' + "'" + exam.id + "'" + ')">' +
-                    '<h4>📝 ' + exam.name + '</h4>' +
-                    '<div class="me-card-row"><span>日期</span><span>' + (exam.examDate || '-') + '</span></div>' +
-                    '<div class="me-card-row"><span>總積分</span><span><b>' + totalScore.toFixed(1) + ' / ' + totalMaxScore.toFixed(1) + '</b></span></div>';
-                // v2.3.2.32: 5 科顯示 級分 / 答對題數 / 答對率 / 積分
+                html += '<div class="me-card" onclick="loadExamToFormAndSelect(' + "'" + exam.id + "'" + ')" style="font-size:1.05em;">' +
+                    '<h4 style="font-size:1.25em;">📝 ' + exam.name + '</h4>' +
+                    '<div class="me-card-row" style="font-size:1em;"><span>日期</span><span>' + (exam.examDate || '-') + '</span></div>' +
+                    '<div class="me-card-row" style="font-size:1em;"><span>總積分</span><span><b>' + totalScore.toFixed(1) + ' / ' + totalMaxScore.toFixed(1) + '</b></span></div>';
+                // v2.3.2.37: 5 科顯示 級分 / 答對題數 (數學分選擇/非選, 英文分閱讀/聽力) / 答對率(％) / 積分
                 ['國文', '數學', '英語', '社會', '自然'].forEach(function(n) {
                     var s = exam.subjects && exam.subjects[n];
                     var rate = s ? _meCalcSubjectRate(s, n) : null;
                     var ctTxt = '-';
                     var rateTxt = '-';
+                    var ctSubHtml = ''; // v2.3.2.37: 數學/英語 拆選擇/非選
                     if (s) {
                         if (s.correct !== null && s.total !== null) {
                             ctTxt = s.correct + '/' + s.total;
                         } else if (s.subItems) {
-                            // 數學/英語: 把子項答對/總題合併
-                            var subNames = n === '數學' ? ['選擇題', '非選'] : ['閱讀', '聽力'];
+                            // v2.3.2.37: 數學/英語 拆分子項, 各自顯示
+                            var subNames = n === '數學' ? ['選擇', '非選'] : ['閱讀', '聽力'];
                             var sumC = 0, sumT = 0;
+                            var subLines = [];
                             subNames.forEach(function(sn) {
                                 if (s.subItems[sn]) {
-                                    sumC += (s.subItems[sn].correct || 0);
-                                    sumT += (s.subItems[sn].total || 0);
+                                    var cc = s.subItems[sn].correct || 0;
+                                    var tt = s.subItems[sn].total || 0;
+                                    sumC += cc; sumT += tt;
+                                    subLines.push('<div style="font-size:0.92em;color:#555;"><span style="color:#6B3410;">' + sn + '</span> <b>' + cc + '/' + tt + '</b></div>');
                                 }
                             });
-                            if (sumT > 0) ctTxt = sumC + '/' + sumT;
+                            if (sumT > 0) {
+                                ctTxt = sumC + '/' + sumT;
+                                ctSubHtml = subLines.join('');
+                            }
                         }
-                        if (rate !== null && rate !== undefined) rateTxt = rate.toFixed(2) + '%';
+                        if (rate !== null && rate !== undefined) rateTxt = rate.toFixed(2) + '％';
                     }
                     var abTxt = (s && s.ability) ? s.ability : '-';
                     var scTxt = (s && s.score) ? (s.score.got + '/' + s.score.max) : '-';
+                    // v2.3.2.37: 級分 加粗 + 顏色 (A++ 紅→C 灰)
+                    var abColor = '#999';
+                    if (abTxt.indexOf('A++') >= 0) abColor = '#dc2626';
+                    else if (abTxt.indexOf('A+') >= 0) abColor = '#ea580c';
+                    else if (abTxt === 'A') abColor = '#ca8a04';
+                    else if (abTxt.indexOf('B++') >= 0) abColor = '#16a34a';
+                    else if (abTxt.indexOf('B+') >= 0) abColor = '#0891b2';
+                    else if (abTxt === 'B') abColor = '#2563eb';
                     html += '<div class="me-card-subj">' +
-                        '<div class="me-card-subj-head">' + _meSubjEmoji(n) + ' ' + n + '</div>' +
-                        '<div class="me-card-row"><span>級分</span><span>' + abTxt + '</span></div>' +
-                        '<div class="me-card-row"><span>答對題數</span><span>' + ctTxt + '</span></div>' +
-                        '<div class="me-card-row"><span>答對率</span><span>' + rateTxt + '</span></div>' +
-                        '<div class="me-card-row"><span>積分</span><span>' + scTxt + '</span></div>' +
+                        '<div class="me-card-subj-head" style="font-size:1.1em;">' + _meSubjEmoji(n) + ' ' + n + '</div>' +
+                        '<div class="me-card-row" style="font-size:1.05em;"><span>級分</span><span style="font-weight:900;color:' + abColor + ';">' + abTxt + '</span></div>' +
+                        '<div class="me-card-row" style="font-size:1.05em;"><span>答對題數</span><span style="font-weight:bold;">' + ctTxt + ctSubHtml + '</span></div>' +
+                        '<div class="me-card-row" style="font-size:1.05em;"><span>答對率（％）</span><span>' + rateTxt + '</span></div>' +
+                        '<div class="me-card-row" style="font-size:1.05em;"><span>積分</span><span>' + scTxt + '</span></div>' +
                         '</div>';
                 });
                 if (exam.levelChartImageId) {
@@ -10574,34 +10597,48 @@ function renderWizardUnitRowHtml(ws, i, u) {
             setTimeout(function() { loadExamToForm(exam); }, 50);
         }
 
-        // ===== IDB 圖片存取 =====
+        // ===== IDB 圖片存取 (v2.3.2.37: 改用 window.diskDB 全域 IDB handle, 原本 'db' 從未存在全域) =====
         function saveMockExamImage(examId, dataUrl) {
             return new Promise(function(resolve) {
-                if (typeof db === 'undefined' || !db) { resolve(null); return; }
+                if (typeof window.diskDB === 'undefined' || !window.diskDB) { resolve(null); return; }
                 var img = {
                     id: 'img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
                     examId: examId,
                     data: dataUrl,
                     createdAt: new Date().toISOString()
                 };
-                try {
-                    var tx = db.transaction(['mockExamImages'], 'readwrite');
-                    tx.objectStore('mockExamImages').put(img);
-                    tx.oncomplete = function() { resolve(img.id); };
-                    tx.onerror = function() { resolve(null); };
-                } catch(e) { resolve(null); }
+                // v2.3.2.37: 用 diskDB.put 取代直接 tx (db 全域變數從未存在)
+                window.diskDB.put('mockExamImages', img).then(function() {
+                    resolve(img.id);
+                }).catch(function(err) {
+                    console.warn('[saveMockExamImage] IDB put failed:', err);
+                    resolve(null);
+                });
             });
         }
 
         function loadMockExamImage(imgId) {
             return new Promise(function(resolve) {
-                if (typeof db === 'undefined' || !db) { resolve(null); return; }
-                try {
-                    var tx = db.transaction(['mockExamImages'], 'readonly');
-                    var req = tx.objectStore('mockExamImages').get(imgId);
-                    req.onsuccess = function() { resolve(req.result ? req.result.data : null); };
-                    req.onerror = function() { resolve(null); };
-                } catch(e) { resolve(null); }
+                if (typeof window.diskDB === 'undefined' || !window.diskDB) { resolve(null); return; }
+                // v2.3.2.37: 用 diskDB.get 取代直接 tx
+                window.diskDB.get('mockExamImages', imgId).then(function(rec) {
+                    resolve(rec && rec.data ? rec.data : null);
+                }).catch(function(err) {
+                    console.warn('[loadMockExamImage] IDB get failed:', err);
+                    resolve(null);
+                });
+            });
+        }
+
+        // v2.3.2.37: 列出所有 IDB mock exam images (供掃描修復用)
+        function _meListAllImages() {
+            return new Promise(function(resolve) {
+                if (typeof window.diskDB === 'undefined' || !window.diskDB) { resolve([]); return; }
+                window.diskDB._tx('mockExamImages', 'readonly').then(function(store) {
+                    var req = store.getAll();
+                    req.onsuccess = function() { resolve(req.result || []); };
+                    req.onerror = function() { resolve([]); };
+                }).catch(function() { resolve([]); });
             });
         }
         function renderMockExamAnalysis(c) {
@@ -10630,13 +10667,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var abilStr = (latestSubj && latestSubj.ability) ? latestSubj.ability : '—';
                 var abilShort = abilStr.replace('精熟(', '').replace(')', '').replace('基礎(', '').replace('待加強', 'C');
                 // badge 顏色: A++ 紅, A+ 橙, A 黃, B++ 綠, B+ 青, B 藍, C 灰
-                var abilColor = '#999';
-                if (abilShort.indexOf('A++') >= 0) abilColor = '#dc2626';
-                else if (abilShort.indexOf('A+') >= 0) abilColor = '#ea580c';
-                else if (abilShort === 'A') abilColor = '#ca8a04';
-                else if (abilShort.indexOf('B++') >= 0) abilColor = '#16a34a';
-                else if (abilShort.indexOf('B+') >= 0) abilColor = '#0891b2';
-                else if (abilShort === 'B') abilColor = '#2563eb';
+                // v2.3.2.37: 統一用「成績分析」按鈕的 #c4e0f9 淺藍 (CSS 也同步)
+                var abilColor = '#c4e0f9';
 
                 html += '<div class="me-stat-card">' +
                     '<div class="stat-head">' +
@@ -10884,7 +10916,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!s) return null;
             if (typeof s.rate === 'number') return s.rate;
             if (!s.subItems) return null;
-            var subNames = subjName === '數學' ? ['選擇題', '非選'] : (subjName === '英語' ? ['閱讀', '聽力'] : []);
+            var subNames = subjName === '數學' ? ['選擇', '非選'] : (subjName === '英語' ? ['閱讀', '聽力'] : []);
             var sumC = 0, sumT = 0, ok = false;
             subNames.forEach(function(sn) {
                 var si = s.subItems[sn];
