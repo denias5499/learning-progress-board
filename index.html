@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.41]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.42]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10855,47 +10855,51 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var levels = _mePaperData.levels;
             var subjList = ['國文', '數學', '英語', '社會', '自然'];
             // 各科 layout: row1 label, row2 label (null 表示 1 行), 各場 total
+            // v2.3.2.42: 英語 — row1 改「閱讀答對」(43), row2 新增「聽力答對」(21)
             var subLayouts = {
-                '國文': { row1: '答對題數', row2: '作文成績', total: 42, row2Key: 'essay' },
-                '數學': { row1: '答對題數', row2: '非選成績', total: 25, row2Key: '非選' },
-                '英語': { row1: '答對題數', row2: null, total: 43, row2Key: null },
-                '社會': { row1: '答對題數', row2: null, total: 54, row2Key: null },
-                '自然': { row1: '答對題數', row2: null, total: 50, row2Key: null }
+                '國文': { row1: '答對題數', row2: '作文成績', total: 42, row1Key: 'normal', row2Key: 'essay', row1Total: 42, row2Total: 6 },
+                '數學': { row1: '答對題數', row2: '非選成績', total: 25, row1Key: '選擇', row2Key: '非選', row1Total: 25, row2Total: 6 },
+                '英語': { row1: '閱讀答對', row2: '聽力答對', total: 43, row1Key: '閱讀', row2Key: '聽力', row1Total: 43, row2Total: 21 },
+                '社會': { row1: '答對題數', row2: null, total: 54, row1Key: 'normal', row2Key: null, row1Total: 54, row2Total: null },
+                '自然': { row1: '答對題數', row2: null, total: 50, row1Key: 'normal', row2Key: null, row1Total: 50, row2Total: null }
             };
             // 各場 1~4 (預先填, examsAsc[i] 對應 i+1 場, 沒輸入的留 /total)
+            // v2.3.2.42: 改用 layout.row1Key / row2Key / row1Total / row2Total 統一處理
             function getCell(subj, row, exIdx) {
                 var ex = examsAsc[exIdx];
                 var layout = subLayouts[subj];
                 if (!ex || !ex.subjects || !ex.subjects[subj]) {
-                    return { got: null, total: layout.total, hint: '尚無成績' };
+                    var emptyTotal = (row === 1) ? layout.row1Total : layout.row2Total;
+                    return { got: null, total: emptyTotal, hint: '尚無成績' };
                 }
                 var s = ex.subjects[subj];
                 if (row === 1) {
-                    // row 1: 答對題數
-                    if (subj === '數學') {
-                        // 數學 row 1 = 選擇 (因為 row 2 = 非選)
-                        var si = s.subItems && s.subItems['選擇'];
-                        return { got: si ? si.correct : null, total: si && si.total ? si.total : 25, hint: '尚無成績' };
-                    } else if (subj === '英語') {
-                        // 英語 row 1 = 閱讀
-                        var si2 = s.subItems && s.subItems['閱讀'];
-                        return { got: si2 ? si2.correct : null, total: si2 && si2.total ? si2.total : 43, hint: '尚無成績' };
-                    } else {
-                        return { got: s.correct, total: s.total, hint: '尚無成績' };
-                    }
-                } else if (row === 2 && layout.row2Key) {
-                    if (layout.row2Key === 'essay') {
-                        // 國文 row 2 = 作文 (level.got / level.max)
+                    // row 1
+                    if (layout.row1Key === 'essay') {
                         if (ex.essay && ex.essay.level) {
                             return { got: ex.essay.level.got, total: ex.essay.level.max, hint: '尚無成績' };
                         }
-                        return { got: null, total: 6, hint: '尚無成績' };
-                    } else if (layout.row2Key === '非選') {
-                        var si3 = s.subItems && s.subItems['非選'];
-                        return { got: si3 ? si3.correct : null, total: si3 && si3.total ? si3.total : 6, hint: '尚無成績' };
+                        return { got: null, total: layout.row1Total, hint: '尚無成績' };
+                    } else if (layout.row1Key === 'normal') {
+                        return { got: s.correct, total: s.total, hint: '尚無成績' };
+                    } else {
+                        // subItems 取 row1Key (選擇/閱讀 等)
+                        var si = s.subItems && s.subItems[layout.row1Key];
+                        return { got: si ? si.correct : null, total: si && si.total ? si.total : layout.row1Total, hint: '尚無成績' };
+                    }
+                } else if (row === 2 && layout.row2Key) {
+                    if (layout.row2Key === 'essay') {
+                        if (ex.essay && ex.essay.level) {
+                            return { got: ex.essay.level.got, total: ex.essay.level.max, hint: '尚無成績' };
+                        }
+                        return { got: null, total: layout.row2Total, hint: '尚無成績' };
+                    } else {
+                        // subItems 取 row2Key (非選/聽力)
+                        var si2 = s.subItems && s.subItems[layout.row2Key];
+                        return { got: si2 ? si2.correct : null, total: si2 && si2.total ? si2.total : layout.row2Total, hint: '尚無成績' };
                     }
                 }
-                return { got: null, total: layout.total, hint: '' };
+                return { got: null, total: layout.row1Total, hint: '' };
             }
             // 計算每科每場的 level idx
             function getLevelAt(subj, exIdx) {
