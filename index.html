@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.37]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.38]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9661,7 +9661,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             html += '</div>';
             // ===== 5 科表 =====
             html += '<div class="me-overview-table">' +
-                '<h3>📋 五科成績對照</h3>';
+                '<h3>📋 五科成績總覽</h3>';
             if (examsAsc.length === 0) {
                 html += '<div class="me-empty">尚無成績資料</div>';
             } else {
@@ -9767,33 +9767,33 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v2.3.2.31: 5 科成績對照表 (樣式如截圖5: 科目, 答對題數, 答對率, 加權分數, 能力等級, 積分, 複點)
-        // v2.3.2.37: 5 科表 — 整體字體加大, 科名醒目, 「科目」對齊「國文」, 子項名稱移到「科目: 數學/英文」欄, 答對率（％）
+        // v2.3.2.38: 5 科表 — 「五科成績總覽」, 移除科目 emoji, 科名字體加大, 數字欄 Calibri 黑體
         function _meRender5SubjTable(exams, examIdx) {
             if (typeof examIdx !== 'number') examIdx = 0;
             var rows = ['國文', '數學', '英語', '社會', '自然'];
-            var html = '<h3 style="margin:14px 0 8px;color:#6B3410;font-size:1.2em;">📋 成績概況</h3>';
-            html += '<div class="me-table-wrap" style="font-size:1.08em;"><table class="me-score-table me-v231-table">' +
+            var html = '<div class="me-table-wrap" style="font-size:1.2em;">' +
+                '<table class="me-score-table me-v231-table" style="font-family:Calibri,&quot;微軟正黑體&quot;,sans-serif;">' +
                 '<thead><tr>' +
-                '<th class="me-th-norm" style="text-align:center;vertical-align:middle;">科目</th>' +
-                '<th style="text-align:center;vertical-align:middle;">答對題數</th>' +
-                '<th style="text-align:center;vertical-align:middle;">答對率（％）</th>' +
-                '<th style="text-align:center;vertical-align:middle;">加權分數</th>' +
-                '<th style="text-align:center;vertical-align:middle;">能力等級</th>' +
-                '<th style="text-align:center;vertical-align:middle;">積分</th>' +
+                '<th class="me-th-norm" style="text-align:center;vertical-align:middle;font-size:1.15em;">科目</th>' +
+                '<th style="text-align:center;vertical-align:middle;font-size:1.15em;">答對題數</th>' +
+                '<th style="text-align:center;vertical-align:middle;font-size:1.15em;">答對率（％）</th>' +
+                '<th style="text-align:center;vertical-align:middle;font-size:1.15em;">加權分數</th>' +
+                '<th style="text-align:center;vertical-align:middle;font-size:1.15em;">能力等級</th>' +
+                '<th style="text-align:center;vertical-align:middle;font-size:1.15em;">積分</th>' +
                 '</tr></thead><tbody>';
             var ex = exams[examIdx] || exams[0];
             rows.forEach(function(subj, idx) {
                 var s = ex.subjects && ex.subjects[subj];
                 var _hasSub = (subj === '數學' || subj === '英語');
                 if (_hasSub) {
-                    // v2.3.2.37: 數學/英語 — 子項名稱「選擇/非選」「閱讀/聽力」移到「科目」欄 (rowspan 內, 下方)
+                    // v2.3.2.38: 子項名稱「選擇/非選」「閱讀/聽力」移到「科目」欄 (rowspan 內, 下方)
                     var subNames = subj === '數學' ? ['選擇', '非選'] : ['閱讀', '聽力'];
                     html += '<tr>' +
                         '<td class="me-td-norm" rowspan="' + subNames.length + '" style="text-align:center;vertical-align:middle;">' +
-                        '<div class="me-subj-pill" style="font-size:1.15em;font-weight:900;color:#1e40af;">' + _meSubjEmoji(subj) + ' ' + subj + '</div>' +
-                        '<div style="margin-top:8px;display:flex;flex-direction:column;gap:2px;">';
+                        '<div class="me-subj-pill" style="font-size:1.5em;font-weight:900;color:#1e40af;letter-spacing:2px;">' + subj + '</div>' +
+                        '<div style="margin-top:6px;display:flex;flex-direction:column;gap:2px;">';
                     subNames.forEach(function(sn, si) {
-                        html += '<span style="font-size:0.85em;color:#6B3410;font-weight:bold;">' + sn + '</span>';
+                        html += '<span style="font-size:0.95em;color:#6B3410;font-weight:bold;">' + sn + '</span>';
                     });
                     html += '</div></td>';
                     subNames.forEach(function(sn, si) {
@@ -9804,20 +9804,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         if (si > 0) html += '<tr>';
                         // 答對題數 cell: 只顯示數字 (與其他科一致, 子項名已在科目欄)
                         var ct = (correct !== null && total !== null) ? (correct + '/' + total) : '—';
-                        html += '<td style="text-align:center;color:#333;">' + ct + '</td>';
+                        // v2.3.2.38: 數字欄用 Calibri 黑體 + 加大
+                        html += '<td style="text-align:center;color:#333;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + ct + '</td>';
                         // 答對率
-                        html += '<td style="text-align:center;">' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
+                        html += '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
                         // 加權分數 (只有第一個子項顯示, rowspan 統一)
                         if (si === 0) {
                             var wNon = (s && s.subItems && s.subItems.非選) ? s.subItems.非選.weighted : null;
                             var wAud = (s && s.subItems && s.subItems.聽力) ? s.subItems.聽力.weighted : null;
                             var w = wNon !== null ? wNon : wAud;
-                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;">' + (w !== null && w !== undefined ? w : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (w !== null && w !== undefined ? w : '—') + '</td>';
                             // 能力等級 (整科) — 加粗加色
-                            var abCol = '#c4e0f9'; // v2.3.2.37: 用 #c4e0f9 (跟 nav-btn-stats 一致)
-                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:' + abCol + ';color:#1e40af;font-weight:900;">' + (s.ability ? s.ability : '—') + '</td>';
+                            var abCol = '#c4e0f9';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:' + abCol + ';color:#1e40af;font-weight:900;font-size:1.3em;">' + (s.ability ? s.ability : '—') + '</td>';
                             // 積分 (整科)
-                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
                         }
                         html += '</tr>';
                     });
@@ -9825,29 +9826,29 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // 國文/社會/自然: 一行, 科名醒目
                     html += '<tr>' +
                         '<td class="me-td-norm" style="text-align:center;vertical-align:middle;">' +
-                        '<div class="me-subj-pill" style="font-size:1.15em;font-weight:900;color:#1e40af;">' + _meSubjEmoji(subj) + ' ' + subj + '</div></td>' +
-                        '<td style="text-align:center;color:#333;">' + (s && s.correct !== null && s.total !== null ? s.correct + '/' + s.total : '—') + '</td>' +
-                        '<td style="text-align:center;">' + (s && s.rate !== null && s.rate !== undefined ? s.rate.toFixed(2) : '—') + '</td>' +
-                        '<td style="text-align:center;">—</td>' +
-                        '<td style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;">' + (s && s.ability ? s.ability : '—') + '</td>' +
-                        '<td style="text-align:center;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
+                        '<div class="me-subj-pill" style="font-size:1.5em;font-weight:900;color:#1e40af;letter-spacing:2px;">' + subj + '</div></td>' +
+                        '<td style="text-align:center;color:#333;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (s && s.correct !== null && s.total !== null ? s.correct + '/' + s.total : '—') + '</td>' +
+                        '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (s && s.rate !== null && s.rate !== undefined ? s.rate.toFixed(2) : '—') + '</td>' +
+                        '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">—</td>' +
+                        '<td style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.3em;">' + (s && s.ability ? s.ability : '—') + '</td>' +
+                        '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
                         '</tr>';
                 }
             });
             html += '</tbody></table>';
             // 作文表 (同樣樣式)
-            html += '<table class="me-score-table me-v231-table essay" style="margin-top:14px;">' +
+            html += '<table class="me-score-table me-v231-table essay" style="margin-top:14px;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;">' +
                 '<thead><tr>' +
-                '<th style="text-align:center;">科目</th>' +
-                '<th style="text-align:center;">級分</th>' +
-                '<th style="text-align:center;">積分</th>' +
+                '<th style="text-align:center;font-size:1.15em;">科目</th>' +
+                '<th style="text-align:center;font-size:1.15em;">級分</th>' +
+                '<th style="text-align:center;font-size:1.15em;">積分</th>' +
                 '</tr></thead><tbody>';
             var e = ex.essay;
             html += '<tr>' +
                 '<td class="me-td-norm" style="text-align:center;vertical-align:middle;">' +
-                '<div class="me-subj-pill" style="font-size:1.15em;font-weight:900;color:#1e40af;">📝 作文</div></td>' +
-                '<td style="text-align:center;">' + (e && e.level ? e.level.got + '/' + e.level.max : '—') + '</td>' +
-                '<td style="text-align:center;">' + (e && e.score ? e.score.got + '/' + e.score.max : '—') + '</td>' +
+                '<div class="me-subj-pill" style="font-size:1.5em;font-weight:900;color:#1e40af;letter-spacing:2px;">作文</div></td>' +
+                '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (e && e.level ? e.level.got + '/' + e.level.max : '—') + '</td>' +
+                '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (e && e.score ? e.score.got + '/' + e.score.max : '—') + '</td>' +
                 '</tr>';
             html += '</tbody></table>';
             html += '</div>';
@@ -10657,34 +10658,58 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var emojis = {'國文':'📖','英語':'🌐','數學':'📐','社會':'🌍','自然':'🔬'};
             var html = '';
 
-            // v2.3.2.36: 統計卡 — 科目右側加 等級 badge, 對齊「最高」％x; trend 留白直到下次模考
+            // v2.3.2.38: 統計卡 — 順序改 國文/數學/英文/社會/自然, 顯示答對/總題 + 答對率, 英文/數學拆子項
+            var cardOrder = ['國文', '數學', '英語', '社會', '自然'];
             html += '<div class="me-stat-grid">';
-            rows.forEach(function(subj) {
+            cardOrder.forEach(function(subj) {
                 var stats = _meCalcStats(examsAsc, subj);
-                // 取最新一場的能力等級 (直接讀 subj.ability)
                 var latestEx = examsAsc.length > 0 ? examsAsc[examsAsc.length - 1] : null;
                 var latestSubj = latestEx && latestEx.subjects ? latestEx.subjects[subj] : null;
                 var abilStr = (latestSubj && latestSubj.ability) ? latestSubj.ability : '—';
                 var abilShort = abilStr.replace('精熟(', '').replace(')', '').replace('基礎(', '').replace('待加強', 'C');
-                // badge 顏色: A++ 紅, A+ 橙, A 黃, B++ 綠, B+ 青, B 藍, C 灰
-                // v2.3.2.37: 統一用「成績分析」按鈕的 #c4e0f9 淺藍 (CSS 也同步)
                 var abilColor = '#c4e0f9';
+                // v2.3.2.38: 答對/總題 — 數學/英文拆子項
+                var ctText = '—';
+                var rateText = '—';
+                var subCtHtml = '';
+                if (latestSubj) {
+                    if (latestSubj.correct !== null && latestSubj.total !== null) {
+                        ctText = latestSubj.correct + '/' + latestSubj.total;
+                    } else if (latestSubj.subItems) {
+                        var subNames = subj === '數學' ? ['選擇', '非選'] : ['閱讀', '聽力'];
+                        var subLines = [];
+                        subNames.forEach(function(sn) {
+                            var si_data = latestSubj.subItems[sn];
+                            if (si_data) {
+                                subLines.push('<div style="display:flex;justify-content:space-between;font-size:0.95em;padding:1px 4px;"><span style="color:#6B3410;">' + sn + '</span><b style="font-family:Calibri,微軟正黑體,sans-serif;">' + (si_data.correct || 0) + '/' + (si_data.total || 0) + '</b></div>');
+                            }
+                        });
+                        if (subLines.length > 0) subCtHtml = subLines.join('');
+                    }
+                    var r = _meCalcSubjectRate(latestSubj, subj);
+                    if (r !== null && r !== undefined) rateText = r.toFixed(2) + '％';
+                }
 
                 html += '<div class="me-stat-card">' +
                     '<div class="stat-head">' +
-                    '<span class="stat-emoji">' + emojis[subj] + '</span>' +
-                    '<span class="stat-subj">' + subj + '</span>' +
-                    // v2.3.2.36: 等級 badge (對齊「最高」％x 欄, 即右側)
+                    '<span class="stat-subj" style="font-size:1.4em;font-weight:900;color:#1e3a8a;letter-spacing:2px;">' + subj + '</span>' +
                     '<span class="stat-ability" style="background:' + abilColor + ';">' + abilShort + '</span>' +
                     '</div>';
                 if (stats.count === 0) {
                     html += '<div class="stat-row"><span class="stat-label" style="color:#ccc;">尚無資料</span></div>';
                 } else {
-                    html += '<div class="stat-row"><span class="stat-label">最高</span><span class="stat-val">' + stats.max + '%</span></div>' +
-                        '<div class="stat-row"><span class="stat-label">最低</span><span class="stat-val">' + stats.min + '%</span></div>' +
-                        '<div class="stat-row"><span class="stat-label">平均</span><span class="stat-val">' + stats.avg + '%</span></div>' +
-                        '<div class="stat-row"><span class="stat-label">最新</span><span class="stat-val">' + stats.latest + '%</span></div>';
-                    // v2.3.2.36: 總進步 百分點 — 只有 ≥2 場才填值, 否則留白
+                    // v2.3.2.38: 答對/總題 + 答對率(％) — 加大字體
+                    if (subCtHtml) {
+                        html += '<div class="stat-row" style="font-size:1.05em;"><span class="stat-label" style="font-weight:bold;">答對/總題</span><span class="stat-val" style="display:flex;flex-direction:column;align-items:flex-end;line-height:1.3;">' + subCtHtml + '</span></div>';
+                    } else {
+                        html += '<div class="stat-row" style="font-size:1.05em;"><span class="stat-label" style="font-weight:bold;">答對/總題</span><span class="stat-val" style="font-family:Calibri,微軟正黑體,sans-serif;font-weight:bold;font-size:1.15em;">' + ctText + '</span></div>';
+                    }
+                    html += '<div class="stat-row" style="font-size:1.05em;"><span class="stat-label" style="font-weight:bold;">答對率</span><span class="stat-val" style="font-family:Calibri,微軟正黑體,sans-serif;font-weight:bold;font-size:1.15em;">' + rateText + '</span></div>';
+                    // 最高/最低/平均/最新 全部加 Calibri
+                    html += '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最高</span><span class="stat-val" style="font-family:Calibri,微軟正黑體,sans-serif;">' + stats.max + '%</span></div>' +
+                        '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最低</span><span class="stat-val" style="font-family:Calibri,微軟正黑體,sans-serif;">' + stats.min + '%</span></div>' +
+                        '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">平均</span><span class="stat-val" style="font-family:Calibri,微軟正黑體,sans-serif;">' + stats.avg + '%</span></div>' +
+                        '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最新</span><span class="stat-val" style="font-family:Calibri,微軟正黑體,sans-serif;">' + stats.latest + '%</span></div>';
                     if (stats.count >= 2) {
                         var trendCls = stats.trend > 0.5 ? 'up' : (stats.trend < -0.5 ? 'down' : 'flat');
                         var trendSign = stats.trend > 0.5 ? '↑' : (stats.trend < -0.5 ? '↓' : '→');
@@ -10709,25 +10734,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v2.3.2.27: 取得單科 rate, 數學英語若頂層為 null, 用子項目加權平均
-        // v2.3.2.30: 紙本式「折線趨勢圖」(5科網格 + 等級線 + 場次 + 覆盤)
-        // 從台中長德高中附「四次模考比較表」1:1 數位化
+        // v2.3.2.38: 紙本式「折線趨勢圖」改用真實紙本表 (依 Denias 截圖 6)
+        // v2.3.2.38: 移除 slogans + totals (改在 _meBuildPaperTrendGrid 內以 subLayouts 取代)
         var _mePaperData = {
-            slogans: {
-                '國文': '破萬千里目，更上一層樓 — 王之渙',
-                '數學': '我們必須知道, 我們必將知道 — 大衛·希爾伯特',
-                '自然': '給我一個支點, 我可以舉起整個地球 — 阿基米德',
-                '英語': 'If Winter comes, can Spring be far behind? — Percy Bysshe Shelley',
-                '社會': '不記得過去的人是注定要重蹈覆轍 — 喬治·桑塔亞那'
-            },
-            // 各科 X 軸最大題數 (答對/總題) 對應: 國文 42/6, 數學 25/6, 自然 50, 英語 21/43, 社會 54
-            totals: {
-                '國文': { correct: 42, score: 6 },
-                '數學': { correct: 25, score: 6 },
-                '自然': { correct: 50, score: 0 },    // 自然只列答對/總題
-                '英語': { correct: 21, score: 43 },    // 英語: 21/43 (聽力 21/閱讀 43)
-                '社會': { correct: 54, score: 0 }
-            },
-            // 7 個等級
+            // 7 個等級 (A++ 最強 → C 最弱)
             levels: ['A++', 'A+', 'A', 'B++', 'B+', 'B', 'C']
         };
 
@@ -10757,135 +10767,122 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v2.3.2.30: 紙本式折線圖單科 SVG
         //  Y: 7 等級 (top=A++, bottom=C)
         //  X: exams (1~4 場, 由左而右 一模/二模/三模/四模)
-        function _meBuildLevelChartSvg(examsAsc, subj) {
-            var total = _mePaperData.totals[subj] || { correct: 0, score: 0 };
-            var levels = _mePaperData.levels;
-            var W = 360, H = 240;
-            var padL = 28, padR = 10, padT = 8, padB = 24;
-            var plotW = W - padL - padR, plotH = H - padT - padB;
-            var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" preserveAspectRatio="xMidYMid meet" style="display:block;background:#fff;border-radius:6px;" xmlns="http://www.w3.org/2000/svg">';
 
-            // 計算每科 X 軸標籤 (一模/二模/三模/四模/...)
-            var n = examsAsc.length;
-            var xLabels = [];
-            for (var i = 0; i < Math.max(n, 1); i++) {
-                xLabels.push(i === 0 ? '一模' : (i === 1 ? '二模' : (i === 2 ? '三模' : (i === 3 ? '四模' : (i+1) + '模'))));
-            }
-            // X 欄位數 = max(n, 4)
-            var colCount = Math.max(n, 4);
-
-            // 繪製 7 等級橫線 + Y 軸標籤
-            for (var li = 0; li < 7; li++) {
-                var y = padT + plotH * (li / 6);  // 0=A++(top), 6=C(bottom)
-                svg += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (padL + plotW) + '" y2="' + y.toFixed(1) + '" stroke="#cfb78a" stroke-width="0.8"/>';
-                svg += '<text x="' + (padL - 4) + '" y="' + (y + 3).toFixed(1) + '" font-size="11" font-weight="bold" text-anchor="end" fill="#6B3410">' + levels[li] + '</text>';
-            }
-            // X 軸直線分隔
-            for (var ci = 0; ci <= colCount; ci++) {
-                var xv = padL + plotW * (ci / colCount);
-                svg += '<line x1="' + xv.toFixed(1) + '" y1="' + padT + '" x2="' + xv.toFixed(1) + '" y2="' + (padT + plotH) + '" stroke="#e8d8b8" stroke-width="0.6"/>';
-            }
-            // X 軸標籤 (一模/二模/...)
-            for (var ci2 = 0; ci2 < colCount; ci2++) {
-                var xv2 = padL + plotW * ((ci2 + 0.5) / colCount);
-                var lbl = ci2 < xLabels.length ? xLabels[ci2] : ((ci2+1) + '模');
-                svg += '<text x="' + xv2.toFixed(1) + '" y="' + (padT + plotH + 14) + '" font-size="10" text-anchor="middle" fill="#6B3410">' + lbl + '</text>';
-            }
-
-            // 計算每個 exam 的 level idx
-            var pts = [];
-            for (var ei = 0; ei < n; ei++) {
-                var ex = examsAsc[ei];
-                var s = ex.subjects && ex.subjects[subj];
-                var li2 = _meRateToLevelIdx(s || {}, subj);
-                // X 位置 = 第 ei 欄中央
-                var xx = padL + plotW * ((ei + 0.5) / colCount);
-                var yy = li2 !== null ? padT + plotH * (li2 / 6) : null;
-                pts.push({x: xx, y: yy, idx: ei, levelIdx: li2, exam: ex});
-            }
-
-            // 折線 (連有效點)
-            var path = '';
-            pts.forEach(function(p) {
-                if (p.y !== null) {
-                    if (path === '') path = 'M ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
-                    else path += ' L ' + p.x.toFixed(1) + ' ' + p.y.toFixed(1);
-                }
-            });
-            if (path) {
-                svg += '<path d="' + path + '" fill="none" stroke="#FF6B35" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>';
-                // 填充 (level 區域上方) - 漸層感
-                var firstP = pts.find(function(p) { return p.y !== null; });
-                var lastP = pts.slice().reverse().find(function(p) { return p.y !== null; });
-                if (firstP && lastP && firstP !== lastP) {
-                    var areaPath = path + ' L ' + lastP.x.toFixed(1) + ' ' + (padT + plotH).toFixed(1) +
-                                   ' L ' + firstP.x.toFixed(1) + ' ' + (padT + plotH).toFixed(1) + ' Z';
-                    svg += '<path d="' + areaPath + '" fill="#FF9F6B" fill-opacity="0.08"/>';
-                }
-            }
-            // 點 + 等級標註
-            pts.forEach(function(p) {
-                if (p.y === null) return;
-                var isLast = (p.idx === pts.length - 1);
-                var r = isLast ? 6 : 4;
-                // 半透明背景圈 (單場時更明顯)
-                if (n === 1) {
-                    svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="14" fill="#FF6B35" fill-opacity="0.18"/>';
-                }
-                svg += '<circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + r + '" fill="' + (isLast ? '#FF6B35' : '#fff') + '" stroke="#FF6B35" stroke-width="2"/>';
-                if (isLast) {
-                    svg += '<text x="' + p.x.toFixed(1) + '" y="' + (p.y - 10).toFixed(1) + '" font-size="10" font-weight="bold" text-anchor="middle" fill="#6B3410">' + levels[p.levelIdx] + '</text>';
-                }
-            });
-
-            // 框線 (加深)
-            svg += '<rect x="' + padL + '" y="' + padT + '" width="' + plotW + '" height="' + plotH + '" fill="none" stroke="#a08456" stroke-width="1.2"/>';
-            svg += '</svg>';
-            return svg;
-        }
-
-        // v2.3.2.30: 5 科紙本式折線趨勢圖 grid (取代 v2.3.2.26 的 5 科折線圖 grid)
+        // v2.3.2.38: 真實紙本式 4 場模考比較表 (依 Denias 截圖 6 還原)
+        //   5 個子表 (國文/數學/英語/社會/自然), 各 1 個表, 縱軸 7 等級 + 橫軸 4 場 + 下方答對題數 layout
         function _meBuildPaperTrendGrid(examsAsc) {
-            var levels = _mePaperData.levels;
-            // v2.3.2.36: 折線圖科目順序 → 國文, 數學, 英文, 社會, 自然
+            var levels = _mePaperData.levels; // [A++, A+, A, B++, B+, B, C]
             var subjList = ['國文', '數學', '英語', '社會', '自然'];
-            var emojis = {'國文':'📖','數學':'📐','自然':'🔬','英語':'🌐','社會':'🌍'};
+            // 各科「答對/總題」+ 第二行子項顯示設定
+            //  - 國文: 1 行, 答對/42
+            //  - 數學: 2 行, 第一行 答對/25 (選擇), 第二行 答對/6 (非選)
+            //  - 英語: 2 行, 第一行 答對/43 (閱讀), 第二行 答對/21 (聽力)
+            //  - 社會: 1 行, 答對/54
+            //  - 自然: 1 行, 答對/50
+            var subLayouts = {
+                '國文': [{label: '答對題數', total: 42}],
+                '數學': [{label: '選擇', total: 25}, {label: '非選', total: 6}],
+                '英語': [{label: '閱讀', total: 43}, {label: '聽力', total: 21}],
+                '社會': [{label: '答對題數', total: 54}],
+                '自然': [{label: '答對題數', total: 50}]
+            };
+            // 每科每場的 level idx
+            function getLevelAt(subj, exIdx) {
+                var ex = examsAsc[exIdx];
+                if (!ex || !ex.subjects || !ex.subjects[subj]) return null;
+                return _meRateToLevelIdx(ex.subjects[subj], subj);
+            }
+            // 每科每場的 答對/總題 (用 actual data; 沒輸入的場次顯示空白斜線)
+            function getCtAt(subj, rowIdx, exIdx) {
+                var ex = examsAsc[exIdx];
+                if (!ex || !ex.subjects || !ex.subjects[subj]) return null;
+                var s = ex.subjects[subj];
+                var layout = subLayouts[subj][rowIdx];
+                if (rowIdx === 0) {
+                    // 第一行
+                    if (subj === '數學') {
+                        // 數學第一行: 選擇 (subItems.選擇.correct)
+                        var si = s.subItems && s.subItems['選擇'];
+                        return si && si.correct != null ? si.correct : null;
+                    } else if (subj === '英語') {
+                        // 英語第一行: 閱讀
+                        var si2 = s.subItems && s.subItems['閱讀'];
+                        return si2 && si2.correct != null ? si2.correct : null;
+                    } else {
+                        return s.correct != null ? s.correct : null;
+                    }
+                } else {
+                    // 第二行
+                    if (subj === '數學') {
+                        var si3 = s.subItems && s.subItems['非選'];
+                        return si3 && si3.correct != null ? si3.correct : null;
+                    } else if (subj === '英語') {
+                        var si4 = s.subItems && s.subItems['聽力'];
+                        return si4 && si4.correct != null ? si4.correct : null;
+                    }
+                }
+                return null;
+            }
 
             var html = '<div class="me-overview-line" style="background:#fffbe9;border:2px solid #d4b478;border-radius:10px;padding:14px 16px;margin-bottom:14px;">';
-            html += '<h3 style="margin:0 0 4px;">📈 折線趨勢圖 (四次模考比較表)</h3>';
-            html += '<div style="font-size:0.85em;color:#856404;margin-bottom:8px;">✨ 像實體紙本一樣的等級折線圖，每場會自動連線</div>';
+            html += '<h3 style="margin:0 0 12px;color:#6B3410;font-size:1.25em;">📈 折線趨勢圖 (四次模考比較表)</h3>';
 
-            // ===== 5 科網格 (上方) =====
-            html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">';
+            // ===== 5 科紙本式表 (每科一張表) =====
             subjList.forEach(function(subj) {
-                var slogan = _mePaperData.slogans[subj];
-                var total = _mePaperData.totals[subj] || { correct: 0, score: 0 };
-
-                html += '<div style="background:#fff;border:1.5px solid #d4b478;border-radius:8px;padding:6px;">';
-                // header: emoji + 科名 + 勵志語錄
-                html += '<div style="display:flex;align-items:baseline;gap:6px;border-bottom:1px solid #e8d8b8;padding-bottom:4px;margin-bottom:4px;">';
-                html += '<b style="font-size:0.95em;color:#6B3410;">' + emojis[subj] + ' ' + subj + '</b>';
-                html += '<span style="font-size:0.7em;color:#999;font-style:italic;flex:1;">' + slogan + '</span>';
+                var layout = subLayouts[subj];
+                html += '<div style="background:#fff;border:2px solid #6B3410;border-radius:6px;padding:0;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">';
+                // 科名 header bar
+                html += '<div style="background:#fffbe9;border-bottom:2px solid #6B3410;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;">';
+                html += '<b style="font-size:1.4em;font-weight:900;color:#1e3a8a;letter-spacing:3px;">' + subj + '</b>';
+                html += '<span style="font-size:0.78em;color:#856404;">四次模考比較</span>';
                 html += '</div>';
-
-                // SVG
-                html += _meBuildLevelChartSvg(examsAsc, subj);
-
-                // 底部 答對/總題 + 積分
-                html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:0.82em;margin-top:6px;padding-top:4px;border-top:1px solid #e8d8b8;">';
-                html += '<div><span style="color:#856404;">答對/總題</span> <b>' + total.correct + '</b></div>';
-                if (total.score > 0) {
-                    html += '<div><span style="color:#856404;">積分</span> <b>/' + total.score + '</b></div>';
-                } else {
-                    html += '<div></div>';
+                // 主表: 7 rows × (1 等級 + 4 場次)
+                html += '<table style="width:100%;border-collapse:collapse;font-family:Calibri,微軟正黑體,sans-serif;">';
+                // 表頭: | 空白 | 一模 | 二模 | 三模 | 四模 |
+                html += '<thead><tr style="background:#fffbe9;">';
+                html += '<th style="border:1px solid #6B3410;width:60px;padding:4px 0;color:#6B3410;font-size:0.95em;">　</th>';
+                for (var ci = 0; ci < 4; ci++) {
+                    html += '<th style="border:1px solid #6B3410;padding:6px 0;color:#6B3410;font-size:1.05em;font-weight:bold;">' + (['一模','二模','三模','四模'][ci]) + '</th>';
                 }
-                html += '</div>';
+                html += '</tr></thead><tbody>';
+                // 7 個等級 rows
+                for (var li = 0; li < 7; li++) {
+                    html += '<tr>';
+                    html += '<td style="border:1px solid #6B3410;text-align:center;font-weight:bold;color:#1e3a8a;font-size:1.1em;background:#fffbe9;width:60px;">' + levels[li] + '</td>';
+                    for (var ci2 = 0; ci2 < 4; ci2++) {
+                        var levelAt = getLevelAt(subj, ci2);
+                        var isHere = (levelAt === li);
+                        // 該格若有圓點 (level 命中), 加 highlight
+                        var cellBg = isHere ? 'background:radial-gradient(circle, #FF6B35 30%, #fff8e8 60%);' : '';
+                        html += '<td style="border:1px solid #6B3410;height:34px;text-align:center;vertical-align:middle;' + cellBg + '">';
+                        if (isHere) {
+                            html += '<span style="display:inline-block;width:18px;height:18px;background:#FF6B35;border-radius:50%;box-shadow:0 0 6px rgba(255,107,53,0.6);"></span>';
+                        }
+                        html += '</td>';
+                    }
+                    html += '</tr>';
+                }
+                // 下方答對/總題 layout rows (依 layout array)
+                layout.forEach(function(row) {
+                    html += '<tr>';
+                    html += '<td style="border:1px solid #6B3410;padding:4px 6px;font-size:0.95em;color:#1e3a8a;font-weight:bold;background:#fffbe9;">' + row.label + '</td>';
+                    for (var ci3 = 0; ci3 < 4; ci3++) {
+                        var actual = getCtAt(subj, layout.indexOf(row), ci3);
+                        var ct = actual != null ? actual : '';
+                        // 預先填好 /總題, 實際答對填左邊
+                        html += '<td style="border:1px solid #6B3410;padding:4px 6px;text-align:center;font-size:1.15em;font-weight:bold;color:#1e3a8a;font-family:Calibri,微軟正黑體,sans-serif;">' +
+                            '<span style="color:#1e3a8a;">' + (ct !== '' ? ct : '　') + '</span>' +
+                            '<span style="color:#6B3410;">/' + row.total + '</span>' +
+                            '</td>';
+                    }
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
                 html += '</div>';
             });
-            html += '</div>';
 
-            // ===== 覆盤欄 (下方) =====
-            html += '<div style="margin-top:14px;background:#fff;border:1.5px solid #d4b478;border-radius:8px;padding:8px 10px;">';
+            // ===== 覆盤欄 (下方) — 保留 =====
+            html += '<div style="margin-top:8px;background:#fff;border:1.5px solid #d4b478;border-radius:8px;padding:8px 10px;">';
             html += '<div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px;">';
             html += '<b style="font-size:0.95em;color:#6B3410;">📝 覆盤再前行</b>';
             html += '<span style="font-size:0.7em;color:#666;">覆盤方向: 想對自己說的一句加油打氣的話, 我要維持的強科及方法, 我要補強的弱科及方法, 下次模考自己設立的小目標</span>';
