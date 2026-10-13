@@ -9813,7 +9813,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         var ct = (correct !== null && total !== null) ? (correct + '/' + total) : '—';
                         html += '<td style="text-align:right;padding-right:12px;' + mono + navy + 'font-weight:bold;font-size:1.2em;">' + ct + '</td>';
                         // 答對率 — 等寬 + center 對齊 (跟表頭 center 對齊)
-                        html += '<td style="text-align:center;' + mono + 'font-weight:bold;font-size:1.2em;">' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
+                        html += '<td style="text-align:right;padding-right:12px;' + mono + 'font-weight:bold;font-size:1.2em;">' + (rate !== null && rate !== undefined ? rate.toFixed(2) : '—') + '</td>';
                         // 加權分數 (整科) — 只第 1 行
                         if (si === 0) {
                             var wNon = (s && s.subItems && s.subItems.非選) ? s.subItems.非選.weighted : null;
@@ -9823,7 +9823,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             // 能力等級 (整科)
                             html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.2em;">' + (s.ability ? s.ability : '—') + '</td>';
                             // 積分 (整科)
-                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#F2D680;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#FFF3B0;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
                         }
                         html += '</tr>';
                     });
@@ -9841,13 +9841,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         // 答對/總題 — 海軍藍 + 等寬 + 右對齊
                         '<td style="text-align:right;padding-right:12px;' + mono + navy + 'font-weight:bold;font-size:1.2em;">' + ctSingle + '</td>' +
                         // 答對率 (第 1 行: 空白, rowspan 移到加權分數 之前)
-                        '<td rowspan="2" style="text-align:center;vertical-align:middle;' + mono + 'font-weight:bold;font-size:1.2em;">' + rateSingle + '</td>' +
+                        '<td rowspan="2" style="text-align:right;padding-right:12px;vertical-align:middle;' + mono + 'font-weight:bold;font-size:1.2em;">' + rateSingle + '</td>' +
                         // 加權分數 (整科)
                         '<td rowspan="2" style="text-align:center;' + mono + 'font-weight:bold;font-size:1.2em;">—</td>' +
                         // 能力等級
                         '<td rowspan="2" style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.2em;">' + (s && s.ability ? s.ability : '—') + '</td>' +
                         // 積分
-                        '<td rowspan="2" style="text-align:center;background:#F2D680;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
+                        '<td rowspan="2" style="text-align:center;background:#FFF3B0;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
                         '</tr>';
                     // 第 2 行: 空白
                     html += '<tr></tr>';
@@ -10843,7 +10843,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // row 3: 答對率
                     html += '<tr>' +
                         '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
-                        '<td style="padding:3px 6px;text-align:center;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
+                        '<td style="padding:3px 6px;text-align:right;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
                         '</tr>';
                     html += '</table>';
                     // 最高/最低/平均/最新
@@ -15892,14 +15892,17 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 var doneCount = 0, totalCount = 0;
                 var isUnitBasedTree = false;  // v1.5.146: subject 為 unit-based
 
-                // 先算總數 (v1.6.33: 移除 allowedUnitIds 過濾, 讓 tree view 和 dashboard 算出一樣的數字)
+                // v2.3.2.60: 修正 — 複習講義 (非 unit-based) 也按 1 unit 算 total, 跟 calcProgressForType 一致
                 function countUnits(arr) {
                     arr.forEach(u => {
                         var ctx = findUnitContext(u.id);
                         var typeObj = ctx ? ctx.typeObj : null;
-                        var total = getUnitTotalCount(u, typeObj);
+                        // total 永遠 1 per unit (跟 calcProgressForType 一致)
+                        var total = 1;
                         var done = getUnitDoneCount(u, typeObj, null, null);
                         totalCount += total;
+                        // done 也要 clip 到 1 (避免 page-based 算多頁)
+                        if (!isUnitBasedType(typeObj) && done > 1) done = 1;
                         doneCount += done;
                         if (typeObj && isUnitBasedType(typeObj)) isUnitBasedTree = true;
                     });
