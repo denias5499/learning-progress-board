@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.55]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.56]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10801,41 +10801,42 @@ function renderWizardUnitRowHtml(ws, i, u) {
 //   row 2: 答對率    [rate]
 //   row 3: (空)       [子項 2 4/6]     ← 子項 2 標籤+數字 橫寫
 //   國文/社會/自然 row 3 = 空, 因沒有子項 2
+// v2.3.2.56: 5 科卡 — 3 row (依用戶截圖1 + 文字描述), 子項 1 row 1, 子項 2 row 2, 答對率 row 3
+                    //   row 1: 答對/總題  [子項 1 24/25]   (淺藍底, 標籤 選擇 + 數字 24/25)
+                    //   row 2: (空)        [子項 2 4/6]     (標籤 非選 + 數字 4/6, 對齊 24/25)
+                    //   row 3: 答對率    [rate]
+                    //   國文 row 2 = 空, 對齊 數學 非選 4/6
+                    // 標籤 0.8em (小, 確保 標籤+數字 同 row 漂亮)
                     html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;margin-bottom:6px;">';
-                    // row 1: 答對/總題 + 子項 1 (橫寫, 淺藍底)
+                    // row 1: 答對/總題 + 子項 1 (淺藍底, 標籤小)
                     html += '<tr>' +
                         '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;width:30%;white-space:nowrap;">答對/總題</td>' +
                         '<td style="padding:3px 6px;text-align:right;background:#c4e0f9;font-size:1.15em;font-weight:bold;color:#1e3a8a;border-radius:4px;">';
                     if (subRows.length > 0) {
-                        // 數學/英語: 子項 1 標籤 + 數字 (同一個淺藍底, 橫寫)
-                        html += '<span style="color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;font-size:0.9em;margin-right:6px;white-space:nowrap;">' + subRows[0].label + '</span>' +
-                            '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;font-size:1.15em;white-space:nowrap;">' + subRows[0].ct + '</span>';
+                        html += '<span style="color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;font-size:0.8em;margin-right:5px;white-space:nowrap;vertical-align:middle;">' + subRows[0].label + '</span>' +
+                            '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;font-size:1.15em;white-space:nowrap;vertical-align:middle;">' + subRows[0].ct + '</span>';
                     } else {
-                        // 國文/社會/自然: 答對/總題 直接
                         html += '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;">' + ctText + '</span>';
                     }
                     html += '</td></tr>';
-                    // row 2: 答對率 (緊跟)
+                    // row 2: 子項 2 (數學/英語) 或 空 (國文/社會/自然)
+                    html += '<tr>' +
+                        '<td style="padding:3px 0;color:transparent;">　</td>' +
+                        '<td style="padding:3px 6px;text-align:right;color:#1e3a8a;font-size:1.15em;font-weight:bold;">';
+                    if (subRows.length > 1) {
+                        // 數字對齊 row 1 的 24/25, 所以不用 background
+                        html += '<span style="color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;font-size:0.8em;margin-right:5px;white-space:nowrap;vertical-align:middle;">' + subRows[1].label + '</span>' +
+                            '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;font-size:1.15em;white-space:nowrap;vertical-align:middle;">' + subRows[1].ct + '</span>';
+                    } else {
+                        // 國文/社會/自然: 空 cell (對齊 子項 2 位置)
+                        html += '　';
+                    }
+                    html += '</td></tr>';
+                    // row 3: 答對率
                     html += '<tr>' +
                         '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
                         '<td style="padding:3px 6px;text-align:center;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
                         '</tr>';
-                    // row 3: 子項 2 (數學/英語) 或 空 (國文/社會/自然)
-                    if (subRows.length > 1) {
-                        html += '<tr>' +
-                            '<td style="padding:3px 0;color:transparent;">　</td>' +
-                            '<td style="padding:3px 6px;text-align:right;color:#1e3a8a;font-size:1.15em;font-weight:bold;">' +
-                            '<span style="color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;font-size:0.9em;margin-right:6px;white-space:nowrap;">' + subRows[1].label + '</span>' +
-                            '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;">' + subRows[1].ct + '</span>' +
-                            '</td>' +
-                            '</tr>';
-                    } else {
-                        // 國文/社會/自然: 加空 row 對齊 子項 2 行
-                        html += '<tr>' +
-                            '<td style="padding:3px 0;color:transparent;">　</td>' +
-                            '<td style="padding:3px 6px;">　</td>' +
-                            '</tr>';
-                    }
                     html += '</table>';
                     // 最高/最低/平均/最新
                     html += '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最高</span><span class="stat-val" style="font-family:Consolas,Courier New,monospace;">' + stats.max + '%</span></div>' +
