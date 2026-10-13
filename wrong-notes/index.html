@@ -107,8 +107,9 @@
         .page.active { display: flex; }
 
         /* --- 錯題匯入頁面 --- */
+        /* v2.3.2.66: Step 1 底色 改 Pantone 13-6006 Almost Aqua #C7E0D3 */
         .step-container {
-            background: #f5e8f5; padding: 20px 0; border-radius: 0; margin-bottom: 0; box-shadow: none; border-bottom: 1px solid #eee;
+            background: #C7E0D3; padding: 20px 0; border-radius: 0; margin-bottom: 0; box-shadow: none; border-bottom: 1px solid #eee;
         }
         .step-title { font-weight: bold; font-size: 18px; margin-bottom: 15px; color: var(--theme-blue); }
         
@@ -875,6 +876,8 @@
 
             const slider = document.getElementById('cards-slider');
             document.getElementById('settings-container').style.display = 'block';
+            // v2.3.2.66: 自動滾動到 settings-container, 隱藏 Step 1 board (讓畫面乾淨)
+            document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
             
             const newCard = createSettingCard(dataUrl, cardIndex, batchId, cropId);
             slider.appendChild(newCard);
@@ -926,15 +929,9 @@
             <img src="${imgUrl}">
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
             <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
-            
-            
-            <select class="type-sel" onchange="handleCardTypeChange(this, true)" disabled><option value="">請先選擇科目</option></select>
-            
-            
-            <select class="inst-sel" onchange="handleCardInstChange(this, true)" disabled><option value="">請先選擇教材類型</option></select>
-            
+
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：單元</div>
-            <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇教材名稱</option></select>
+            <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇科目</option></select>
 
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯誤原因 (可複選 + 其他自填)</div>
             <div class="checkbox-group reasons-group">
