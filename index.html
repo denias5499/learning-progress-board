@@ -9823,7 +9823,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             // 能力等級 (整科)
                             html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.2em;">' + (s.ability ? s.ability : '—') + '</td>';
                             // 積分 (整科)
-                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#2ecc71;color:#fff;font-weight:900;font-size:1.2em;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#F2D680;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
                         }
                         html += '</tr>';
                     });
@@ -9847,7 +9847,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         // 能力等級
                         '<td rowspan="2" style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.2em;">' + (s && s.ability ? s.ability : '—') + '</td>' +
                         // 積分
-                        '<td rowspan="2" style="text-align:center;background:#2ecc71;color:#fff;font-weight:900;font-size:1.2em;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
+                        '<td rowspan="2" style="text-align:center;background:#F2D680;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>' +
                         '</tr>';
                     // 第 2 行: 空白
                     html += '<tr></tr>';
@@ -9867,7 +9867,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<td class="me-td-norm" style="text-align:center;vertical-align:middle;">' +
                 '<div class="me-subj-pill" style="font-size:1.5em;font-weight:900;color:#1e40af;letter-spacing:2px;">作文</div></td>' +
                 '<td style="text-align:center;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:bold;font-size:1.3em;">' + (e && e.level ? e.level.got + '/' + e.level.max : '—') + '</td>' +
-                '<td style="text-align:center;background:#2ecc71;color:#fff;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:900;font-size:1.3em;">' + (e && e.score ? e.score.got + '/' + e.score.max : '—') + '</td>' +
+                '<td style="text-align:center;background:#F2D680;color:#1e3a8a;font-family:&quot;Calibri&quot;,&quot;微軟正黑體&quot;,sans-serif;font-weight:900;font-size:1.3em;">' + (e && e.score ? e.score.got + '/' + e.score.max : '—') + '</td>' +
                 '</tr>';
             html += '</tbody></table>';
             html += '</div>';
