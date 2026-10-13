@@ -968,26 +968,42 @@
         }
     }
 
+    // v2.3.2.65: 改寫 — 跳過 教材類型 + 教材名稱, 直接 從 subj.materials.複習講義 抓所有 units
     function handleCardSubjectChange(selectEl, isSync = false) {
         const card = selectEl.closest('.file-card');
         const subject = selectEl.value;
-        const typeSelect = card.querySelector('.type-sel');
-        const instSelect = card.querySelector('.inst-sel');
         const unitSelect = card.querySelector('.unit-sel');
         const data = getSyllabusDB()[subject];
 
-        typeSelect.innerHTML = '<option value="">請選擇教材類型</option>';
-        instSelect.innerHTML = '<option value="">請先選擇教材類型</option>';
-        unitSelect.innerHTML = '<option value="">請先選擇教材名稱</option>';
-        typeSelect.disabled = !data;
-        instSelect.disabled = true;
-        unitSelect.disabled = true;
+        unitSelect.innerHTML = '<option value="">請先選擇科目</option>';
+        unitSelect.disabled = !data;
 
-        if (data) {
-            Object.keys(data).forEach(typeName => {
-                typeSelect.add(new Option(typeName, typeName));
+        if (data && data.materials && data.materials['複習講義']) {
+            const typeObj = data.materials['複習講義'];
+            // 收集所有 instance 的所有 units
+            const allUnits = new Set();
+            if (typeObj.instances) {
+                typeObj.instances.forEach(function(inst) {
+                    if (inst.vols) {
+                        Object.keys(inst.vols).forEach(function(v) {
+                            (inst.vols[v] || []).forEach(function(u) {
+                                const name = u.name || u.id;
+                                if (name) allUnits.add(name);
+                            });
+                        });
+                    }
+                    if (Array.isArray(inst.units)) {
+                        inst.units.forEach(function(u) {
+                            const name = u.name || u.id;
+                            if (name) allUnits.add(name);
+                        });
+                    }
+                });
+            }
+            Array.from(allUnits).sort().forEach(function(name) {
+                unitSelect.add(new Option(name, name));
             });
-            typeSelect.disabled = false;
+            unitSelect.disabled = false;
         }
 
         if (isSync) {
@@ -997,69 +1013,6 @@
                     const otherSubjSel = otherCard.querySelector('.subj-sel');
                     otherSubjSel.value = subject;
                     handleCardSubjectChange(otherSubjSel, false);
-                }
-            });
-        }
-    }
-
-    function handleCardTypeChange(typeSelect, isSync = false) {
-        const card = typeSelect.closest('.file-card');
-        const subject = card.querySelector('.subj-sel').value;
-        const typeName = typeSelect.value;
-        const instSelect = card.querySelector('.inst-sel');
-        const unitSelect = card.querySelector('.unit-sel');
-        const data = getSyllabusDB()[subject];
-
-        instSelect.innerHTML = '<option value="">請選擇教材名稱</option>';
-        unitSelect.innerHTML = '<option value="">請先選擇教材名稱</option>';
-        instSelect.disabled = !data || !typeName;
-        unitSelect.disabled = true;
-
-        if (data && data[typeName]) {
-            Object.keys(data[typeName]).forEach(instName => {
-                instSelect.add(new Option(instName, instName));
-            });
-        }
-
-        if (isSync) {
-            const batchId = card.dataset.batchId;
-            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
-                if (otherCard !== card) {
-                    const otherTypeSel = otherCard.querySelector('.type-sel');
-                    otherTypeSel.value = typeName;
-                    handleCardTypeChange(otherTypeSel, false);
-                }
-            });
-        }
-    }
-
-    function handleCardInstChange(instSelect, isSync = false) {
-        const card = instSelect.closest('.file-card');
-        const subject = card.querySelector('.subj-sel').value;
-        const typeName = card.querySelector('.type-sel').value;
-        const instName = instSelect.value;
-        const unitSelect = card.querySelector('.unit-sel');
-        const data = getSyllabusDB()[subject];
-
-        unitSelect.innerHTML = '<option value="">請選擇單元</option>';
-        unitSelect.disabled = true;
-
-        if (data && data[typeName] && data[typeName][instName]) {
-            const units = data[typeName][instName];
-            units.forEach(u => {
-                const label = typeof u === 'string' ? u : (u.name || u.id);
-                unitSelect.add(new Option(label, label));
-            });
-            unitSelect.disabled = false;
-        }
-
-        if (isSync) {
-            const batchId = card.dataset.batchId;
-            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
-                if (otherCard !== card) {
-                    const otherInstSel = otherCard.querySelector('.inst-sel');
-                    otherInstSel.value = instName;
-                    handleCardInstChange(otherInstSel, false);
                 }
             });
         }
@@ -1095,9 +1048,8 @@
 
         cards.forEach(card => {
             const imgUrl = card.querySelector('img').src;
+            // v2.3.2.65: 跳過 教材類型 + 教材名稱
             const subj = card.querySelector('.subj-sel').value || '未分類';
-            const typeName = card.querySelector('.type-sel').value || '';
-            const instName = card.querySelector('.inst-sel').value || '';
             const unit = card.querySelector('.unit-sel').value || '';
             
             const checkboxes = card.querySelectorAll('.reasons-group input:checked');
