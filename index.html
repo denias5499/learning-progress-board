@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.52]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.53]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10790,34 +10790,32 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     //   row 1: 答對/總題  [子項 1 + 數字]
                     //   row 2: 答對率    [rate]                       ← 緊跟 第 1 子項
                     //   row 3: (空)       [子項 2 + 數字]              ← 國文 row 3 = 空, 對齊 數學 非選 4/6
+// v2.3.2.53: 5 科卡 — 2 row layout (依用戶截圖, 子項 1 + 子項 2 **橫寫** 並排在 答對/總題 同一 row)
+                    //   row 1: 答對/總題 [子項 1] [子項 2]    (橫寫: 選擇 24/25 非選 4/6)
+                    //   row 2: 答對率 [rate]
                     html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;margin-bottom:6px;">';
-                    // row 1: 答對/總題 + 子項 1
+                    // row 1: 答對/總題 + 子項 (橫寫)
                     html += '<tr>' +
-                        '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;width:50%;">答對/總題</td>' +
+                        '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;width:30%;white-space:nowrap;">答對/總題</td>' +
                         '<td style="padding:3px 6px;text-align:right;background:#c4e0f9;font-size:1.15em;font-weight:bold;color:#1e3a8a;border-radius:4px;">';
-                    if (subRows.length > 0) {
-                        html += '<span style="display:inline-block;width:32px;color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;">' + subRows[0].label + '</span>' +
-                            '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;">' + subRows[0].ct + '</span>';
-                    } else {
+                    if (subRows.length === 0) {
+                        // 國文/社會/自然 — 單 答對/總題
                         html += '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;">' + ctText + '</span>';
+                    } else {
+                        // 數學/英語 — 子項 1 + 子項 2 橫寫並排
+                        html += '<span style="display:inline-block;color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;margin-right:6px;">' + subRows[0].label + '</span>' +
+                            '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;margin-right:14px;">' + subRows[0].ct + '</span>';
+                        if (subRows.length > 1) {
+                            html += '<span style="display:inline-block;color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;margin-right:6px;">' + subRows[1].label + '</span>' +
+                                '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;">' + subRows[1].ct + '</span>';
+                        }
                     }
                     html += '</td></tr>';
-                    // row 2: 答對率 (緊跟 子項 1)
+                    // row 2: 答對率 (緊跟)
                     html += '<tr>' +
                         '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
                         '<td style="padding:3px 6px;text-align:center;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
                         '</tr>';
-                    // row 3: 國文/社會/自然 空, 數學/英語 子項 2
-                    html += '<tr>' +
-                        '<td style="padding:3px 0;color:transparent;">　</td>' +
-                        '<td style="padding:3px 6px;text-align:right;color:#1e3a8a;">';
-                    if (subRows.length > 1) {
-                        html += '<span style="display:inline-block;width:32px;color:#6B3410;font-family:Calibri,微軟正黑體,sans-serif;">' + subRows[1].label + '</span>' +
-                            '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;font-weight:bold;font-size:1.15em;">' + subRows[1].ct + '</span>';
-                    } else {
-                        html += '　';
-                    }
-                    html += '</td></tr>';
                     html += '</table>';
                     // 最高/最低/平均/最新
                     html += '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最高</span><span class="stat-val" style="font-family:Consolas,Courier New,monospace;">' + stats.max + '%</span></div>' +
