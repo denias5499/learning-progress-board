@@ -965,42 +965,41 @@
         }
     }
 
-    // v2.3.2.65: 改寫 — 跳過 教材類型 + 教材名稱, 直接 從 subj.materials.複習講義 抓所有 units
+    // v2.3.2.67: 修 syllabus 結構 — getSyllabusDB() return {subj: {typeName: {instName: [units]}}}
+    //   直接從 data['複習講義'] 抓所有 instance 的所有 units
     function handleCardSubjectChange(selectEl, isSync = false) {
         const card = selectEl.closest('.file-card');
         const subject = selectEl.value;
         const unitSelect = card.querySelector('.unit-sel');
         const data = getSyllabusDB()[subject];
 
-        unitSelect.innerHTML = '<option value="">請先選擇科目</option>';
-        unitSelect.disabled = !data;
+        unitSelect.innerHTML = '<option value="">請選擇單元</option>';
+        unitSelect.disabled = true;
 
-        if (data && data.materials && data.materials['複習講義']) {
-            const typeObj = data.materials['複習講義'];
-            // 收集所有 instance 的所有 units
+        if (data) {
+            // 收集 '複習講義' 下所有 instName 的所有 units
             const allUnits = new Set();
-            if (typeObj.instances) {
-                typeObj.instances.forEach(function(inst) {
-                    if (inst.vols) {
-                        Object.keys(inst.vols).forEach(function(v) {
-                            (inst.vols[v] || []).forEach(function(u) {
-                                const name = u.name || u.id;
-                                if (name) allUnits.add(name);
-                            });
-                        });
-                    }
-                    if (Array.isArray(inst.units)) {
-                        inst.units.forEach(function(u) {
-                            const name = u.name || u.id;
-                            if (name) allUnits.add(name);
-                        });
+            Object.keys(data).forEach(function(typeName) {
+                if (typeName !== '複習講義') return;
+                const typeObj = data[typeName];
+                if (typeof typeObj !== 'object') return;
+                Object.keys(typeObj).forEach(function(instName) {
+                    const units = typeObj[instName];
+                    if (Array.isArray(units)) {
+                        units.forEach(function(u) { if (u) allUnits.add(u); });
                     }
                 });
-            }
-            Array.from(allUnits).sort().forEach(function(name) {
-                unitSelect.add(new Option(name, name));
             });
-            unitSelect.disabled = false;
+            if (allUnits.size > 0) {
+                Array.from(allUnits).sort().forEach(function(name) {
+                    unitSelect.add(new Option(name, name));
+                });
+                unitSelect.disabled = false;
+            } else {
+                unitSelect.innerHTML = '<option value="">此科目無複習講義單元</option>';
+            }
+        } else {
+            unitSelect.innerHTML = '<option value="">請先選擇科目</option>';
         }
 
         if (isSync) {
