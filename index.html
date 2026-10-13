@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.57]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.58]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9663,7 +9663,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             html += '</div>';
             // ===== 5 科表 =====
             html += '<div class="me-overview-table">' +
-                '<h3>📋 五科成績總覽</h3>';
+                '';
             if (examsAsc.length === 0) {
                 html += '<div class="me-empty">尚無成績資料</div>';
             } else {
@@ -9776,7 +9776,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v2.3.2.41: 標題比表格大, 視覺舒服
             // v2.3.2.45: 「答對題數」「答對率（％）」標題 改右對齊, 跟下面數字 right-aligned 對齊
             var html = '<h3 style="margin:14px 0 10px;color:#1e40af;font-size:1.6em;font-weight:900;letter-spacing:2px;">📋 五科成績總覽</h3>';
-            html += '<div class="me-table-wrap" style="font-size:1.15em;">' +
+            html += '<div class="me-table-wrap" style="font-size:1.0em;">' +
                 '<table class="me-score-table me-v231-table" style="font-family:Calibri,&quot;微軟正黑體&quot;,sans-serif;">' +
                 '<thead><tr>' +
                 '<th class="me-th-norm" style="text-align:center;vertical-align:middle;font-size:1em;">科目</th>' +
@@ -10938,7 +10938,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '自然': { row1: '答對題數', row2: null, row1Key: 'normal', row2Key: null, row1Total: 50, row2Total: null }
             };
             // 5 科顏色
-            var subjColor = { '國文': '#6366f1', '數學': '#6366f1', '英語': '#6366f1', '社會': '#6366f1', '自然': '#6366f1' }; // v2.3.2.47: 統一藍紫
+            var subjColor = { '國文': '#2563eb', '數學': '#2563eb', '英語': '#2563eb', '社會': '#2563eb', '自然': '#2563eb' }; // v2.3.2.58: 統一藍色
             function getCell(subj, row, exIdx) {
                 var ex = examsAsc[exIdx];
                 var layout = subLayouts[subj];
