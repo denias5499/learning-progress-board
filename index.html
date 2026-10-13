@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.61]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.62]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3221,12 +3221,12 @@
                 var instLabel = f.instanceName ? f.instanceName : '全部';
                 var bar2 = (p2.hasType && p2.total > 0) ? buildProgressBarHtml('📘 ' + f.typeName + (f.instanceName ? ' (' + instLabel + ')' : ''), p2.done, p2.total, '#99C9E9', '#2a4a6a') : '';
                 html += '<div class="tree-subject-summary">' +
-                    '<div class="tree-subject-summary-header" onclick="selectTreeSubject(\' + key + \')">' +
+                    '<div class="tree-subject-summary-header" onclick="_meExpandTreeSubject(\' + key + \')" style="cursor:pointer;">' +
                     '<span class="tree-subject-summary-name">📘 ' + escapeHtml(info.name) + '</span>' +
                     // v2.3.2.12: 移除「X類別 X冊 X單元」stats 文字 (沒意義, 改用 progress bar 顯示) 
                     '' +
-                    // v2.3.2.12: 展開鍵加 cursor pointer, 改為 button style 視覺
-                    '<span style="color: var(--secondary); cursor:pointer; font-weight:bold;" onclick="event.stopPropagation(); selectTreeSubject(\' + key + \')">▶ 展開</span>' +
+                    // v2.3.2.62: 展開按鈕 — 點擊切到該科目 tree view (透過 stats 頁)
+                    '<span style="color: var(--secondary); cursor:pointer; font-weight:bold;background:#f0f4f8;padding:2px 8px;border-radius:4px;" onclick="event.stopPropagation(); _meExpandTreeSubject(\' + key + \')">▶ 展開</span>' +
                     '</div>' +
                     (bar1 || bar2 ? '<div class="tree-subject-summary-bars">' + bar1 + bar2 + '</div>' : '') +
                     '</div>';
@@ -3242,6 +3242,27 @@
                 sel.value = key;
                 renderTreeView();
             }
+        }
+        // v2.3.2.62: 點擊展開 → 切到 stats tab, 設 tree-subject filter, 自動展開該科目
+        function _meExpandTreeSubject(key) {
+            // 切到 stats (tree view) tab
+            var statsTab = document.querySelector('[data-view="stats"]') || document.querySelector('.dash-tab[data-view="stats"]');
+            if (statsTab) {
+                statsTab.click();
+            } else {
+                // fallback: 呼叫 openStats()
+                if (typeof openStats === 'function') openStats();
+            }
+            setTimeout(function() {
+                var sel = el('tree-subject-filter');
+                if (sel) {
+                    sel.value = key;
+                    renderTreeView();
+                    // 滾動到 tree view
+                    var treeRoot = el('tree-root');
+                    if (treeRoot) treeRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
         }
 
         // v1.5.175: 重設所有樹狀圖 filter
@@ -10943,7 +10964,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '自然': { row1: '答對題數', row2: null, row1Key: 'normal', row2Key: null, row1Total: 50, row2Total: null }
             };
             // 5 科顏色
-            var subjColor = { '國文': '#0ABAB5', '數學': '#0ABAB5', '英語': '#0ABAB5', '社會': '#0ABAB5', '自然': '#0ABAB5' }; // v2.3.2.61: 統一 tiffany 藍 (#0ABAB5)
+            var subjColor = { '國文': '#1e3a5f', '數學': '#1e3a5f', '英語': '#1e3a5f', '社會': '#1e3a5f', '自然': '#1e3a5f' }; // v2.3.2.62: 統一海軍藍
             function getCell(subj, row, exIdx) {
                 var ex = examsAsc[exIdx];
                 var layout = subLayouts[subj];
