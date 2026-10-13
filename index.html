@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.60]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.61]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3075,6 +3075,8 @@
             hasType = true;
             var typeObj = subj.materials[typeName];
             var doneSet = _collectDoneUnitIds();
+            // v2.3.2.61: 用 Set 去重 unit id (避免 multi-instance 重複計算, e.g. 英文 51 應為 26)
+            var seenUnitIds = new Set();
             if (typeObj && Array.isArray(typeObj.instances)) {
                 typeObj.instances.forEach(function(inst) {
                     if (instanceName && inst.name !== instanceName) return;
@@ -3082,15 +3084,18 @@
                         Object.keys(inst.vols).forEach(function(volName) {
                             (inst.vols[volName] || []).forEach(function(u) {
                                 if (!u || !u.id) return;
+                                if (seenUnitIds.has(u.id)) return; // 去重
+                                seenUnitIds.add(u.id);
                                 total++;
                                 if (doneSet.has(u.id)) done++;
                             });
                         });
                     }
-                    // v2.3.2.10: 補上 inst.units 分支 (custom-type 結構, e.g. 勝經)
                     if (Array.isArray(inst.units)) {
                         inst.units.forEach(function(u) {
                             if (!u || !u.id) return;
+                            if (seenUnitIds.has(u.id)) return; // 去重
+                            seenUnitIds.add(u.id);
                             total++;
                             if (doneSet.has(u.id)) done++;
                         });
@@ -10938,7 +10943,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '自然': { row1: '答對題數', row2: null, row1Key: 'normal', row2Key: null, row1Total: 50, row2Total: null }
             };
             // 5 科顏色
-            var subjColor = { '國文': '#2563eb', '數學': '#2563eb', '英語': '#2563eb', '社會': '#2563eb', '自然': '#2563eb' }; // v2.3.2.58: 統一藍色
+            var subjColor = { '國文': '#0ABAB5', '數學': '#0ABAB5', '英語': '#0ABAB5', '社會': '#0ABAB5', '自然': '#0ABAB5' }; // v2.3.2.61: 統一 tiffany 藍 (#0ABAB5)
             function getCell(subj, row, exIdx) {
                 var ex = examsAsc[exIdx];
                 var layout = subLayouts[subj];
