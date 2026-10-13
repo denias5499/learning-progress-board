@@ -108,7 +108,7 @@
 
         /* --- 錯題匯入頁面 --- */
         .step-container {
-            background: rgba(255, 255, 255, 0.95); padding: 20px 0; border-radius: 0; margin-bottom: 0; box-shadow: none; border-bottom: 1px solid #eee;
+            background: #f5e8f5; padding: 20px 0; border-radius: 0; margin-bottom: 0; box-shadow: none; border-bottom: 1px solid #eee;
         }
         .step-title { font-weight: bold; font-size: 18px; margin-bottom: 15px; color: var(--theme-blue); }
         
@@ -283,8 +283,9 @@
         .btn-save:active { transform: translateY(5px); box-shadow: 0 0 0 #2c3e50; }
 
         /* --- 查看錯題筆記頁面選單特效 (恢復版本17的精巧按鈕配置) --- */
+        /* v2.3.2.64: 當日筆記 篩選列 滿版 (拉大 padding, 確保碰到邊框) */
         .filter-bar {
-            background: rgba(255,255,255,0.9); padding: 15px 25px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 15px; justify-content: flex-start; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            background: rgba(255,255,255,0.9); padding: 15px 25px; border-radius: 12px; margin: 0 0 20px 0; display: flex; gap: 15px; justify-content: flex-start; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;
         }
         
         .filter-select { 
@@ -410,7 +411,6 @@
         <div class="crop-header">
             <div>已為您辨識題目。可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</div>
             <div style="margin-top: 15px; display: flex; justify-content: center; gap: 15px;">
-                <button class="glass-btn-small" style="background:var(--btn-almost-aqua);" onclick="triggerAutoCrop()">🤖 自動辨識</button>
                 <button class="glass-btn-small" style="background:var(--btn-peach-dust);" onclick="enableManualCrop()">✍️ 手動框選</button>
             </div>
             
@@ -927,16 +927,16 @@
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
             <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
             
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：教材類型</div>
+            
             <select class="type-sel" onchange="handleCardTypeChange(this, true)" disabled><option value="">請先選擇科目</option></select>
             
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：教材名稱</div>
+            
             <select class="inst-sel" onchange="handleCardInstChange(this, true)" disabled><option value="">請先選擇教材類型</option></select>
             
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 5：單元</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：單元</div>
             <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇教材名稱</option></select>
 
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 6：錯誤原因 (可複選 + 其他自填)</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯誤原因 (可複選 + 其他自填)</div>
             <div class="checkbox-group reasons-group">
                 <label><input type="checkbox" value="粗心"> 粗心</label>
                 <label><input type="checkbox" value="觀念不清"> 觀念不清</label>
