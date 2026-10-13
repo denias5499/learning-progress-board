@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.49]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.50]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -10777,6 +10777,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     //   國文 41/42 row 1 ↔ 數學 24/25 row 1
                     //   國文 97.62% row 2 ↔ 數學 90.32% row 2  (緊跟 第 1 子項)
                     //   國文 空 row 3 ↔ 數學 非選 4/6 row 3
+// v2.3.2.50: 5 科卡 — 答對率 在 row 3 (最後), 子項 2 在 row 2 (依用戶截圖2)
+                    //   row 1: 答對/總題 (含子項 1)    row 2: 子項 2 (或空)    row 3: 答對率
+                    //   國文 41/42 row 1 ↔ 數學 24/25 row 1
+                    //   國文 空   row 2 ↔ 數學 非選 4/6 row 2
+                    //   國文 97.62% row 3 ↔ 數學 90.32% row 3
                     html += '<table style="width:100%;border-collapse:collapse;font-size:1.05em;margin-bottom:6px;">';
                     // row 1: 答對/總題
                     html += '<tr>' +
@@ -10789,12 +10794,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             '<span style="font-family:Consolas,Courier New,monospace;letter-spacing:1px;">' + subRows[0].ct + '</span>';
                     }
                     html += '</td></tr>';
-                    // row 2: 答對率 (緊跟 第 1 子項)
-                    html += '<tr>' +
-                        '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
-                        '<td style="padding:3px 6px;text-align:center;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
-                        '</tr>';
-                    // row 3: 國文/社會/自然 空, 數學/英語 子項 2 (非選 4/6)
+                    // row 2: 國文/社會/自然 空, 數學/英語 子項 2
                     html += '<tr>' +
                         '<td style="padding:3px 0;color:transparent;">　</td>' +
                         '<td style="padding:3px 6px;text-align:right;color:#1e3a8a;">';
@@ -10805,6 +10805,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         html += '　';
                     }
                     html += '</td></tr>';
+                    // row 3: 答對率
+                    html += '<tr>' +
+                        '<td style="padding:3px 0;font-weight:bold;color:#1e3a8a;">答對率</td>' +
+                        '<td style="padding:3px 6px;text-align:center;font-family:Consolas,Courier New,monospace;font-weight:bold;color:#1e3a8a;font-size:1.15em;">' + rateText + '</td>' +
+                        '</tr>';
                     html += '</table>';
                     // 最高/最低/平均/最新
                     html += '<div class="stat-row" style="font-size:0.95em;"><span class="stat-label">最高</span><span class="stat-val" style="font-family:Consolas,Courier New,monospace;">' + stats.max + '%</span></div>' +
