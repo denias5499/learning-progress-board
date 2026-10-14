@@ -168,7 +168,7 @@
         /* v2.3.2.71: 框選 modal 背景 改 #DCEBE8 (淡薄荷綠) */
         #crop-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #DCEBE8; z-index: 2000; flex-direction: column; overflow: hidden;
+            background: #DCEBE8; box-shadow: inset 0 0 0 8px #ffffff, 0 0 0 8px #ffffff; border: 8px solid #ffffff; box-sizing: border-box; z-index: 2000; flex-direction: column; overflow: hidden;; z-index: 2000; flex-direction: column; overflow: hidden;
         }
         
         .crop-header-wrapper {
@@ -198,6 +198,9 @@
             position: relative; max-width: 1400px; width: 95%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
             border-radius: 0 0 12px 12px; margin-bottom: 20px; user-select: none;
         }
+        /* v2.3.2.72: 圖片在 page-container 內 100% 寬 (左右延伸到邊框) */
+        .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; }
+
         
         /* 支援拖曳與四角縮放的藍色框 */
         .mock-crop-box {
@@ -361,7 +364,8 @@
     
     <!-- 匯入錯題頁面 -->
     <div id="import-page" class="page active">
-        <div class="step-container">
+        <!-- v2.3.2.72: 加 id='import-step1' 方便選擇檔案後隱藏 -->
+        <div class="step-container" id="import-step1">
             <div class="step-title">Step 1：請選擇錯題來源</div>
             
             <div class="drop-zone" id="zone-photos" onclick="document.getElementById('source-image-photos').click()">
@@ -418,7 +422,10 @@
 <div id="crop-modal">
     <div class="crop-header-wrapper">
         <div class="crop-header">
-            <div>已為您辨識題目。可拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題</div>
+            <!-- v2.3.2.72: 說明內容 改為 步驟A 完整指示 -->
+            <div style="text-align:left;line-height:1.7;padding:0 8px;">
+                <strong>步驟A：</strong>請按下「手動框選」鍵，待新增框線和 Undo 按鈕出現後，請加上說明如下：「請按新增框線按鈕，並在欲擷取題目的左上角按一下，然後拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題截圖」
+            </div>
             <div style="margin-top: 15px; display: flex; justify-content: center; gap: 15px;">
                 <button class="glass-btn-small" style="background:var(--btn-peach-dust);" onclick="enableManualCrop()">✍️ 手動框選</button>
             </div>
@@ -617,6 +624,10 @@
         document.getElementById('manual-edit-pad').style.display = 'none'; 
         batchCounter++;
         manualBoxes = []; 
+        // v2.3.2.72: 隱藏 Step 1 (選擇錯題來源 box), 顯示 settings-container (Step 2-4)
+        const step1 = document.getElementById('import-step1');
+        if (step1) step1.style.display = 'none';
+        document.getElementById('settings-container').style.display = 'block';
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
@@ -644,6 +655,8 @@
             canvas.width = viewport.width;
             canvas.height = viewport.height;
             canvas.style.width = '100%';
+            canvas.style.maxWidth = '100%';
+            canvas.style.height = 'auto';
             canvas.style.display = 'block';
             
             ctx.fillStyle = '#ffffff';
@@ -1086,13 +1099,12 @@
             slot.className = 'note-slot editable-slot';
             slot.dataset.date = dateStr;
             slot.dataset.subject = subj;
-            slot.dataset.typeName = typeName;
-            slot.dataset.instanceName = instName;
+            // v2.3.2.72: 移除 typeName/instName (v2.3.2.65 跳過教材類型+教材名稱後, 這兩變數已不存在 → ReferenceError)
             slot.dataset.unit = unit;
             slot.dataset.reasons = JSON.stringify(reasons);
 
             let reasonHtml = ``;
-            // v2.3.2.71: 動態渲染所有勾選的 reasons
+            // v2.3.2.72: 動態渲染所有勾選的 reasons
             reasons.forEach(r => {
                 reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" checked> ${r}</label>`;
             });
@@ -1100,7 +1112,7 @@
             slot.innerHTML = `
                 <div class="note-slot-header" style="background:var(--header-aqua-sky);">
                     <span>📅 ${dateStr}</span>
-                    <span>📖 ${subj} / ${typeName} / ${instName} / ${unit}</span>
+                    <span>📖 ${subj} / ${unit}</span>
                 </div>
                 <div class="note-slot-body">
                     <div class="note-left">
