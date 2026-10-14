@@ -298,8 +298,10 @@
         .note-grid-area:empty:before { content: attr(placeholder); color: #aaa; }
 
         .save-btn-container { text-align: center; margin-bottom: 30px; margin-top: 20px; }
-        .btn-save { background-color: #34495e; box-shadow: 0 5px 0 #2c3e50; color: #fff; font-size: 20px; padding: 15px 40px; border-radius:25px; border:none; cursor:pointer;}
-        .btn-save:active { transform: translateY(5px); box-shadow: 0 0 0 #2c3e50; }
+        /* v2.3.2.77: 儲存按鈕 #BEEDC7 (淺綠) */
+        .btn-save { background-color: #BEEDC7; box-shadow: 0 5px 0 #8BCBA0; color: #2c3e50; font-size: 20px; padding: 15px 40px; border-radius:25px; border:none; cursor:pointer;}
+        .btn-save:hover { background-color: #a8e3b0; }
+        .btn-save:active { transform: translateY(5px); box-shadow: 0 0 0 #8BCBA0; }
 
         /* --- 查看錯題筆記頁面選單特效 (恢復版本17的精巧按鈕配置) --- */
         /* v2.3.2.64: 當日筆記 篩選列 滿版 (拉大 padding, 確保碰到邊框) */
@@ -436,8 +438,10 @@
             
             <!-- 手動框選編輯 Pad -->
             <div id="manual-edit-pad" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.1);">
-                <button class="glass-btn-small" style="background:#fff;" onclick="startManualBox()">➕ 新增框線</button>
-                <button class="glass-btn-small" style="background:#fff;" onclick="undoManualBox()">↺ Undo</button>
+                <!-- v2.3.2.77: 新增框線 按鈕 #BEE7E9 -->
+                <button class="glass-btn-small" style="background:#BEE7E9;" onclick="startManualBox()">➕ 新增框線</button>
+                <!-- v2.3.2.77: Undo 按鈕 #E6CEAC -->
+                <button class="glass-btn-small" style="background:#E6CEAC;" onclick="undoManualBox()">↺ Undo</button>
                 <span style="font-size:14px; margin-left:10px; color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
             </div>
         </div>
@@ -1202,10 +1206,13 @@
         } catch(e) {
             if (e.name === 'QuotaExceededError' || /quota/i.test(e.message)) {
                 const trimCount = Math.max(1, Math.floor(savedNotes.length / 3));
-                savedNotes = savedNotes.slice(trimCount);
+                // v2.3.2.77: 從後面 (舊) 刪, 不是前面 (新), 確保新加的 slots 至少保留
+                const newNotesCount = slots.length;
+                const keepCount = Math.max(newNotesCount, savedNotes.length - trimCount);
+                savedNotes = savedNotes.slice(0, keepCount);
                 try {
                     localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
-                    alert('⚠️ localStorage 已滿, 已自動刪除 ' + trimCount + ' 筆最舊筆記\n\n如需保留更多, 建議:\n1. 刪除舊筆記\n2. 或將資料匯出備份');
+                    alert('⚠️ localStorage 已滿, 已自動刪除 ' + (savedNotes.length === newNotesCount ? 0 : Math.max(0, keepCount - newNotesCount)) + ' 筆舊筆記 (保留 ' + newNotesCount + ' 筆新加)\n\n如需保留更多, 建議:\n1. 刪除舊筆記\n2. 或將資料匯出備份');
                 } catch(e2) {
                     alert('❌ 儲存失敗 (即使刪除舊的仍超過 quota): ' + e2.message + '\n\n請到「錯題資料庫」刪掉一些舊筆記後重試');
                     return;
