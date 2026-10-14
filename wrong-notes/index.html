@@ -181,12 +181,19 @@
             box-sizing: border-box;
         }
 
+        /* v2.3.2.76: 手動框選按鈕 加大 + hover 高亮凸起 */
         .glass-btn-small {
-            padding: 8px 16px; border: 1px solid rgba(255,255,255,0.6); border-radius: 20px;
-            font-size: 14px; font-weight: bold; color: #333; cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s; outline: none;
+            padding: 14px 32px; border: 2px solid rgba(255,255,255,0.8); border-radius: 28px;
+            font-size: 18px; font-weight: bold; color: #333; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none;
         }
-        .glass-btn-small:hover { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        .glass-btn-small:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+            background: #ffd4b2 !important;
+            border-color: #ff9f6b;
+        }
+        .glass-btn-small:active { transform: translateY(0) scale(0.98); }
         
         /* v2.3.2.73: 框選 crop-workspace padding 0, 讓 page-container 真正延伸到 #DCEBE8 邊框 */
         .crop-workspace {
@@ -198,8 +205,8 @@
             position: relative; width: 100%; max-width: 100%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
             border-radius: 0; margin-bottom: 20px; user-select: none;
         }
-        /* v2.3.2.72: 圖片在 page-container 內 100% 寬 (左右延伸到邊框) */
-        .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; }
+        /* v2.3.2.76: 圖片加「手動框選」按鈕底色 (#f0d8cc) 邊框 */
+        .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; border: 4px solid #f0d8cc; box-sizing: border-box; }
 
         
         /* 支援拖曳與四角縮放的藍色框 */
@@ -655,6 +662,8 @@
             canvas.style.maxWidth = '100%';
             canvas.style.height = 'auto';
             canvas.style.display = 'block';
+            canvas.style.border = '4px solid #f0d8cc';
+            canvas.style.boxSizing = 'border-box';
             
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
