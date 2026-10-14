@@ -165,9 +165,10 @@
         }
 
         /* --- 全螢幕預覽與框選介面 --- */
+        /* v2.3.2.71: 框選 modal 背景 改 #DCEBE8 (淡薄荷綠) */
         #crop-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #e8ecef; z-index: 2000; flex-direction: column; overflow: hidden;
+            background: #DCEBE8; z-index: 2000; flex-direction: column; overflow: hidden;
         }
         
         .crop-header-wrapper {
@@ -945,7 +946,9 @@
                 <label><input type="checkbox" value="粗心"> 粗心</label>
                 <label><input type="checkbox" value="觀念不清"> 觀念不清</label>
                 <label><input type="checkbox" value="計算錯誤"> 計算錯誤</label>
-                <label><input type="checkbox" value="背不起來"> 背不起來</label>
+                <label><input type="checkbox" value="跨科/時事"> 跨科/時事</label>
+                <!-- v2.3.2.71: 勾選其他 顯示自填輸入框 -->
+                <label><input type="checkbox" value="其他" onchange="toggleCustomReason(this)"> 其他</label>
             </div>
             <input type="text" class="custom-reason" placeholder="或自填其他原因..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
         `;
@@ -1038,6 +1041,15 @@
         const input = selectEl.closest('.file-card').querySelector('.custom-source');
         input.style.display = selectEl.value === '其他' ? 'block' : 'none';
     }
+    // v2.3.2.71: 勾選「其他」checkbox 切換自填輸入框顯示
+    function toggleCustomReason(cb) {
+        const card = cb.closest('.file-card');
+        const customInput = card.querySelector('.custom-reason');
+        if (customInput) {
+            customInput.style.display = cb.checked ? 'block' : 'none';
+            if (cb.checked) setTimeout(() => customInput.focus(), 100);
+        }
+    }
 
     function generateNote() {
         const cards = document.querySelectorAll('.file-card');
@@ -1045,6 +1057,13 @@
 
         const container = document.getElementById('note-slots-container');
         container.innerHTML = '';
+
+        // v2.3.2.71: 切換到 note-page (讓 Step 1 + 2 自動隱藏)
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('note-page').classList.add('active');
+        document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
+        const noteNav = document.querySelector('.top-navbar .btn-3d[onclick*="note-page"]');
+        if (noteNav) noteNav.classList.add('active-nav');
 
         const today = new Date();
         const dateStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
@@ -1057,6 +1076,9 @@
             
             const checkboxes = card.querySelectorAll('.reasons-group input:checked');
             const reasons = Array.from(checkboxes).map(cb => cb.value);
+            // v2.3.2.71: 「其他」checkbox 不算進 reasons, 用自填輸入框內容
+            const otherIdx = reasons.indexOf('其他');
+            if (otherIdx >= 0) reasons.splice(otherIdx, 1);
             const customReason = (card.querySelector('.custom-reason') || {}).value || '';
             if (customReason) reasons.push(customReason);
 
@@ -1070,9 +1092,9 @@
             slot.dataset.reasons = JSON.stringify(reasons);
 
             let reasonHtml = ``;
-            ['觀念模糊', '題目陷阱', '粗心'].forEach(r => {
-                const isChecked = reasons.includes(r) ? 'checked' : '';
-                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" ${isChecked}> ${r}</label>`;
+            // v2.3.2.71: 動態渲染所有勾選的 reasons
+            reasons.forEach(r => {
+                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" checked> ${r}</label>`;
             });
 
             slot.innerHTML = `
