@@ -188,15 +188,15 @@
         }
         .glass-btn-small:hover { transform: scale(1.05); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
         
-        /* v2.3.2.70: 框選 crop-workspace padding 20→10, 充分利用左右寬度 */
+        /* v2.3.2.73: 框選 crop-workspace padding 0, 讓 page-container 真正延伸到 #DCEBE8 邊框 */
         .crop-workspace {
-            flex: 1; overflow-y: auto; padding: 0 10px 100px 10px; 
-            display: flex; flex-direction: column; align-items: center; gap: 20px;
+            flex: 1; overflow-y: auto; padding: 0 0 100px 0; 
+            display: flex; flex-direction: column; align-items: stretch; gap: 20px;
         }
-        /* v2.3.2.70: 框選 page-container 滿版 (max-width 800px → 1400px, width 95%) */
+        /* v2.3.2.73: 框選 page-container 延伸到 #DCEBE8 邊框 (width 100%, 無 max-width) */
         .page-container {
-            position: relative; max-width: 1400px; width: 95%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            border-radius: 0 0 12px 12px; margin-bottom: 20px; user-select: none;
+            position: relative; width: 100%; max-width: 100%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
+            border-radius: 0; margin-bottom: 20px; user-select: none;
         }
         /* v2.3.2.72: 圖片在 page-container 內 100% 寬 (左右延伸到邊框) */
         .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; }
@@ -421,12 +421,9 @@
 <!-- 考卷/相片 OCR 全螢幕框選視窗 -->
 <div id="crop-modal">
     <div class="crop-header-wrapper">
+        <!-- v2.3.2.73: 移除說明文字, 只留「手動框選」按鈕 -->
         <div class="crop-header">
-            <!-- v2.3.2.72: 說明內容 改為 步驟A 完整指示 -->
-            <div style="text-align:left;line-height:1.7;padding:0 8px;">
-                <strong>步驟A：</strong>請按下「手動框選」鍵，待新增框線和 Undo 按鈕出現後，請加上說明如下：「請按新增框線按鈕，並在欲擷取題目的左上角按一下，然後拖曳藍框或透過左上角/右下角紅標調整大小，點擊「+」加入或取消錯題截圖」
-            </div>
-            <div style="margin-top: 15px; display: flex; justify-content: center; gap: 15px;">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
                 <button class="glass-btn-small" style="background:var(--btn-peach-dust);" onclick="enableManualCrop()">✍️ 手動框選</button>
             </div>
             
