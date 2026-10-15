@@ -702,8 +702,8 @@
             }
             
             const workspace = document.getElementById('crop-workspace');
-            // v2.3.2.82: 立即顯示 modal + 載入中提示, 避免 user 認為當掉
-            workspace.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#5fa0a0;font-size:18px;font-weight:bold;">⏳ 載入中, 請稍候...</div>'; 
+            // v2.3.2.95: 不再顯示載入中訊息 (用戶多次要求移除)
+            workspace.innerHTML = ''; 
             document.getElementById('crop-modal').style.display = 'flex';
             document.getElementById('manual-edit-pad').style.display = 'none'; 
             batchCounter++;
