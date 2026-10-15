@@ -605,29 +605,60 @@
         setupDragAndDrop();
     });
 
+    // v2.3.2.84: 徹底重寫 drag-drop — 移除 window 層級 preventDefaults (可能是 freeze 原因)
+    // 改用 document 層級 + drop zone 層級 雙重保護
     function setupDragAndDrop() {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            window.addEventListener(eventName, preventDefaults, false);
-        });
-        function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+        console.log('[v2.3.2.84] setupDragAndDrop 啟動');
 
-        // v2.3.2.82: drop handler 加 setData + 立刻讀取 files (避免 dataTransfer 被清空)
+        // document 層級 preventDefaults (備援, 確保即使不在 drop zone 上也能 prevent default)
+        function docPreventDefaults(e) {
+            // 只在 import-page active 時 prevent
+            var importPage = document.getElementById('import-page');
+            if (importPage && importPage.classList.contains('active')) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+            document.addEventListener(eventName, docPreventDefaults, false);
+        });
+
+        // 雙重保護: 在 body 層級也加 drop handler (即使 drop zone 沒接到, 也能 fallback)
+        document.body.addEventListener('drop', function(e) {
+            e.preventDefault();
+            var importPage = document.getElementById('import-page');
+            if (!importPage || !importPage.classList.contains('active')) return;
+            var files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+            if (files.length > 0) {
+                console.log('[body drop] 偵測到 ' + files.length + ' 個檔案');
+                handleFilesForCrop(files);
+            }
+        });
+
+        // drop zone 層級 handler
         const dropZones = document.querySelectorAll('.drop-zone');
-        dropZones.forEach(zone => {
-            zone.addEventListener('dragover', (e) => { 
-                e.preventDefault(); 
-                zone.classList.add('dragover'); 
+        console.log('[v2.3.2.84] 找到 ' + dropZones.length + ' 個 drop-zone');
+        dropZones.forEach(function(zone) {
+            zone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.add('dragover');
             });
-            zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-            zone.addEventListener('drop', (e) => {
+            zone.addEventListener('dragleave', function(e) {
                 e.preventDefault();
                 zone.classList.remove('dragover');
-                // 立刻讀取 files (drop event 結束後 dataTransfer 會被清空)
-                const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+            });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('dragover');
+                var files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+                console.log('[zone drop] 偵測到 ' + files.length + ' 個檔案, 第一個: ' + (files[0] ? files[0].name + ' (' + files[0].type + ', ' + (files[0].size/1024).toFixed(1) + 'KB)' : 'none'));
                 if (files.length > 0) {
                     handleFilesForCrop(files);
                 } else {
-                    console.warn('[drop] 沒有偵測到檔案');
+                    // v2.3.2.84: 顯示提示
+                    alert('⚠️ 沒有偵測到檔案, 請嘗試:\n1. 重新整理頁面 (F5)\n2. 確認瀏覽器版本 (建議 Chrome/Edge)');
                 }
             });
         });
@@ -737,9 +768,9 @@
         }
     }
 
-    // v2.3.2.83: renderImage 改用 URL.createObjectURL — 大圖不再卡住
-    // 原本用 FileReader.readAsDataURL (base64 encoding 對大圖 block main thread, 造成當掉)
-    // 改用 object URL: 瞬間建立, 顯示用 object URL, 儲存時再 fetch → blob
+    // v2.3.2.84: renderImage 加檔案大小檢查 + 立即 yield
+    //  - 檔案 > 50MB 警告 (但仍嘗試處理)
+    //  - 用 requestAnimationFrame yield, 確保 UI 有時間更新
     var _meImageBlobMap = {}; // imgId -> {blobUrl, file} — 儲存時用
     function renderImage(file, workspace) {
         return new Promise(function(resolve, reject) {
@@ -748,29 +779,41 @@
                 var safeResolve = function() { if (!settled) { settled = true; resolve(); } };
                 var safeReject = function(e) { if (!settled) { settled = true; reject(new Error('圖片處理失敗: ' + (e.message || e))); } };
 
-                var timeout = setTimeout(function() { safeReject(new Error('圖片處理超時 (15s)')); }, 15000);
+                // v2.3.2.84: 大檔警告 (>50MB), 提示 user 但仍繼續處理
+                var sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+                if (file.size > 50 * 1024 * 1024) {
+                    console.warn('[renderImage] 大檔警告: ' + file.name + ' (' + sizeMB + 'MB)');
+                }
 
-                // v2.3.2.83: 用 URL.createObjectURL 取代 FileReader (瞬間, 不卡)
-                var blobUrl = URL.createObjectURL(file);
-                var img = document.createElement('img');
-                img.style.width = '100%';
-                img.style.display = 'block';
-                img.onload = function() {
-                    clearTimeout(timeout);
+                // v2.3.2.84: 縮短 timeout 到 10 秒, 並用 setTimeout 0 yield 確保 UI 不卡
+                setTimeout(function() {
                     try {
-                        var imgId = '_img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
-                        _meImageBlobMap[imgId] = { blobUrl: blobUrl, file: file };
-                        img.dataset.imgBlobId = imgId;
-                        createPageContainer(img, workspace);
-                        safeResolve();
+                        var timeout = setTimeout(function() { safeReject(new Error('圖片處理超時 (10s)')); }, 10000);
+
+                        // v2.3.2.83: 用 URL.createObjectURL 取代 FileReader (瞬間, 不卡)
+                        var blobUrl = URL.createObjectURL(file);
+                        var img = document.createElement('img');
+                        img.style.width = '100%';
+                        img.style.display = 'block';
+                        img.onload = function() {
+                            clearTimeout(timeout);
+                            try {
+                                var imgId = '_img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                                _meImageBlobMap[imgId] = { blobUrl: blobUrl, file: file };
+                                img.dataset.imgBlobId = imgId;
+                                createPageContainer(img, workspace);
+                                safeResolve();
+                            } catch(err) { safeReject(err); }
+                        };
+                        img.onerror = function() {
+                            clearTimeout(timeout);
+                            URL.revokeObjectURL(blobUrl);
+                            safeReject(new Error('圖片載入失敗 (可能是損壞的檔案或不支援的格式)'));
+                        };
+                        img.src = blobUrl;
                     } catch(err) { safeReject(err); }
-                };
-                img.onerror = function() {
-                    clearTimeout(timeout);
-                    URL.revokeObjectURL(blobUrl);
-                    safeReject(new Error('圖片載入失敗 (可能是損壞的檔案或不支援的格式)'));
-                };
-                img.src = blobUrl;
+                }, 0); // 立即 yield 一次, 讓 UI 有時間更新 (不卡)
+
             } catch(err) { reject(err); }
         });
     }
