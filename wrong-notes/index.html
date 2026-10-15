@@ -737,34 +737,40 @@
         }
     }
 
-    // v2.3.2.82: renderImage 加 try-catch + onerror, 避免 FileReader 失敗造成當掉
+    // v2.3.2.83: renderImage 改用 URL.createObjectURL — 大圖不再卡住
+    // 原本用 FileReader.readAsDataURL (base64 encoding 對大圖 block main thread, 造成當掉)
+    // 改用 object URL: 瞬間建立, 顯示用 object URL, 儲存時再 fetch → blob
+    var _meImageBlobMap = {}; // imgId -> {blobUrl, file} — 儲存時用
     function renderImage(file, workspace) {
         return new Promise(function(resolve, reject) {
             try {
-                const reader = new FileReader();
                 var settled = false;
                 var safeResolve = function() { if (!settled) { settled = true; resolve(); } };
-                var safeReject = function(e) { if (!settled) { settled = true; reject(new Error('FileReader 失敗: ' + (e.message || e))); } };
-                
-                // 30 秒 timeout (大圖可能慢)
-                var timeout = setTimeout(function() { safeReject(new Error('圖片讀取超時 (30s), 檔案可能太大')); }, 30000);
-                
-                reader.onload = function(e) {
+                var safeReject = function(e) { if (!settled) { settled = true; reject(new Error('圖片處理失敗: ' + (e.message || e))); } };
+
+                var timeout = setTimeout(function() { safeReject(new Error('圖片處理超時 (15s)')); }, 15000);
+
+                // v2.3.2.83: 用 URL.createObjectURL 取代 FileReader (瞬間, 不卡)
+                var blobUrl = URL.createObjectURL(file);
+                var img = document.createElement('img');
+                img.style.width = '100%';
+                img.style.display = 'block';
+                img.onload = function() {
                     clearTimeout(timeout);
                     try {
-                        const img = document.createElement('img');
-                        img.src = e.target.result;
-                        img.style.width = '100%';
-                        img.style.display = 'block';
-                        img.onload = function() {
-                            try { createPageContainer(img, workspace); safeResolve(); }
-                            catch(err) { safeReject(err); }
-                        };
-                        img.onerror = function() { safeReject(new Error('圖片載入失敗 (可能是損壞的檔案)')); };
+                        var imgId = '_img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                        _meImageBlobMap[imgId] = { blobUrl: blobUrl, file: file };
+                        img.dataset.imgBlobId = imgId;
+                        createPageContainer(img, workspace);
+                        safeResolve();
                     } catch(err) { safeReject(err); }
                 };
-                reader.onerror = function() { clearTimeout(timeout); safeReject(new Error('FileReader 錯誤: ' + (reader.error ? reader.error.message : '未知'))); };
-                reader.readAsDataURL(file);
+                img.onerror = function() {
+                    clearTimeout(timeout);
+                    URL.revokeObjectURL(blobUrl);
+                    safeReject(new Error('圖片載入失敗 (可能是損壞的檔案或不支援的格式)'));
+                };
+                img.src = blobUrl;
             } catch(err) { reject(err); }
         });
     }
@@ -1269,10 +1275,11 @@
             req.onerror = function(e) { reject(e.target.error); };
         });
     }
-    function _wnSaveImage(dataUrl) {
+    // v2.3.2.83: 支援 Blob (從 File 或 fetch 得到) — IDB 存 Blob 比 base64 data URL 省 33% 空間
+    function _wnSaveImage(blobOrDataUrl) {
         return _wnOpenImgDB().then(function(db) {
             return new Promise(function(res, rej) {
-                var rec = { id: 'wnimg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6), data: dataUrl, createdAt: new Date().toISOString() };
+                var rec = { id: 'wnimg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6), data: blobOrDataUrl, createdAt: new Date().toISOString() };
                 var tx = db.transaction(['images'], 'readwrite');
                 tx.objectStore('images').put(rec);
                 tx.oncomplete = function() { res(rec.id); };
@@ -1280,13 +1287,23 @@
             });
         });
     }
+    // v2.3.2.83: 從 IDB 讀 Blob, 回傳 object URL (比 data URL 省 33% 空間, 顯示也更快)
     function _wnGetImage(imgId) {
         if (!imgId) return Promise.resolve('');
         return _wnOpenImgDB().then(function(db) {
             return new Promise(function(res, rej) {
                 var tx = db.transaction(['images'], 'readonly');
                 var req = tx.objectStore('images').get(imgId);
-                req.onsuccess = function() { res(req.result ? req.result.data : ''); };
+                req.onsuccess = function() {
+                    if (!req.result) { res(''); return; }
+                    var data = req.result.data;
+                    if (data instanceof Blob) {
+                        res(URL.createObjectURL(data));
+                    } else {
+                        // 向後相容: 如果是 data URL 字串, 直接回傳
+                        res(data);
+                    }
+                };
                 req.onerror = function() { rej(); };
             });
         });
@@ -1299,13 +1316,15 @@
         try { savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]'); }
         catch(e) { console.error('[v2.3.2.81 saveNotes] parse 失敗:', e); savedNotes = []; }
 
+        // v2.3.2.83: 用 blob (從 object URL fetch 或原始 File) 上傳 IDB, 不用 base64 data URL
         var imageUploadPromises = [];
         slots.forEach(function(slot) {
             var imgEl = slot.querySelector('img');
-            var imgUrl = imgEl ? imgEl.src : '';
-            if (imgUrl && imgUrl.startsWith('data:')) {
+            var blobId = imgEl ? imgEl.dataset.imgBlobId : null;
+            var blobInfo = blobId ? _meImageBlobMap[blobId] : null;
+            if (blobInfo && blobInfo.file) {
                 imageUploadPromises.push(
-                    _wnSaveImage(imgUrl).then(function(imgId) {
+                    _wnSaveImage(blobInfo.file).then(function(imgId) {
                         slot.dataset._uploadedImgId = imgId;
                     })
                 );
