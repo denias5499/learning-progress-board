@@ -611,14 +611,23 @@
         });
         function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
 
+        // v2.3.2.82: drop handler 加 setData + 立刻讀取 files (避免 dataTransfer 被清空)
         const dropZones = document.querySelectorAll('.drop-zone');
         dropZones.forEach(zone => {
-            zone.addEventListener('dragover', () => zone.classList.add('dragover'));
+            zone.addEventListener('dragover', (e) => { 
+                e.preventDefault(); 
+                zone.classList.add('dragover'); 
+            });
             zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
             zone.addEventListener('drop', (e) => {
+                e.preventDefault();
                 zone.classList.remove('dragover');
-                if(e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                    handleFilesForCrop(e.dataTransfer.files);
+                // 立刻讀取 files (drop event 結束後 dataTransfer 會被清空)
+                const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+                if (files.length > 0) {
+                    handleFilesForCrop(files);
+                } else {
+                    console.warn('[drop] 沒有偵測到檔案');
                 }
             });
         });
@@ -638,74 +647,125 @@
         if(pageId === 'view-page') renderViewPage();
     }
 
+    // v2.3.2.82: 拖曳圖片到 Step 1 當掉修法 — 加 try-catch + 載入提示 + 同步開 modal
     async function handleFilesForCrop(files) {
-        if(!files || files.length === 0) return;
-        
-        const workspace = document.getElementById('crop-workspace');
-        workspace.innerHTML = ''; 
-        document.getElementById('crop-modal').style.display = 'flex';
-        document.getElementById('manual-edit-pad').style.display = 'none'; 
-        batchCounter++;
-        manualBoxes = []; 
-        // v2.3.2.72: 隱藏 Step 1 (選擇錯題來源 box), 顯示 settings-container (Step 2-4)
-        const step1 = document.getElementById('import-step1');
-        if (step1) step1.style.display = 'none';
-        document.getElementById('settings-container').style.display = 'block';
+        try {
+            if(!files || files.length === 0) {
+                console.warn('[handleFilesForCrop] 沒有檔案');
+                return;
+            }
+            
+            const workspace = document.getElementById('crop-workspace');
+            // v2.3.2.82: 立即顯示 modal + 載入中提示, 避免 user 認為當掉
+            workspace.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#5fa0a0;font-size:18px;font-weight:bold;">⏳ 載入中, 請稍候...</div>'; 
+            document.getElementById('crop-modal').style.display = 'flex';
+            document.getElementById('manual-edit-pad').style.display = 'none'; 
+            batchCounter++;
+            manualBoxes = []; 
+            // v2.3.2.72: 隱藏 Step 1, 顯示 settings-container
+            const step1 = document.getElementById('import-step1');
+            if (step1) step1.style.display = 'none';
+            document.getElementById('settings-container').style.display = 'block';
 
-        for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            if (file.type === "application/pdf") {
-                await renderPDF(file, workspace);
-            } else if (file.type.startsWith("image/")) {
-                await renderImage(file, workspace);
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                console.log('[handleFilesForCrop] 處理檔案:', file.name, file.type, (file.size/1024).toFixed(1) + 'KB');
+                // 跳過不支援的檔案類型
+                if (!file.type) {
+                    console.warn('[handleFilesForCrop] 跳過無類型檔案:', file.name);
+                    continue;
+                }
+                if (file.type === "application/pdf") {
+                    await renderPDF(file, workspace);
+                } else if (file.type.startsWith("image/")) {
+                    await renderImage(file, workspace);
+                } else {
+                    console.warn('[handleFilesForCrop] 跳過不支援類型:', file.type, file.name);
+                }
+            }
+            
+            // 載入完成, 移除載入提示
+            const loadingEl = workspace.querySelector('[data-loading-msg]');
+            if (loadingEl) loadingEl.remove();
+            
+            document.getElementById('source-image-photos').value = ''; 
+            document.getElementById('source-image-exam').value = ''; 
+        } catch(err) {
+            console.error('[handleFilesForCrop] 錯誤:', err);
+            // 確保 modal 開啟且顯示錯誤
+            document.getElementById('crop-modal').style.display = 'flex';
+            const workspace = document.getElementById('crop-workspace');
+            if (workspace) {
+                workspace.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#c00;font-size:16px;">❌ 載入失敗: ' + (err.message || err) + '<br><br>請嘗試其他檔案, 或重新整理頁面</div>';
             }
         }
-        
-        document.getElementById('source-image-photos').value = ''; 
-        document.getElementById('source-image-exam').value = ''; 
     }
 
+    // v2.3.2.82: renderPDF 加 try-catch, 單頁失敗跳過, 整本失敗 throw
     async function renderPDF(file, workspace) {
-        const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
-        
-        for(let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            const page = await pdf.getPage(pageNum);
-            const viewport = page.getViewport({scale: 2.0}); 
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
             
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            canvas.style.width = '100%';
-            canvas.style.maxWidth = '100%';
-            canvas.style.height = 'auto';
-            canvas.style.display = 'block';
-            canvas.style.border = '4px solid #f0d8cc';
-            canvas.style.boxSizing = 'border-box';
-            
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            await page.render({canvasContext: ctx, viewport: viewport}).promise;
-            createPageContainer(canvas, workspace);
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                try {
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({scale: 2.0}); 
+                    
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    canvas.style.width = '100%';
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.display = 'block';
+                    canvas.style.border = '4px solid #f0d8cc';
+                    canvas.style.boxSizing = 'border-box';
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    await page.render({canvasContext: ctx, viewport: viewport}).promise;
+                    createPageContainer(canvas, workspace);
+                } catch(pageErr) {
+                    console.warn('[renderPDF] 第 ' + pageNum + ' 頁失敗, 跳過:', pageErr);
+                }
+            }
+        } catch(err) {
+            throw new Error('PDF 載入失敗 (' + file.name + '): ' + err.message);
         }
     }
 
+    // v2.3.2.82: renderImage 加 try-catch + onerror, 避免 FileReader 失敗造成當掉
     function renderImage(file, workspace) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = document.createElement('img');
-                img.src = e.target.result;
-                img.style.width = '100%';
-                img.style.display = 'block';
-                img.onload = () => {
-                    createPageContainer(img, workspace);
-                    resolve();
+        return new Promise(function(resolve, reject) {
+            try {
+                const reader = new FileReader();
+                var settled = false;
+                var safeResolve = function() { if (!settled) { settled = true; resolve(); } };
+                var safeReject = function(e) { if (!settled) { settled = true; reject(new Error('FileReader 失敗: ' + (e.message || e))); } };
+                
+                // 30 秒 timeout (大圖可能慢)
+                var timeout = setTimeout(function() { safeReject(new Error('圖片讀取超時 (30s), 檔案可能太大')); }, 30000);
+                
+                reader.onload = function(e) {
+                    clearTimeout(timeout);
+                    try {
+                        const img = document.createElement('img');
+                        img.src = e.target.result;
+                        img.style.width = '100%';
+                        img.style.display = 'block';
+                        img.onload = function() {
+                            try { createPageContainer(img, workspace); safeResolve(); }
+                            catch(err) { safeReject(err); }
+                        };
+                        img.onerror = function() { safeReject(new Error('圖片載入失敗 (可能是損壞的檔案)')); };
+                    } catch(err) { safeReject(err); }
                 };
-            };
-            reader.readAsDataURL(file);
+                reader.onerror = function() { clearTimeout(timeout); safeReject(new Error('FileReader 錯誤: ' + (reader.error ? reader.error.message : '未知'))); };
+                reader.readAsDataURL(file);
+            } catch(err) { reject(err); }
         });
     }
 
