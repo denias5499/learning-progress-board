@@ -1036,14 +1036,15 @@
             
             const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
             const cardIndex = currentFilesData.length;
-            currentFilesData.push({ imgUrl: dataUrl, batchId: batchId, cropId: cropId });
+            // v2.3.2.97: 同時存 blobId (如果原圖是 img 不是 canvas, 才有 blobId)
+            var blobId = (mediaEl.tagName === 'IMG') ? (mediaEl.dataset.imgBlobId || '') : '';
+            currentFilesData.push({ imgUrl: dataUrl, batchId: batchId, cropId: cropId, blobId: blobId });
 
             const slider = document.getElementById('cards-slider');
             document.getElementById('settings-container').style.display = 'block';
-            // v2.3.2.66: 自動滾動到 settings-container, 隱藏 Step 1 board (讓畫面乾淨)
             document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
             
-            const newCard = createSettingCard(dataUrl, cardIndex, batchId, cropId);
+            const newCard = createSettingCard(dataUrl, cardIndex, batchId, cropId, blobId);
             slider.appendChild(newCard);
             
             handleCardSubjectChange(newCard.querySelector('.subj-sel'), false);
@@ -1078,19 +1079,21 @@
         }
     }
 
-    function createSettingCard(imgUrl, index, batchId, cropId) {
+    function createSettingCard(imgUrl, index, batchId, cropId, blobId) {
         const div = document.createElement('div');
         div.className = 'file-card';
         div.dataset.index = index;
         div.dataset.batchId = batchId;
         if(cropId) div.dataset.cropId = cropId;
+        // v2.3.2.97: 存 blobId 供 saveNotes 找原始 File
+        if(blobId) div.dataset.blobId = blobId;
         
         let subjOptions = '<option value="">請選擇科目</option>';
         Object.keys(getSyllabusDB()).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
 
         div.innerHTML = `
             <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
-            <img src="${imgUrl}">
+            <img src="${imgUrl}" ${blobId ? 'data-imgid="' + blobId + '"' : ''}>
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
             <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
 
@@ -1368,11 +1371,10 @@
         try { savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]'); }
         catch(e) { console.error('[v2.3.2.81 saveNotes] parse 失敗:', e); savedNotes = []; }
 
-        // v2.3.2.83: 用 blob (從 object URL fetch 或原始 File) 上傳 IDB, 不用 base64 data URL
+        // v2.3.2.97: 從 card.dataset.blobId 找 (而不是 imgEl.dataset.imgBlobId, 因為 setting card 是新 img)
         var imageUploadPromises = [];
         slots.forEach(function(slot) {
-            var imgEl = slot.querySelector('img');
-            var blobId = imgEl ? imgEl.dataset.imgBlobId : null;
+            var blobId = slot.dataset.blobId || '';
             var blobInfo = blobId ? _meImageBlobMap[blobId] : null;
             if (blobInfo && blobInfo.file) {
                 imageUploadPromises.push(
