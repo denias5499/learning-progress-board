@@ -117,7 +117,29 @@
             border: 2px dashed var(--theme-blue); border-radius: 10px; padding: 30px 20px;
             text-align: center; background: #f8fbff; cursor: pointer; transition: 0.2s;
         }
-        .drop-zone:hover, .drop-zone.dragover { background: #e3f0ff; border-color: #1565c0; transform: scale(1.02); }
+        /* v2.3.2.85: 拖曳高亮改更明顯 (原本 #e3f0ff 淡藍容易看不到)
+           改為 飽和藍色 + dashed 實線 + 圖示文字 */
+        .drop-zone:hover, .drop-zone.dragover {
+            background: linear-gradient(135deg, #c8e6ff 0%, #a3d4ff 100%);
+            border-color: #0066cc;
+            border-style: solid;
+            border-width: 3px;
+            transform: scale(1.03);
+            box-shadow: 0 8px 20px rgba(0,102,204,0.3);
+        }
+        .drop-zone.dragover::after {
+            content: '📥 放開滑鼠以加入錯題';
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+            color: #0066cc;
+            margin-top: 12px;
+            animation: dropBounce 0.5s ease infinite alternate;
+        }
+        @keyframes dropBounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-6px); }
+        }
         .drop-zone p { font-size: 18px; color: #333; margin: 0; font-weight: bold; pointer-events: none; }
         .drop-zone input[type="file"] { display: none; }
         
@@ -610,14 +632,11 @@
     function setupDragAndDrop() {
         console.log('[v2.3.2.84] setupDragAndDrop 啟動');
 
-        // document 層級 preventDefaults (備援, 確保即使不在 drop zone 上也能 prevent default)
+        // v2.3.2.85: document 層級 preventDefaults — 永遠 prevent (確保 drop 事件一定觸發)
+        // 原本 v2.3.2.84 只在 import-page active 時 prevent, 但切換中 dragover 會漏掉
         function docPreventDefaults(e) {
-            // 只在 import-page active 時 prevent
-            var importPage = document.getElementById('import-page');
-            if (importPage && importPage.classList.contains('active')) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
+            e.preventDefault();
+            e.stopPropagation();
         }
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
             document.addEventListener(eventName, docPreventDefaults, false);
@@ -644,8 +663,10 @@
                 e.stopPropagation();
                 zone.classList.add('dragover');
             });
+            // v2.3.2.85: dragleave 加 relatedTarget 檢查 (避免拖到子元素時誤觸發 dragleave, 導致高亮消失)
             zone.addEventListener('dragleave', function(e) {
                 e.preventDefault();
+                if (e.relatedTarget && zone.contains(e.relatedTarget)) return; // 還在 zone 內
                 zone.classList.remove('dragover');
             });
             zone.addEventListener('drop', function(e) {
@@ -676,6 +697,8 @@
             navBtn.classList.add('active-nav');
         }
         if(pageId === 'view-page') renderViewPage();
+        // v2.3.2.85: 切到 import-page 時重新 setupDragAndDrop (確保 drop zone listeners 都還在)
+        if(pageId === 'import-page') setupDragAndDrop();
     }
 
     // v2.3.2.82: 拖曳圖片到 Step 1 當掉修法 — 加 try-catch + 載入提示 + 同步開 modal
