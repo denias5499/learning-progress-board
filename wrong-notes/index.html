@@ -305,12 +305,12 @@
         .note-grid-area:empty:before { content: attr(placeholder); color: #aaa; }
 
         .save-btn-container { text-align: center; margin-bottom: 30px; margin-top: 20px; }
-        /* v2.3.2.81: 儲存按鈕 #EDFFAD (C7M0Y32K0 印刷色 淺黃綠) + 字體 26px */
+        /* v2.3.2.93: 儲存筆記按鈕 (#EDFFAD) 字體縮小 26px → 18px */
         .btn-save {
-            background-color: #EDFFAD; color: #2c3e50; font-size: 26px; font-weight: bold;
-            padding: 20px 60px; border: none; border-radius: 32px; cursor: pointer;
-            box-shadow: 0 7px 0 #b8d97a, 0 10px 18px rgba(0,0,0,0.15);
-            transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 2px;
+            background-color: #EDFFAD; color: #2c3e50; font-size: 18px; font-weight: bold;
+            padding: 14px 50px; border: none; border-radius: 24px; cursor: pointer;
+            box-shadow: 0 5px 0 #b8d97a, 0 8px 14px rgba(0,0,0,0.15);
+            transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 1px;
         }
         .btn-save:hover {
             background-color: #f0ffb8; transform: translateY(-3px);
@@ -348,7 +348,15 @@
         .action-btn-small { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; }
         .btn-edit-note { background: #feca57; color: #333; }
         /* v2.3.2.92: 儲存按鈕 (note slot 內) C7M0Y32K0 印刷色 = #EDFFAD */
-        .btn-save-note { background: #EDFFAD; color: #2c3e50; box-shadow: 0 3px 0 #b8d97a; }
+        /* v2.3.2.93: 儲存按鈕 (note slot 內) 立體化 + 字體加大 */
+        .btn-save-note {
+            background: #EDFFAD; color: #2c3e50; font-size: 18px; font-weight: bold;
+            padding: 12px 20px;
+            box-shadow: 0 4px 0 #b8d97a, 0 6px 12px rgba(184,217,122,0.3);
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .btn-save-note:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #b8d97a, 0 8px 16px rgba(184,217,122,0.4); }
+        .btn-save-note:active { transform: translateY(4px); box-shadow: 0 0 0 #b8d97a; }
         
         .placeholder-text { text-align: center; color: #777; margin-top: 50px; font-size: 20px; }
 
@@ -1516,20 +1524,25 @@
                         </div>
                     </div>
                     <div class="note-right">
-                        <div class="note-img-area"><img src="" data-imgid="${note.imageId || ''}"></div>
+                        <div class="note-img-area"><img src="" data-imgid="${note.imageId || ''}" onerror="this.style.display='none'"></div>
                         <div class="note-grid-area" contenteditable="false">${note.content}</div>
                     </div>
                 </div>
             `;
             container.appendChild(slot);
         });
-        // v2.3.2.81: 批次從 IndexedDB 讀 imageId 還原 dataUrl
+        // v2.3.2.93: 批次從 IDB 讀 imageId (含舊版 data URL 向後相容)
         var imgSlots = container.querySelectorAll('img[data-imgid]');
         imgSlots.forEach(function(imgEl) {
             var imgId = imgEl.getAttribute('data-imgid');
             if (imgId) {
                 _wnGetImage(imgId).then(function(dataUrl) {
-                    if (dataUrl) imgEl.src = dataUrl;
+                    if (dataUrl) {
+                        imgEl.src = dataUrl;
+                        imgEl.onload = function() { imgEl.style.display = ''; };
+                    }
+                }).catch(function(err) {
+                    console.warn('[renderViewPage] imageId ' + imgId + ' 載入失敗:', err);
                 });
             }
         });
