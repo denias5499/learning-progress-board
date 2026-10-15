@@ -207,10 +207,10 @@
             flex: 1; overflow-y: auto; padding: 0 0 100px 0; 
             display: flex; flex-direction: column; align-items: stretch; gap: 20px;
         }
-        /* v2.3.2.73: 框選 page-container 延伸到 #DCEBE8 邊框 (width 100%, 無 max-width) */
+        /* v2.3.2.92: 圖片框不超出薄荷綠底色 — 加 margin 8px 內縮 + box-sizing */
         .page-container {
-            position: relative; width: 100%; max-width: 100%; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-            border-radius: 0; margin-bottom: 20px; user-select: none;
+            position: relative; width: calc(100% - 16px); max-width: calc(100% - 16px); margin: 0 8px 20px 8px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); box-sizing: border-box;
+            border-radius: 0 0 12px 12px; user-select: none;
         }
         /* v2.3.2.76: 圖片加「手動框選」按鈕底色 (#f0d8cc) 邊框 */
         .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; border: 4px solid #f0d8cc; box-sizing: border-box; }
@@ -347,7 +347,8 @@
         .note-action-btns { margin-top: auto; display: flex; gap: 10px; padding-top: 15px; border-top: 1px solid #ddd; }
         .action-btn-small { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; }
         .btn-edit-note { background: #feca57; color: #333; }
-        .btn-save-note { background: #1dd1a1; }
+        /* v2.3.2.92: 儲存按鈕 (note slot 內) C7M0Y32K0 印刷色 = #EDFFAD */
+        .btn-save-note { background: #EDFFAD; color: #2c3e50; box-shadow: 0 3px 0 #b8d97a; }
         
         .placeholder-text { text-align: center; color: #777; margin-top: 50px; font-size: 20px; }
 
