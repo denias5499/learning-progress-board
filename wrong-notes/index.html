@@ -117,29 +117,14 @@
             border: 2px dashed var(--theme-blue); border-radius: 10px; padding: 30px 20px;
             text-align: center; background: #f8fbff; cursor: pointer; transition: 0.2s;
         }
-        /* v2.3.2.85: 拖曳高亮改更明顯 (原本 #e3f0ff 淡藍容易看不到)
-           改為 飽和藍色 + dashed 實線 + 圖示文字 */
+        /* v2.3.2.86: 拖曳高亮 — 靜態飽和藍色 (移除動畫, 避免卡頓) */
         .drop-zone:hover, .drop-zone.dragover {
-            background: linear-gradient(135deg, #c8e6ff 0%, #a3d4ff 100%);
+            background: #c8e6ff;
             border-color: #0066cc;
             border-style: solid;
             border-width: 3px;
-            transform: scale(1.03);
-            box-shadow: 0 8px 20px rgba(0,102,204,0.3);
         }
-        .drop-zone.dragover::after {
-            content: '📥 放開滑鼠以加入錯題';
-            display: block;
-            font-size: 18px;
-            font-weight: bold;
-            color: #0066cc;
-            margin-top: 12px;
-            animation: dropBounce 0.5s ease infinite alternate;
-        }
-        @keyframes dropBounce {
-            from { transform: translateY(0); }
-            to { transform: translateY(-6px); }
-        }
+        .drop-zone.dragover p { color: #0066cc; }
         .drop-zone p { font-size: 18px; color: #333; margin: 0; font-weight: bold; pointer-events: none; }
         .drop-zone input[type="file"] { display: none; }
         
@@ -656,12 +641,10 @@
 
         // drop zone 層級 handler
         const dropZones = document.querySelectorAll('.drop-zone');
-        console.log('[v2.3.2.84] 找到 ' + dropZones.length + ' 個 drop-zone');
+        console.log('[v2.3.2.86] 找到 ' + dropZones.length + ' 個 drop-zone');
         dropZones.forEach(function(zone) {
             zone.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                zone.classList.add('dragover');
+                try { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); } catch(err) { console.error('[dragover] 錯誤:', err); }
             });
             // v2.3.2.85: dragleave 加 relatedTarget 檢查 (避免拖到子元素時誤觸發 dragleave, 導致高亮消失)
             zone.addEventListener('dragleave', function(e) {
@@ -791,29 +774,23 @@
         }
     }
 
-    // v2.3.2.84: renderImage 加檔案大小檢查 + 立即 yield
-    //  - 檔案 > 50MB 警告 (但仍嘗試處理)
-    //  - 用 requestAnimationFrame yield, 確保 UI 有時間更新
+    // v2.3.2.86: renderImage 加 yield + try-catch — 確保大圖/慢圖不卡
     var _meImageBlobMap = {}; // imgId -> {blobUrl, file} — 儲存時用
     function renderImage(file, workspace) {
         return new Promise(function(resolve, reject) {
+            var settled = false;
+            var safeResolve = function() { if (!settled) { settled = true; resolve(); } };
+            var safeReject = function(e) { if (!settled) { settled = true; reject(new Error('圖片處理失敗: ' + (e.message || e))); } };
+            
+            // v2.3.2.86: 加 try-catch, 確保任何錯誤都被捕獲
             try {
-                var settled = false;
-                var safeResolve = function() { if (!settled) { settled = true; resolve(); } };
-                var safeReject = function(e) { if (!settled) { settled = true; reject(new Error('圖片處理失敗: ' + (e.message || e))); } };
-
-                // v2.3.2.84: 大檔警告 (>50MB), 提示 user 但仍繼續處理
-                var sizeMB = (file.size / (1024 * 1024)).toFixed(1);
                 if (file.size > 50 * 1024 * 1024) {
-                    console.warn('[renderImage] 大檔警告: ' + file.name + ' (' + sizeMB + 'MB)');
+                    console.warn('[renderImage] 大檔警告: ' + file.name + ' (' + (file.size/(1024*1024)).toFixed(1) + 'MB)');
                 }
-
-                // v2.3.2.84: 縮短 timeout 到 10 秒, 並用 setTimeout 0 yield 確保 UI 不卡
+                
                 setTimeout(function() {
                     try {
                         var timeout = setTimeout(function() { safeReject(new Error('圖片處理超時 (10s)')); }, 10000);
-
-                        // v2.3.2.83: 用 URL.createObjectURL 取代 FileReader (瞬間, 不卡)
                         var blobUrl = URL.createObjectURL(file);
                         var img = document.createElement('img');
                         img.style.width = '100%';
@@ -831,13 +808,12 @@
                         img.onerror = function() {
                             clearTimeout(timeout);
                             URL.revokeObjectURL(blobUrl);
-                            safeReject(new Error('圖片載入失敗 (可能是損壞的檔案或不支援的格式)'));
+                            safeReject(new Error('圖片載入失敗 (可能是損壞的檔案)'));
                         };
                         img.src = blobUrl;
                     } catch(err) { safeReject(err); }
-                }, 0); // 立即 yield 一次, 讓 UI 有時間更新 (不卡)
-
-            } catch(err) { reject(err); }
+                }, 0);
+            } catch(err) { safeReject(err); }
         });
     }
 
