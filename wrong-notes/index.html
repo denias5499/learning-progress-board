@@ -346,6 +346,10 @@
         
         .note-action-btns { margin-top: auto; display: flex; gap: 10px; padding-top: 15px; border-top: 1px solid #ddd; }
         .action-btn-small { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; }
+        /* v2.3.2.104: 刪除按鈕 hover 立體 (跟其他 btn-3d 一致) */
+        .btn-delete-note { background: #ff6b6b !important; color: #fff !important; }
+        .btn-delete-note:hover { transform: translateY(-3px) scale(1.03); background: #ff5252 !important; box-shadow: 0 6px 0 #c44545, 0 10px 18px rgba(255,107,107,0.4); }
+        .btn-delete-note:active { transform: translateY(3px); box-shadow: 0 0 0 #c44545; }
         /* v2.3.2.96: 編輯按鈕字體加大 */
         .btn-edit-note { background: #feca57; color: #333; font-size: 16px; font-weight: bold; padding: 8px 16px; }
         /* v2.3.2.92: 儲存按鈕 (note slot 內) C7M0Y32K0 印刷色 = #EDFFAD */
@@ -1149,7 +1153,8 @@
 
         if (data) {
             // 收集 '複習講義' 下所有 instName 的所有 units
-            const allUnits = new Set();
+                        const allUnits = new Set();
+            // v2.3.2.104: 收集所有 units, 同名去重 + 統一格式 (移除 vol 前綴)
             Object.keys(data).forEach(function(typeName) {
                 if (typeName !== '複習講義') return;
                 const typeObj = data[typeName];
@@ -1157,7 +1162,14 @@
                 Object.keys(typeObj).forEach(function(instName) {
                     const units = typeObj[instName];
                     if (Array.isArray(units)) {
-                        units.forEach(function(u) { if (u) allUnits.add(u); });
+                        units.forEach(function(u) {
+                            // u 可能是 '第五冊 / 貨幣與勞動' 或純 '貨幣與勞動'
+                            // 去除 vol 前綴 (第一冊/第二冊/...)
+                            const cleanName = String(u).replace(/^第[一二三四五六七八九十]+冊\s*\/\s*/, '').trim();
+                            if (cleanName && !allUnits.has(cleanName)) {
+                                allUnits.add(cleanName);
+                            }
+                        });
                     }
                 });
             });
@@ -1168,8 +1180,6 @@
                 unitSelect.disabled = false;
             } else {
                 unitSelect.innerHTML = '<option value="">此科目無複習講義單元</option>';
-            }
-        } else {
             unitSelect.innerHTML = '<option value="">請先選擇科目</option>';
         }
 
@@ -1583,7 +1593,7 @@
                     <span>📖 ${note.subject} ${volStr} ${note.unit}</span>
                     <span>🏷️ ${note.source || '未分類'}</span>
                     <!-- v2.3.2.99: 右上角加刪除按鈕 -->
-                    <button class="action-btn-small btn-delete-note" onclick="deleteNoteByTimestamp('${note.timestamp}')" style="background:#ff6b6b;color:#fff;margin-left:auto;">🗑️ 刪除</button>
+                    <button class="btn-3d btn-delete-note" onclick="deleteNoteByTimestamp('${note.timestamp}')" style="margin-left:auto;background:#ff6b6b;color:#fff;font-size:15px;font-weight:bold;padding:10px 22px;">🗑️ 刪除</button>
                 </div>
                 <div class="note-slot-body">
                     <div class="note-left">
