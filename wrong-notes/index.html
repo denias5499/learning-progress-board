@@ -389,14 +389,16 @@
 <body>
 
 <div class="top-navbar">
-    <div class="nav-brand">錯題資料庫</div>
+    <!-- v2.3.2.99: 移除「錯題資料庫」標題 (使用者名稱已在表頭) -->
+    <div class="nav-brand"></div>
     <div class="nav-links">
         <button class="btn-3d btn-import active-nav" id="nav-import" onclick="goToPage('import-page', this)">匯入錯題</button>
         <button class="btn-3d btn-view" id="nav-view" onclick="goToPage('view-page', this)">查看錯題筆記</button>
         <button class="btn-3d btn-data" id="nav-data" onclick="goToPage('data-page', this)">錯題數據分析</button>
         <button class="btn-3d btn-practice" id="nav-practice" onclick="goToPage('practice-page', this)">錯題再練</button>
     </div>
-    <div class="nav-right">
+    <!-- v2.3.2.99: 隱藏使用者名稱 (張裕章), 已在表頭 -->
+    <div class="nav-right" style="display:none;">
         <div id="current-user-display" style="color:var(--theme-blue);font-weight:bold;font-size:14px;padding:6px 12px;"></div>
     </div>
 </div>
@@ -1463,6 +1465,33 @@
         });
     }
 
+    // v2.3.2.99: 刪除筆記 (依 timestamp)
+    function deleteNoteByTimestamp(timestamp) {
+        if (!confirm('確定要刪除這篇筆記嗎?')) return;
+        try {
+            var notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+            var imgIdToDelete = null;
+            var newNotes = notes.filter(function(n) {
+                if (String(n.timestamp) === String(timestamp)) {
+                    if (n.imageId) imgIdToDelete = n.imageId;
+                    return false; // 過濾掉
+                }
+                return true;
+            });
+            localStorage.setItem('myStudyNotes', JSON.stringify(newNotes));
+            // 同步刪除 IDB 圖片
+            if (imgIdToDelete) {
+                _wnOpenImgDB().then(function(db) {
+                    var tx = db.transaction(['images'], 'readwrite');
+                    tx.objectStore('images').delete(imgIdToDelete);
+                }).catch(function() {});
+            }
+            renderViewPage(); // 重 render
+        } catch(e) {
+            alert('❌ 刪除失敗: ' + e.message);
+        }
+    }
+
     function _onSaveSuccess() {
         hasUnsavedNotes = false;
         alert('✅ 筆記已成功儲存!\n\n圖片已存到 IndexedDB, 不受 localStorage 5MB 限制');
@@ -1552,7 +1581,9 @@
                 <div class="note-slot-header" style="background:var(--header-aqua-sky);">
                     <span>📅 ${note.date}</span>
                     <span>📖 ${note.subject} ${volStr} ${note.unit}</span>
-                    <span>🏷️ ${note.source}</span>
+                    <span>🏷️ ${note.source || '未分類'}</span>
+                    <!-- v2.3.2.99: 右上角加刪除按鈕 -->
+                    <button class="action-btn-small btn-delete-note" onclick="deleteNoteByTimestamp('${note.timestamp}')" style="background:#ff6b6b;color:#fff;margin-left:auto;">🗑️ 刪除</button>
                 </div>
                 <div class="note-slot-body">
                     <div class="note-left">
