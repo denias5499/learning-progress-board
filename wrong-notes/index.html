@@ -1371,17 +1371,54 @@
         try { savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]'); }
         catch(e) { console.error('[v2.3.2.81 saveNotes] parse 失敗:', e); savedNotes = []; }
 
-        // v2.3.2.97: 從 card.dataset.blobId 找 (而不是 imgEl.dataset.imgBlobId, 因為 setting card 是新 img)
+        // v2.3.2.98: 雙重查找 — 優先 blobId 找原始 File, fallback 用 data URL 轉 Blob
         var imageUploadPromises = [];
         slots.forEach(function(slot) {
             var blobId = slot.dataset.blobId || '';
+            var imgEl = slot.querySelector('img');
+            var imgSrc = imgEl ? imgEl.src : '';
             var blobInfo = blobId ? _meImageBlobMap[blobId] : null;
+            
             if (blobInfo && blobInfo.file) {
+                // 優先路徑: v2.3.2.83 引入的 blob 儲存
                 imageUploadPromises.push(
                     _wnSaveImage(blobInfo.file).then(function(imgId) {
                         slot.dataset._uploadedImgId = imgId;
+                    }).catch(function(err) {
+                        console.error('[saveNotes] blob 上傳失敗, fallback data URL:', err);
+                        slot.dataset._uploadedImgId = '';
                     })
                 );
+            } else if (imgSrc && imgSrc.startsWith('data:')) {
+                // v2.3.2.98: fallback 路徑 — img.src 是 data URL (e.g. PDF 截圖, 或 blobId 丟失)
+                // 把 data URL 轉成 Blob, 存到 IDB
+                try {
+                    var blobFromDataUrl;
+                    if (imgSrc.startsWith('data:')) {
+                        var byteString = atob(imgSrc.split(',')[1]);
+                        var mimeMatch = imgSrc.match(/data:([^;]+)/);
+                        var mimeStr = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                        var ab = new ArrayBuffer(byteString.length);
+                        var ia = new Uint8Array(ab);
+                        for (var i = 0; i < byteString.length; i++) {
+                            ia[i] = byteString.charCodeAt(i);
+                        }
+                        blobFromDataUrl = new Blob([ab], { type: mimeStr });
+                        imageUploadPromises.push(
+                            _wnSaveImage(blobFromDataUrl).then(function(imgId) {
+                                slot.dataset._uploadedImgId = imgId;
+                            }).catch(function(err) {
+                                console.error('[saveNotes] data URL 上傳失敗:', err);
+                                slot.dataset._uploadedImgId = '';
+                            })
+                        );
+                    } else {
+                        slot.dataset._uploadedImgId = '';
+                    }
+                } catch(e) {
+                    console.error('[saveNotes] data URL 解析失敗:', e);
+                    slot.dataset._uploadedImgId = '';
+                }
             } else {
                 slot.dataset._uploadedImgId = '';
             }
