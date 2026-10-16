@@ -2121,7 +2121,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=v2.3.2.106" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=v2.3.2.107" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -9660,7 +9660,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 html += '<div class="me-radar-wrap">' + _meBuildRadarSvg(examsAsc) + '</div>';
                 html += '<div class="me-radar-legend">';
-                // v2.3.2.106: 把最新模考名稱+日期 顯示在雷達圖右上角
+                // v2.3.2.107: 把最新模考名稱+日期 顯示在雷達圖右上角
                 var examInfo = document.querySelector('.me-radar-exam-info');
                 if (examsAsc.length > 0 && examInfo) {
                     var latest = examsAsc[examsAsc.length - 1];
@@ -9708,45 +9708,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     '<div style="margin-bottom:14px;">⚠️ 尚無級距圖<br><small style="color:#999;">（提示：先選模考名稱 + 上傳圖片 + 點「儲存模考」才會生效）</small></div>' +
                     '<button onclick="_meGotoLastExamForEdit()" style="padding:8px 18px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:bold;">✏️ 前往上傳</button>' +
                     '</div></div>';
-            }
-            // ===== 雷達圖 (overlay 全部場次, 最新一場用主色) =====
-            html += '<div class="me-overview-radar">' +
-                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3>📊 五科學力雷達圖</h3><div class="me-radar-exam-info" style="color:#1e3a5f;font-weight:bold;font-size:14px;"></div></div>';
-            if (examsAsc.length === 0) {
-                html += '<div class="me-empty">尚無成績資料，請到「✏️ 成績輸入」新增模考</div>';
-            } else {
-                html += '<div class="me-radar-wrap">' + _meBuildRadarSvg(examsAsc) + '</div>';
-                html += '<div class="me-radar-legend">';
-                // v2.3.2.101: 把最新模考名稱+日期 顯示在雷達圖右上角
-                var examInfo = document.querySelector('.me-radar-exam-info');
-                if (examsAsc.length > 0) {
-                    var latest = examsAsc[examsAsc.length - 1];
-                    examInfo.innerHTML = (latest.name || '') + ' ⭐ ' + (latest.examDate || '');
-                }
-
-                var colors = ['#2563eb', '#059669', '#9333ea', '#FF6B35'];
-                examsAsc.forEach(function(ex, i) {
-                    var isLatest = (i === examsAsc.length - 1);
-                    html += '<div class="me-radar-leg-item" style="border-left-color:' + colors[i % 4] + ';' + (isLatest ? 'background:#fff3d6;' : '') + '">' +
-                        '<span class="leg-name">' + (ex.name || '') + (isLatest ? ' ⭐' : '') + '</span>' +
-                        '<span class="leg-date">' + (ex.examDate || '') + '</span>' +
-                        '</div>';
-                });
-                html += '</div>';
-            }
-            html += '</div>';
-            // ===== 5 科表 =====
-            html += '<div class="me-overview-table">' +
-                '';
-            if (examsAsc.length === 0) {
-                html += '<div class="me-empty">尚無成績資料</div>';
-            } else {
-                // v2.3.2.36: 把所選 exam 的 index 傳進去 (新→舊, examsAsc 是舊→新)
-                var selectedIdx = selectedExam ? examsAsc.findIndex(function(e) { return e.id === selectedExam.id; }) : (examsAsc.length - 1);
-                html += _meRender5SubjTable(examsAsc, selectedIdx >= 0 ? selectedIdx : examsAsc.length - 1);
-            }
-            html += '</div>';
-            // ===== 作文表 (v2.3.2.31 已併入 _meRender5SubjTable) =====
+            }            // ===== 作文表 (v2.3.2.31 已併入 _meRender5SubjTable) =====
             c.innerHTML = html;
             // 載入最新一筆的級距圖
             if (withImg) {
@@ -11384,7 +11346,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         // v2.3.2.62: 錯題匯入 — 嵌入 wrong-notes/ iframe (跟 頂層錯題資料庫 同一應用)
         function renderMockExamImport(c) {
             c.innerHTML = '<div style="background:#fff;border:2px solid #e8d5e8;border-radius:12px;padding:8px;height:calc(100vh - 240px);min-height:600px;">' +
-                '<iframe allow="drag-drop" src="wrong-notes/?v=v2.3.2.106" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;" title="錯題資料庫"></iframe>' +
+                '<iframe allow="drag-drop" src="wrong-notes/?v=v2.3.2.107" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;" title="錯題資料庫"></iframe>' +
                 '</div>' +
                 '<div style="margin-top:8px;font-size:0.85em;color:#666;text-align:right;">💡 完整功能請參考頂層「📚 錯題資料庫」分頁</div>';
         }
