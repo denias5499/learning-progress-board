@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.102]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.103]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -9651,6 +9651,47 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var selectedExamId = pickerSel ? pickerSel.value : null;
             var selectedExam = selectedExamId ? (appMockExams || []).find(function(e) { return e.id === selectedExamId; }) : null;
             if (!selectedExam && examsAsc.length > 0) selectedExam = examsAsc[examsAsc.length - 1]; // fallback = latest
+
+            // ===== 雷達圖 (overlay 全部場次, 最新一場用主色) =====
+            html += '<div class="me-overview-radar">' +
+                '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><h3>📊 五科學力雷達圖</h3><div class="me-radar-exam-info" style="color:#1e3a5f;font-weight:bold;font-size:14px;"></div></div>';
+            if (examsAsc.length === 0) {
+                html += '<div class="me-empty">尚無成績資料，請到「✏️ 成績輸入」新增模考</div>';
+            } else {
+                html += '<div class="me-radar-wrap">' + _meBuildRadarSvg(examsAsc) + '</div>';
+                html += '<div class="me-radar-legend'>';
+                // v2.3.2.103: 把最新模考名稱+日期 顯示在雷達圖右上角
+                var examInfo = document.querySelector('.me-radar-exam-info');
+                if (examsAsc.length > 0 && examInfo) {
+                    var latest = examsAsc[examsAsc.length - 1];
+                    examInfo.innerHTML = (latest.name || '') + ' ⭐ ' + (latest.examDate || '');
+                }
+                // 修正: 上面 replace 掉了 ' 引號
+                // html += '<div class="me-radar-legend'>';
+                var colors = ['#2563eb', '#059669', '#9333ea', '#FF6B35'];
+                examsAsc.forEach(function(ex, i) {
+                    var isLatest = (i === examsAsc.length - 1);
+                    html += '<div class="me-radar-leg-item" style="border-left-color:' + colors[i % 4] + ';' + (isLatest ? 'background:#fff3d6;' : '') + '">' +
+                        '<span class="leg-name">' + (ex.name || '') + (isLatest ? ' ⭐' : '') + '</span>' +
+                        '<span class="leg-date">' + (ex.examDate || '') + '</span>' +
+                        '</div>';
+                });
+                html += '</div>';
+            }
+            html += '</div>';
+
+            // ===== 5 科表 =====
+            html += '<div class="me-overview-table">' +
+                '';
+            if (examsAsc.length === 0) {
+                html += '<div class="me-empty">尚無成績資料</div>';
+            } else {
+                // v2.3.2.36: 把所選 exam 的 index 傳進去 (新→舊, examsAsc 是舊→新)
+                var selectedIdx = selectedExam ? examsAsc.findIndex(function(e) { return e.id === selectedExam.id; }) : (examsAsc.length - 1);
+                html += _meRender5SubjTable(examsAsc, selectedIdx >= 0 ? selectedIdx : examsAsc.length - 1);
+            }
+            html += '</div>';
+
             // ===== 級距圖 (跟著 dropdown 選擇, v2.3.2.24 既有) =====
             var withImg = selectedExam && selectedExam.levelChartImageId ? selectedExam : examsDesc.find(function(e) { return e.levelChartImageId; });
             if (withImg) {
