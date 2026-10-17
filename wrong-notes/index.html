@@ -190,9 +190,9 @@
 
         /* v2.3.2.76: 手動框選按鈕 加大 + hover 高亮凸起 */
         .glass-btn-small {
-            padding: 14px 32px; border: 2px solid rgba(255,255,255,0.8); border-radius: 28px;
-            font-size: 18px; font-weight: bold; color: #333; cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15); transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none;
+            padding: 10px 22px; border: 2px solid rgba(255,255,255,0.8); border-radius: 22px;
+            font-size: 16px; font-weight: bold; color: #333; cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15); transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none;
         }
         .glass-btn-small:hover {
             transform: translateY(-3px) scale(1.05);
@@ -212,7 +212,7 @@
             position: relative; width: calc(100% - 16px); max-width: calc(100% - 16px); margin: 0 8px 20px 8px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); box-sizing: border-box;
             border-radius: 0 0 12px 12px; user-select: none;
         }
-        /* v2.3.2.113: 移除 img 4px 桃色邊框 (造成頁面四角凸/凹不對稱, 改用 page-container box-shadow 區隔) */
+        /* v2.3.2.114: 移除 img 4px 桃色邊框 (造成頁面四角凸/凹不對稱, 改用 page-container box-shadow 區隔) */
         .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; box-sizing: border-box; }
 
         
@@ -223,17 +223,21 @@
         }
         .mock-crop-box:hover { border-color: #0056b3; background: rgba(0,86,179,0.2); z-index: 5; }
 
-        /* 紅色 X 刪除鍵 */
+        /* v2.3.2.114: 紅色 X 改到框內右上 (不要凸出) */
         .delete-box-btn {
-            position: absolute; top: -12px; right: -12px; background: #ff4757; color: white;
-            border-radius: 50%; width: 24px; height: 24px; font-size: 14px; font-weight: bold;
+            position: absolute; top: 4px; right: 4px; background: #ff4757; color: white;
+            border-radius: 50%; width: 22px; height: 22px; font-size: 12px; font-weight: bold;
             display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
         .delete-box-btn:hover { transform: scale(1.15); background: #e84118; }
 
-        /* v2.3.2.113: 完全隱藏 resize handle (讓框線看起來完全平順, 沒有任何凸出) */
-        .resize-handle { display: none !important; }
-        .resize-handle.tl, .resize-handle.br { display: none !important; }
+        /* v2.3.2.114: resize handle 顯示在框內 (左上+左下+右上+右下 4 角, 可拖曳 resize) */
+        .resize-handle { position: absolute; width: 16px; height: 16px; background: #fff; border: 2px solid var(--theme-blue); border-radius: 50%; z-index: 11; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .resize-handle.tl { top: 4px; left: 4px; cursor: nwse-resize; }
+        .resize-handle.tr { top: 4px; right: 4px; cursor: nesw-resize; }
+        .resize-handle.bl { bottom: 4px; left: 4px; cursor: nesw-resize; }
+        .resize-handle.br { bottom: 4px; right: 4px; cursor: nwse-resize; }
 
         .add-crop-btn {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -461,7 +465,7 @@
 <!-- 考卷/相片 OCR 全螢幕框選視窗 -->
 <div id="crop-modal">
     <div class="crop-header-wrapper">
-        <!-- v2.3.2.113: 刪除「手動框選」按鈕, 直接顯示「新增框線」+「Undo」+ 提示 -->
+        <!-- v2.3.2.114: 刪除「手動框選」按鈕, 直接顯示「新增框線」+「Undo」+ 提示 -->
         <div class="crop-header">
             <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
                 <button class="glass-btn-small" style="background:#BEE7E9;" onclick="startManualBox()">➕ 新增框線</button>
@@ -877,6 +881,8 @@
         box.innerHTML = `
             <div class="delete-box-btn" onclick="deleteBox(this)">✕</div>
             <div class="resize-handle tl"></div>
+            <div class="resize-handle tr"></div>
+            <div class="resize-handle bl"></div>
             <div class="resize-handle br"></div>
             <div class="add-crop-btn" onclick="toggleCroppedQuestion(this, ${batchCounter})">+</div>
         `;
@@ -934,7 +940,7 @@
     }
 
     function makeDraggableAndResizable(box) {
-        let isDragging = false, isResizingTL = false, isResizingBR = false;
+        let isDragging = false, isResizingTL = false, isResizingTR = false, isResizingBL = false, isResizingBR = false;
         let startX, startY, startW, startH, startLeft, startTop;
 
         box.addEventListener('mousedown', (e) => {
@@ -946,6 +952,10 @@
             
             if (e.target.classList.contains('tl')) {
                 isResizingTL = true;
+            } else if (e.target.classList.contains('tr')) {
+                isResizingTR = true;
+            } else if (e.target.classList.contains('bl')) {
+                isResizingBL = true;
             } else if (e.target.classList.contains('br')) {
                 isResizingBR = true;
             } else {
