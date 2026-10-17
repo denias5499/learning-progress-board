@@ -212,7 +212,7 @@
             position: relative; width: calc(100% - 16px); max-width: calc(100% - 16px); margin: 0 8px 20px 8px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); box-sizing: border-box;
             border-radius: 0 0 12px 12px; user-select: none;
         }
-        /* v2.3.2.114: 移除 img 4px 桃色邊框 (造成頁面四角凸/凹不對稱, 改用 page-container box-shadow 區隔) */
+        /* v2.3.2.115: 移除 img 4px 桃色邊框 (造成頁面四角凸/凹不對稱, 改用 page-container box-shadow 區隔) */
         .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; box-sizing: border-box; }
 
         
@@ -223,7 +223,7 @@
         }
         .mock-crop-box:hover { border-color: #0056b3; background: rgba(0,86,179,0.2); z-index: 5; }
 
-        /* v2.3.2.114: 紅色 X 改到框內右上 (不要凸出) */
+        /* v2.3.2.115: 紅色 X 改到框內右上 (不要凸出) */
         .delete-box-btn {
             position: absolute; top: 4px; right: 4px; background: #ff4757; color: white;
             border-radius: 50%; width: 22px; height: 22px; font-size: 12px; font-weight: bold;
@@ -232,12 +232,18 @@
         }
         .delete-box-btn:hover { transform: scale(1.15); background: #e84118; }
 
-        /* v2.3.2.114: resize handle 顯示在框內 (左上+左下+右上+右下 4 角, 可拖曳 resize) */
-        .resize-handle { position: absolute; width: 16px; height: 16px; background: #fff; border: 2px solid var(--theme-blue); border-radius: 50%; z-index: 11; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-        .resize-handle.tl { top: 4px; left: 4px; cursor: nwse-resize; }
-        .resize-handle.tr { top: 4px; right: 4px; cursor: nesw-resize; }
-        .resize-handle.bl { bottom: 4px; left: 4px; cursor: nesw-resize; }
-        .resize-handle.br { bottom: 4px; right: 4px; cursor: nwse-resize; }
+        /* v2.3.2.115: 完全隱藏 resize handle 圓點 (用戶不要看到 4 個圓點)
+           但 .br 角落保留透明拉柄, hover 時才顯示 */
+        .resize-handle { display: none !important; }
+        .resize-handle.tl, .resize-handle.tr, .resize-handle.bl, .resize-handle.br { display: none !important; }
+        /* 右下角透明拉柄 (沒圓點, 只有 cursor 變化 + hover 顯示一條斜線) */
+        .mock-crop-box::after {
+            content: ''; position: absolute; bottom: 0; right: 0; width: 18px; height: 18px;
+            cursor: nwse-resize; z-index: 12;
+            background: linear-gradient(135deg, transparent 0%, transparent 40%, var(--theme-blue) 40%, var(--theme-blue) 50%, transparent 50%, transparent 100%);
+            opacity: 0; transition: opacity 0.15s;
+        }
+        .mock-crop-box:hover::after { opacity: 0.7; }
 
         .add-crop-btn {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -465,7 +471,7 @@
 <!-- 考卷/相片 OCR 全螢幕框選視窗 -->
 <div id="crop-modal">
     <div class="crop-header-wrapper">
-        <!-- v2.3.2.114: 刪除「手動框選」按鈕, 直接顯示「新增框線」+「Undo」+ 提示 -->
+        <!-- v2.3.2.115: 刪除「手動框選」按鈕, 直接顯示「新增框線」+「Undo」+ 提示 -->
         <div class="crop-header">
             <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
                 <button class="glass-btn-small" style="background:#BEE7E9;" onclick="startManualBox()">➕ 新增框線</button>
