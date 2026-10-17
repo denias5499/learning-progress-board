@@ -231,16 +231,10 @@
         }
         .delete-box-btn:hover { transform: scale(1.15); background: #e84118; }
 
-        /* 紅色三角形縮放控制點 */
-        .resize-handle { position: absolute; width: 0; height: 0; border-style: solid; z-index: 10; }
-        .resize-handle.tl { 
-            top: 0; left: 0; cursor: nwse-resize; 
-            border-width: 15px 15px 0 0; border-color: #e74c3c transparent transparent transparent; 
-        }
-        .resize-handle.br { 
-            bottom: 0; right: 0; cursor: nwse-resize; 
-            border-width: 0 0 15px 15px; border-color: transparent transparent #e74c3c transparent; 
-        }
+        /* v2.3.2.109: 縮放控制點改為框內小圓點 (不凸出, 看起來更平順) */
+        .resize-handle { position: absolute; width: 14px; height: 14px; background: #e74c3c; border: 2px solid #fff; border-radius: 50%; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+        .resize-handle.tl { top: 3px; left: 3px; cursor: nwse-resize; }
+        .resize-handle.br { bottom: 3px; right: 3px; cursor: nwse-resize; }
 
         .add-crop-btn {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
@@ -346,7 +340,7 @@
         
         .note-action-btns { margin-top: auto; display: flex; gap: 10px; padding-top: 15px; border-top: 1px solid #ddd; }
         .action-btn-small { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; }
-        /* v2.3.2.104: 刪除按鈕 hover 立體 (跟其他 btn-3d 一致) */
+        /* v2.3.2.109: 刪除按鈕 hover 立體 (跟其他 btn-3d 一致) */
         .btn-delete-note { background: #ff6b6b !important; color: #fff !important; }
         .btn-delete-note:hover { transform: translateY(-3px) scale(1.03); background: #ff5252 !important; box-shadow: 0 6px 0 #c44545, 0 10px 18px rgba(255,107,107,0.4); }
         .btn-delete-note:active { transform: translateY(3px); box-shadow: 0 0 0 #c44545; }
@@ -1100,7 +1094,21 @@
         div.innerHTML = `
             <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
             <img src="${imgUrl}" ${blobId ? 'data-imgid="' + blobId + '"' : ''}>
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 2：科目</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 1：錯題來源</div>
+            <select class="source-sel" onchange="toggleCardSource(this)">
+                <option value="">請選擇來源</option>
+                <option value="複習卷">📘 複習卷</option>
+                <option value="數字題本">🔢 數字題本</option>
+                <option value="模擬題本">📝 模擬題本</option>
+                <option value="歷屆模考">📚 歷屆模考</option>
+                <option value="115模考-一模">📊 115模考-一模</option>
+                <option value="115模考-二模">📊 115模考-二模</option>
+                <option value="115模考-三模">📊 115模考-三模</option>
+                <option value="115模考-四模">📊 115模考-四模</option>
+            </select>
+            <input type="text" class="custom-source" placeholder="或自填來源..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;display:none;">
+
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;margin-top:10px;">Step 2：科目</div>
             <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
 
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：單元</div>
@@ -1154,7 +1162,7 @@
         if (data) {
             // 收集 '複習講義' 下所有 instName 的所有 units
                         const allUnits = new Set();
-            // v2.3.2.104: 收集所有 units, 同名去重 + 統一格式 (移除 vol 前綴)
+            // v2.3.2.109: 保留 vol 前綴 (例: '第五冊 / 貨幣與勞動'), 同 vol 同名去重, 按冊次排序
             Object.keys(data).forEach(function(typeName) {
                 if (typeName !== '複習講義') return;
                 const typeObj = data[typeName];
@@ -1164,17 +1172,28 @@
                     if (Array.isArray(units)) {
                         units.forEach(function(u) {
                             // u 可能是 '第五冊 / 貨幣與勞動' 或純 '貨幣與勞動'
-                            // 去除 vol 前綴 (第一冊/第二冊/...)
-                            const cleanName = String(u).replace(/^第[一二三四五六七八九十]+冊\s*\/\s*/, '').trim();
-                            if (cleanName && !allUnits.has(cleanName)) {
-                                allUnits.add(cleanName);
+                            // 保留 vol 前綴, Set 去重 (同 vol 同名只留一個)
+                            const fullName = String(u).trim();
+                            if (fullName && !allUnits.has(fullName)) {
+                                allUnits.add(fullName);
                             }
                         });
                     }
                 });
             });
             if (allUnits.size > 0) {
-                Array.from(allUnits).sort().forEach(function(name) {
+                // v2.3.2.109: 排序: 冊次先後, 然後按字母
+                Array.from(allUnits).sort(function(a, b) {
+                    const volA = (a.match(/^第([一二三四五六七八九十]+)冊/) || [])[1] || '';
+                    const volB = (b.match(/^第([一二三四五六七八九十]+)冊/) || [])[1] || '';
+                    if (volA && volB) {
+                        const cnToNum = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+                        const na = cnToNum[volA] || 99;
+                        const nb = cnToNum[volB] || 99;
+                        if (na !== nb) return na - nb;
+                    }
+                    return a.localeCompare(b);
+                }).forEach(function(name) {
                     unitSelect.add(new Option(name, name));
                 });
                 unitSelect.disabled = false;
@@ -1246,6 +1265,10 @@
             // v2.3.2.65: 跳過 教材類型 + 教材名稱
             const subj = card.querySelector('.subj-sel').value || '未分類';
             const unit = card.querySelector('.unit-sel').value || '';
+            // v2.3.2.109: 讀錯題來源 (Step 1 dropdown + custom-source)
+            let source = card.querySelector('.source-sel') ? card.querySelector('.source-sel').value : '';
+            const cs = card.querySelector('.custom-source');
+            if (cs && cs.style.display !== 'none' && cs.value) source = cs.value;
             
             const checkboxes = card.querySelectorAll('.reasons-group input:checked');
             const reasons = Array.from(checkboxes).map(cb => cb.value);
@@ -1261,6 +1284,7 @@
             slot.dataset.subject = subj;
             // v2.3.2.72: 移除 typeName/instName (v2.3.2.65 跳過教材類型+教材名稱後, 這兩變數已不存在 → ReferenceError)
             slot.dataset.unit = unit;
+            slot.dataset.source = source || '';   // v2.3.2.109: 寫入 source
             slot.dataset.reasons = JSON.stringify(reasons);
 
             let reasonHtml = ``;
