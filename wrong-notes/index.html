@@ -231,10 +231,9 @@
         }
         .delete-box-btn:hover { transform: scale(1.15); background: #e84118; }
 
-        /* v2.3.2.109: 縮放控制點改為框內小圓點 (不凸出, 看起來更平順) */
-        .resize-handle { position: absolute; width: 14px; height: 14px; background: #e74c3c; border: 2px solid #fff; border-radius: 50%; z-index: 10; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
-        .resize-handle.tl { top: 3px; left: 3px; cursor: nwse-resize; }
-        .resize-handle.br { bottom: 3px; right: 3px; cursor: nwse-resize; }
+        /* v2.3.2.110: 完全隱藏 resize handle (讓框線看起來完全平順, 沒有任何凸出) */
+        .resize-handle { display: none !important; }
+        .resize-handle.tl, .resize-handle.br { display: none !important; }
 
         .add-crop-btn {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
