@@ -231,7 +231,7 @@
         }
         .delete-box-btn:hover { transform: scale(1.15); background: #e84118; }
 
-        /* v2.3.2.110: 完全隱藏 resize handle (讓框線看起來完全平順, 沒有任何凸出) */
+        /* v2.3.2.111: 完全隱藏 resize handle (讓框線看起來完全平順, 沒有任何凸出) */
         .resize-handle { display: none !important; }
         .resize-handle.tl, .resize-handle.br { display: none !important; }
 
@@ -461,17 +461,10 @@
 <!-- 考卷/相片 OCR 全螢幕框選視窗 -->
 <div id="crop-modal">
     <div class="crop-header-wrapper">
-        <!-- v2.3.2.73: 移除說明文字, 只留「手動框選」按鈕 -->
+        <!-- v2.3.2.111: 刪除「手動框選」按鈕, 直接顯示「新增框線」+「Undo」+ 提示 -->
         <div class="crop-header">
             <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
-                <button class="glass-btn-small" style="background:var(--btn-peach-dust);" onclick="enableManualCrop()">✍️ 手動框選</button>
-            </div>
-            
-            <!-- 手動框選編輯 Pad -->
-            <div id="manual-edit-pad" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,0,0,0.1);">
-                <!-- v2.3.2.77: 新增框線 按鈕 #BEE7E9 -->
                 <button class="glass-btn-small" style="background:#BEE7E9;" onclick="startManualBox()">➕ 新增框線</button>
-                <!-- v2.3.2.77: Undo 按鈕 #E6CEAC -->
                 <button class="glass-btn-small" style="background:#E6CEAC;" onclick="undoManualBox()">↺ Undo</button>
                 <span style="font-size:14px; margin-left:10px; color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
             </div>
@@ -854,10 +847,6 @@
         });
         document.getElementById('manual-edit-pad').style.display = 'none';
         isManualAdding = false;
-    }
-
-    function enableManualCrop() {
-        document.getElementById('manual-edit-pad').style.display = 'block';
     }
 
     function startManualBox() {
