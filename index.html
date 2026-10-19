@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.120]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.122]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -6590,56 +6590,70 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
 // v1.5.107: 跨單元月曆標示 (用全部 cat, 不只 appMaster)
 function getCrossUnitRanges(task) {
     if (!task || !task.startPage || !task.endPage) return null;
-    var subj = task.subject;
-    var s = null;
-    var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
-    if (masters) {
-        Object.keys(masters).forEach(function(cat) {
-            if (s) return;
-            if (masters[cat] && masters[cat][subj]) s = masters[cat][subj];
-        });
+    if (!task.unitId) return null;
+
+    // v2.3.2.122: 直接用 task.unitId 找唯一 unit, **完全不 fuzzy match**
+    // (v2.3.2.122 之前是用 page 跨全 master fuzzy 比對, 抓到複習講義的「大航海時代的台灣」撞進課前預習)
+    var sInfo = null;
+    var user = (multiData && multiData[currentUserId]) ? multiData[currentUserId] : null;
+    if (user && user.masters && task.cat && user.masters[task.cat] && user.masters[task.cat][task.subject]) {
+        sInfo = user.masters[task.cat][task.subject];
     }
-    if (!s && appMaster && appMaster[subj]) s = appMaster[subj];
-    if (!s || !s.materials) return null;
-    var units = [];
-    Object.keys(s.materials).forEach(function(mt) {
-        var mat = s.materials[mt];
-        if (!mat || !mat.instances) return;
-        mat.instances.forEach(function(inst) {
-            if (!inst) return;
-            if (inst.vols && typeof inst.vols === 'object') {
-                Object.keys(inst.vols).forEach(function(volName) {
-                    (inst.vols[volName] || []).forEach(function(u) {
-                        if (u && u.id) units.push(u);
-                    });
-                });
+    if (!sInfo && appMaster && appMaster[task.subject]) sInfo = appMaster[task.subject];
+    if (!sInfo) return null;
+
+    var foundUnit = null;
+    if (sInfo.type === 'custom' && Array.isArray(sInfo.units)) {
+        foundUnit = sInfo.units.find(function(x) { return x && x.id === task.unitId; });
+    } else if (sInfo.vols && typeof sInfo.vols === 'object') {
+        var volKeys = Object.keys(sInfo.vols);
+        for (var vi = 0; vi < volKeys.length && !foundUnit; vi++) {
+            var arr = sInfo.vols[volKeys[vi]];
+            if (Array.isArray(arr)) foundUnit = arr.find(function(x) { return x && x.id === task.unitId; });
+        }
+    } else if (sInfo.materials && typeof sInfo.materials === 'object') {
+        var matKeys = Object.keys(sInfo.materials);
+        for (var mi = 0; mi < matKeys.length && !foundUnit; mi++) {
+            var mat = sInfo.materials[matKeys[mi]];
+            if (!mat || !mat.instances) continue;
+            for (var ii = 0; ii < mat.instances.length && !foundUnit; ii++) {
+                var inst = mat.instances[ii];
+                if (!inst) continue;
+                if (Array.isArray(inst.units)) {
+                    foundUnit = inst.units.find(function(x) { return x && x.id === task.unitId; });
+                }
+                if (!foundUnit && inst.vols && typeof inst.vols === 'object') {
+                    var ivKeys = Object.keys(inst.vols);
+                    for (var ki = 0; ki < ivKeys.length && !foundUnit; ki++) {
+                        var vArr = inst.vols[ivKeys[ki]];
+                        if (Array.isArray(vArr)) foundUnit = vArr.find(function(x) { return x && x.id === task.unitId; });
+                    }
+                }
             }
-            if (inst.units && Array.isArray(inst.units)) {
-                inst.units.forEach(function(u) {
-                    if (u && u.id) units.push(u);
-                });
-            }
-        });
-    });
+        }
+    }
+
+    if (!foundUnit) return null;
+
+    var uStart = Number(foundUnit.start) || 0;
+    var uEnd = Number(foundUnit.end) || 0;
+    var tStart = Number(task.startPage);
+    var tEnd = Number(task.endPage);
+
     var ranges = [];
-    for (var p = task.startPage; p <= task.endPage; p++) {
-        var foundUid = null;
-        var foundName = null;
-        for (var ui = 0; ui < units.length; ui++) {
-            var u = units[ui];
-            if (p >= u.start && p <= u.end) {
-                foundUid = u.id;
-                foundName = u.name;
-                break;
-            }
-        }
-        if (ranges.length === 0 || ranges[ranges.length - 1].unitId !== foundUid) {
-            ranges.push({start: p, end: p, unitId: foundUid, name: foundName});
-        } else {
-            ranges[ranges.length - 1].end = p;
-        }
+    if (tStart < uStart && uStart <= tEnd) {
+        ranges.push({ start: tStart, end: uStart - 1, unitId: null, name: '(超出 unit 邊界)' });
+        ranges.push({ start: uStart, end: tEnd, unitId: foundUnit.id, name: foundUnit.name });
+    } else if (tStart <= uEnd && uEnd < tEnd) {
+        ranges.push({ start: tStart, end: uEnd, unitId: foundUnit.id, name: foundUnit.name });
+        ranges.push({ start: uEnd + 1, end: tEnd, unitId: null, name: '(超出 unit 邊界)' });
+    } else if (uStart <= tStart && tEnd <= uEnd) {
+        return null;
+    } else {
+        ranges.push({ start: tStart, end: tEnd, unitId: null, name: '(超出 unit 邊界)' });
     }
-    ranges = ranges.filter(function(r) { return r.unitId !== null && r.end >= r.start; });
+
+    ranges = ranges.filter(function(r) { return r.unitId !== null; });
     if (ranges.length <= 1) return null;
     return ranges;
 }
