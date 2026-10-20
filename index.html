@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.122]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.125]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4132,6 +4132,28 @@ function initGlobalScheduleMode() {
         function _v158Migrate(uid) {
             var user = multiData[uid];
             if (!user) return;
+
+            // v2.3.2.125: rescue 舊壞 user (有 master 但沒 masters) — 由 v2.3.2.124 前 addNewUser typo 造成
+            if (user.master && !user.masters) {
+                console.warn('v2.3.2.125: 救援舊壞 user (有 master 但沒 masters), uid=' + uid);
+                if (!user.masters) user.masters = {};
+                if (!user.masters['會考複習']) user.masters['會考複習'] = {};
+                if (!user.masters['段考複習']) user.masters['段考複習'] = {};
+                if (Object.keys(user.master).length > 0 && Object.keys(user.masters['會考複習']).length === 0) {
+                    // 把舊 master 的資料搬到 會考複習 (假設原本是從會考複習 master migrate 來的)
+                    user.masters['會考複習'] = user.master;
+                }
+                delete user.master;
+            }
+
+            // v2.3.2.125: 也 rescue 用戶本身 masters 結構不完整
+            if (!user.masters) user.masters = {};
+            if (!user.masters['會考複習']) user.masters['會考複習'] = {};
+            if (!user.masters['段考複習']) {
+                user.masters['段考複習'] = { '國文': { materials: {} }, '數學': { materials: {} }, '英文': { materials: {} }, '歷史': { materials: {} }, '地理': { materials: {} }, '公民': { materials: {} }, '理化': { materials: {} }, '地科': { materials: {} } };
+                user._v1511_default_added = true;
+            }
+            if (!user.missions) user.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
 
             // 1. 如果有 master 但沒有 masters → migrate
             if (user.master && !user.masters) {
@@ -17145,7 +17167,26 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             closeModal('modal-avatar');
         }
 
-        function addNewUser() { openInputModal('➕ 建立新學生', '', function(name) { var newId = genId(); multiData[newId] = { name: name, master: {}, missions: {}, logs: [], plans: [], avatar: '' }; saveToLocal(); el('user-selector').innerHTML += `<option value="${newId}">${name}</option>`; renderUserManageList(); }); }
+        function addNewUser() {
+            openInputModal('➕ 建立新學生', '', function(name) {
+                var newId = genId();
+                // v2.3.2.125: 修正 typo (舊 code 用 master:{}, v1.5.8 後應為 masters), 並補上預設 masters/missions 結構避免 init crash
+                multiData[newId] = {
+                    name: name,
+                    masters: {
+                        '會考複習': {},
+                        '段考複習': { '國文': { materials: {} }, '數學': { materials: {} }, '英文': { materials: {} }, '歷史': { materials: {} }, '地理': { materials: {} }, '公民': { materials: {} }, '理化': { materials: {} }, '地科': { materials: {} } }
+                    },
+                    missions: { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} },
+                    logs: [],
+                    plans: [],
+                    avatar: ''
+                };
+                saveToLocal();
+                el('user-selector').innerHTML += `<option value="${newId}">${name}</option>`;
+                renderUserManageList();
+            });
+        }
         function renameUser(uid) { openInputModal('✏️ 修改學生名稱', multiData[uid].name, function(newName) { if (newName !== multiData[uid].name) { multiData[uid].name = newName; saveToLocal(); initUsers(); renderUserManageList(); } }); }
         function deleteUser(uid) { if (Object.keys(multiData).length <= 1) return; if (confirm('確定刪除此學生的所有資料？')) { delete multiData[uid]; if (currentUserId === uid) currentUserId = Object.keys(multiData)[0]; saveToLocal(); initUsers(); renderUserManageList(); } }
 
