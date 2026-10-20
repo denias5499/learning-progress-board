@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.125]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.126]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4155,6 +4155,19 @@ function initGlobalScheduleMode() {
             }
             if (!user.missions) user.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
 
+            // v2.3.2.126 (A): 修復 plan.grid 內 task.vol 與 master 不一致的歷史資料
+            // 情境: 排程當時 master 有多份同 unit 的不同卷次, 後來 master 整併成單一卷次,
+            //       task.vol 留著舊值 → getUnitDonePagesByOverlap 的跨冊保護會漏算頁數 (7/13)
+            // 規則: 只在「master 中此 unitId 恰好只對應到一個 vol」時才改寫, 跨冊同名不受影響
+            try {
+                var _v126Fixed = fixStaleVolInPlans(user);
+                if (_v126Fixed > 0) {
+                    console.log('v2.3.2.126: 修復 ' + _v126Fixed + ' 筆 task.vol 與 master 不一致的歷史資料');
+                }
+            } catch (e) {
+                console.warn('v2.3.2.126: fixStaleVolInPlans 執行失敗 (不影響其他功能):', e && e.message);
+            }
+
             // 1. 如果有 master 但沒有 masters → migrate
             if (user.master && !user.masters) {
                 console.log('v1.5.8: 檢測到舊 master 結構, 開始 migrate 到 masters[cat]');
@@ -5053,6 +5066,113 @@ loadBoardHeader();
                 });
             });
             appMissions[cat][mis].forEach(uid => { var info = lookup[uid]; if (!info) return; if (!tree[info.sub]) tree[info.sub] = { type: 'materials', items: {} }; if (!tree[info.sub].items[info.vol]) tree[info.sub].items[info.vol] = []; tree[info.sub].items[info.vol].push(info.unit); }); Object.keys(tree).forEach(sub => { Object.keys(tree[sub].items).forEach(vol => { tree[sub].items[vol].sort((a, b) => { return (Number(a.start)||0) - (Number(b.start)||0); }); }); }); return tree;
+        }
+
+        // v2.3.2.126: 排程精靈 availableUnits 收斂器 (B-1)
+        // 同一 unit.id 若出現在多個 instance/vol, 只保留一筆 (取 vol 出現次數最多者, 平手取第一筆),
+        // 並把所有分頁 chunk 的 vol 統一。真正跨冊的 unit 是不同 unit.id, 不受影響。
+        function normalizeWizardAvailableUnits(list) {
+            if (!Array.isArray(list) || list.length === 0) return list || [];
+            var byId = {}, order = [];
+            list.forEach(function (au) {
+                if (!au || !au.id) return;
+                if (!byId[au.id]) { byId[au.id] = []; order.push(au.id); }
+                byId[au.id].push(au);
+            });
+            var out = [];
+            order.forEach(function (uid) {
+                var arr = byId[uid];
+                if (arr.length === 1) { out.push(arr[0]); return; }
+                var counts = {};
+                arr.forEach(function (au) { var v = au.vol || ''; counts[v] = (counts[v] || 0) + 1; });
+                var canonical = arr[0].vol || '', best = counts[canonical] || 0;
+                Object.keys(counts).forEach(function (v) {
+                    if (counts[v] > best) { best = counts[v]; canonical = v; }
+                });
+                var vols = Object.keys(counts).join(', ');
+                console.warn('v2.3.2.126: 單元 ' + (arr[0].name || uid) + ' (' + uid + ') 在 master 有多個卷次 [' + vols +
+                    '], 排程精靈統一採用 [' + (canonical || '(無)') + ']');
+                var first = arr[0];
+                first.vol = canonical;
+                out.push(first);
+            });
+            return out;
+        }
+
+        // v2.3.2.126: 修復 plan.grid 內 stale task.vol (A 方案)
+        // 只在 master 中該 unitId「唯一對應一個 vol」時才改寫 task.vol, 屬於安全的資料校正。
+        function fixStaleVolInPlans(user) {
+            if (!user) return 0;
+            var volMap = {};   // unitId -> { vol: v, multi: bool }
+            // 注意: 不能用 _collectSubjectUnits — 它以 typeName|ins.name|u.id 去重,
+            //       同一 instance 下「同 id 掛多個 vol」只會回傳第一個, 會讓 multi 保護失效。
+            //       這裡刻意寫一個「不去重」的掃描器, 才能正確偵測真正跨冊的 unit。
+            function rawScan(s, typeName, instName) {
+                if (!s || typeof s !== 'object') return;
+                if (s.type === 'custom' && Array.isArray(s.units)) {
+                    s.units.forEach(function (u) { if (u && u.id) markVol(u.id, 'custom'); });
+                    return;
+                }
+                if (s.vols && typeof s.vols === 'object' && !s.materials) {
+                    (s.volOrder || Object.keys(s.vols)).forEach(function (vn) {
+                        (s.vols[vn] || []).forEach(function (u) { if (u && u.id) markVol(u.id, vn); });
+                    });
+                    return;
+                }
+                if (s.materials && typeof s.materials === 'object') {
+                    Object.keys(s.materials).forEach(function (tn) {
+                        var to = s.materials[tn];
+                        if (!to || !Array.isArray(to.instances)) return;
+                        to.instances.forEach(function (ins) {
+                            if (!ins) return;
+                            if (ins.vols && typeof ins.vols === 'object') {
+                                (ins.volOrder || Object.keys(ins.vols)).forEach(function (vn) {
+                                    (ins.vols[vn] || []).forEach(function (u) { if (u && u.id) markVol(u.id, vn); });
+                                });
+                            }
+                            if (Array.isArray(ins.units)) {
+                                ins.units.forEach(function (u) {
+                                    if (!u || !u.id) return;
+                                    markVol(u.id, (ins.type === 'volume') ? (u.vol || 'custom') : (tn + '|' + (ins.name || '')));
+                                });
+                            }
+                        });
+                    });
+                }
+            }
+            function markVol(uid, v) {
+                v = v || '';
+                if (!volMap[uid]) volMap[uid] = { vol: v, multi: false };
+                else if ((volMap[uid].vol || '') !== v) volMap[uid].multi = true;
+            }
+            function scanMaster(catMaster) {
+                if (!catMaster || typeof catMaster !== 'object') return;
+                Object.keys(catMaster).forEach(function (sub) { rawScan(catMaster[sub]); });
+            }
+            if (user.masters) Object.keys(user.masters).forEach(function (cat) { scanMaster(user.masters[cat]); });
+            if (typeof appMaster !== 'undefined' && appMaster && Object.keys(appMaster).length) scanMaster(appMaster);
+
+            var fixed = 0;
+            var plans = user.plans || (typeof appPlans !== 'undefined' ? appPlans : null);
+            if (!Array.isArray(plans)) return 0;
+            plans.forEach(function (plan) {
+                if (!plan || !plan.grid) return;
+                Object.keys(plan.grid).forEach(function (d) {
+                    (plan.grid[d] || []).forEach(function (t) {
+                        if (!t || !t.unitId || !t.vol) return;
+                        var info = volMap[t.unitId];
+                        if (!info || info.multi) return;           // 沒有對應 / 多卷次 → 不動
+                        var real = info.vol;
+                        if (real && t.vol !== real) {
+                            console.log('v2.3.2.126: 修復 task.vol', t.vol, '->', real, '|', plan.name || '?', d, '|', t.unitName || t.text || '');
+                            t.vol = real;
+                            fixed++;
+                        }
+                    });
+                });
+            });
+            if (fixed > 0 && typeof saveToLocal === 'function') { try { saveToLocal(); } catch (e) {} }
+            return fixed;
         }
 
         // v1.5.5: 統一 subject unit 收集 helper — 兼容舊 (s.units / s.vols) + 新 (s.materials[*].instances[*])
@@ -6978,7 +7098,13 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 // v1.6.141: 依 scheduleMode 分派 (模式 A: 時數 = 原行為; 模式 B: 單元 = v1.6.142.2 實作)
                 var _scheduleMode = ws.scheduleMode || 'hours';
 
-                ws.availableUnits.forEach(availU => {
+                // v2.3.2.126 (B-1): 先把同一 unit.id 的多筆 availableUnits 收斂成一筆 + 統一 vol
+                // 根因: _collectSubjectUnits 去重 key 是 typeName|ins.name|u.id,
+                //       同一個 unit id 若掛在不同 instance/vol 會同時存在, wizard 會各自產生 chunk,
+                //       導致同一單元的 task.vol 被拆成多個值 (例: P.26-32=第一冊, P.33-38=第五冊),
+                //       之後 getUnitDonePagesByOverlap 的跨冊保護 (t.vol !== u.vol) 就會漏算頁數
+                var _v126Units = normalizeWizardAvailableUnits(ws.availableUnits);
+                _v126Units.forEach(availU => {
                     if (!ws.selectedUnitIds.includes(availU.id)) return;
                     var u = availU.uObj;
                     var volName = availU.vol;
