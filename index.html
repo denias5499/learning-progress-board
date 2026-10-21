@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.127]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.128]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4168,6 +4168,35 @@ function initGlobalScheduleMode() {
                 console.warn('v2.3.2.126: fixStaleVolInPlans 執行失敗 (不影響其他功能):', e && e.message);
             }
 
+            // v2.3.2.128 (Bug A): 對齊 plan 期間與實際排程範圍
+            //   情境: 使用者按過「強制擠進」, 任務被排到 plan.end 之外但 plan.end 沒同步,
+            //         造成「平均分配會超出計畫完成日期」誤判, 且日後排程一直被當成超出。
+            //   只改 metadata, 不動任務; 原值存入 originalStart/EndBeforeAlign 可還原。
+            try {
+                if (Array.isArray(user.plans)) {
+                    var _v128Fixed = 0;
+                    user.plans.forEach(function (plan) {
+                        if (!plan || !plan.grid) return;
+                        var _dates = Object.keys(plan.grid).filter(function (d) { return (plan.grid[d] || []).length > 0; }).sort();
+                        if (!_dates.length) return;
+                        var _realStart = _dates[0], _realEnd = _dates[_dates.length - 1];
+                        var _changed = false;
+                        if (plan.start && plan.start > _realStart) {
+                            if (!plan.originalStartBeforeAlign) plan.originalStartBeforeAlign = plan.start;
+                            plan.start = _realStart; _changed = true;
+                        }
+                        if (plan.end && plan.end < _realEnd) {
+                            if (!plan.originalEndBeforeAlign) plan.originalEndBeforeAlign = plan.end;
+                            plan.end = _realEnd; _changed = true;
+                        }
+                        if (_changed) _v128Fixed++;
+                    });
+                    if (_v128Fixed > 0) console.log('v2.3.2.128: 對齊 ' + _v128Fixed + ' 個 plan 的期間到實際排程範圍');
+                }
+            } catch (e) {
+                console.warn('v2.3.2.128: plan 期間對齊失敗 (不影響其他功能):', e && e.message);
+            }
+
             // 1. 如果有 master 但沒有 masters → migrate
             if (user.master && !user.masters) {
                 console.log('v1.5.8: 檢測到舊 master 結構, 開始 migrate 到 masters[cat]');
@@ -5121,12 +5150,105 @@ loadBoardHeader();
                 var noVol = 0, noUnitId = 0;
                 dates.forEach(function (d) { (plan.grid[d] || []).forEach(function (t) { if (!t.vol) noVol++; if (!t.unitId) noUnitId++; }); });
                 out.push('  缺 vol 的任務 = ' + noVol + ' / 缺 unitId 的任務 = ' + noUnitId);
+
+                // v2.3.2.128: 未完成任務明細 (回答「為何停」)
+                var todayStr = getLocalDateString(new Date());
+                var undone = [], overdue = [], future = [];
+                dates.forEach(function (d) {
+                    (plan.grid[d] || []).forEach(function (t) {
+                        if (t.isDone) return;
+                        var rec = { d: d, t: (t.subject || '?') + ' / ' + (t.unitName || t.task || (t.text || '').slice(0, 20)) };
+                        if (t.startPage !== '' && t.startPage !== undefined) rec.p = ' P.' + t.startPage + (t.endPage && t.endPage !== t.startPage ? ('~' + t.endPage) : '');
+                        if (d < todayStr) { overdue.push(rec); } else { future.push(rec); }
+                        undone.push(rec);
+                    });
+                });
+                out.push('  未完成 ' + undone.length + ' 筆 = 已過期 ' + overdue.length + ' + 未到期 ' + future.length);
+                if (overdue.length) {
+                    out.push('  ⚠️ 已過期未完成 (這些就是「卡住」的):');
+                    overdue.slice(0, 15).forEach(function (r) { out.push('    - ' + r.d + r.p + '  ' + r.t); });
+                    if (overdue.length > 15) out.push('    ... 還有 ' + (overdue.length - 15) + ' 筆');
+                }
+                if (future.length) {
+                    out.push('  📅 未到期:');
+                    future.slice(0, 15).forEach(function (r) { out.push('    - ' + r.d + r.p + '  ' + r.t); });
+                    if (future.length > 15) out.push('    ... 還有 ' + (future.length - 15) + ' 筆');
+                }
+
+                // v2.3.2.128: 超出 plan.end / 早於 plan.start 的任務來源分析
+                if (plan.end) {
+                    var beyond = [], before = [];
+                    dates.forEach(function (d) {
+                        if (d > plan.end) beyond.push.apply(beyond, (plan.grid[d] || []).map(function (t) { return { d: d, t: t }; }));
+                        if (plan.start && d < plan.start) before.push.apply(before, (plan.grid[d] || []).map(function (t) { return { d: d, t: t }; }));
+                    });
+                    if (beyond.length) {
+                        var autoN = beyond.filter(function (x) { return x.t.isAuto; }).length;
+                        var wizN = beyond.filter(function (x) { return x.t.wizardRunId; }).length;
+                        var postN = beyond.filter(function (x) { return (x.t.postponeCount || 0) > 0; }).length;
+                        var handN = beyond.length - autoN;
+                        out.push('  ⚠️ 超出 plan.end 的任務 ' + beyond.length + ' 筆 (isAuto ' + autoN + ' / wizardRunId ' + wizN +
+                            ' / 順延過 ' + postN + ' / 非自動 ' + handN + ')');
+                        out.push('     → 這就是 plan.end 與排程不一致的來源, 執行 diagnosePlanEndFix() 可把 end 對齊');
+                    }
+                    if (before.length) {
+                        out.push('  ℹ️ 早於 plan.start 的任務 ' + before.length + ' 筆 (最早的 ' + before[0].d + ') — 推測是 plan.start 被改晚, 或更早的舊排程');
+                    }
+                }
                 if (plan.originalEndBeforeLastWizard) out.push('  originalEndBeforeLastWizard = ' + plan.originalEndBeforeLastWizard);
                 if (plan.lastWizardRunTime) out.push('  lastWizardRunTime = ' + plan.lastWizardRunTime);
             });
             out.push('\n=== 結論: 若上面的 ⚠️ 沒出現, plan.end 本身沒問題, 問題在別的顯示處 ===');
             console.log(out.join('\n'));
             return out.join('\n');
+        };
+
+        // v2.3.2.128: 把 plan.start / plan.end 對齊到 grid 實際範圍 (可逆)
+        //   只改 metadata, 不動任何任務資料; 原值存入 originalStart/EndBeforeAlign 供還原。
+        window.diagnosePlanEndFix = function (apply) {
+            var lines = ['=== plan 期間對齊 (dry-run, 加 true 執行) ==='];
+            var changes = [];
+            if (!Array.isArray(appPlans)) { console.warn('appPlans 不存在'); return lines.join('\n'); }
+            appPlans.forEach(function (plan) {
+                if (!plan.grid) return;
+                var dates = Object.keys(plan.grid).filter(function (d) { return (plan.grid[d] || []).length > 0; }).sort();
+                if (!dates.length) return;
+                var realStart = dates[0], realEnd = dates[dates.length - 1];
+                var needStart = plan.start && plan.start > realStart ? plan.start : realStart;
+                var needEnd = plan.end && plan.end < realEnd ? realEnd : plan.end;
+                if (needStart === plan.start && needEnd === plan.end) {
+                    lines.push('  ✓ ' + (plan.name || plan.id) + ' 已對齊 (' + (plan.start || '-') + ' ~ ' + (plan.end || '-') + ')');
+                    return;
+                }
+                lines.push('  ⚠️ ' + (plan.name || plan.id));
+                if (needStart !== plan.start) lines.push('     start: ' + plan.start + ' → ' + needStart);
+                if (needEnd !== plan.end) lines.push('     end:   ' + plan.end + ' → ' + needEnd);
+                changes.push({ plan: plan, start: needStart, end: needEnd });
+            });
+            if (!changes.length) { lines.push('沒有需要對齊的計畫'); console.log(lines.join('\n')); return lines.join('\n'); }
+            if (!apply) {
+                lines.push('');
+                lines.push('確認無誤後執行: diagnosePlanEndFix(true)');
+                console.log(lines.join('\n'));
+                return lines.join('\n');
+            }
+            changes.forEach(function (c) {
+                var pl = c.plan;
+                if (pl.start !== c.start) {
+                    if (!pl.originalStartBeforeAlign) pl.originalStartBeforeAlign = pl.start;
+                    pl.start = c.start;
+                }
+                if (pl.end !== c.end) {
+                    if (!pl.originalEndBeforeAlign) pl.originalEndBeforeAlign = pl.end;
+                    pl.end = c.end;
+                }
+                appLogs.push({ id: genId(), date: getLocalDateString(new Date()), category: '⏰ 計畫管理', mission: pl.name, subject: '計畫', unitName: '期間對齊', start: 0, end: 0, pages: 0, detail: 'plan 期間對齊到實際排程範圍 (原 ' + (pl.originalStartBeforeAlign || pl.start) + '~' + (pl.originalEndBeforeAlign || pl.end) + ')' });
+            });
+            if (typeof saveToLocal === 'function') saveToLocal();
+            lines.push('');
+            lines.push('✅ 已對齊 ' + changes.length + ' 個計畫並儲存。原值保留在 originalStartBeforeAlign / originalEndBeforeAlign');
+            console.log(lines.join('\n'));
+            return lines.join('\n');
         };
 
         // v2.3.2.126: 排程精靈 availableUnits 收斂器 (B-1)
@@ -8345,6 +8467,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             '⏰ 延長完成日期',
                             '✕ 取消這次編輯',
                             function() {
+                                // v2.3.2.128 (Bug A 根因): 選項 A「強制擠進」會把任務塞進 plan.end 之外,
+                                //   但舊碼完全不改 plan.end → 元資料與實際排程永久不一致 (且撤回也還原不了)。
+                                //   使用者既然明確選了「擠進」, 就代表排到那天是刻意的 → 把 plan.end 同步到實際最後一天。
+                                if (!plan.originalEndBeforeLastWizard) {
+                                    plan.originalEndBeforeLastWizard = pendingOriginalEnd || plan.end;
+                                }
+                                var _forcedMax = plan.end;
+                                pendingTasks.forEach(function (pp) { if (pp.dateStr > _forcedMax) _forcedMax = pp.dateStr; });
+                                var _oldEndForced = plan.end;
+                                if (_forcedMax !== plan.end) {
+                                    plan.end = _forcedMax;
+                                    appLogs.push({ id: genId(), date: getLocalDateString(new Date()), category: '⏰ 計畫管理', mission: plan.name, subject: '計畫', unitName: '完成日期', start: 0, end: 0, pages: 0, detail: '強制擠進超出原定完成日期, 已同步把計畫完成日期 ' + _oldEndForced + ' → ' + _forcedMax });
+                                }
+
                                 // 選項 A: 強制擠進 - 重建任務
                                 pendingTasks.forEach(function(p) {
                                     if (!plan.grid[p.dateStr]) plan.grid[p.dateStr] = [];
