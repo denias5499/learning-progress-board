@@ -1,0 +1,78 @@
+=== 1) Git HEAD metadata ===
+HEAD commit: a0a0f9251773ff0c31d00e1fd5fee27a7990dd42
+HEAD short:  a0a0f92
+Branch:      main
+Latest tag:  v1.6.173
+Working dir: /mnt/my_book/Denias/projects/learning-progress-board
+--- Working tree status ---
+?? add_styles.py
+?? backup-v1.6.140-pre-v141.tar.gz
+?? backup-v1.6.141.2-pre-v142.tar.gz
+?? backup-v1.6.145-pre-v146.tar.gz
+?? backup-v1.6.146-pre-v147.tar.gz
+?? backup-v1.6.147-pre-v148.tar.gz
+?? backup-v1.6.148-pre-v149.tar.gz
+?? backup-v1.6.149-pre-v150.tar.gz
+?? backup-v1.6.150-pre-v151.tar.gz
+?? backup-v1.6.151-pre-v152.tar.gz
+?? backup-v1.6.152-pre-v153.tar.gz
+?? backup-v1.6.153-pre-v154.tar.gz
+?? backup-v1.6.154-pre-v155.tar.gz
+?? backup-v1.6.155-pre-v156.tar.gz
+?? backup-v1.6.156-pre-v157.tar.gz
+?? backup-v1.6.157-pre-v158.tar.gz
+?? backup-v1.6.158-pre-v159.tar.gz
+?? backup-v1.6.161-pre-v162.tar.gz
+?? backup-v1.6.161.tgz
+?? backup-v1.6.167-pre-v168.tar.gz
+?? backup-v1.6.168-pre-v169.tar.gz
+?? backups/
+?? console_fix_syntax.js
+?? fix_buttons.py
+?? fix_javascript.py
+?? fix_syntax_v2.py
+?? index.html.backup.20260922_153708
+?? index.html.bak-v1.6.160
+?? index.html.bak-v1.6.161
+?? index.html.compat.backup
+?? index.html.fixed
+?? index.html.phase2.backup
+?? index.html.pre-revert.20260922_191814
+?? index.html.v171.backup
+?? restore_phase2_fix.sh
+?? test-indexeddb.html
+?? test/check_all.js
+?? test/check_m1.js
+?? test/check_missions.js
+?? test/debug_build_tree.js
+?? test/debug_denia_flow.js
+?? test/debug_denia_real.js
+?? test/debug_denia_real2.js
+?? test/debug_denia_step3.js
+?? test/debug_full_flow.js
+?? test/debug_real_data.js
+?? test/debug_render_after_revert.js
+?? test/inspect_available.js
+?? test/inspect_real_data.js
+?? test/inspect_subjects.js
+?? test/inspect_wizard_load.js
+?? test/inspect_wizard_load2.js
+?? test/inspect_wizard_load3.js
+?? test/inspect_wizard_load4.js
+?? test/reproduce_denas_real.js
+?? test/revert_compare.js
+?? test/revert_compare2.js
+?? test/sim_denas_scenario.js
+?? test/v149-taskscreated-bug.test.js
+?? test/v155_e2e.js
+?? test/v161_vol_migration.test.js
+--- Uncommitted file count ---
+61
+
+=== 2) 程式碼 tarball ===
+-rwxr-xr-x 1 aping aping 25M  9月 24 00:41 backups/code-20260924_004106.tar.gz
+
+=== 3) 程式碼（含未提交改動） tarball ===
+-rwxr-xr-x 1 aping aping 35M  9月 24 00:41 backups/code-full-20260924_004106.tar.gz
+
+備份完成 ✅

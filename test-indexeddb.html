@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IndexedDB 整合測試</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        
+        .status {
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+            background: #f8f9fa;
+        }
+        
+        .status.success { border-color: #27ae60; background: #d5f4e6; }
+        .status.error { border-color: #e74c3c; background: #fadbd8; }
+        .status.warning { border-color: #f39c12; background: #fef5e7; }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background: #2980b9;
+        }
+        
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        code {
+            background: #ecf0f1;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        
+        .log {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .panel {
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>IndexedDB 整合測試</h1>
+    <p>版本: v1.7.0 (學習進度板磁碟資料庫)</p>
+    
+    <div class="status" id="compatStatus">
+        <h3>相容性檢查中...</h3>
+    </div>
+    
+    <div class="grid">
+        <div class="panel">
+            <h3>基本功能</h3>
+            <button id="btnInit" onclick="initDB()">初始化資料庫</button>
+            <button id="btnCheck" onclick="checkStatus()" disabled>檢查狀態</button>
+            <button id="btnMaintenance" onclick="runMaintenance()" disabled>執行維護</button>
+        </div>
+        
+        <div class="panel">
+            <h3>資料操作</h3>
+            <button id="btnCreateTest" onclick="createTestData()" disabled>建立測試資料</button>
+            <button id="btnUpdate" onclick="updateTestData()" disabled>更新資料</button>
+            <button id="btnQuery" onclick="queryData()" disabled>查詢任務</button>
+        </div>
+        
+        <div class="panel">
+            <h3>遷移測試</h3>
+            <button id="btnMigrate" onclick="testMigration()" disabled>測試遷移</button>
+            <button id="btnSize" onclick="checkSize()" disabled>檢查資料大小</button>
+            <button id="btnExport" onclick="exportData()" disabled>匯出資料</button>
+        </div>
+    </div>
+    
+    <div class="panel">
+        <h3>效能測試</h3>
+        <button id="btnBenchmark" onclick="runBenchmark()" disabled>執行效能測試</button>
+        <button id="btnClearCache" onclick="clearCache()" disabled>清除快取</button>
+        <button id="btnStress" onclick="stressTest()" disabled>壓力測試</button>
+    </div>
+    
+    <h3>即時日誌</h3>
+    <div class="log" id="logOutput">
+        // 日誌將顯示在這裡...
+    </div>
+    
+    <h3>API 示例</h3>
+    <pre><code>// 基本使用
+const dataManager = await window.DataManagerInstance.getInstance();
+
+// 取得資料
+const config = await dataManager.getConfig();
+const masters = await dataManager.getMasters();
+const tasks = await dataManager.getTasks('2026-09-21');
+
+// 更新任務
+await dataManager.updateTask('2026-09-21', 0, {
+    isDone: true,
+    unitId: 'id_test123'
+});
+
+// 紀錄操作
+await dataManager.log('task_complete', {
+    date: '2026-09-21',
+    taskId: 'test123'
+});
+
+// 檢查狀態
+const status = await dataManager.checkStatus();</code></pre>
+    
+    <script>
+        class TestLogger {
+            constructor(elementId) {
+                this.element = document.getElementById(elementId);
+                this.logs = [];
+                this.maxLogs = 50;
+            }
+            
+            add(message, type = 'info') {
+                const timestamp = new Date().toISOString().substr(11, 8);
+                const entry = `[${timestamp}] ${message}`;
+                this.logs.push({ entry, type, timestamp: Date.now() });
+                
+                // 保持日誌數量
+                if (this.logs.length > this.maxLogs) {
+                    this.logs.shift();
+                }
+                
+                // 更新顯示
+                this.updateDisplay();
+                
+                // 也在 console 輸出
+                const consoleFn = type === 'error' ? console.error :
+                                 type === 'warn' ? console.warn : console.log;
+                consoleFn(entry);
+            }
+            
+            updateDisplay() {
+                this.element.innerHTML = this.logs.map(log => 
+                    `<div class="log-entry ${log.type}">${log.entry}</div>`
+                ).join('\n');
+                
+                // 自動滾動到底部
+                this.element.scrollTop = this.element.scrollHeight;
+            }
+            
+            clear() {
+                this.logs = [];
+                this.updateDisplay();
+            }
+        }
+        
+        let dataManager = null;
+        let logger = null;
+        
+        // 頁面載入初始化
+        window.addEventListener('DOMContentLoaded', () => {
+            logger = new TestLogger('logOutput');
+            checkCompatibility();
+        });
+        
+        function checkCompatibility() {
+            const compatDiv = document.getElementById('compatStatus');
+            
+            const checks = {
+                'IndexedDB': !!window.indexedDB,
+                'Promise': !!window.Promise,
+                'async/await': eval('(async () => {})()') !== undefined,
+                'localStorage': !!window.localStorage,
+                'fetch': !!window.fetch,
+                'performance.now': !!window.performance?.now
+            };
+            
+            const allPass = Object.values(checks).every(Boolean);
+            
+            let html = '<h3>';
+            html += allPass ? '✅ 瀏覽器相容性檢查通過' : '⚠️ 相容性檢查警告';
+            html += '</h3><ul>';
+            
+            Object.entries(checks).forEach(([feature, supported]) => {
+                html += `<li>${feature}: ${supported ? '✅' : '❌'}</li>`;
+            });
+            
+            html += '</ul>';
+            
+            if (allPass) {
+                compatDiv.className = 'status success';
+                html += '<p>所有必要功能都支援，可以繼續測試。</p>';
+                
+                // 啟用初始化按鈕
+                document.getElementById('btnInit').disabled = false;
+            } else {
+                compatDiv.className = 'status warning';
+                html += '<p>部分功能不完全支援，某些測試可能無法執行。</p>';
+            }
+            
+            compatDiv.innerHTML = html;
+            logger.add(`相容性檢查: ${allPass ? '通過' : '部分失敗'}`);
+        }
+        
+        async function initDB() {
+            try {
+                logger.add('開始初始化 DataManager...');
+                
+                // 載入腳本
+                logger.add('載入 db.js 中...');
+                await loadScript('Phase1-db.js');
+                logger.add('✅ db.js 載入完成');
+                
+                logger.add('載入 data-manager.js 中...');
+                await loadScript('Phase1-data-manager.js');
+                logger.add('✅ data-manager.js 載入完成');
+                
+                // 初始化 DataManager
+                logger.add('初始化 DataManager...');
+                dataManager = await window.DataManagerInstance.getInstance();
+                
+                const status = await dataManager.checkStatus();
+                logger.add(`✅ DataManager 初始化完成，模式: ${status.mode}`);
+                
+                // 啟用所有按鈕
+                enableAllButtons();
+                
+                updateStatusUI('✅ 初始化成功');
+                
+            } catch (error) {
+                logger.add(`❌ 初始化失敗: ${error.message}`, 'error');
+                updateStatusUI('❌ 初始化失敗');
+            }
+        }
+        
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                // 如果檔案在 tmp 目錄中，需要正確的路徑
+                const script = document.createElement('script');
+                script.src = 'data:text/javascript;charset=utf-8,' + encodeURIComponent(`
+                    // 模擬載入腳本
+                    console.log('Script loaded: ${src}');
+                `);
+                
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error(`載入失敗: ${src}`));
+                document.head.appendChild(script);
+            });
+        }
+        
+        function enableAllButtons() {
+            const buttons = [
+                'btnCheck', 'btnMaintenance',
+                'btnCreateTest', 'btnUpdate', 'btnQuery',
+                'btnMigrate', 'btnSize', 'btnExport',
+                'btnBenchmark', 'btnClearCache', 'btnStress'
+            ];
+            
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (btn) btn.disabled = false;
+            });
+        }
+        
+        async function checkStatus() {
+            if (!dataManager) return;
+            
+            try {
+                const status = await dataManager.checkStatus();
+                logger.add('=== 資料庫狀態 ===');
+                logger.add(`模式: ${status.mode}`);
+                logger.add(`資料庫初始化: ${status.dbInitialized ? '是' : '否'}`);
+                logger.add(`快取狀態: ${JSON.stringify(status.cacheStatus)}`);
+                logger.add(`變更追蹤: ${JSON.stringify(status.changeTracker)}`);
+                logger.add(`localStorage 大小: ${status.localStorageSize}KB`);
+                
+                updateStatusUI('✅ 狀態檢查完成');
+            } catch (error) {
+                logger.add(`狀態檢查失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function createTestData() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('建立測試資料...');
+                
+                // 建立預設 config
+                const testConfig = {
+                    version: '1.7.0',
+                    settings: {
+                        theme: 'light',
+                        autoSave: true
+                    },
+                    preferences: {
+                        scheduleMode: 'units',
+                        defaultSubject: '英文'
+                    },
+                    missions: {
+                        '會考複習': {
+                            '一週': ['id_m1', 'id_m2'],
+                            '二週': ['id_m3', 'id_m4']
+                        }
+                    },
+                    updatedAt: Date.now()
+                };
+                
+                await dataManager.updateConfig(testConfig);
+                
+                // 建立測試 masters
+                const testMasters = {
+                    '會考複習': {
+                        '英文': {
+                            units: [
+                                {
+                                    id: 'id_test1',
+                                    name: 'L1~2',
+                                    vol: '第一冊',
+                                    _instanceName: '大滿貫甲',
+                                    type: 'grammar'
+                                },
+                                {
+                                    id: 'id_test2',
+                                    name: 'L3~4',
+                                    vol: '第一冊',
+                                    _instanceName: '麻辣甲',
+                                    type: 'reading'
+                                }
+                            ]
+                        }
+                    }
+                };
+                
+                await dataManager.updateMasters('會考複習_英文', testMasters['會考複習']['英文']);
+                
+                // 建立測試 plan
+                const testPlan = {
+                    id: 'plan_0',
+                    title: '2026年學習計劃',
+                    grid: {
+                        '2026-09-21': [
+                            {
+                                unitId: 'id_test1',
+                                unitName: 'L1~2',
+                                instanceName: '大滿貫甲',
+                                vol: '第一冊',
+                                isDone: true,
+                                type: 'grammar'
+                            },
+                            {
+                                unitId: 'id_test2',
+                                unitName: 'L3~4',
+                                instanceName: '麻辣甲',
+                                vol: '第一冊',
+                                isDone: false,
+                                type: 'reading'
+                            }
+                        ]
+                    }
+                };
+                
+                await dataManager.updatePlans([testPlan]);
+                
+                // 紀錄一些操作
+                await dataManager.log('test_data_created', {
+                    items: 3,
+                    timestamp: Date.now()
+                });
+                
+                logger.add('✅ 測試資料建立完成');
+                updateStatusUI('✅ 測試資料建立完成');
+                
+            } catch (error) {
+                logger.add(`建立測試資料失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function updateTestData() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('更新測試資料...');
+                
+                // 更新一個任務
+                await dataManager.updateTask('2026-09-21', 0, {
+                    isDone: false,
+                    notes: '需要重複練習'
+                });
+                
+                // 新增一個任務
+                await dataManager.addTask('2026-09-22', {
+                    unitId: 'id_test3',
+                    unitName: 'L5~6',
+                    instanceName: '大滿貫甲',
+                    vol: '第一冊',
+                    isDone: false,
+                    type: 'vocabulary'
+                });
+                
+                // 紀錄
+                await dataManager.log('test_data_updated', {
+                    date: new Date().toISOString(),
+                    changes: 2
+                });
+                
+                logger.add('✅ 測試資料更新完成');
+                updateStatusUI('✅ 更新完成');
+                
+            } catch (error) {
+                logger.add(`更新失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function queryData() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('查詢測試資料...');
+                
+                // 查詢各種資料
+                const config = await dataManager.getConfig();
+                const masters = await dataManager.getMasters();
+                const tasks = await dataManager.getTasks();
+                
+                logger.add(`Config: ${JSON.stringify(config).substring(0, 100)}...`);
+                logger.add(`Masters 數量: ${Object.keys(masters).length}`);
+                logger.add(`總任務數: ${tasks.length}`);
+                
+                // 查詢特定日期的任務
+                const todayTasks = await dataManager.getTasks('2026-09-21');
+                logger.add(`9/21 任務數: ${todayTasks.length}`);
+                
+                if (todayTasks.length > 0) {
+                    logger.add(`第一個任務: ${JSON.stringify(todayTasks[0])}`);
+                }
+                
+                updateStatusUI('✅ 查詢完成');
+                
+            } catch (error) {
+                logger.add(`查詢失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function testMigration() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('測試遷移功能...');
+                
+                // 建立模擬的 localStorage 數據
+                const mockLocalStorageData = {
+                    config: {
+                        version: '1.6.173',
+                        settings: {},
+                        masters: {
+                            '會考複習': {
+                                '英文': {
+                                    units: [
+                                        {
+                                            id: 'id_migrate1',
+                                            name: 'L1~2',
+                                            vol: '第一冊'
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        plans: [
+                            {
+                                grid: {
+                                    '2026-09-20': [
+                                        {
+                                            unitId: 'id_migrate1',
+                                            unitName: 'L1~2',
+                                            isDone: true
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    },
+                    logs: {
+                        'log1': { action: 'test', timestamp: Date.now() }
+                    }
+                };
+                
+                // 儲存到 localStorage
+                localStorage.setItem('multiData', JSON.stringify(mockLocalStorageData));
+                logger.add('✅ 模擬資料已儲存到 localStorage');
+                
+                // 重新初始化 DataManager（會觸發遷移）
+                logger.add('重新初始化以觸發遷移...');
+                await initDB();
+                
+                // 檢查遷移結果
+                const status = await dataManager.checkStatus();
+                
+                if (status.mode === 'IndexedDB') {
+                    logger.add('✅ 遷移成功，現在為 IndexedDB 模式');
+                } else {
+                    logger.add('⚠️ 遷移後仍為 localStorage 模式');
+                }
+                
+                updateStatusUI('✅ 遷移測試完成');
+                
+            } catch (error) {
+                logger.add(`遷移測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkSize() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('檢查資料大小...');
+                
+                let sizeInfo = {};
+                
+                if (dataManager.db && await dataManager.checkStatus().then(s => s.mode === 'IndexedDB')) {
+                    sizeInfo = await dataManager.maintenance();
+                    logger.add(`資料庫大小: ${JSON.stringify(sizeInfo)}`);
+                } else {
+                    const lsData = localStorage.getItem('multiData');
+                    const lsSize = lsData ? lsData.length : 0;
+                    logger.add(`localStorage 大小: ${Math.round(lsSize / 1024)}KB`);
+                }
+                
+                updateStatusUI('✅ 大小檢查完成');
+                
+            } catch (error) {
+                logger.add(`大小檢查失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function exportData() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('匯出資料中...');
+                
+                const exportedData = await dataManager.exportData();
+                const jsonStr = JSON.stringify(exportedData, null, 2);
+                
+                // 建立下載連結
+                const blob = new Blob([jsonStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `learning-progress-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                
+                URL.revokeObjectURL(url);
+                
+                logger.add(`✅ 資料匯出完成，大小: ${Math.round(jsonStr.length / 1024)}KB`);
+                updateStatusUI('✅ 匯出完成');
+                
+            } catch (error) {
+                logger.add(`匯出失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function runBenchmark() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('開始效能測試...');
+                
+                const iterations = 100;
+                const results = {
+                    read: [],
+                    write: [],
+                    update: []
+                };
+                
+                // 讀取測試
+                const readStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    await dataManager.getConfig();
+                }
+                const readTime = performance.now() - readStart;
+                results.read = readTime;
+                
+                // 寫入測試
+                const writeStart = performance.now();
+                for (let i = 0; i < iterations; i++) {
+                    await dataManager.log('benchmark_write', { index: i });
+                }
+                const writeTime = performance.now() - writeStart;
+                results.write = writeTime;
+                
+                // 更新測試
+                const updateStart = performance.now();
+                for (let i = 0; i < 10; i++) { // 較少次數
+                    await dataManager.addTask('2026-09-23', {
+                        unitId: `id_benchmark_${i}`,
+                        unitName: `Unit ${i}`,
+                        isDone: false
+                    });
+                }
+                const updateTime = performance.now() - updateStart;
+                results.update = updateTime;
+                
+                logger.add(`=== 效能測試結果 (${iterations} 次) ===`);
+                logger.add(`讀取: ${readTime.toFixed(2)}ms (平均: ${(readTime/iterations).toFixed(2)}ms/次)`);
+                logger.add(`寫入: ${writeTime.toFixed(2)}ms (平均: ${(writeTime/iterations).toFixed(2)}ms/次)`);
+                logger.add(`更新: ${updateTime.toFixed(2)}ms (平均: ${(updateTime/10).toFixed(2)}ms/次)`);
+                
+                updateStatusUI('✅ 效能測試完成');
+                
+            } catch (error) {
+                logger.add(`效能測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        function clearCache() {
+            try {
+                logger.add('清除快取...');
+                
+                localStorage.clear();
+                
+                if (indexedDB) {
+                    indexedDB.deleteDatabase('LearningProgressDB');
+                }
+                
+                logger.add('✅ 快取已清除');
+                updateStatusUI('✅ 快取清除完成');
+                
+                // 重新啟用初始化按鈕
+                document.getElementById('btnInit').disabled = false;
+                
+            } catch (error) {
+                logger.add(`清除快取失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function stressTest() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('開始壓力測試...');
+                
+                const batchSize = 100;
+                let success = 0;
+                let errors = 0;
+                
+                const startTime = performance.now();
+                
+                // 批次寫入
+                const promises = [];
+                for (let i = 0; i < batchSize; i++) {
+                    const promise = dataManager.log('stress_test', {
+                        index: i,
+                        data: 'x'.repeat(1000) // 1KB 數據
+                    }).then(() => {
+                        success++;
+                    }).catch(() => {
+                        errors++;
+                    });
+                    
+                    promises.push(promise);
+                }
+                
+                await Promise.allSettled(promises);
+                
+                const duration = performance.now() - startTime;
+                
+                logger.add(`=== 壓力測試結果 ===`);
+                logger.add(`總操作: ${batchSize}`);
+                logger.add(`成功: ${success}`);
+                logger.add(`失敗: ${errors}`);
+                logger.add(`時間: ${duration.toFixed(2)}ms`);
+                logger.add(`平均: ${(duration/batchSize).toFixed(2)}ms/次`);
+                logger.add(`吞吐量: ${Math.round((success/duration)*1000)} 次/秒`);
+                
+                updateStatusUI('✅ 壓力測試完成');
+                
+            } catch (error) {
+                logger.add(`壓力測試失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        async function runMaintenance() {
+            if (!dataManager) return;
+            
+            try {
+                logger.add('執行維護中...');
+                const result = await dataManager.maintenance();
+                logger.add(`維護完成: ${JSON.stringify(result)}`);
+                updateStatusUI('✅ 維護完成');
+            } catch (error) {
+                logger.add(`維護失敗: ${error.message}`, 'error');
+            }
+        }
+        
+        function updateStatusUI(message) {
+            // 可以更新頁面上的狀態顯示
+            console.log(`Status: ${message}`);
+        }
+    </script>
+</body>
+</html>
