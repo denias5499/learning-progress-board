@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.126]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.127]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5068,6 +5068,67 @@ loadBoardHeader();
             appMissions[cat][mis].forEach(uid => { var info = lookup[uid]; if (!info) return; if (!tree[info.sub]) tree[info.sub] = { type: 'materials', items: {} }; if (!tree[info.sub].items[info.vol]) tree[info.sub].items[info.vol] = []; tree[info.sub].items[info.vol].push(info.unit); }); Object.keys(tree).forEach(sub => { Object.keys(tree[sub].items).forEach(vol => { tree[sub].items[vol].sort((a, b) => { return (Number(a.start)||0) - (Number(b.start)||0); }); }); }); return tree;
         }
 
+        // v2.3.2.127: 安全加月份 — 會把日期夾在目標月份的最後一天
+        //   (原 setMonth() 在 1/31、3/31、5/31、8/31、10/31、12/31 會溢位到下個月甚至下下個月)
+        function addMonthsClamped(d, n) {
+            var r = new Date(d.getTime());
+            var y = r.getFullYear();
+            var m = r.getMonth() + n;
+            var day = r.getDate();
+            // 目標月份最後一天: new Date(y, m + 1, 0).getDate()
+            var lastDay = new Date(y, m + 1, 0).getDate();
+            return new Date(y, m, Math.min(day, lastDay));
+        }
+
+        // v2.3.2.127: 把 'YYYY-MM-DD' 解析成本地時間午夜
+        //   (new Date('YYYY-MM-DD') 依 ECMA-262 會被當 UTC 解析, 在 UTC 負偏移時區會退一天)
+        function parseLocalDateStr(s) {
+            if (!s) return null;
+            var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s));
+            if (!m) { var d0 = new Date(s); return isNaN(d0.getTime()) ? null : d0; }
+            return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        }
+
+        // v2.3.2.127: plan.end 診斷工具 — 在瀏覽器 Console 打 diagnosePlanEnd() 即可
+        window.diagnosePlanEnd = function () {
+            var out = [];
+            out.push('=== plan.end 診斷 ===');
+            if (!Array.isArray(appPlans) || !appPlans.length) { console.warn('沒有任何計畫'); return out; }
+            appPlans.forEach(function (plan) {
+                out.push('\n【' + (plan.name || '?') + '】 id=' + plan.id);
+                out.push('  plan.start = ' + JSON.stringify(plan.start));
+                out.push('  plan.end   = ' + JSON.stringify(plan.end));
+                if (!plan.grid) { out.push('  (無 grid)'); return; }
+                var dates = Object.keys(plan.grid).filter(function (d) { return (plan.grid[d] || []).length > 0; }).sort();
+                var withTask = dates.length ? dates : dates;
+                out.push('  grid 日期數 = ' + dates.length +
+                    (dates.length ? ('  (最早 ' + dates[0] + ' ~ 最晚 ' + dates[dates.length - 1] + ')') : ''));
+                var total = 0, done = 0;
+                dates.forEach(function (d) { (plan.grid[d] || []).forEach(function (t) { total++; if (t.isDone) done++; }); });
+                out.push('  任務數 = ' + total + '  已完成 = ' + done);
+                if (plan.end && dates.length) {
+                    var last = dates[dates.length - 1];
+                    if (last > plan.end) {
+                        out.push('  ⚠️ 不一致: 有任務的最後一天 (' + last + ') 晚於 plan.end (' + plan.end + '), 差 ' +
+                            Math.round((new Date(last) - new Date(plan.end)) / 86400000) + ' 天');
+                    } else if (last < plan.end) {
+                        out.push('  ℹ️ plan.end 比最後任務晚 ' +
+                            Math.round((new Date(plan.end) - new Date(last)) / 86400000) + ' 天 (有buffer, 通常正常)');
+                    } else {
+                        out.push('  ✓ plan.end 與最後任務同一天');
+                    }
+                }
+                var noVol = 0, noUnitId = 0;
+                dates.forEach(function (d) { (plan.grid[d] || []).forEach(function (t) { if (!t.vol) noVol++; if (!t.unitId) noUnitId++; }); });
+                out.push('  缺 vol 的任務 = ' + noVol + ' / 缺 unitId 的任務 = ' + noUnitId);
+                if (plan.originalEndBeforeLastWizard) out.push('  originalEndBeforeLastWizard = ' + plan.originalEndBeforeLastWizard);
+                if (plan.lastWizardRunTime) out.push('  lastWizardRunTime = ' + plan.lastWizardRunTime);
+            });
+            out.push('\n=== 結論: 若上面的 ⚠️ 沒出現, plan.end 本身沒問題, 問題在別的顯示處 ===');
+            console.log(out.join('\n'));
+            return out.join('\n');
+        };
+
         // v2.3.2.126: 排程精靈 availableUnits 收斂器 (B-1)
         // 同一 unit.id 若出現在多個 instance/vol, 只保留一筆 (取 vol 出現次數最多者, 平手取第一筆),
         // 並把所有分頁 chunk 的 vol 統一。真正跨冊的 unit 是不同 unit.id, 不受影響。
@@ -5812,10 +5873,11 @@ loadBoardHeader();
                 setWizardScheduleMode(initialModeRadio.value);
             }
 
+            // v2.3.2.127: 原本用 setMonth(+1) 會在月底溢位 (例: 1/31 +1月 → 3/3, 8/31 → 10/1),
+            //   預設結束日期會莫名多出好幾天。改用會夾邊界的 addMonths。
             var dStart = new Date();
             el('wz-startdate').value = getLocalDateString(dStart);
-            var dEnd = new Date(); dEnd.setMonth(dEnd.getMonth() + 1);
-            el('wz-enddate').value = getLocalDateString(dEnd);
+            el('wz-enddate').value = getLocalDateString(addMonthsClamped(dStart, 1));
 
             // v1.5.112: 確保當前 plan 有 hourConfig, 讀取其 defaults 填入 wz-hrs-X
             var wizPlan = getCurrentWizardPlan();
@@ -6630,7 +6692,11 @@ function getUnitDonePagesByUnitIdMatch(filterCat, filterMis) {
 }
 
 function getUnitDonePagesByOverlap(filterCat, filterMis) {
+    // v2.3.2.127: result 只放「數字頁數」。去重用的 Set 改放 pageSets, 不再洩漏到回傳值。
+    //   舊碼把 accumulator 寫成 result[uid + '_pages'], 呼叫端 refreshTreeScheduledUnits 用
+    //   Object.keys() 盲掃 → 會建立 id_xxx_pages 垃圾條目, 且 0 + Set 變成字串 "0[object Set]"。
     var result = {};
+    var pageSets = {};
     if (!appPlans || appPlans.length === 0) return result;
     var allUnits = {};
     var masters = (multiData && multiData[currentUserId]) ? multiData[currentUserId].masters : null;
@@ -6712,8 +6778,8 @@ function getUnitDonePagesByOverlap(filterCat, filterMis) {
                     var s = t.startPage > u.start ? t.startPage : u.start;
                     var e = t.endPage < u.end ? t.endPage : u.end;
                     if (e >= s) {
-                        if (!result[uid + '_pages']) result[uid + '_pages'] = new Set();
-                        var pageSet = result[uid + '_pages'];
+                        if (!pageSets[uid]) pageSets[uid] = new Set();
+                        var pageSet = pageSets[uid];
                         var added = 0;
                         for (var p = s; p <= e; p++) {
                             if (!pageSet.has(p)) { pageSet.add(p); added++; }
@@ -15862,6 +15928,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // filtered (respects current mission filter) -> donePages
             var overlapFiltered = getUnitDonePagesByOverlap();
             Object.keys(overlapFiltered).forEach(function(uid) {
+                // v2.3.2.127: 防禦性 — 歷史資料若仍有 _pages 後綴的 key 一律跳過, 不污染 tree
+                if (typeof overlapFiltered[uid] !== 'number' || /_pages$/.test(uid)) return;
                 if (!window._treeScheduledUnits[uid]) {
                     window._treeScheduledUnits[uid] = {
                         covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
@@ -15873,6 +15941,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // unfiltered (ALL missions) -> totalDonePages (for display only)
             var overlapUnfiltered = getUnitDonePagesByOverlap('ALL', 'ALL');
             Object.keys(overlapUnfiltered).forEach(function(uid) {
+                // v2.3.2.127: 同上防禦性過濾
+                if (typeof overlapUnfiltered[uid] !== 'number' || /_pages$/.test(uid)) return;
                 if (!window._treeScheduledUnits[uid]) {
                     window._treeScheduledUnits[uid] = {
                         covered: 0, donePages: 0, totalTasks: 0, doneTasks: 0,
