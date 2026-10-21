@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.129]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.130]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -3611,6 +3611,20 @@ function initGlobalScheduleMode() {
         // 修正處 1：加入這個全新的 getUnitScheduleStatus 函數
         // 來取代原本陽春的 isUnitScheduled 函數
         // ==========================================
+        // v2.3.2.130: 「無分冊科目」的 vol 標準化為 'custom'。
+        //   過去程式對同一件事有兩種寫法: 有些地方寫 '' (空字串)、有些地方寫 'custom'，
+        //   導致同一個國文單元產生的任務 vol 不一致。
+        //   為什麼要統一: '' 是 falsy, 會讓跨冊保護 (t.vol && u.vol && t.vol !== u.vol) 整個失效，
+        //   而且 '' 與 'custom' 在嚴格相等比對處永遠對不上 (舊資料 vol:'' vs 查詢算出 'custom')。
+        //   'custom' 語意 = 「這個科目沒有分冊」, 與 '' 等價但具名、可正常存進 localStorage。
+        //   向下相容: isVolEq() 把 '' 與 'custom' 視為同一個值, 所以既有資料不會因此失配。
+        //   UI 保護: isRealVolName() 讓畫面不會出現 "[custom] ..." 這種惱人的前綴。
+        function isRealVolName(v) { return !!v && v !== 'custom'; }
+        function isVolEq(a, b) {
+            if (!isRealVolName(a) && !isRealVolName(b)) return true;   // 兩邊都是「無分冊」
+            return (a || '') === (b || '');
+        }
+
         function getUnitScheduleStatus(sub, unitName, volName, unitId, unitStart, unitEnd, targetCat, targetMis) {
             var pid = el('planner-selector') ? el('planner-selector').value : null;
             if(!pid && appPlans.length > 0) pid = appPlans[appPlans.length - 1].id;
@@ -3632,10 +3646,10 @@ function initGlobalScheduleMode() {
                             let match = false;
                             if (unitId && t.unitId) {
                                 if (t.unitId === unitId) match = true;
-                            } else if (t.unitName === unitName && t.vol === (volName || '')) {
+                            } else if (t.unitName === unitName && isVolEq(t.vol, volName)) {
                                 match = true;
                             } else if (!t.unitId && t.text) {
-                                let matchText = volName ? `[${volName}] ${unitName}` : unitName;
+                                let matchText = isRealVolName(volName) ? `[${volName}] ${unitName}` : unitName;
                                 let safeMatchText = matchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                                 let regex = new RegExp(`(^|[\\s\\[\\]【】])` + safeMatchText + `($|[\\s\\[\\]P])`);
                                 if (regex.test(t.text)) match = true;
@@ -4195,6 +4209,16 @@ function initGlobalScheduleMode() {
                 }
             } catch (e) {
                 console.warn('v2.3.2.128: plan 期間對齊失敗 (不影響其他功能):', e && e.message);
+            }
+
+            // v2.3.2.130: 統一「無分冊科目」(國文) 的 task.vol 為 'custom'
+            //   情境: 排程精靈舊碼對 custom 科目塞 vol: '' (空字串), 同一個單元產生的任務 vol 不一致;
+            //         '' 是 falsy 會讓跨冊保護失效, 且與寫 'custom' 的舊資料在嚴格比對處對不上。
+            //   規則: 只補「該科目確實沒有任何分冊」且 task 有 unitId 的空 vol 任務 (冪等)。
+            try {
+                fixEmptyVolInPlans(user);
+            } catch (e) {
+                console.warn('v2.3.2.130: fixEmptyVolInPlans 執行失敗 (不影響其他功能):', e && e.message);
             }
 
             // v2.3.2.129: 舊版安全備份含整個教材庫, 把 localStorage 撐爆。
@@ -5338,6 +5362,97 @@ loadBoardHeader();
         // v2.3.2.126: 排程精靈 availableUnits 收斂器 (B-1)
         // 同一 unit.id 若出現在多個 instance/vol, 只保留一筆 (取 vol 出現次數最多者, 平手取第一筆),
         // 並把所有分頁 chunk 的 vol 統一。真正跨冊的 unit 是不同 unit.id, 不受影響。
+        // v2.3.2.130: 把「無分冊科目」的空 vol 任務補成 'custom'。
+        //   冪等: 只處理 t.vol 為空白的任務, 已有值一律不動。
+        //   安全: 只補「該科目確實沒有任何分冊」且 task 有 unitId 的任務;
+        //         手動自訂任務 (unitId 為空) 的 vol 保持空白, 因為它本來就沒有對應單元。
+        //   只改 metadata, 不動頁數 / 完成狀態 / 日期。
+        function fixEmptyVolInPlans(user) {
+            if (!user || !Array.isArray(user.plans)) return 0;
+            // 判定某科目是否真的「沒有分冊」: 只要任何一處找到真實卷別就算有分冊
+            function hasRealVolumes(s) {
+                if (!s || typeof s !== 'object') return false;
+                if (s.vols && typeof s.vols === 'object' && Object.keys(s.vols).length > 0) return true;
+                if (Array.isArray(s.volOrder) && s.volOrder.length > 0) return true;
+                if (s.materials && typeof s.materials === 'object') {
+                    var found = false;
+                    Object.keys(s.materials).forEach(function (mt) {
+                        var ins = (s.materials[mt] || {}).instances;
+                        if (!Array.isArray(ins)) return;
+                        ins.forEach(function (i) {
+                            if (!i) return;
+                            if (i.vols && typeof i.vols === 'object' && Object.keys(i.vols).length > 0) found = true;
+                            if (i.type === 'volume') found = true;
+                        });
+                    });
+                    return found;
+                }
+                return false;
+            }
+            var noVolSubs = {};
+            function scanSubject(sub, s) { if (!hasRealVolumes(s)) noVolSubs[sub] = true; }
+            if (user.masters && typeof user.masters === 'object') {
+                Object.keys(user.masters).forEach(function (cat) {
+                    var cm = user.masters[cat];
+                    if (!cm || typeof cm !== 'object') return;
+                    Object.keys(cm).forEach(function (sub) { scanSubject(sub, cm[sub]); });
+                });
+            }
+            if (typeof appMaster !== 'undefined' && appMaster && Object.keys(appMaster).length) {
+                Object.keys(appMaster).forEach(function (sub) { scanSubject(sub, appMaster[sub]); });
+            }
+            if (Object.keys(noVolSubs).length === 0) return 0;
+
+            var fixed = 0, samples = [];
+            user.plans.forEach(function (plan) {
+                if (!plan || !plan.grid) return;
+                Object.keys(plan.grid).forEach(function (d) {
+                    (plan.grid[d] || []).forEach(function (t) {
+                        if (!t) return;
+                        if (t.vol) return;                  // 已有值 → 不動 (冪等)
+                        if (!t.unitId) return;              // 手動自訂任務 → 不動
+                        if (!noVolSubs[t.subject]) return;  // 有分冊的科目 → 不動
+                        if (samples.length < 8) samples.push('     ' + d + ' | ' + t.subject + ' | ' + (t.unitName || t.text || ''));
+                        t.vol = 'custom';
+                        fixed++;
+                    });
+                });
+            });
+            if (fixed > 0) {
+                console.log('v2.3.2.130: 補上 ' + fixed + ' 筆無分冊科目的空 vol 任務 → custom');
+                console.log(samples.join('\n'));
+            }
+            return fixed;
+        }
+
+        // v2.3.2.130: 診斷工具 — 預設 dry-run, 傳 true 才實際修改
+        window.diagnoseEmptyVol = function (apply) {
+            var user = multiData[currentUserId];
+            if (!user) { console.log('找不到目前使用者資料'); return; }
+            var volBySub = {};
+            user.plans.forEach(function (plan) {
+                if (!plan || !plan.grid) return;
+                Object.keys(plan.grid).forEach(function (d) {
+                    (plan.grid[d] || []).forEach(function (t) {
+                        if (!t) return;
+                        var k = t.subject + ' | vol=' + JSON.stringify(t.vol) + (t.unitId ? ' | 有unitId' : ' | 無unitId');
+                        volBySub[k] = (volBySub[k] || 0) + 1;
+                    });
+                });
+            });
+            console.log('%c=== task.vol 分布 (依科目) ===', 'color:#fff;background:#3498db;padding:2px 6px');
+            Object.keys(volBySub).sort().forEach(function (k) {
+                console.log('  ' + k + '  →  ' + volBySub[k] + ' 筆');
+            });
+            if (apply === true) {
+                var n = fixEmptyVolInPlans(user);
+                console.log('已實際修復 ' + n + ' 筆 (記得 Ctrl+S / 系統會自動存檔)');
+                if (n > 0 && typeof saveToLocal === 'function') saveToLocal();
+            } else {
+                console.log('這是預覽。確認後執行 diagnoseEmptyVol(true) 才會修改。');
+            }
+        };
+
         function normalizeWizardAvailableUnits(list) {
             if (!Array.isArray(list) || list.length === 0) return list || [];
             var byId = {}, order = [];
@@ -5590,7 +5705,7 @@ loadBoardHeader();
                     let sInfo = appMaster[subject];
                     if (sInfo.type === 'custom') {
                         let u = sInfo.units.find(x => text.includes(x.name));
-                        if(u) return { id: u.id, vol: '', name: u.name };
+                        if(u) return { id: u.id, vol: 'custom', name: u.name };
                     } else {
                         let vols = sInfo.volOrder || Object.keys(sInfo.vols);
                         for(let v of vols) {
@@ -6428,7 +6543,7 @@ function wzUpdateSubjects() {
                     };
 
                     if (sTree.type === 'custom') {
-                        sTree.items['custom'].forEach(u => extract(u, '', '', ''));
+                        sTree.items['custom'].forEach(u => extract(u, 'custom', '', ''));
                     } else {
                         var vols = Object.keys(sTree.items); // v1.6.136: 包含 instance-prefixed vol
                         vols.forEach(v => sTree.items[v].forEach(u => extract(u, v, u._typeName || '', u._instanceName || '')));
@@ -7078,7 +7193,7 @@ function renderUnitRowHtml(u, opts) {
     var onChange = opts.onChange || '';
     var displayMode = opts.displayMode || 'D';
     var showQuickRead = opts.showQuickRead !== false; // wizard 預設 true, manual 設 false
-    var prefix = u.vol ? `[${u.vol}] ` : '';
+    var prefix = isRealVolName(u.vol) ? `[${u.vol}] ` : '';
     var pageStr = (u.start && u.end && u.start !== u.end) ? ` (P.${u.start}~${u.end})` : ((u.start && u.start === u.end) ? ` (P.${u.start})` : '');
     var isScheduled = isUnitScheduledAnywhere(u);
     var qrChecked = u.quickRead ? 'checked' : '';
@@ -7380,7 +7495,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     if (!ws.selectedUnitIds.includes(availU.id)) return;
                     var u = availU.uObj;
                     var volName = availU.vol;
-                    var prefix = volName ? `[${volName}] ` : '';
+                    var prefix = isRealVolName(volName) ? `[${volName}] ` : '';
 
                     var s = Number(u.start) || 0;
                     var e = Number(u.end) || 0;
@@ -8860,7 +8975,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var subUnits = [];
                 if (sTree.type === 'custom') {
                     sTree.items['custom'].forEach(function(u){
-                        subUnits.push({sub:sub, u:u, vol:'', typeName:u._typeName||'', instanceName:u._instanceName||''});
+                        subUnits.push({sub:sub, u:u, vol:'custom', typeName:u._typeName||'', instanceName:u._instanceName||''});
                     });
                 } else {
                     var vols = Object.keys(sTree.items); // v1.6.136: 直接用 sTree.items keys (含 instance-prefixed vol)
@@ -9067,7 +9182,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             Object.keys(grouped).forEach(sub => {
                 let items = grouped[sub];
                 let listHtml = items.map(i => {
-                    let vStr = i.vol ? `[${i.vol}] ` : '';
+                    let vStr = isRealVolName(i.vol) ? `[${i.vol}] ` : '';
                     return `<li style="margin-bottom:12px; border-bottom:1px dashed #e2e8f0; padding-bottom:10px;">
                                 <div style="font-weight:bold; margin-bottom:5px; color:var(--primary);">${vStr}${i.name}</div>
                                 <div style="display:flex; align-items:center; gap:8px; font-size:0.9em; color:var(--secondary);">
