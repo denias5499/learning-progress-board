@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.128]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.129]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4197,6 +4197,50 @@ function initGlobalScheduleMode() {
                 console.warn('v2.3.2.128: plan 期間對齊失敗 (不影響其他功能):', e && e.message);
             }
 
+            // v2.3.2.129: 舊版安全備份含整個教材庫, 把 localStorage 撐爆。
+            // 這裡就地瘦身 (保留 plans/logs/missions 與時間/原因), 不丟掉任何備份內容。
+            try {
+                var _sk = 'StudyMap_SafetyBackup_V106';
+                var _rawS = localStorage.getItem(_sk);
+                if (_rawS) {
+                    var _allS = JSON.parse(_rawS);
+                    var _slimmed = 0;
+                    Object.keys(_allS).forEach(function (k) {
+                        var list = _allS[k] || [];
+                        list.forEach(function (sn, i) {
+                            if (!sn || !sn.master) return;   // 已經是精簡的
+                            list[i] = {
+                                _slim: true,
+                                _time: sn._time,
+                                _reason: sn._reason,
+                                plans: JSON.parse(JSON.stringify(sn.plans || [])),
+                                logs: JSON.parse(JSON.stringify(sn.logs || [])),
+                                missions: JSON.parse(JSON.stringify(sn.missions || {}))
+                            };
+                            _slimmed++;
+                        });
+                    });
+                    if (_slimmed > 0) {
+                        var _okS = false;
+                        for (var _a = 0; _a <= 10; _a++) {
+                            try {
+                                localStorage.setItem(_sk, JSON.stringify(_allS));
+                                _okS = true;
+                                break;
+                            } catch (e2) {
+                                var _lst = _allS[currentUserId];
+                                if (_lst && _lst.length > 1) _lst.shift();
+                                else break;
+                            }
+                        }
+                        console.log('v2.3.2.129: 瘦身 ' + _slimmed + ' 份舊安全備份 (移除教材庫)' +
+                                    (_okS ? '' : ' — 配額仍滿, 部分舊備份可能未能寫回'));
+                    }
+                }
+            } catch (e3) {
+                console.warn('v2.3.2.129: 安全備份瘦身失敗 (不影響其他功能):', e3 && e3.message);
+            }
+
             // 1. 如果有 master 但沒有 masters → migrate
             if (user.master && !user.masters) {
                 console.log('v1.5.8: 檢測到舊 master 結構, 開始 migrate 到 masters[cat]');
@@ -4869,6 +4913,39 @@ loadBoardHeader();
         var MAX_NAMED_SNAPSHOTS = 10;
         var MAX_SAFETY_BACKUPS = 10;  // 不限時間但最多 10 個
 
+        // v2.3.2.129: 安全備份只快照「會變動的資料」(plans / logs / missions)。
+        // 教材庫 (master) 是靜態資料, 卻是 localStorage 最大宗; 舊版把整包 multiData
+        // 深拷貝 10 份, 會直接把 localStorage 配額撐爆, 讓所有安全備份靜默失敗
+        // (等於使用者長期沒有還原保險)。這裡改成只備份會變的部分。
+        function _buildSlimBackupSnapshot(uid) {
+            var src = multiData[uid] || {};
+            return {
+                _slim: true,
+                _time: Date.now(),
+                plans: JSON.parse(JSON.stringify(src.plans || [])),
+                logs: JSON.parse(JSON.stringify(src.logs || [])),
+                missions: JSON.parse(JSON.stringify(src.missions || {}))
+            };
+        }
+
+        // v2.3.2.129: 配額寫入失敗時逐步丟掉最舊的備份再重試。
+        // 寧可少留幾份備份, 也不要讓備份機制整個失效。
+        function _quotaSafeSetBackup(key, allBackups, uid, maxKeep) {
+            for (var attempt = 0; ; attempt++) {
+                try {
+                    localStorage.setItem(key, JSON.stringify(allBackups));
+                    return true;
+                } catch (e) {
+                    var list = allBackups[uid];
+                    if (!list || list.length <= 1 || attempt > (maxKeep || 0)) {
+                        console.warn('v2.3.2.129: ' + key + ' 配額已滿, 本次備份未能寫入:', e && e.message);
+                        return false;
+                    }
+                    list.shift();  // 丟掉最舊的一筆
+                }
+            }
+        }
+
         // v1.5.106: 安全備份 (任何修改 plans 的動作前呼叫)
         function pushSafetyBackup(reason) {
             try {
@@ -4876,15 +4953,14 @@ loadBoardHeader();
                 var raw = localStorage.getItem(STORAGE_KEY_SAFETY) || '{}';
                 var backups = JSON.parse(raw);
                 if (!backups[currentUserId]) backups[currentUserId] = [];
-                var snap = JSON.parse(JSON.stringify(multiData[currentUserId]));
-                snap._time = Date.now();
+                var snap = _buildSlimBackupSnapshot(currentUserId);
                 snap._reason = reason || 'unknown';
                 backups[currentUserId].push(snap);
                 // 只保留最近 MAX_SAFETY_BACKUPS 個
                 if (backups[currentUserId].length > MAX_SAFETY_BACKUPS) {
                     backups[currentUserId] = backups[currentUserId].slice(-MAX_SAFETY_BACKUPS);
                 }
-                localStorage.setItem(STORAGE_KEY_SAFETY, JSON.stringify(backups));
+                _quotaSafeSetBackup(STORAGE_KEY_SAFETY, backups, currentUserId, MAX_SAFETY_BACKUPS);
             } catch(e) {
                 console.warn('pushSafetyBackup failed:', e.message);
             }
@@ -4911,7 +4987,15 @@ loadBoardHeader();
             var timeStr = new Date(snap._time).toLocaleString();
             if (!confirm('🛡️ 確定還原到 ' + timeStr + ' (原因: ' + (snap._reason || '?') + ') 的備份?\n\n目前的資料會被覆蓋, 但其他備份仍保留。')) return;
             try {
-                multiData[currentUserId] = JSON.parse(JSON.stringify(snap));
+                if (snap._slim) {
+                    // v2.3.2.129: 精簡快照只還原會變動的部分, 教材庫與其他欄位保留現況
+                    multiData[currentUserId].plans = JSON.parse(JSON.stringify(snap.plans || []));
+                    multiData[currentUserId].logs = JSON.parse(JSON.stringify(snap.logs || []));
+                    multiData[currentUserId].missions = JSON.parse(JSON.stringify(snap.missions || {}));
+                } else {
+                    // 舊版完整快照 → 整包還原
+                    multiData[currentUserId] = JSON.parse(JSON.stringify(snap));
+                }
                 delete multiData[currentUserId]._time;
                 delete multiData[currentUserId]._reason;
                 saveToLocal();
@@ -5008,7 +5092,7 @@ loadBoardHeader();
                 appMissions = lastSnap.missions;
                 // 寫回 stack (扣掉一個)
                 stack[currentUserId] = userStack;
-                localStorage.setItem(STORAGE_KEY_UNDO, JSON.stringify(stack));
+                _quotaSafeSetBackup(STORAGE_KEY_UNDO, stack, currentUserId, MAX_UNDO_STEPS);
                 saveToLocal();
                 renderCalendar();
                 renderDashboard();
