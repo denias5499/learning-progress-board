@@ -63,9 +63,10 @@ npm test                       # 跑 17 個 test (jsdom + node:test)
 
 ### 測試結構
 
-- `test/helpers.js` — jsdom loader + fixture builder + `_v153_BACKUP_PLANS_STR` parser
+- `test/fixtures/studymap-backup-2026-07-28.json` — v1.5.3 真實備份 (原為 index.html 內的 `_v153_BACKUP_PLANS_STR` / `_v153_BACKUP_MASTER_STR` inline 字串, v2.3.2.131 搬出來。⚠️ `config.name = '張裕宣'`, 是同學的資料不是 Denias 的)
+- `test/helpers.js` — jsdom loader + fixture builder + 備份 fixture 讀取 (`loadBackupPlans` / `loadBackupMaster`)
 - `test/progress.test.js` — mock unit test (12 個) + 邊界測試
-- `test/integration.test.js` — 用 `index.html` 內 `_v153_BACKUP_PLANS_STR` 真實備份跑 (4 個)
+- `test/integration.test.js` — 用 `test/fixtures/` 真實備份跑 (4 個)
 
 ### 開發流程
 

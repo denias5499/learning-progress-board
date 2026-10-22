@@ -1,22 +1,14 @@
 // test/wizard-perf.test.js -- debug 「建立智慧排程」按鈕 4 秒延遲
 const test = require('node:test');
-const fs = require('node:fs');
-const path = require('node:path');
-const { loadIndex, loadBackupPlans } = require('./helpers');
+const { loadIndex, loadBackupPlans, loadBackupMaster } = require('./helpers');
 const assert = require('node:assert/strict');
-
-
-const HTML_PATH = path.join(__dirname, '..', 'index.html');
 
 test('debug: openWizard 內每個子步驟計時', () => {
     const win = loadIndex();
     const backupPlans = loadBackupPlans();
 
-    // 從 index.html 抓 _v153_BACKUP_MASTER_STR
-    const html = fs.readFileSync(HTML_PATH, 'utf8');
-    const m = html.match(/window\._v153_BACKUP_MASTER_STR\s*=\s*(`[\s\S]*?`);/);
-    if (!m) throw new Error('_v153_BACKUP_MASTER_STR not found');
-    const master = JSON.parse(m[1].slice(1, -1));
+    // 從 test/fixtures 讀 _v153_BACKUP_MASTER_STR 的資料 (v2.3.2.131 改檔案來源)
+    const master = loadBackupMaster();
 
     // 構造 mission (從 backupPlans 推導真正被使用過的 unitId — 真實情境)
     const usedUnitIds = new Set();
