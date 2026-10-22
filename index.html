@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.131]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.132]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4015,27 +4015,36 @@ function initGlobalScheduleMode() {
         // 備份來源: StudyMap_Backup_2026-07-28.json (張裕宣)
         // 包含 8 個 subject (147 units)
         // v2.3.2.131: 原先還有的 _v153_BACKUP_PLANS_STR (1 個 plan / 159 tasks) 已移除
+        // v2.3.2.132: 本字串現在只給 restoreMathLecture() 用 (數學「複習講義」救援),
+        //               不再有任何自動注入路徑。
         // ⚠️ 這份備份的 config.name = '張裕宣' — 是同學的資料, 不是 Denias 的
         // ============================================================
         window._v153_BACKUP_MASTER_STR = `{"國文":{"type":"custom","units":[{"id":"id_a337snneu","name":"字音","start":6,"end":24},{"id":"id_khjgzki3t","name":"字形","start":25,"end":40},{"id":"id_k4thkjbgf","name":"字義","start":41,"end":56},{"id":"id_y9c1z8a05","name":"詞語應用","start":57,"end":81},{"id":"id_nlm0dl9is","name":"成語總匯","start":82,"end":98},{"id":"id_ykbtz3clc","name":"標點符號與工具書檢索","start":99,"end":108},{"id":"id_1vpjoar9c","name":"漢字結構與字體演變","start":109,"end":120},{"id":"id_kb4n5f5bx","name":"詞類與句型","start":121,"end":134},{"id":"id_1myxtm72e","name":"應用文（一）","start":135,"end":150},{"id":"id_bmsga8msb","name":"應用文（二）","start":151,"end":166},{"id":"id_5crev4wx3","name":"文化常識","start":167,"end":186},{"id":"id_5l40wzoqg","name":"國學常識","start":187,"end":204},{"id":"id_53wvtcthx","name":"語法辨析","start":205,"end":218},{"id":"id_oyp0q66qs","name":"文章表現技巧","start":219,"end":241},{"id":"id_lioqv9znm","name":"文意填空與重組","start":243,"end":252},{"id":"id_8skr8ws5a","name":"白話文閱讀單題","start":253,"end":271},{"id":"id_796yklvak","name":"文言文閱讀單題","start":273,"end":285},{"id":"id_fpq8cxxak","name":"白話文閱讀題組","start":286,"end":305},{"id":"id_ccdgvje14","name":"文言文閱讀題組","start":306,"end":318},{"id":"id_ajvz8dnbk","name":"多文本對讀","start":319,"end":330},{"id":"id_c4v98ib9n","name":"會考寫作攻略","start":331,"end":341}]},"數學":{"type":"volume","vols":{"第一冊":[{"id":"id_rd22imfzw","name":"數與數線","start":12,"end":25},{"id":"id_kbuj2t97z","name":"標準分解式與分數運算","start":26,"end":38},{"id":"id_38j5anva6","name":"一元一次方程式","start":39,"end":50},{"id":"id_d3nnphewi","name":"二元一次聯立方程式","start":51,"end":62}],"第二冊":[{"id":"id_cflahwntk","name":"直角坐標與二元一次方程式的圖形","start":63,"end":73},{"id":"id_j9qs7yc81","name":"比例","start":74,"end":85},{"id":"id_intrmjsrz","name":"一元一次不等式","start":86,"end":97},{"id":"id_re9n8vw31","name":"線對稱與三視圖","start":98,"end":108},{"id":"id_9gvjstii6","name":"統計圖表與資料分析","start":109,"end":121}],"第三冊":[{"id":"id_xwqqj6om4","name":"乘法公式與多項式","start":127,"end":137},{"id":"id_m6c6f25sh","name":"平方根與畢氏定理","start":138,"end":150},{"id":"id_ds7m7nl0v","name":"因式分解與一元二次方程式","start":151,"end":166}],"第四冊":[{"id":"id_di73i3ib7","name":"數列與級數","start":167,"end":180},{"id":"id_3cwy29hmb","name":"線型函數","start":181,"end":190},{"id":"id_ll4g2dy0g","name":"三角形的基本性質","start":191,"end":207},{"id":"id_ecoi7pm0u","name":"平行與四邊形","start":208,"end":223}],"第五冊":[{"id":"id_4ecyf9hvr","name":"連比與相似形","start":229,"end":247},{"id":"id_n970x8zia","name":"圓形","start":248,"end":263},{"id":"id_qnph51h9u","name":"推理證明與三角形的心","start":264,"end":279}],"第六冊":[{"id":"id_xz2nx2t9v","name":"二次函數","start":280,"end":289},{"id":"id_mnjr1k6la","name":"統計與機率","start":290,"end":302},{"id":"id_0pxqq2pr4","name":"立體圖形","start":303,"end":314}],"模擬試題":[{"id":"id_qpiqnwa4m","name":"第1~2冊","start":122,"end":126},{"id":"id_q30q8hkzw","name":"第1~4冊","start":224,"end":228},{"id":"id_lmmj6b027","name":"第1~6冊","start":315,"end":320}]},"volOrder":["第一冊","第二冊","第三冊","第四冊","第五冊","第六冊","模擬試題"]},"英文":{"type":"volume","vols":{"第一冊":[{"id":"id_7i4r7f2nh","name":"U1","start":6,"end":27},{"id":"id_7j9r8ptwn","name":"U2","start":28,"end":49}],"第二冊":[{"id":"id_cbcii7964","name":"U3","start":50,"end":67},{"id":"id_qh65h8kl0","name":"U4","start":68,"end":87},{"id":"id_6bf0jucd4","name":"U5","start":88,"end":107}],"第1~2冊複習":[{"id":"id_wmze052x3","name":"語法統整與高分策略","start":108,"end":111},{"id":"id_e9mwjaca9","name":"模擬試題","start":112,"end":120}],"第三冊":[{"id":"id_55ro37e9j","name":"U6","start":121,"end":139},{"id":"id_k7cin8f4m","name":"U7","start":140,"end":161}],"第1~3冊複習":[{"id":"id_asbi3lrfw","name":"語法統整與高分策略","start":182,"end":184},{"id":"id_66fv06yn6","name":"模擬試題","start":185,"end":192}],"第四冊":[{"id":"id_6m7m904yl","name":"U9","start":193,"end":209},{"id":"id_rilj7ygio","name":"U10","start":210,"end":231},{"id":"id_ua033optz","name":"U11","start":232,"end":251}],"第1~4冊複習":[{"id":"id_msg0e46ii","name":"語法統整與高分策略","start":252,"end":254},{"id":"id_jni47s7cu","name":"模擬試題","start":255,"end":264}],"第五冊":[{"id":"id_hqi1zhbvr","name":"U12","start":265,"end":285},{"id":"id_t590wuoda","name":"U13","start":286,"end":305},{"id":"id_br039qu0m","name":"U14","start":306,"end":323}],"第1~5冊複習":[{"id":"id_dhr9tf6ew","name":"語法統整與高分策略","start":324,"end":326},{"id":"id_0ecrbvz49","name":"模擬試題","start":327,"end":335}],"第六冊":[{"id":"id_hsxlhyru5","name":"U15","start":336,"end":353},{"id":"id_8q7le6f0f","name":"U16","start":354,"end":371}],"第1~6冊複習":[{"id":"id_lpl11ksgn","name":"語法統整與高分策略","start":372,"end":374},{"id":"id_kyxxealqa","name":"模擬試題","start":375,"end":383}]},"volOrder":["第一冊","第二冊","第1~2冊複習","第三冊","第1~3冊複習","第四冊","第1~4冊複習","第五冊","第1~5冊複習","第六冊","第1~6冊複習"]},"理化":{"type":"volume","vols":{"第三冊":[{"id":"id_k4jlycgxb","name":"進入實驗室與基本測量","start":6,"end":19},{"id":"id_vctyj7xg4","name":"物質的世界","start":20,"end":34},{"id":"id_zc5gknaay","name":"波動與聲音","start":35,"end":49},{"id":"id_fyg8ay28z","name":"光","start":50,"end":69},{"id":"id_mtjtx26i6","name":"溫度與熱","start":70,"end":87},{"id":"id_0jh2c06eg","name":"探索物質組成","start":88,"end":104}],"第四冊":[{"id":"id_kthxmmfaa","name":"化學反應與氧化還原","start":105,"end":119},{"id":"id_rt28z4f2j","name":"電解質及酸鹼反應","start":120,"end":136},{"id":"id_oanu4kmy5","name":"反應速率與平衡","start":137,"end":149},{"id":"id_7svg5tz7t","name":"有機化合物","start":150,"end":164},{"id":"id_kuy7clht7","name":"力與壓力","start":165,"end":184}],"第五冊":[{"id":"id_1sryvtbdw","name":"直線運動","start":185,"end":201},{"id":"id_0ddc8fr13","name":"力與運動","start":202,"end":215},{"id":"id_y01gkb7qs","name":"功與能","start":216,"end":231},{"id":"id_4697y4ylz","name":"基本的靜電現象與電路","start":232,"end":247}],"第六冊":[{"id":"id_f7jzr1atf","name":"電的應用","start":248,"end":266},{"id":"id_gtyhw2854","name":"電流與磁現象","start":267,"end":281},{"id":"id_x6j3monpm","name":"跨科主題","start":282,"end":285}],"模擬會考":[{"id":"id_00254w8is","name":"素養題","start":286,"end":289}]},"volOrder":["第三冊","第四冊","第五冊","第六冊","模擬會考"]},"歷史":{"type":"volume","vols":{"第一二冊":[{"id":"id_vze8f9llk","name":"史前台灣與原住民","start":6,"end":17},{"id":"id_u3an90l3a","name":"大航海時代的台灣","start":18,"end":33},{"id":"id_h0k2n21qx","name":"清帝國治臺時期","start":34,"end":53},{"id":"id_envag7skd","name":"日本治臺時期","start":54,"end":71},{"id":"id_3fkbn9g3d","name":"戰後臺灣","start":72,"end":87}],"第三四冊":[{"id":"id_foxgusium","name":"商周到隋棠","start":92,"end":107},{"id":"id_g2owxjrzg","name":"宋元明清的東亞世界","start":108,"end":127},{"id":"id_f11tjzcp0","name":"西力衝擊下的東亞變革","start":126,"end":141},{"id":"id_myo0h6hre","name":"中華民國的建立與挑戰","start":142,"end":159},{"id":"id_lvxbpl5z7","name":"當代中國與東亞局勢","start":160,"end":174}],"第五六冊":[{"id":"id_madr220fe","name":"多元並立的古代文化","start":180,"end":195},{"id":"id_288a4atoe","name":"普世宗教與近代歐洲興起","start":196,"end":211},{"id":"id_fjj7oyq7p","name":"近代世界的互動與變革","start":212,"end":227},{"id":"id_il5sw751k","name":"現代國家與帝國主義","start":228,"end":243},{"id":"id_s2z78wbuk","name":"世界大戰語戰後局勢","start":244,"end":264}],"會考模擬試題":[{"id":"id_l7hm2v936","name":"1~2冊","start":88,"end":91},{"id":"id_bze1duzz6","name":"1~4冊","start":175,"end":179},{"id":"id_2mxqintp4","name":"1~6冊","start":265,"end":""}]},"volOrder":["第一二冊","第三四冊","第五六冊","會考模擬試題"]},"地理":{"type":"volume","vols":{"第一冊":[{"id":"id_72j6nh5zp","name":"臺灣的位置與影響","start":6,"end":21},{"id":"id_ohjjbjbey","name":"臺灣的地形、海洋與島嶼","start":22,"end":37},{"id":"id_hptsfxhrt","name":"臺灣的氣候與水文","start":38,"end":53}],"第二冊":[{"id":"id_a3d37xlek","name":"臺灣的人口與文化","start":54,"end":67},{"id":"id_ckea281yn","name":"臺灣的產業文化","start":68,"end":81},{"id":"id_km9cyexz8","name":"臺灣的聚落、交通與區域發展","start":82,"end":103}],"第三冊":[{"id":"id_g9h9za29u","name":"中國的自然環境與人口","start":104,"end":119},{"id":"id_zdezq1kcl","name":"中國的產業、經濟","start":120,"end":133},{"id":"id_6as6wpeqc","name":"全球氣候概述與東北亞","start":134,"end":151}],"第四冊":[{"id":"id_hnvam25dm","name":"東南亞、南亞","start":152,"end":163},{"id":"id_5j2e748rr","name":"西亞與北非","start":164,"end":175},{"id":"id_7wbsvu775","name":"漠南非洲","start":176,"end":187}],"第五冊":[{"id":"id_wwt7nhhlg","name":"歐洲與俄羅斯","start":194,"end":207},{"id":"id_26083i8gs","name":"美洲","start":208,"end":221},{"id":"id_663o264e1","name":"大洋洲、兩極地區與氣候變遷","start":222,"end":233}],"第六冊":[{"id":"id_q6x9cie5z","name":"臺灣的地名文化、農業與食品安全","start":234,"end":247}]},"volOrder":["第一冊","第二冊","第三冊","第四冊","第五冊","第六冊"]},"公民":{"type":"volume","vols":{"第一冊":[{"id":"id_qxwkc1kp6","name":"人性尊嚴、性別與家庭","start":5,"end":23},{"id":"id_woigz83jt","name":"學校、社會與部落","start":24,"end":36}],"第二冊":[{"id":"id_5euxpr7mz","name":"公民德性、志願結社與多元文化","start":37,"end":49},{"id":"id_2fgfumg39","name":"社會規範、公平正義與社會福利","start":50,"end":63}],"第三冊":[{"id":"id_gqprujdef","name":"國家、民主與公共意見","start":65,"end":76},{"id":"id_3wyiyxw8f","name":"權力分立與中央政府","start":77,"end":90},{"id":"id_gxxfioc8t","name":"地方政府與政治參與","start":91,"end":104}],"第四冊":[{"id":"id_pp8hc32jh","name":"憲法、民法與刑法","start":106,"end":125},{"id":"id_x4jz8e1rr","name":"民事與刑事糾紛的解決","start":126,"end":139},{"id":"id_p6rwwyc5j","name":"行政法規與兒少法律","start":140,"end":155}],"第五冊":[{"id":"id_h365vub9q","name":"選擇與資源分配","start":160,"end":172},{"id":"id_0mda8y5go","name":"競爭與交易","start":173,"end":181},{"id":"id_qgdw3k587","name":"貨幣與勞動","start":182,"end":191}],"第六冊":[{"id":"id_yv8mu44i3","name":"科技、全球化與國際社會","start":193,"end":205}]},"volOrder":["第一冊","第二冊","第三冊","第四冊","第五冊","第六冊"]},"生物":{"type":"volume","vols":{"第一冊":[{"id":"id_878mko3qo","name":"生命世界","start":6,"end":27},{"id":"id_zpndx1cqw","name":"養分","start":28,"end":48},{"id":"id_0j0yst2u1","name":"生物的運輸與防禦","start":49,"end":71},{"id":"id_r8nz2hhiy","name":"生物的協調作用","start":72,"end":90},{"id":"id_fw10iv9rr","name":"生物的恆定性","start":91,"end":108}],"第二冊":[{"id":"id_u0plxc9og","name":"生殖","start":109,"end":129},{"id":"id_rhbivtrpv","name":"遺傳","start":130,"end":149},{"id":"id_tufaxn71d","name":"地球上的生物","start":150,"end":176},{"id":"id_erfybvg61","name":"生物與環境","start":177,"end":199}]},"volOrder":["第一冊","第二冊"]}}`;
-        // v2.3.2.131: 拿掉 plans 備份注入 (_v153_BACKUP_PLANS_STR)
-        // 原因: 這段是對「每個 user」都跑的 (initUsers 遷移迴圈),
-        //       只要任何 user 的 plans 為空, 就會把 159 筆別人的任務灌進去,
-        //       而那份備份的 config.name = '張裕宣' — 不是 Denias 的資料。
-        function _v153RestoreFromBackup(uid) {
-            if (!multiData[uid]) return;
+        // v2.3.2.132: 關閉 v1.5.3 自動備份注入, 並清掉它造成的髒資料
+        //
+        // 問題 (jsdom 實測確認): _v153RestoreFromBackup 原本對「每個 user」都跑,
+        //   判斷條件是「user.master 是空的」。已完成 v1.5.2 遷移的 user
+        //   (有 masters、沒有 master) 正好符合 → 被灌入 _v153_BACKUP_MASTER_STR
+        //   (config.name = '張裕宣', 8 科 147 units) → 並被存進 localStorage。
+        //   而兩條 `delete user.master` 的路徑條件都是 (user.master && !user.masters),
+        //   對這種 user 不成立 → 髒資料會一直留著。
+        //
+        // 修法: 不再自動注入; 只清掉「完全等於那份備份本體」的 user.master。
+        //   精準比對 — 任何自己動過的 master 一律不碰。冪等。
+        function purgeInjectedLegacyMaster(uid) {
+            if (!multiData[uid]) return 0;
             var user = multiData[uid];
-            // 只在 master 是空的時候才復原 (避免覆蓋現有資料)
-            var masterEmpty = !user.master || (typeof user.master === 'object' && Object.keys(user.master).length === 0);
-            if (!masterEmpty) return;
+            if (!user.master || typeof user.master !== 'object') return 0;
+            var backup;
             try {
-                if (window._v153_BACKUP_MASTER_STR) {
-                    user.master = JSON.parse(window._v153_BACKUP_MASTER_STR);
-                    console.warn('v1.5.3: ⚠️ 從備份復原 master (' + Object.keys(user.master).length + ' 個 subject) — 這份備份的 config.name 是「張裕宣」, 不是 Denias 的資料');
-                }
-            } catch(e) {
-                console.error('v1.5.3: ❌ 備份復原失敗:', e);
+                backup = JSON.parse(window._v153_BACKUP_MASTER_STR);
+            } catch (e) {
+                return 0;
             }
+            if (JSON.stringify(user.master) !== JSON.stringify(backup)) return 0;
+            delete user.master;
+            console.warn('v2.3.2.132: 已移除 v1.5.3 自動注入的「張裕宣」教材結構 (uid=' + uid + ', ' + Object.keys(backup).length + ' 個 subject)');
+            return 1;
         }
 
         // ============================================================
@@ -4451,8 +4460,9 @@ loadBoardHeader();
                     if (typeof multiData[uid].avatar === 'undefined') multiData[uid].avatar = '';
                     if (!multiData[uid].logs) multiData[uid].logs = [];
 
-                    // v1.5.3: 從備份復原 (在 v1.5.2 migrate 之前, 這樣 v1.5.2 migrate 才會 transform 正確的舊資料)
-                    _v153RestoreFromBackup(uid);
+                    // v2.3.2.132: 原本是 v1.5.3 從備份復原 (會把「張裕宣」的教材結構灌進每個 user)。
+                    //               改成只清除那份被注入的髒資料, 不再注入任何東西。
+                    purgeInjectedLegacyMaster(uid);
 
                     // v1.5.4: 加地科 subject + mission rename + 從 plans 重建 appMissions
                     _v154Migrate(uid);
