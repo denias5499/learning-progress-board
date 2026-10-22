@@ -1,5 +1,6 @@
 // test/integration.test.js -- 用 v1.5.3 真實備份跑 v1.5.172 fix
 // 驗證: 跨 sub 任務不污染地理 unit (v1.5.171 bug 防復發)
+// 備份來源: test/fixtures/studymap-backup-2026-07-28.json (v2.3.2.131 起不再從 index.html 讀)
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -10,7 +11,7 @@ const { loadIndex, loadBackupPlans } = require('./helpers');
  * - 每個 unitId 一個 unit, range = 該 unit 所有 task 的 min-max page
  * - sub = 該 unit 第一個 task 的 subject
  *
- * @param {Array} backupPlans 來自 window._v153_BACKUP_PLANS_STR
+ * @param {Array} backupPlans 來自 test/fixtures 的 v1.5.3 真實備份
  * @returns {{masters: object, unitInfo: object}}
  */
 function buildMasters(backupPlans) {

@@ -5,6 +5,13 @@ const { JSDOM } = require('jsdom');
 
 const HTML_PATH = path.join(__dirname, '..', 'index.html');
 
+// v2.3.2.131: 備份 fixture 改從檔案讀 (原本是 regex 抓 index.html 內的
+// window._v153_BACKUP_PLANS_STR / _v153_BACKUP_MASTER_STR inline 字串,
+// v2.3.2.131 已把 PLANS_STR 從 index.html 移除)
+// 這份檔案就是當初 inline 字串的來源本體 (StudyMap_Backup_2026-07-28.json)
+// ⚠️ config.name = '張裕宣' — 這是同學的資料, 不是 Denias 的
+const BACKUP_FIXTURE_PATH = path.join(__dirname, 'fixtures', 'studymap-backup-2026-07-28.json');
+
 /**
  * 載入 index.html 的 <script> block 到 jsdom。
  *
@@ -114,19 +121,22 @@ function makePlans(tasks) {
     }];
 }
 
-module.exports = { loadIndex, makeMultiData, makePlans, loadBackupPlans };
+module.exports = { loadIndex, makeMultiData, makePlans, loadBackupPlans, loadBackupMaster };
 
-/**
- * 直接從 index.html 抓 window._v153_BACKUP_PLANS_STR 字串內容
- * (備份字串在 function initUsers() 內, jsdom 跑不到這段,
- *  用 fs + regex 直接從 source 抓更可靠)
- */
+function loadBackupFile() {
+    if (!fs.existsSync(BACKUP_FIXTURE_PATH)) {
+        throw new Error('備份 fixture 不存在: ' + BACKUP_FIXTURE_PATH);
+    }
+    return JSON.parse(fs.readFileSync(BACKUP_FIXTURE_PATH, 'utf8')).config;
+}
+
+/** 真實備份的 plans 陣列 (原本 = window._v153_BACKUP_PLANS_STR parse 結果) */
 function loadBackupPlans() {
-    const html = fs.readFileSync(HTML_PATH, 'utf8');
-    const m = html.match(/window\._v153_BACKUP_PLANS_STR\s*=\s*(`[\s\S]*?`);/);
-    if (!m) throw new Error('_v153_BACKUP_PLANS_STR not found in index.html');
-    // m[1] 含頭尾反引號 (template literal), 去頭尾後 parse JSON
-    const inner = m[1].slice(1, -1);
-    return JSON.parse(inner);
+    return loadBackupFile().plans;
+}
+
+/** 真實備份的 master 物件 (原本 = window._v153_BACKUP_MASTER_STR parse 結果) */
+function loadBackupMaster() {
+    return loadBackupFile().master;
 }
 

@@ -2,8 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
-const path = require('node:path');
-const fs = require('node:fs');
+const { loadBackupPlans, loadBackupMaster } = require('./helpers');
 
 const HTML_PATH = path.join(__dirname, '..', 'index.html');
 const FILE_URL = 'file://' + HTML_PATH;
@@ -25,16 +24,12 @@ test('perf: Playwright trace 多個按鈕 click 耗時', async () => {
     await page.goto(FILE_URL);
     await page.waitForLoadState('networkidle');
 
-    // 注入真實備份到 localStorage (從 index.html 抓 _v153_BACKUP_PLANS_STR)
-    const setupResult = await page.evaluate(() => {
-        // 從當前頁面的 script 拿備份字串
-        const backupStr = window._v153_BACKUP_PLANS_STR;
-        const masterStr = window._v153_BACKUP_MASTER_STR;
-        if (!backupStr || !masterStr) return { ok: false, reason: 'no backup' };
-
-        // 構造備份資料結構 (從備份 plans 推導 user data)
-        const plans = JSON.parse(backupStr);
-        const master = JSON.parse(masterStr);
+    // 注入真實備份到 localStorage (v2.3.2.131: 改從 test/fixtures 讀,
+    // 因為 _v153_BACKUP_PLANS_STR 已從 index.html 移除)
+    // ⚠️ 這份備份的 config.name = '張裕宣', 不是 Denias 的資料
+    const backupPlans = loadBackupPlans();
+    const backupMaster = loadBackupMaster();
+    const setupResult = await page.evaluate(({ plans, master }) => {
 
         // 抽備份裡用到的 unitId 當 mission 範圍
         const usedUnitIds = new Set();
@@ -58,7 +53,7 @@ test('perf: Playwright trace 多個按鈕 click 耗時', async () => {
         localStorage.setItem('StudyMap_Family_Data_V20', JSON.stringify(userData));
         localStorage.setItem('StudyMap_CurrentUserId_V20', 'user_A');
         return { ok: true, plans: plans.length, units: usedUnitIds.size };
-    });
+    }, { plans: backupPlans, master: backupMaster });
     console.log('setup:', setupResult);
     if (!setupResult.ok) { await browser.close(); return; }
 
