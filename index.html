@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.132]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.133]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2775,6 +2775,36 @@
                 };
         function el(id) { return document.getElementById(id); }
         function getLocalDateString(d) { var year = d.getFullYear(); var month = String(d.getMonth() + 1).padStart(2, '0'); var day = String(d.getDate()).padStart(2, '0'); return year + '-' + month + '-' + day; }
+
+        // v2.3.2.133: 延長完成日期後的最終值
+        // 規則: (1) currentEnd + days  (2) 至少要蓋得住這批新任務的最後一天  (3) 不得是過去日期
+        function resolveExtendedEnd(currentEnd, days, taskDates, todayStr) {
+            var d = new Date(currentEnd);
+            d.setDate(d.getDate() + days);
+            var result = getLocalDateString(d);
+            (taskDates || []).forEach(function(ds) { if (ds > result) result = ds; });
+            if (todayStr && result < todayStr) result = todayStr;
+            return result;
+        }
+
+        // v2.3.2.133: 算「計畫期間還剩幾天」
+        // 背景: 舊碼 Math.max(1, ceil((plan.end - today)/day)) 會把「已過期 32 天」悄悄夾成 1,
+        //       使用者看到「但計畫剩 1 天」, 還被建議延長到一個已經過去的日期。
+        // 現在: 過期就誠實回報過期天數, 不再撒謊。
+        function calcPlanRemaining(planEndStr, fromDateStr) {
+            var perDay = 1000 * 60 * 60 * 24;
+            var end = new Date(planEndStr).getTime();
+            var from = new Date(fromDateStr).getTime();
+            if (isNaN(end) || isNaN(from)) return { isOverdue: false, overdueDays: 0, availableDays: 1, daysToToday: 0 };
+            var overdueDays = Math.max(0, Math.floor((from - end) / perDay));
+            var availableDays = Math.max(1, Math.ceil((end - from) / perDay));
+            return {
+                isOverdue: overdueDays > 0,
+                overdueDays: overdueDays,
+                availableDays: availableDays,
+                daysToToday: Math.ceil((end - from) / perDay)
+            };
+        }
 
         // v1.5.144: Helper functions for unit-based materials
         function isUnitBasedType(typeObj) {
@@ -8651,14 +8681,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         // 計算讀書時數
                         const totalPages = pendingTasks.reduce((s, p) => s + (p.endPage - p.startPage + 1), 0);
                         const minutesPerPage = 5;
-                        const availableDaysForPlan = Math.max(1, Math.ceil((new Date(plan.end) - new Date(dateStr)) / (1000 * 60 * 60 * 24)));
+                        // v2.3.2.133: 過期時誠實顯示「已過期 N 天」, 不再夾成「剩 1 天」
+                        const _remain = calcPlanRemaining(plan.end, dateStr);
+                        const availableDaysForPlan = _remain.availableDays;
                         const neededDays = pendingTasks.length;
                         const addedMinutesPerDay = Math.ceil(totalPages * minutesPerPage / availableDaysForPlan);
-                        const minExtraDays = Math.max(1, neededDays - availableDaysForPlan);
+                        // 期間已過期時, 光延長 minExtraDays 仍會是過去日期 → 直接要求延長到涵蓋任務
+                        const minExtraDays = _remain.isOverdue
+                            ? Math.max(1, neededDays + _remain.overdueDays)
+                            : Math.max(1, neededDays - availableDaysForPlan);
                         
+                        const remainLine = _remain.isOverdue
+                            ? `⚠️ 計畫完成日期 (${plan.end}) 已過期 ${_remain.overdueDays} 天\n`
+                            : `但計畫剩 ${availableDaysForPlan} 天\n`;
                         const choiceMsg = `⚠️ 平均分配會超出計畫完成日期 (${plan.end})\n\n` +
                             `剩餘 ${totalPages} 頁需 ${neededDays} 天\n` +
-                            `但計畫剩 ${availableDaysForPlan} 天\n\n` +
+                            remainLine + `\n` +
                             `📊 讀書時數估算 (預設 ${minutesPerPage} 分/頁):\n` +
                             `  - 總時數: ${totalPages * minutesPerPage} 分鐘\n` +
                             `  - 每天需 +${addedMinutesPerDay} 分鐘`;
@@ -8703,10 +8741,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             },
                             function() {
                                 // 選項 B: 延長完成日期
-                                openExtendDateDialog(plan.end, minExtraDays, 7, function(days) {
-                                    const newEndDate = new Date(plan.end);
-                                    newEndDate.setDate(newEndDate.getDate() + days);
-                                    const newEndDateStr = getLocalDateString(newEndDate);
+                                openExtendDateDialog(plan.end, minExtraDays, _remain.isOverdue ? 60 : 7, function(days) {
+                                    // v2.3.2.133: 延長結果必須 (a) 蓋得住這批新任務 (b) 不是過去日期
+                                    // 否則會出現「延長到 2026-09-21 (一個月前)」這種無意義的建議
+                                    const newEndDateStr = resolveExtendedEnd(
+                                        plan.end, days,
+                                        pendingTasks.map(function(p) { return p.dateStr; }),
+                                        getLocalDateString(new Date())
+                                    );
                                     plan.end = newEndDateStr;
                                     
                                     // 重建任務
@@ -16021,19 +16063,29 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var minDate = new Date(currentEndDate);
             minDate.setDate(minDate.getDate() + 1);
             var minDateStr = getLocalDateString(minDate);
+            // v2.3.2.133: 若 plan.end 已過期, 「到 X 或之後」不能是過去日期
+            var todayStr = getLocalDateString(new Date());
+            if (minDateStr < todayStr) minDateStr = todayStr;
+            // 既然下限被推到今天, 最短天數也要跟著放大, 否則照原值延長完還是過去日期
+            var effMinDays = minDays;
+            if (minDateStr > currentEndDate) {
+                effMinDays = Math.max(effMinDays, Math.ceil((new Date(minDateStr) - new Date(currentEndDate)) / (1000 * 60 * 60 * 24)));
+            }
+            if (effMinDays > maxDays) maxDays = effMinDays;
             var defaultDate = new Date(currentEndDate);
-            defaultDate.setDate(defaultDate.getDate() + minDays);
+            defaultDate.setDate(defaultDate.getDate() + effMinDays);
             var defaultDateStr = getLocalDateString(defaultDate);
+            if (defaultDateStr < minDateStr) defaultDateStr = minDateStr;
             
             modal.innerHTML = '<div class="modal-content" style="max-width: 460px;">' +
                 '<div class="modal-header"><h2 style="color:var(--accent);">⏰ 延長計畫完成日期</h2></div>' +
                 '<div style="padding: 15px;">' +
                     '<div style="margin-bottom: 12px; padding: 8px; background: #f8fafc; border-radius: 6px;">' +
                         '<div>目前完成日期: <strong>' + escapeHtml(currentEndDate) + '</strong></div>' +
-                        '<div>至少需延長: <strong>' + minDays + ' 天 (到 ' + escapeHtml(minDateStr) + ' 或之後)</strong></div>' +
+                        '<div>至少需延長: <strong>' + effMinDays + ' 天 (到 ' + escapeHtml(minDateStr) + ' 或之後)</strong></div>' +
                     '</div>' +
-                    '<div style="margin-bottom: 8px;">要延長幾天: <input type="number" id="modal-extend-days" min="' + minDays + '" max="' + maxDays + '" value="' + minDays + '" style="padding: 8px; width: 80px; font-size: 1.1em; margin-left: 8px;"> 天</div>' +
-                    '<div style="font-size: 0.85em; color: #7f8c8d;">範圍: ' + minDays + ' 到 ' + maxDays + ' 天 (輸入 0 = 完全取消)</div>' +
+                    '<div style="margin-bottom: 8px;">要延長幾天: <input type="number" id="modal-extend-days" min="' + effMinDays + '" max="' + maxDays + '" value="' + effMinDays + '" style="padding: 8px; width: 80px; font-size: 1.1em; margin-left: 8px;"> 天</div>' +
+                    '<div style="font-size: 0.85em; color: #7f8c8d;">範圍: ' + effMinDays + ' 到 ' + maxDays + ' 天 (輸入 0 = 完全取消)</div>' +
                 '</div>' +
                 '<div style="display: flex; gap: 12px; justify-content: flex-end; padding: 0 15px 15px;">' +
                     '<button type="button" class="btn-primary" id="modal-extend-ok" style="padding: 8px 20px;">確定延長</button>' +
@@ -16043,8 +16095,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             document.body.appendChild(modal);
             el('modal-extend-ok').onclick = function() {
                 var days = parseInt(el('modal-extend-days').value);
-                if (isNaN(days) || days < minDays || days > maxDays) {
-                    alert('請輸入 ' + minDays + ' 到 ' + maxDays + ' 之間的天數');
+                if (isNaN(days) || days < effMinDays || days > maxDays) {
+                    alert('請輸入 ' + effMinDays + ' 到 ' + maxDays + ' 之間的天數');
                     return;
                 }
                 modal.remove();
