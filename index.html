@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.133]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.134]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1036,6 +1036,9 @@
         /* v1.5.173: wizard unit row 用 className 取代 inline style (Safari layout 加速) */
         .wz-unit-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 0.95em; padding: 6px 8px; border-radius: 5px; border: 1px solid #fde2c5; background: #fef3c7; }
         .wz-unit-row.scheduled { background: #fffbeb; border-color: #fde68a; }
+        /* v2.3.2.134: 部分排程 — 介於「已排完」與「沒排過」之間, 誠實呈現 */
+        .wz-unit-row.partial { background: #fefce8; border-color: #fde047; }
+        .wz-partial-mark { color: #ca8a04; font-size: 0.8em; font-weight: bold; }
         .wz-unit-row .label-main { cursor: pointer; flex: 1; }
         .wz-unit-row .quick-read { cursor: pointer; white-space: nowrap; margin-left: 8px; font-size: 0.85em; }
         .wz-unit-row .quick-read.on { color: #d97706; font-weight: bold; }
@@ -2018,7 +2021,7 @@
                         </div>
                     </div>
                     <div style="margin-top: 15px;">
-                        <label style="font-size: 0.85em; color: var(--secondary);">【2. 勾選要加入的單元 (已隱藏月曆中已有的單元)】</label>
+                        <label style="font-size: 0.85em; color: var(--secondary);">【2. 勾選要加入的單元 (已完全排入月曆的單元會自動隱藏；只排了一部分的會標 ◐)】</label>
                         <p style="margin: 0 0 5px 0; font-size: 0.8em; color: #7f8c8d;">勾選後會自動彙整至下方的展示區，儲存時將為您建立多筆進度。</p>
                         <div id="ae-subject-unit-container" style="position:relative; padding:45px 50px 10px 50px; min-height:420px; box-sizing:border-box;">
                             <div id="ae-nav-bar" style="display:flex; align-items:center; justify-content:center; gap:10px; padding:6px 0 8px 0; font-weight:bold; color:var(--secondary); font-size:0.9em;">
@@ -2778,14 +2781,20 @@
 
         // v2.3.2.133: 延長完成日期後的最終值
         // 規則: (1) currentEnd + days  (2) 至少要蓋得住這批新任務的最後一天  (3) 不得是過去日期
-        function resolveExtendedEnd(currentEnd, days, taskDates, todayStr) {
-            var d = new Date(currentEnd);
-            d.setDate(d.getDate() + days);
-            var result = getLocalDateString(d);
+        function resolveExtendedEnd(currentEnd, days, taskDates, todayStr, preferredEndStr) {
+            // v2.3.2.134: preferredEndStr — 使用者在對話框直接選了「延長後完成日期」,
+            //   以此為準 (仍會被任務日期與今天夾住, 保證不會排出界或排到過去)
+            var result = preferredEndStr || '';
+            if (!result) {
+                var d = new Date(currentEnd);
+                d.setDate(d.getDate() + days);
+                result = getLocalDateString(d);
+            }
             (taskDates || []).forEach(function(ds) { if (ds > result) result = ds; });
             if (todayStr && result < todayStr) result = todayStr;
             return result;
         }
+
 
         // v2.3.2.133: 算「計畫期間還剩幾天」
         // 背景: 舊碼 Math.max(1, ceil((plan.end - today)/day)) 會把「已過期 32 天」悄悄夾成 1,
@@ -5261,6 +5270,13 @@ loadBoardHeader();
             return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
         }
 
+        // v2.3.2.134: 兩個日期之間差幾天 (b - a)
+        function diffDaysBetween(aStr, bStr) {
+            var a = parseLocalDateStr(aStr), b = parseLocalDateStr(bStr);
+            if (!a || !b) return 0;
+            return Math.round((b.getTime() - a.getTime()) / 86400000);
+        }
+
         // v2.3.2.127: plan.end 診斷工具 — 在瀏覽器 Console 打 diagnosePlanEnd() 即可
         window.diagnosePlanEnd = function () {
             var out = [];
@@ -5486,6 +5502,131 @@ loadBoardHeader();
             } else {
                 console.log('這是預覽。確認後執行 diagnoseEmptyVol(true) 才會修改。');
             }
+        };
+
+
+        // ============================================================
+        // v2.3.2.134: 找回「因『延長完成日期』對話框被取消而消失」的順延任務
+        //   背景: 舊流程會先把待建立的任務寫進 plan.grid, 再把它們移除才問使用者怎麼辦。
+        //         若使用者在後續「延長完成日期」對話框按取消, 那些任務永遠不會重建
+        //         → 剩餘頁數憑空消失 (使用者回報: P.224~231 沒有被延後到 10/27)。
+        //   好消息: appLogs 是在任務被移除「之前」就寫入的, 所以頁數紀錄還在, 救得回來。
+        //   用法: Console 執行 diagnoseLostDefer() 看清單, 確認後 recoverLostDefer(true) 重建。
+        // ============================================================
+        function _v134FindUnitForPages(subject, start, end) {
+            var best = null;
+            function scan(s) {
+                if (!s) return;
+                (_collectSubjectUnits(s) || []).forEach(function (u) {
+                    if (!u || !u.id) return;
+                    var us = Number(u.start), ue = Number(u.end);
+                    if (us <= start && ue >= end) {
+                        var span = ue - us;
+                        if (!best || span < best._span) {
+                            best = { id: u.id, name: u.name, vol: u.vol || 'custom', typeName: u._typeName || '', instanceName: u._instanceName || '', _span: span };
+                        }
+                    }
+                });
+            }
+            var user = multiData[currentUserId];
+            if (user && user.masters) {
+                Object.keys(user.masters).forEach(function (cat) {
+                    var cm = user.masters[cat];
+                    if (cm && cm[subject]) scan(cm[subject]);
+                });
+            }
+            if (typeof appMaster !== 'undefined' && appMaster && appMaster[subject]) scan(appMaster[subject]);
+            return best;
+        }
+
+        window._v134FindLostDefer = function () {
+            var out = [];
+            (appLogs || []).forEach(function (lg) {
+                if (!lg || lg.unitName !== '連動順延') return;
+                var m = /剩餘 P\.(\d+)(?:~(\d+))?\s*順延至\s*(\d{4}-\d{2}-\d{2})/.exec(lg.detail || '');
+                if (!m) return;
+                var start = Number(m[1]);
+                var end = Number(m[2] || m[1]);
+                var target = m[3];
+                var plan = null;
+                for (var i = 0; i < appPlans.length; i++) {
+                    if (appPlans[i].name === lg.mission) { plan = appPlans[i]; break; }
+                }
+                if (!plan) plan = appPlans[appPlans.length - 1];
+                if (!plan || !plan.grid) return;
+                // 已經有對應任務 → 沒消失
+                var exists = (plan.grid[target] || []).some(function (t) {
+                    return t.subject === lg.subject && Number(t.startPage) === start && Number(t.endPage) === end;
+                });
+                if (exists) return;
+                // 頁數其實被別的任務涵蓋了 → 也不算消失
+                var covered = false;
+                Object.keys(plan.grid).forEach(function (d) {
+                    (plan.grid[d] || []).forEach(function (t) {
+                        if (t.subject !== lg.subject) return;
+                        var ts = Number(t.startPage), te = Number(t.endPage);
+                        if (ts <= start && te >= end) covered = true;
+                    });
+                });
+                if (covered) return;
+                out.push({
+                    log: lg, plan: plan, planName: plan.name, subject: lg.subject,
+                    start: start, end: end, target: target,
+                    unit: _v134FindUnitForPages(lg.subject, start, end)
+                });
+            });
+            return out;
+        };
+
+        window.diagnoseLostDefer = function () {
+            var lost = window._v134FindLostDefer();
+            if (!lost.length) {
+                console.log('%c✅ 沒有發現消失的順延任務', 'color:#27ae60;font-weight:bold');
+                return [];
+            }
+            console.log('%c⚠️ 發現 ' + lost.length + ' 筆消失的順延任務（可以救回來）', 'color:#e74c3c;font-weight:bold');
+            console.table(lost.map(function (x) {
+                return {
+                    '排到哪天': x.target, '科目': x.subject,
+                    '頁碼': 'P.' + x.start + '~' + x.end,
+                    '計畫': x.planName,
+                    '對應單元': x.unit ? x.unit.name : '(找不到 — 需手動建立)'
+                };
+            }));
+            console.log('確認無誤後執行 recoverLostDefer(true) 重建這些任務。');
+            return lost;
+        };
+
+        window.recoverLostDefer = function (apply) {
+            var lost = window._v134FindLostDefer();
+            if (!lost.length) { console.log('沒有需要復原的任務'); return 0; }
+            if (apply !== true) { window.diagnoseLostDefer(); return 0; }
+            var n = 0;
+            lost.forEach(function (x) {
+                if (!x.unit) {
+                    console.warn('跳過 (找不到對應單元, 請手動建立):', x.subject, x.target, 'P.' + x.start + '~' + x.end);
+                    return;
+                }
+                if (!x.plan.grid[x.target]) x.plan.grid[x.target] = [];
+                x.plan.grid[x.target].unshift({
+                    id: genId(), subject: x.subject,
+                    text: '[' + x.subject + '] ' + x.unit.name + (x.start === x.end ? ' P.' + x.start : ' P.' + x.start + '~' + x.end),
+                    startPage: x.start, endPage: x.end, isDone: false,
+                    cat: x.log.cat || '', mis: x.log.mis || '',
+                    unitId: x.unit.id, vol: x.unit.vol || 'custom', unitName: x.unit.name,
+                    postponeCount: (x.log.postponeCount || 0), isAuto: true
+                });
+                appLogs.push({
+                    id: genId(), date: getLocalDateString(new Date()), category: '🔄 系統重排',
+                    mission: x.plan.name, subject: x.subject, unitName: '順延任務復原',
+                    start: x.start, end: x.end, pages: x.end - x.start + 1,
+                    detail: 'v2.3.2.134 復原: ' + x.subject + ' P.' + x.start + '~' + x.end + ' → ' + x.target
+                });
+                n++;
+            });
+            if (n > 0) { saveToLocal(); renderCalendar(); }
+            console.log('%c✅ 已重建 ' + n + ' 筆順延任務', 'color:#27ae60;font-weight:bold');
+            return n;
         };
 
         function normalizeWizardAvailableUnits(list) {
@@ -6935,22 +7076,22 @@ function invalidateSchedCache() {
     window._schedCache = null;
 }
 
-function isUnitScheduledAnywhere(u) {
-    // v1.5.100: 修 bug — 不只檢查「有任務」, 還要檢查「任務 maxEndPage >= 單元 end」
-    // 否則只排了一半的單元會被誤判為「已排過」, 教材庫顯示黃色
-    // v1.5.101: 加 debug log + 容錯 u.end 是字串/數字/undefined
-    // v1.5.116: 支援 u.uObj.end (availU 結構)
-    // v1.5.119: 用 schedule map cache, 避免每次掃描所有 plan.grid
+// v2.3.2.134: 單元排程狀態 — 區分「完全排程 / 部分排程 / 未排程」
+//   背景: 舊碼只有 isUnitScheduledAnywhere (maxEnd >= unitEnd) 二分判斷,
+//         導致「只排了一半」的單元跟「從沒排過」長得一樣 (都是深黃色),
+//         使用者會誤以為排程遺失。
+//   v1.5.100 之所以要求 maxEnd >= unitEnd, 是為了不要把半排的單元誤標成「已排過」;
+//   但那不等於「沒排過」— 所以新增 partial 狀態, 兩者都誠實呈現。
+function getUnitScheduleState(u) {
+    if (!u) return { state: 'none', maxEnd: 0, unitEnd: 0 };
     var cat = el('wz-cat') ? el('wz-cat').value : '';
     var mis = el('wz-mis') ? el('wz-mis').value : '';
     var sm = getScheduleMapFromCache(cat, mis)[u.id];
-    var maxEndFound, misMaxEnd;
+    var maxEndFound = 0;
     if (sm) {
         maxEndFound = sm.maxEnd;
-        misMaxEnd = sm.misMaxEnd;
     } else {
-        // fallback: 沒 cache (非 wizard 環境), 用舊邏輯
-        maxEndFound = 0;
+        // fallback: 沒 cache (非 wizard 環境), 掃描所有 plan.grid
         if (u.misMaxEnd && u.misMaxEnd > 0) maxEndFound = Math.max(maxEndFound, Number(u.misMaxEnd));
         for (var pi = 0; pi < appPlans.length; pi++) {
             var pgrid = appPlans[pi].grid || {};
@@ -6964,20 +7105,33 @@ function isUnitScheduledAnywhere(u) {
                 }
             }
         }
-        misMaxEnd = maxEndFound;
     }
     var uEnd = Number(u.uObj ? u.uObj.end : u.end);
+    if (maxEndFound <= 0) return { state: 'none', maxEnd: 0, unitEnd: uEnd };
+    if (uEnd > 0 && maxEndFound < uEnd) return { state: 'partial', maxEnd: maxEndFound, unitEnd: uEnd };
+    return { state: 'full', maxEnd: maxEndFound, unitEnd: uEnd };
+}
+function isUnitScheduledAnywhere(u) {
+    // v1.5.100: 修 bug — 不只檢查「有任務」, 還要檢查「任務 maxEndPage >= 單元 end」
+    // 否則只排了一半的單元會被誤判為「已排過」, 教材庫顯示黃色
+    // v1.5.101: 加 debug log + 容錯 u.end 是字串/數字/undefined
+    // v1.5.116: 支援 u.uObj.end (availU 結構)
+    // v1.5.119: 用 schedule map cache, 避免每次掃描所有 plan.grid
+    // v2.3.2.134: 改為重用 getUnitScheduleState, 判斷條件與舊碼完全相同
+    var st = getUnitScheduleState(u);
+    var uEnd = st.unitEnd;
     if (uEnd > 0) {
-        var result = maxEndFound >= uEnd;
+        var result = st.maxEnd >= uEnd;
         // v1.5.101: debug log 第一次執行
         if (!window._v5101Logged) {
-            console.log('[isUnitScheduledAnywhere] u.id=' + u.id + ', u.end=' + (u.uObj ? u.uObj.end : u.end) + ' (=' + uEnd + '), maxEndFound=' + maxEndFound + ', return=' + result);
+            console.log('[isUnitScheduledAnywhere] u.id=' + u.id + ', u.end=' + (u.uObj ? u.uObj.end : u.end) + ' (=' + uEnd + '), maxEndFound=' + st.maxEnd + ', return=' + result);
             window._v5101Logged = true;
         }
         return result;
     }
-    return maxEndFound > 0;
+    return st.maxEnd > 0;
 }
+
 
 // v1.5.107: 用 task 重疊頁數算每個 unit 的 donePages (用全部 cat, 不只 appMaster)
 // v1.5.163: 簡單對應算法 - 對每個 mission 內 unit, 算 task.unitId === this unit.id 的 done pages
@@ -7230,7 +7384,10 @@ function renderUnitRowHtml(u, opts) {
     var showQuickRead = opts.showQuickRead !== false; // wizard 預設 true, manual 設 false
     var prefix = isRealVolName(u.vol) ? `[${u.vol}] ` : '';
     var pageStr = (u.start && u.end && u.start !== u.end) ? ` (P.${u.start}~${u.end})` : ((u.start && u.start === u.end) ? ` (P.${u.start})` : '');
-    var isScheduled = isUnitScheduledAnywhere(u);
+    // v2.3.2.134: 三態 — 已排完 / 排了一部分 / 完全沒排
+    var _schedState = getUnitScheduleState(u);
+    var isScheduled = (_schedState.unitEnd > 0) ? (_schedState.maxEnd >= _schedState.unitEnd) : (_schedState.maxEnd > 0);
+    var isPartial = (!isScheduled && _schedState.maxEnd > 0);
     var qrChecked = u.quickRead ? 'checked' : '';
     var qrClass = u.quickRead ? 'on' : 'off';
     var instanceTag = '';
@@ -7249,9 +7406,12 @@ function renderUnitRowHtml(u, opts) {
                     <input type="checkbox" class="wz-qr-cb qr-cb" ${qrChecked} onchange="${opts.onQuickReadChange || ''}">☀️
                 </label>`;
     }
-    var schedMark = isScheduled ? ' <span class="wz-scheduled-mark">🔁</span>' : '';
+    // v2.3.2.134: 部分排程要誠實標出「排到哪裡」, 不要看起來像從沒排過
+    var schedMark = isScheduled
+        ? ' <span class="wz-scheduled-mark">🔁</span>'
+        : (isPartial ? ' <span class="wz-partial-mark" title="已排到 P.' + _schedState.maxEnd + '，尚未排完整個單元">◐ P.' + _schedState.maxEnd + '</span>' : '');
     // v1.5.173: 用 className 取代 inline style (Safari layout 加速)
-    return `<div class="wz-unit-row${isScheduled ? ' scheduled' : ''}">
+    return `<div class="wz-unit-row${isScheduled ? ' scheduled' : (isPartial ? ' partial' : '')}">
                 <input type="checkbox" class="wz-unit-cb unit-cb" value="${u.id}" ${isChecked} onchange="${onChange}">
                 <label class="label-main">${instanceTag}${prefix}${u.name}${pageStr}${schedMark}</label>
                 ${quickReadHtml}
@@ -8389,6 +8549,43 @@ function renderWizardUnitRowHtml(ws, i, u) {
             
             if(!task) return alert('找不到該任務！');
 
+            // v2.3.2.134 (Bug 2): 快照 — 「重新分配超出計畫日期」流程會先把待建立的任務
+            //   從 plan.grid 移除, 這時若使用者在後續對話框按「取消」, 那些任務永遠不會重建
+            //   → 剩餘頁數憑空消失 (使用者回報: P.224~231 沒有被延後到 10/27)。
+            //   這裡先存一份完整快照 (整個 grid + 目前任務 + 關聯 log),
+            //   任何一步放棄都能完整還原, 不會少任何進度。
+            var _v134Snap = {
+                grid: JSON.stringify(plan.grid),
+                task: JSON.stringify(task),
+                logId: 'cal_' + task.id
+            };
+            function _v134Restore() {
+                try {
+                    var g = JSON.parse(_v134Snap.grid);
+                    Object.keys(plan.grid).forEach(function (k) { delete plan.grid[k]; });
+                    Object.keys(g).forEach(function (k) { plan.grid[k] = g[k]; });
+                    // 保持 task 物件參照不變 (外層程式還會用到它)
+                    var t = JSON.parse(_v134Snap.task);
+                    Object.keys(task).forEach(function (k) { delete task[k]; });
+                    Object.keys(t).forEach(function (k) { task[k] = t[k]; });
+                    var lg = appLogs.find(function (l) { return l.id === _v134Snap.logId; });
+                    if (lg) {
+                        var ex = task.text.replace('[' + task.subject + '] ', '')
+                            .replace(/\s*P\.\d+(~\d+)?\s*$/, '').replace(/^【.*?】\s*/, '').replace(/🔔\s*/, '').trim();
+                        lg.subject = task.subject;
+                        lg.unitName = ex;
+                        lg.detail = ex;
+                        lg.start = task.startPage;
+                        lg.end = task.endPage;
+                        lg.pages = (task.endPage && task.startPage && task.endPage >= task.startPage) ? (task.endPage - task.startPage + 1) : 1;
+                    }
+                    return true;
+                } catch (e) {
+                    console.warn('v2.3.2.134: 還原快照失敗:', e && e.message);
+                    return false;
+                }
+            }
+
             var newSub = el('pc-subject').value;
             if(newSub) task.subject = newSub;
 
@@ -8686,10 +8883,17 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         const availableDaysForPlan = _remain.availableDays;
                         const neededDays = pendingTasks.length;
                         const addedMinutesPerDay = Math.ceil(totalPages * minutesPerPage / availableDaysForPlan);
-                        // 期間已過期時, 光延長 minExtraDays 仍會是過去日期 → 直接要求延長到涵蓋任務
-                        const minExtraDays = _remain.isOverdue
-                            ? Math.max(1, neededDays + _remain.overdueDays)
-                            : Math.max(1, neededDays - availableDaysForPlan);
+                        // v2.3.2.134: 延長的下限改用「必須蓋住的最後日期」, 不再用「逾期天數 + 需要天數」
+                        //   舊算法以 plan.end 為錨點: 計畫一旦逾期, 下限就被推成 4 天以上,
+                        //   使用者根本沒辦法表達「只要再多排一天」→ 連帶對話框也難用。
+                        //   現在直接算出「延長後完成日期至少要是哪天」, 交給日期導向的對話框處理。
+                        const _todayStr2 = getLocalDateString(new Date());
+                        const _firstTaskDate = pendingTasks.length ? pendingTasks[0].dateStr : _todayStr2;
+                        const _lastTaskDate = pendingTasks.length ? pendingTasks[pendingTasks.length - 1].dateStr : _todayStr2;
+                        const _requiredEndDate = (_lastTaskDate > _todayStr2) ? _lastTaskDate : _todayStr2;
+                        // 起算日 = 剩餘進度接續日的前一天 → 「往後推 1 天」就等於「排到那天」
+                        const _anchorDate = getLocalDateString(new Date(parseLocalDateStr(_firstTaskDate).getTime() - 86400000));
+                        const minExtraDays = Math.max(1, diffDaysBetween(_anchorDate, _requiredEndDate));
                         
                         const remainLine = _remain.isOverdue
                             ? `⚠️ 計畫完成日期 (${plan.end}) 已過期 ${_remain.overdueDays} 天\n`
@@ -8741,15 +8945,18 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             },
                             function() {
                                 // 選項 B: 延長完成日期
-                                openExtendDateDialog(plan.end, minExtraDays, _remain.isOverdue ? 60 : 7, function(days) {
+                                openExtendDateDialog(plan.end, minExtraDays, _remain.isOverdue ? 60 : 7, function (newEndDateStr, days) {
                                     // v2.3.2.133: 延長結果必須 (a) 蓋得住這批新任務 (b) 不是過去日期
                                     // 否則會出現「延長到 2026-09-21 (一個月前)」這種無意義的建議
-                                    const newEndDateStr = resolveExtendedEnd(
+                                    // v2.3.2.134: 對話框現在直接給「延長後完成日期」;
+                                    //   resolveExtendedEnd 仍會用任務日期與今天夾住, 保證不會排出界或排到過去
+                                    const finalEnd = resolveExtendedEnd(
                                         plan.end, days,
                                         pendingTasks.map(function(p) { return p.dateStr; }),
-                                        getLocalDateString(new Date())
+                                        getLocalDateString(new Date()),
+                                        newEndDateStr
                                     );
-                                    plan.end = newEndDateStr;
+                                    plan.end = finalEnd;
                                     
                                     // 重建任務
                                     pendingTasks.forEach(function(p) {
@@ -8762,17 +8969,32 @@ function renderWizardUnitRowHtml(ws, i, u) {
                                             postponeCount: (task.postponeCount || 0) + 1,
                                             isAuto: task.isAuto
                                         });
-                                        appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (延長計畫)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `延長 plan.end 至 ${newEndDateStr} 後排入` });
+                                        appLogs.push({ id: genId(), date: dateStr, category: '🔄 系統重排', mission: plan.name, subject: subjectName, unitName: '連動順延 (延長計畫)', start: p.startPage, end: p.endPage, pages: p.endPage - p.startPage + 1, detail: `延長 plan.end 至 ${finalEnd} 後排入` });
                                         checkDailyWorkload(plan, p.dateStr);
                                     });
-                                    alert(`✅ 已延長 plan.end 至 ${newEndDateStr} 並建立任務。`);
+                                    alert(`✅ 已延長 plan.end 至 ${finalEnd} 並建立任務。`);
+                                },
+                                function () {
+                                    // v2.3.2.134 (Bug 2): 使用者取消延長 → 完整還原這次編輯
+                                    //   (任務範圍、任務文字、連動重排、歷史 log 全部回到原狀)
+                                    //   舊碼沒有這個回呼 → 被刪掉的 pendingTasks 永遠不會重建, 頁數就這樣消失。
+                                    _v134Restore();
+                                    alert('已取消這次編輯，原排程維持不變（沒有少任何進度）。');
+                                },
+                                {
+                                    minDateStr: _requiredEndDate,
+                                    anchorDateStr: _anchorDate,
+                                    suggestDateStr: _requiredEndDate,
+                                    firstTaskDateStr: _firstTaskDate,
+                                    lastTaskDateStr: _lastTaskDate
                                 });
                             },
                             function() {
                                 // 選項 C: 完全取消
-                                task.startPage = Number(el('pc-start').value) || 0;
-                                task.endPage = oldEnd;
-                                alert('已取消這次編輯。');
+                                // v2.3.2.134: 改用完整快照還原 — 舊碼只還原 endPage,
+                                //   任務文字、連動重排後的後續任務、歷史 log 都還是改過的 → 資料不一致
+                                _v134Restore();
+                                alert('已取消這次編輯，原排程維持不變。');
                             }
                         );
                     } else {
@@ -9022,12 +9244,15 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var subUnits = [];
                 if (sTree.type === 'custom') {
                     sTree.items['custom'].forEach(function(u){
+                        // v2.3.2.134: 已完全排入月曆的單元不再列出 (兌現 UI 上「已隱藏月曆中已有的單元」的說明)
+                        if (getUnitScheduleState(u).state === 'full') return;
                         subUnits.push({sub:sub, u:u, vol:'custom', typeName:u._typeName||'', instanceName:u._instanceName||''});
                     });
                 } else {
                     var vols = Object.keys(sTree.items); // v1.6.136: 直接用 sTree.items keys (含 instance-prefixed vol)
                     vols.forEach(function(vol){
                         sTree.items[vol].forEach(function(u){
+                            if (getUnitScheduleState(u).state === 'full') return;
                             subUnits.push({sub:sub, u:u, vol:vol, typeName:u._typeName||'', instanceName:u._instanceName||''});
                         });
                     });
@@ -16051,7 +16276,16 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         // v1.5.95: 延長完成日期子對話框
-        function openExtendDateDialog(currentEndDate, minDays, maxDays, onConfirm) {
+        // v2.3.2.134: 改成「日期導向」, 並補上 onCancel
+        //   問題 1 (Bug 1): 舊版只讓使用者填「延長幾天」, 錨點是 plan.end。
+        //     當 plan.end 已經是過去日期時, 下限會被推高 (逾期 N 天 + 需要 M 天),
+        //     使用者根本沒辦法表達「我只想再多排一天」— 但他真正要表達的是
+        //     「延長後完成日期 = 某個日期」。舊版算出了 defaultDateStr 卻從來沒顯示過。
+        //     現在: 日期是主控項, 天數是連動顯示, 起算日明確標出。
+        //   問題 2 (Bug 2): 舊版沒有 onCancel。使用者按「取消」→ 外層已經刪掉的
+        //     pendingTasks 永遠不會重建 → 剩餘頁數憑空消失。
+        function openExtendDateDialog(currentEndDate, minDays, maxDays, onConfirm, onCancel, opts) {
+            opts = opts || {};
             var existing = el('modal-extend-date');
             if (existing) existing.remove();
             var modal = document.createElement('div');
@@ -16059,33 +16293,57 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             modal.className = 'modal-bg';
             modal.style.zIndex = '3600';
             modal.style.display = 'flex';
-            
-            var minDate = new Date(currentEndDate);
-            minDate.setDate(minDate.getDate() + 1);
-            var minDateStr = getLocalDateString(minDate);
-            // v2.3.2.133: 若 plan.end 已過期, 「到 X 或之後」不能是過去日期
+
             var todayStr = getLocalDateString(new Date());
-            if (minDateStr < todayStr) minDateStr = todayStr;
-            // 既然下限被推到今天, 最短天數也要跟著放大, 否則照原值延長完還是過去日期
-            var effMinDays = minDays;
-            if (minDateStr > currentEndDate) {
-                effMinDays = Math.max(effMinDays, Math.ceil((new Date(minDateStr) - new Date(currentEndDate)) / (1000 * 60 * 60 * 24)));
+
+            // 下限: 不能早於今天, 也不能早於要蓋住的最後一個任務日
+            var minDateStr = (opts.minDateStr || '');
+            if (!minDateStr) {
+                var _d0 = new Date(currentEndDate);
+                _d0.setDate(_d0.getDate() + 1);
+                minDateStr = getLocalDateString(_d0);
             }
-            if (effMinDays > maxDays) maxDays = effMinDays;
-            var defaultDate = new Date(currentEndDate);
-            defaultDate.setDate(defaultDate.getDate() + effMinDays);
-            var defaultDateStr = getLocalDateString(defaultDate);
-            if (defaultDateStr < minDateStr) defaultDateStr = minDateStr;
-            
-            modal.innerHTML = '<div class="modal-content" style="max-width: 460px;">' +
+            if (minDateStr < todayStr) minDateStr = todayStr;
+            var endPlus1 = getLocalDateString(new Date(parseLocalDateStr(currentEndDate).getTime() + 86400000));
+            if (minDateStr < endPlus1) minDateStr = endPlus1;
+
+            // 起算日: 剩餘進度要接續的那一天的前一天 (例: 剩餘排在 10/27 → 起算日 10/26)
+            //   這樣「往後推 1 天」就剛好等於「排到 10/27」— 符合使用者的心智模型
+            var anchorStr = opts.anchorDateStr || endPlus1;
+            if (anchorStr > minDateStr) anchorStr = minDateStr;
+
+            var suggestDateStr = (opts.suggestDateStr || minDateStr);
+            if (suggestDateStr < minDateStr) suggestDateStr = minDateStr;
+
+            var minDaysNew = Math.max(1, diffDaysBetween(anchorStr, minDateStr));
+            var curDays = Math.max(minDaysNew, diffDaysBetween(anchorStr, suggestDateStr));
+
+            var lastTaskLine = (opts.lastTaskDateStr && opts.firstTaskDateStr && opts.firstTaskDateStr !== opts.lastTaskDateStr)
+                ? '<div>要排入的任務: <strong>' + escapeHtml(opts.firstTaskDateStr) + ' ~ ' + escapeHtml(opts.lastTaskDateStr) + '</strong></div>'
+                : ((opts.lastTaskDateStr) ? '<div>要排入的任務最晚到: <strong>' + escapeHtml(opts.lastTaskDateStr) + '</strong></div>' : '');
+            var overdueNote = '';
+            if (minDateStr > endPlus1) {
+                overdueNote = '<div style="font-size:0.85em;color:#b45309;margin-top:6px;">⚠️ 原完成日期已過期, 因此不能早於今天。</div>';
+            }
+
+            modal.innerHTML = '<div class="modal-content" style="max-width: 480px;">' +
                 '<div class="modal-header"><h2 style="color:var(--accent);">⏰ 延長計畫完成日期</h2></div>' +
                 '<div style="padding: 15px;">' +
                     '<div style="margin-bottom: 12px; padding: 8px; background: #f8fafc; border-radius: 6px;">' +
                         '<div>目前完成日期: <strong>' + escapeHtml(currentEndDate) + '</strong></div>' +
-                        '<div>至少需延長: <strong>' + effMinDays + ' 天 (到 ' + escapeHtml(minDateStr) + ' 或之後)</strong></div>' +
+                        lastTaskLine +
+                        '<div>最早可延長到: <strong>' + escapeHtml(minDateStr) + '</strong></div>' +
                     '</div>' +
-                    '<div style="margin-bottom: 8px;">要延長幾天: <input type="number" id="modal-extend-days" min="' + effMinDays + '" max="' + maxDays + '" value="' + effMinDays + '" style="padding: 8px; width: 80px; font-size: 1.1em; margin-left: 8px;"> 天</div>' +
-                    '<div style="font-size: 0.85em; color: #7f8c8d;">範圍: ' + effMinDays + ' 到 ' + maxDays + ' 天 (輸入 0 = 完全取消)</div>' +
+                    '<div style="margin-bottom: 10px;">' +
+                        '<label for="modal-extend-date-input" style="font-weight:bold;">延長後完成日期: </label><br>' +
+                        '<input type="date" id="modal-extend-date-input" min="' + minDateStr + '" value="' + suggestDateStr + '" style="padding: 6px 10px; font-size: 1.05em; margin-top:4px;">' +
+                    '</div>' +
+                    '<div style="margin-bottom: 8px; font-size: 0.92em; color: #475569;">' +
+                        '從 <strong>' + escapeHtml(anchorStr) + '</strong> 起往後推 ' +
+                        '<input type="number" id="modal-extend-days" min="' + minDaysNew + '" max="365" value="' + curDays + '" style="padding: 4px 8px; width: 76px; font-size: 1em;"> 天' +
+                    '</div>' +
+                    overdueNote +
+                    '<div style="font-size: 0.85em; color: #7f8c8d; margin-top:6px;">按「取消」= 完全放棄這次調整, 原排程維持不變 (不會少任何進度)。</div>' +
                 '</div>' +
                 '<div style="display: flex; gap: 12px; justify-content: flex-end; padding: 0 15px 15px;">' +
                     '<button type="button" class="btn-primary" id="modal-extend-ok" style="padding: 8px 20px;">確定延長</button>' +
@@ -16093,17 +16351,48 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 '</div>' +
             '</div>';
             document.body.appendChild(modal);
-            el('modal-extend-ok').onclick = function() {
-                var days = parseInt(el('modal-extend-days').value);
-                if (isNaN(days) || days < effMinDays || days > maxDays) {
-                    alert('請輸入 ' + effMinDays + ' 到 ' + maxDays + ' 之間的天數');
+
+            var dateInput = el('modal-extend-date-input');
+            var daysInput = el('modal-extend-days');
+            function dateFromDays(n) {
+                var d = new Date(parseLocalDateStr(anchorStr).getTime() + n * 86400000);
+                return getLocalDateString(d);
+            }
+            function syncFromDate() {
+                var d = dateInput.value;
+                if (!d) return;
+                daysInput.value = Math.max(minDaysNew, diffDaysBetween(anchorStr, d));
+            }
+            function syncFromDays() {
+                var n = parseInt(daysInput.value, 10);
+                if (isNaN(n)) return;
+                var d = dateFromDays(n);
+                if (d < minDateStr) d = minDateStr;
+                dateInput.value = d;
+            }
+            dateInput.addEventListener('change', syncFromDate);
+            dateInput.addEventListener('input', syncFromDate);
+            daysInput.addEventListener('change', syncFromDays);
+            daysInput.addEventListener('input', syncFromDays);
+
+            el('modal-extend-ok').onclick = function () {
+                var newDate = dateInput.value;
+                if (!newDate) { alert('請選擇延長後的完成日期'); return; }
+                if (newDate < minDateStr) {
+                    alert('延長後的完成日期不能早於 ' + minDateStr + '（要蓋住要排入的任務, 且不能是過去日期）');
                     return;
                 }
+                var days = diffDaysBetween(anchorStr, newDate);
                 modal.remove();
-                if (onConfirm) onConfirm(days);
+                if (onConfirm) onConfirm(newDate, days);
             };
-            el('modal-extend-cancel').onclick = function() { modal.remove(); };
+            el('modal-extend-cancel').onclick = function () {
+                modal.remove();
+                // v2.3.2.134 (Bug 2): 取消一定要通知外層, 否則外層已刪除的任務永遠不會重建
+                if (onCancel) onCancel();
+            };
         }
+
 
         function onSaveConfirmContinue() {
             closeSaveConfirmModal();
