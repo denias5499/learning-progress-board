@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.134]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.135]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5131,7 +5131,10 @@ loadBoardHeader();
                 if (stack[currentUserId].length > MAX_UNDO_STEPS) {
                     stack[currentUserId] = stack[currentUserId].slice(-MAX_UNDO_STEPS);
                 }
-                localStorage.setItem(STORAGE_KEY_UNDO, JSON.stringify(stack));
+                // v2.3.2.135: 改用抗配額寫入 — 舊碼直接 setItem, 快照稍大就整個失敗
+                //   (只有一行 console.warn, 等於長期沒有 undo 保險; v129 的 commit message
+                //    宣稱有改, 但實際 diff 裡並沒有動到這個函式)
+                _quotaSafeSetBackup(STORAGE_KEY_UNDO, stack, currentUserId, MAX_UNDO_STEPS);
             } catch(e) {
                 console.warn('pushUndoSnapshot failed:', e.message);
             }
@@ -5505,14 +5508,9 @@ loadBoardHeader();
         };
 
 
-        // ============================================================
-        // v2.3.2.134: 找回「因『延長完成日期』對話框被取消而消失」的順延任務
-        //   背景: 舊流程會先把待建立的任務寫進 plan.grid, 再把它們移除才問使用者怎麼辦。
-        //         若使用者在後續「延長完成日期」對話框按取消, 那些任務永遠不會重建
-        //         → 剩餘頁數憑空消失 (使用者回報: P.224~231 沒有被延後到 10/27)。
-        //   好消息: appLogs 是在任務被移除「之前」就寫入的, 所以頁數紀錄還在, 救得回來。
-        //   用法: Console 執行 diagnoseLostDefer() 看清單, 確認後 recoverLostDefer(true) 重建。
-        // ============================================================
+        // v2.3.2.135: 依「科目 + 頁碼範圍」找出對應的單元
+        //   順延紀錄裡沒有 unitId (舊 log 格式只記了科目與頁碼), 只能這樣反查。
+        //   優先選頁碼範圍最貼近的單元, 避免抓到不相干的單元。
         function _v134FindUnitForPages(subject, start, end) {
             var best = null;
             function scan(s) {
@@ -5539,70 +5537,194 @@ loadBoardHeader();
             return best;
         }
 
-        window._v134FindLostDefer = function () {
-            var out = [];
+        // ============================================================
+        // v2.3.2.135: 順延紀錄分析（重寫 v134 的版本）
+        //   v134 的判斷只有「目標日有沒有完全一樣的任務」→ 誤判率高:
+        //     - 任務後來被完成或刪掉 → 紀錄還在, 但不該復原 (會塞重複進度)
+        //     - 同一筆順延被寫了兩次 log → 會復原出兩份
+        //   正確的判斷依據: 「這個單元目前排到的最遠頁碼」——
+        //     若單元已排得比紀錄的結束頁碼更遠 → 那段頁數後來有別的安排 → 不是漏排
+        //     若單元目前排到的最遠頁碼 < 紀錄的結束頁碼 → 那段頁數真的沒被排到 → 才算漏排
+        // ============================================================
+        window._v135AnalyzeDefer = function () {
+            var recs = [];
+            var seen = {};
             (appLogs || []).forEach(function (lg) {
-                if (!lg || lg.unitName !== '連動順延') return;
-                var m = /剩餘 P\.(\d+)(?:~(\d+))?\s*順延至\s*(\d{4}-\d{2}-\d{2})/.exec(lg.detail || '');
+                if (!lg) return;
+                // 只看「待建立」的那兩種 log:
+                //   '連動順延'    → 任務已建立, 但若超出 plan.end 會被移除, 這就是會漏排的那種
+                //   '微調順延'    → 純手動任務的簡單順延 (一定會建立)
+                // '連動順延 (延長計畫)' / '(強制擠進)' 是「已成功建立」的後綴, 不算
+                if (lg.unitName !== '連動順延' && lg.unitName !== '微調順延') return;
+                var m = /P\.(\d+)(?:~(\d+))?\s*順延至\s*(\d{4}-\d{2}-\d{2})/.exec(lg.detail || '');
                 if (!m) return;
                 var start = Number(m[1]);
                 var end = Number(m[2] || m[1]);
                 var target = m[3];
+                var key = target + '|' + lg.subject + '|' + start + '|' + end;
+                if (seen[key]) return;   // 同一筆順延被寫了兩次 log → 只算一次
+                seen[key] = true;
+
                 var plan = null;
                 for (var i = 0; i < appPlans.length; i++) {
                     if (appPlans[i].name === lg.mission) { plan = appPlans[i]; break; }
                 }
                 if (!plan) plan = appPlans[appPlans.length - 1];
                 if (!plan || !plan.grid) return;
-                // 已經有對應任務 → 沒消失
-                var exists = (plan.grid[target] || []).some(function (t) {
-                    return t.subject === lg.subject && Number(t.startPage) === start && Number(t.endPage) === end;
-                });
-                if (exists) return;
-                // 頁數其實被別的任務涵蓋了 → 也不算消失
-                var covered = false;
+
+                // 找對應單元
+                var unit = _v134FindUnitForPages(lg.subject, start, end);
+
+                // 該單元目前排到的最遠頁碼 + 還有多少個任務
+                var unitMaxEnd = 0;
+                var unitTaskCount = 0;
+                var exact = false;
+                var overlap = false;
                 Object.keys(plan.grid).forEach(function (d) {
                     (plan.grid[d] || []).forEach(function (t) {
                         if (t.subject !== lg.subject) return;
                         var ts = Number(t.startPage), te = Number(t.endPage);
-                        if (ts <= start && te >= end) covered = true;
+                        if (d === target && ts === start && te === end) exact = true;
+                        if (d === target && ts <= end && te >= start) overlap = true;
+                        // 同一個單元的任務才算進 unitMaxEnd
+                        if (unit && t.unitId === unit.id) {
+                            unitTaskCount++;
+                            if (te > unitMaxEnd) unitMaxEnd = te;
+                        } else if (!unit && ts <= start && te >= start) {
+                            // 找不到單元時的退階: 同科目且頁碼有重疊
+                            if (te > unitMaxEnd) unitMaxEnd = te;
+                        }
                     });
                 });
-                if (covered) return;
-                out.push({
+
+                var status, reason;
+                if (exact) {
+                    status = 'ok'; reason = '目標日已有這個任務';
+                } else if (!unit) {
+                    // 認不出單元 → 無法判斷, 不自動復原 (要人工確認)
+                    status = 'unknown'; reason = '找不到對應單元, 無法判斷是否真的漏排';
+                } else if (unitTaskCount === 0) {
+                    // 該單元現在一個任務都沒有 → 多半是已完成並清掉了 → 不是漏排
+                    status = 'ok'; reason = '該單元目前沒有任何排程 (可能已完成或已清除)';
+                } else if (unitMaxEnd >= end) {
+                    status = 'ok'; reason = '單元已排到 P.' + unitMaxEnd + ' (比紀錄還遠, 那段頁數另有安排)';
+                } else if (overlap) {
+                    status = 'ok'; reason = '目標日有涵蓋該頁碼的任務';
+                } else {
+                    status = 'lost';
+                    reason = '單元目前只排到 P.' + unitMaxEnd + ', 但紀錄要到 P.' + end + ' → 這段沒被排到';
+                }
+                recs.push({
                     log: lg, plan: plan, planName: plan.name, subject: lg.subject,
-                    start: start, end: end, target: target,
-                    unit: _v134FindUnitForPages(lg.subject, start, end)
+                    start: start, end: end, target: target, unit: unit,
+                    unitMaxEnd: unitMaxEnd, unitTaskCount: unitTaskCount,
+                    key: key, status: status, reason: reason
                 });
             });
-            return out;
+            return recs;
         };
 
-        window.diagnoseLostDefer = function () {
-            var lost = window._v134FindLostDefer();
-            if (!lost.length) {
-                console.log('%c✅ 沒有發現消失的順延任務', 'color:#27ae60;font-weight:bold');
+        // v2.3.2.135: 完整順延紀錄診斷 — 每一筆都列出, 含被排除的原因
+        window.diagnoseDeferRecords = function (subjectFilter) {
+            var recs = window._v135AnalyzeDefer();
+            if (subjectFilter) {
+                recs = recs.filter(function (r) { return r.subject === subjectFilter; });
+            }
+            if (!recs.length) {
+                console.log('%c沒有順延紀錄', 'color:#7f8c8d');
                 return [];
             }
-            console.log('%c⚠️ 發現 ' + lost.length + ' 筆消失的順延任務（可以救回來）', 'color:#e74c3c;font-weight:bold');
-            console.table(lost.map(function (x) {
+            var lost = recs.filter(function (r) { return r.status === 'lost'; });
+            console.log('%c=== 順延紀錄分析 (共 ' + recs.length + ' 筆, 其中疑似漏排 ' + lost.length + ' 筆) ===',
+                'color:#fff;background:#3498db;padding:2px 6px');
+            console.table(recs.map(function (r, idx) {
                 return {
-                    '排到哪天': x.target, '科目': x.subject,
-                    '頁碼': 'P.' + x.start + '~' + x.end,
-                    '計畫': x.planName,
-                    '對應單元': x.unit ? x.unit.name : '(找不到 — 需手動建立)'
+                    '#': idx,
+                    'key (複製這個)': r.key,
+                    '排到哪天': r.target,
+                    '科目': r.subject,
+                    '頁碼': 'P.' + r.start + '~' + r.end,
+                    '單元': r.unit ? r.unit.name : '(找不到)',
+                    '單元排到': r.unitMaxEnd ? 'P.' + r.unitMaxEnd : '(無)',
+                    '判定': r.status === 'lost' ? '⚠️ 疑似漏排' : (r.status === 'unknown' ? '❓ 無法判斷' : '✅ 正常'),
+                    '原因': r.reason
                 };
             }));
-            console.log('確認無誤後執行 recoverLostDefer(true) 重建這些任務。');
-            return lost;
+            if (lost.length) {
+                console.log('只復原指定項目: recoverLostDefer(true, ["<key>"])  ← key 直接複製上表那一欄');
+            }
+            return recs;
         };
 
-        window.recoverLostDefer = function (apply) {
-            var lost = window._v134FindLostDefer();
-            if (!lost.length) { console.log('沒有需要復原的任務'); return 0; }
+        // v2.3.2.135: 疑似漏排的順延任務
+        window.diagnoseLostDefer = function () {
+            var recs = window._v135AnalyzeDefer().filter(function (r) { return r.status === 'lost'; });
+            if (!recs.length) {
+                console.log('%c✅ 沒有疑似漏排的順延任務', 'color:#27ae60;font-weight:bold');
+                return [];
+            }
+            console.log('%c⚠️ 發現 ' + recs.length + ' 筆疑似漏排的順延任務', 'color:#e74c3c;font-weight:bold');
+            console.table(recs.map(function (r, idx) {
+                return {
+                    '#': idx,
+                    'key (複製這個)': r.key,
+                    '排到哪天': r.target,
+                    '科目': r.subject,
+                    '頁碼': 'P.' + r.start + '~' + r.end,
+                    '計畫': r.planName,
+                    '對應單元': r.unit ? r.unit.name : '(找不到 — 需手動建立)',
+                    '單元目前排到': r.unitMaxEnd ? 'P.' + r.unitMaxEnd : '(無)'
+                };
+            }));
+            console.log('⚠️ 復原前請先確認: recoverLostDefer(true, ["<key>"])  ← key 直接複製上表那一欄');
+            console.log('   (不帶參數 = 復原全部疑似漏排項目, 請三思)');
+            return recs;
+        };
+
+        // v2.3.2.135: 復原 — 支援逐項選擇
+        window.recoverLostDefer = function (apply, sel) {
+            // v2.3.2.135: sel 可以是索引 (數字) 或穩定 key (字串)
+            //   用 key 才不會因為前一次復原導致清單位移而指錯項目
+            var all = window._v135AnalyzeDefer();
+            var recs = all.filter(function (r) { return r.status === 'lost'; });
+            var unknowns = all.filter(function (r) { return r.status === 'unknown'; });
+            if (!recs.length && !unknowns.length) { console.log('沒有需要復原的任務'); return 0; }
             if (apply !== true) { window.diagnoseLostDefer(); return 0; }
+
+            var picked = [];
+            if (sel && sel.length) {
+                sel.forEach(function (q) {
+                    if (typeof q === 'number') {
+                        var byIdx = recs[q];
+                        if (byIdx) picked.push(byIdx);
+                        else {
+                            var u = unknowns[q];
+                            if (u) picked.push(u);
+                            else console.warn('索引超出範圍:', q);
+                        }
+                    } else {
+                        var byKey = all.filter(function (r) { return r.key === q; })[0];
+                        if (byKey) picked.push(byKey);
+                        else console.warn('找不到 key:', q);
+                    }
+                });
+            } else {
+                picked = recs.slice();
+            }
+            if (!picked.length) { console.log('沒有選到任何項目'); return 0; }
+
+            // 復原前重新驗證: 狀態可能已經變了 (例如剛才已復原過)
+            picked = picked.filter(function (r) {
+                if (r.status === 'ok') { console.warn('跳過 (狀態已改變, 不需要復原):', r.key); return false; }
+                return true;
+            });
+            console.log('將復原以下 ' + picked.length + ' 筆:');
+            console.table(picked.map(function (r) {
+                return { '排到哪天': r.target, '科目': r.subject, '頁碼': 'P.' + r.start + '~' + r.end, '單元': r.unit ? r.unit.name : '(找不到)' };
+            }));
+
             var n = 0;
-            lost.forEach(function (x) {
+            picked.forEach(function (x) {
                 if (!x.unit) {
                     console.warn('跳過 (找不到對應單元, 請手動建立):', x.subject, x.target, 'P.' + x.start + '~' + x.end);
                     return;
@@ -5620,7 +5742,7 @@ loadBoardHeader();
                     id: genId(), date: getLocalDateString(new Date()), category: '🔄 系統重排',
                     mission: x.plan.name, subject: x.subject, unitName: '順延任務復原',
                     start: x.start, end: x.end, pages: x.end - x.start + 1,
-                    detail: 'v2.3.2.134 復原: ' + x.subject + ' P.' + x.start + '~' + x.end + ' → ' + x.target
+                    detail: 'v2.3.2.135 復原: ' + x.subject + ' P.' + x.start + '~' + x.end + ' → ' + x.target
                 });
                 n++;
             });
