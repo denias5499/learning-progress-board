@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.137]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.138]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5733,17 +5733,11 @@ loadBoardHeader();
         };
 
         // v2.3.2.135: 完整順延紀錄診斷 — 每一筆都列出, 含被排除的原因
-        // v2.3.2.137: ★ 月曆頁數連續性診斷
-        //   用途: 直接回答「這個單元有沒有漏排頁數?」
-        //   做法: 把每個單元在月曆上的所有任務頁碼區間收集起來, 排序後
-        //         1) 合併重疊 2) 找出中間的「洞」(hole) 3) 找出重複排到的頁
-        //   只讀, 不會改動任何資料。
-        //   這是 v2.3.2.134 U10 事件教訓的直接產物:
-        //     當時靠肉眼看月曆, 一度以為 P.225~231 漏排了,
-        //     實際上是 P.218~225 / P.226~231 — 頁數是連續的, 沒有洞。
-        window.diagnoseCalendarGaps = function (subjectFilter) {
-            // key: 有 unitId 用 unitId, 沒有就用 科目+名稱 (手動任務)
-            var groups = {};
+        // v2.3.2.138: ★ 共用 — 收集月曆上所有「有頁碼」的任務
+        //   回傳 [{key, subject, unitId, unitName, start, end, date, planId, planName, text, isDone}]
+        //   key: 有 unitId 用 unitId, 沒有則用「科目 + 名稱」(手動任務)
+        function _v138CollectPageTasks(subjectFilter) {
+            var out = [];
             appPlans.forEach(function (p) {
                 var grid = p.grid || {};
                 Object.keys(grid).sort().forEach(function (d) {
@@ -5754,98 +5748,207 @@ loadBoardHeader();
                         var ep = Number(t.endPage) || 0;
                         if (!sp || !ep || ep < sp) return;
                         if (subjectFilter && t.subject !== subjectFilter) return;
-                        var nm = '';
-                        if (t.unitName) nm = t.unitName;
-                        else if (t.text) nm = t.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
-                        var key = t.unitId ? ('u:' + t.unitId) : ('m:' + (t.subject || '?') + '|' + nm);
-                        if (!groups[key]) {
-                            groups[key] = {
-                                subject: t.subject || '(未分類)',
-                                unitId: t.unitId || '',
-                                name: nm || '(無名稱)',
-                                cat: t.cat || '',
-                                mis: t.mis || '',
-                                ranges: []
-                            };
-                        }
-                        groups[key].ranges.push({ start: sp, end: ep, date: d, plan: p.name || p.id, text: t.text || '' });
+                        var nm = t.unitName || '';
+                        if (!nm && t.text) nm = t.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
+                        out.push({
+                            key: t.unitId ? ('u:' + t.unitId) : ('m:' + (t.subject || '?') + '|' + nm),
+                            subject: t.subject || '(未分類)',
+                            unitId: t.unitId || '',
+                            unitName: nm,
+                            start: sp, end: ep,
+                            date: d,
+                            planId: p.id || '',
+                            planName: p.name || p.id || '(未命名計畫)',
+                            text: t.text || '',
+                            isDone: !!t.isDone
+                        });
                     });
                 });
+            });
+            return out;
+        }
+
+        // v2.3.2.138: ★ 共用 — 把一組區間算出「洞 / 重疊」
+        //   回傳 {union, holes, overlaps}
+        //   overlaps 每一筆含 {from, to, a, b} → a/b 是兩個衝突的原始任務
+        function _v138AnalyzeRanges(list) {
+            var rs = list.slice().sort(function (a, b) { return a.start - b.start || a.end - b.end; });
+            var union = [];
+            var overlaps = [];
+            rs.forEach(function (r) {
+                var last = union[union.length - 1];
+                if (last && r.start <= last.end + 1) {
+                    if (r.start <= last.end) {
+                        var ovFrom = r.start, ovTo = Math.min(r.end, last.end);
+                        if (ovFrom <= ovTo) {
+                            overlaps.push({ from: ovFrom, to: ovTo, a: last.task, b: r });
+                        }
+                    }
+                    if (r.end > last.end) { last.end = r.end; last.date = r.date; last.task = r; }
+                } else {
+                    union.push({ start: r.start, end: r.end, date: r.date, task: r });
+                }
+            });
+            var holes = [];
+            for (var i = 1; i < union.length; i++) {
+                var prev = union[i - 1], cur = union[i];
+                if (cur.start > prev.end + 1) {
+                    holes.push({ from: prev.end + 1, to: cur.start - 1, before: prev, after: cur });
+                }
+            }
+            return { rs: rs, union: union, holes: holes, overlaps: overlaps };
+        }
+
+        // v2.3.2.138: ★ 衝突明細 — 直接列出「哪兩個任務撞在一起」
+        //   區分:
+        //     同計畫重疊 → ⚠️ 真正的重複排 (同一份計畫裡同一頁排了兩次)
+        //     跨計畫重疊 → ℹ️ 資訊 (例如暑假計畫 + 二模計畫都排到, 通常是合理的)
+        window.diagnoseCalendarConflicts = function (subjectFilter) {
+            var all = _v138CollectPageTasks(subjectFilter);
+            var groups = {};
+            all.forEach(function (t) {
+                (groups[t.key] = groups[t.key] || []).push(t);
             });
 
             var rows = [];
             Object.keys(groups).forEach(function (key) {
-                var g = groups[key];
-                var rs = g.ranges.slice().sort(function (a, b) { return a.start - b.start || a.end - b.end; });
+                var an = _v138AnalyzeRanges(groups[key]);
+                an.overlaps.forEach(function (ov) {
+                    var samePlan = ov.a.planId === ov.b.planId;
+                    rows.push({
+                        '類型': samePlan ? '⚠️ 同計畫重疊' : 'ℹ️ 跨計畫重疊',
+                        '科目': ov.a.subject,
+                        '單元': ov.a.unitName || '(無名稱)',
+                        '重疊頁': 'P.' + ov.from + (ov.from === ov.to ? '' : '~' + ov.to),
+                        '任務A 計畫': ov.a.planName,
+                        '任務A 日期': ov.a.date,
+                        '任務A 頁碼': 'P.' + ov.a.start + '~' + ov.a.end,
+                        '任務A 完成': ov.a.isDone ? '✅' : '',
+                        '任務B 計畫': ov.b.planName,
+                        '任務B 日期': ov.b.date,
+                        '任務B 頁碼': 'P.' + ov.b.start + '~' + ov.b.end,
+                        '任務B 完成': ov.b.isDone ? '✅' : ''
+                    });
+                });
+            });
 
-                // union: 合併「重疊或相鄰」→ 這是算「洞」的依據
-                //   (相鄰也算合併, 因為 210~217 + 218~225 是正常的接續, 中間沒有洞)
-                // orig : 保留原始任務區間 → 顯示用 (讓人看得到到底排了幾段)
-                var union = [];
-                var overlaps = [];
-                rs.forEach(function (r) {
-                    var last = union[union.length - 1];
-                    if (last && r.start <= last.end + 1) {
-                        if (r.start <= last.end) {
-                            // 有重疊
-                            var ovFrom = r.start, ovTo = Math.min(r.end, last.end);
-                            if (ovFrom <= ovTo) {
-                                overlaps.push('P.' + ovFrom + (ovFrom === ovTo ? '' : '~' + ovTo) + ' (' + last.date + ' & ' + r.date + ')');
-                            }
-                        }
-                        if (r.end > last.end) { last.end = r.end; last.date = r.date; last.text = r.text; }
-                    } else {
-                        union.push({ start: r.start, end: r.end, date: r.date, text: r.text });
-                    }
+            var same = rows.filter(function (r) { return r['類型'].indexOf('⚠️') === 0; });
+            var cross = rows.filter(function (r) { return r['類型'].indexOf('ℹ️') === 0; });
+            console.log('%c=== 月曆任務衝突明細' + (subjectFilter ? (' — ' + subjectFilter) : '') + ' ===',
+                'color:#fff;background:#' + (same.length ? 'e74c3c' : '3498db') + ';padding:2px 6px');
+            console.log('同計畫重疊 (真正的重複排): ' + same.length + ' 筆    跨計畫重疊 (通常正常): ' + cross.length + ' 筆');
+            if (rows.length) console.table(rows);
+            if (same.length) {
+                console.warn('%c⚠️ 同計畫重疊 — 同一份計畫裡同一頁被排了兩次, 這是真正的 bug',
+                    'color:#e74c3c;font-weight:bold');
+                same.forEach(function (r) {
+                    console.warn('  • ' + r['科目'] + ' / ' + r['單元'] + '  ' + r['重疊頁'] +
+                        '\n      A: ' + r['任務A 計畫'] + ' ' + r['任務A 日期'] + ' ' + r['任務A 頁碼'] + '  ' + r['任務A 完成'] +
+                        '\n      B: ' + r['任務B 計畫'] + ' ' + r['任務B 日期'] + ' ' + r['任務B 頁碼'] + '  ' + r['任務B 完成']);
+                });
+            } else {
+                console.log('%c✅ 沒有同計畫重疊', 'color:#27ae60;font-weight:bold');
+            }
+            return rows;
+        };
+
+        // v2.3.2.137: ★ 月曆頁數連續性診斷
+        //   用途: 直接回答「這個單元有沒有漏排頁數?」
+        //   做法: 把每個單元在月曆上的所有任務頁碼區間收集起來, 排序後
+        //         1) 合併重疊 2) 找出中間的「洞」(hole) 3) 找出重複排到的頁
+        //   只讀, 不會改動任何資料。
+        //   這是 v2.3.2.134 U10 事件教訓的直接產物:
+        //     當時靠肉眼看月曆, 一度以為 P.225~231 漏排了,
+        //     實際上是 P.218~225 / P.226~231 — 頁數是連續的, 沒有洞。
+        window.diagnoseCalendarGaps = function (subjectFilter) {
+            // v2.3.2.138: 改用共用 helper, 並區分「同計畫」與「跨計畫」
+            var all = _v138CollectPageTasks(subjectFilter);
+            var groups = {};
+            all.forEach(function (t) {
+                (groups[t.key] = groups[t.key] || []).push(t);
+            });
+
+            var rows = [];
+            Object.keys(groups).forEach(function (key) {
+                var list = groups[key];
+                var an = _v138AnalyzeRanges(list);
+                var rs = an.rs;
+
+                // 洞 — 依「全部計畫合併」判定 (任何一頁都沒被排到 = 漏排)
+                var holes = an.holes.map(function (h) {
+                    return 'P.' + h.from + (h.from === h.to ? '' : '~' + h.to);
                 });
 
-                // 找「洞」— union 區間之間的缺口
-                var holes = [];
-                for (var i = 1; i < union.length; i++) {
-                    var prev = union[i - 1], cur = union[i];
-                    if (cur.start > prev.end + 1) {
-                        var hFrom = prev.end + 1, hTo = cur.start - 1;
-                        holes.push('P.' + hFrom + (hFrom === hTo ? '' : '~' + hTo));
-                    }
-                }
+                // 重疊 — 區分同計畫 / 跨計畫
+                var ovSame = [], ovCross = [];
+                an.overlaps.forEach(function (ov) {
+                    var str = 'P.' + ov.from + (ov.from === ov.to ? '' : '~' + ov.to) +
+                        ' (' + ov.a.planName + ' ' + ov.a.date + ' & ' + ov.b.planName + ' ' + ov.b.date + ')';
+                    if (ov.a.planId === ov.b.planId) ovSame.push(str); else ovCross.push(str);
+                });
 
                 var span = rs.length ? ('P.' + rs[0].start + '~' + rs[rs.length - 1].end) : '(無)';
                 var segs = rs.map(function (m) {
-                    return 'P.' + m.start + (m.start === m.end ? '' : '~' + m.end) + ' (' + m.date + ')';
+                    return 'P.' + m.start + (m.start === m.end ? '' : '~' + m.end) +
+                        ' (' + m.date + '·' + (m.planName || '') + ')';
                 }).join(' / ');
+                var planNames = [];
+                rs.forEach(function (m) { if (planNames.indexOf(m.planName) < 0) planNames.push(m.planName); });
+
+                var st = '✅ 連續';
+                if (holes.length) st = '⚠️ 有洞';
+                else if (ovSame.length) st = '⚠️ 同計畫重疊';
+                else if (ovCross.length) st = 'ℹ️ 跨計畫重疊';
 
                 rows.push({
-                    '科目': g.subject,
-                    '單元': g.name,
-                    'unitId': g.unitId,
+                    '科目': rs.length ? rs[0].subject : '?',
+                    '單元': rs.length ? (rs[0].unitName || '(無名稱)') : '?',
+                    'unitId': rs.length ? rs[0].unitId : '',
                     '總範圍': span,
                     '任務數': rs.length,
+                    '計畫': planNames.join(' + '),
                     '分段': segs,
                     '洞': holes.length ? holes.join(', ') : '—',
-                    '重疊': overlaps.length ? overlaps.join(', ') : '—',
-                    '狀態': (holes.length ? '⚠️ 有洞' : (overlaps.length ? '⚠️ 有重疊' : '✅ 連續'))
+                    '同計畫重疊': ovSame.length ? ovSame.join(', ') : '—',
+                    '跨計畫重疊': ovCross.length ? ovCross.join(', ') : '—',
+                    '狀態': st
                 });
             });
 
-            // 排序: 有洞的排最前面
-            rows.sort(function (a, b) {
-                var av = a['狀態'] === '✅ 連續' ? 1 : 0, bv = b['狀態'] === '✅ 連續' ? 1 : 0;
-                return av - bv;
-            });
+            // 排序: 有洞 > 同計畫重疊 > 跨計畫重疊 > 正常
+            var rank = { '⚠️ 有洞': 0, '⚠️ 同計畫重疊': 1, 'ℹ️ 跨計畫重疊': 2, '✅ 連續': 3 };
+            rows.sort(function (a, b) { return (rank[a['狀態']] - rank[b['狀態']]); });
 
-            var bad = rows.filter(function (r) { return r['狀態'] !== '✅ 連續'; });
+            var holes = rows.filter(function (r) { return r['洞'] !== '—'; });
+            var same = rows.filter(function (r) { return r['同計畫重疊'] !== '—'; });
+            var cross = rows.filter(function (r) { return r['跨計畫重疊'] !== '—'; });
+            var clean = rows.filter(function (r) { return r['狀態'] === '✅ 連續'; });
+
             console.log('%c=== 月曆頁數連續性診斷' + (subjectFilter ? (' — ' + subjectFilter) : '') + ' ===',
-                'color:#fff;background:#' + (bad.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
-            console.log('共 ' + rows.length + ' 個單元, 其中 ' + bad.length + ' 個有洞或重疊');
+                'color:#fff;background:#' + (holes.length || same.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            console.log('共 ' + rows.length + ' 個單元 → 有洞 ' + holes.length +
+                ' / 同計畫重疊 ' + same.length + ' / 跨計畫重疊 ' + cross.length + ' / 完全正常 ' + clean.length);
             if (rows.length) console.table(rows);
-            if (bad.length) {
-                console.warn('%c⚠️ 發現頁數不連續 — 這就是「漏排」的真正證據',
+            if (holes.length) {
+                console.warn('%c⚠️ 有洞 — 這些頁碼完全沒被排到 (真正的漏排)',
                     'color:#e74c3c;font-weight:bold');
-                bad.forEach(function (r) {
-                    console.warn('  • ' + r['科目'] + ' / ' + r['單元'] + ' → 洞: ' + r['洞'] + '  重疊: ' + r['重疊']);
+                holes.forEach(function (r) {
+                    console.warn('  • ' + r['科目'] + ' / ' + r['單元'] + ' → 洞: ' + r['洞'] + '  (計畫: ' + r['計畫'] + ')');
                 });
-            } else {
-                console.log('%c✅ 所有單元的頁碼都連續, 沒有漏排', 'color:#27ae60;font-weight:bold');
+            }
+            if (same.length) {
+                console.warn('%c⚠️ 同計畫重疊 — 同一份計畫裡同一頁排了兩次 (真正的 bug)',
+                    'color:#e74c3c;font-weight:bold');
+                same.forEach(function (r) {
+                    console.warn('  • ' + r['科目'] + ' / ' + r['單元'] + ' → ' + r['同計畫重疊'] + '  (計畫: ' + r['計畫'] + ')');
+                });
+            }
+            if (cross.length) {
+                console.log('%cℹ️ 跨計畫重疊 ' + cross.length + ' 筆 (通常是合理的, 例如暑假計畫 + 二模計畫都排到)',
+                    'color:#3498db;font-weight:bold');
+            }
+            if (!holes.length && !same.length) {
+                console.log('%c✅ 沒有洞、沒有同計畫重疊 — 沒有漏排', 'color:#27ae60;font-weight:bold');
             }
             return rows;
         };
