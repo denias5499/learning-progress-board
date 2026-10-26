@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.135]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.136]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1759,6 +1759,7 @@
                 </div>
                 
                 <div id="pane-master" class="tab-pane active">
+                    <div id="master-current-user-hint" style="font-size:0.9em; color:var(--primary); font-weight:bold; margin-bottom:10px; padding:6px 10px; background:#eff6ff; border-radius:6px; border:1px solid #bfdbfe;">👤 目前教材庫：—</div>
                     <!-- 進度大分類與任務 (新增於教材庫上方) -->
                     <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
                         <div class="form-group" style="flex: 1; min-width: 250px;">
@@ -4764,16 +4765,34 @@ loadBoardHeader();
         }
 
         function switchUser() {
-            currentUserId = el('user-selector').value;
+            // v2.3.2.136: 先確認目標使用者存在, 不存在就不要改 currentUserId
+            var newUid = el('user-selector').value;
+            var targetUser = multiData[newUid];
+            if (!targetUser) {
+                console.warn('v2.3.2.136: 找不到使用者', newUid, ', 取消切換');
+                return;
+            }
+            currentUserId = newUid;
             localStorage.setItem(STORAGE_KEY_CURRENT_USER, currentUserId);
-            var user = multiData[currentUserId];
+            var user = targetUser;
             // v1.5.8: masters 是 per-category 教材庫, 預設載入第一個 cat
             appMissions = user.missions || {};
             appLogs = user.logs || [];
             appPlans = user.plans || [];
+            // v2.3.2.136: ★ 立刻把 appMaster 綁到新使用者 (放在最前面, 失敗安全)
+            //   為什麼要提早: 舊碼把 appMaster 的綁定放在很後面, 中間還夾著一段
+            //   沒有 try/catch 的 task remap。一旦中途出錯, currentUserId 已經是
+            //   新使用者, 但 appMaster 還停在「舊使用者的教材庫物件」→
+            //   後續任何編輯都會直接改到別人的教材 (跨使用者污染)。
+            var _v136Cats = Object.keys(user.masters || {});
+            appCurrentCat = _v136Cats[0] || '';
+            appMaster = user.masters[appCurrentCat] || {};
 
             // v1.6.63: remap plan tasks to current masters unitIds
             // 新任務有 typeName+instanceName → 精確配對；舊任務靠 unitName + page range
+            // v2.3.2.136: 包 try/catch — remap 失敗不該讓整個切換中斷
+            //   (中斷的話 appMaster 會停在半綁定狀態, 有跨使用者污染風險)
+            try {
             {var _oldPlans = appPlans.slice(); appPlans.length = 0;
             _oldPlans.forEach(function(p) {
                 var np = Object.assign({}, p, {grid: {}});
@@ -4814,6 +4833,9 @@ loadBoardHeader();
                     });
                 });
             });}
+            } catch (e) {
+                console.error('v2.3.2.136: 切換使用者時 remap 任務失敗 (已略過, 教材庫隔離不受影響):', e && e.message);
+            }
 
             // v1.6.64: within-match fallback 已涵蓋 partial coverage (e.g., 大滿貫 P.39-50 任務 P.39-42)
 
@@ -4900,13 +4922,59 @@ loadBoardHeader();
             
             autoMigrateLogsToCalendar();
             updateFilters();
+
+            // v2.3.2.136: ★ 切換使用者後重整教材庫頁面
+            //   症狀: 新增使用者後打開教材庫, 會看到「上一位使用者」的科目/類型/教材下拉。
+            //   原因: switchUser() 從來沒有重整教材庫頁面, 下拉選單一直是舊的 DOM。
+            //   那些選項值是「上一位使用者的真實資料」(例如 instance 名稱) — 不是新使用者的。
+            //   修完之後新使用者看到的就是空白教材庫。
+            try {
+                var _v136Msc = el('master-set-cat');
+                if (_v136Msc) {
+                    // 先把 cat 下拉對到新使用者的第一個 cat, 再讓它重整各層下拉
+                    _v136Msc.value = appCurrentCat || '';
+                    onMasterSetCatChange();
+                } else {
+                    syncAllCatMisDropdowns();
+                }
+            } catch (e) {
+                console.warn('v2.3.2.136: 切換使用者後重整教材庫頁面失敗:', e && e.message);
+            }
+            _v136UpdateUserHints();
+        }
+
+        // v2.3.2.136: 在畫面上標示「目前正在編輯誰的教材庫」
+        function _v136UpdateUserHints() {
+            try {
+                var u = multiData[currentUserId];
+                var nm = (u && u.name) ? u.name : '(未知使用者)';
+                var hint = '👤 目前教材庫：' + nm;
+                var box = el('master-current-user-hint');
+                if (box) box.textContent = hint;
+                var title = document.querySelector('#pane-master .page-title, #pane-master h2');
+                if (title) title.setAttribute('data-owner', nm);
+            } catch (e) { /* 純顯示, 失敗無妨 */ }
         }
 
         function saveToLocal() {
             if(multiData[currentUserId]) {
                 // v1.5.8: appMaster 是當前 cat 的教材庫, 寫回 user.masters[appCurrentCat]
                 if (!multiData[currentUserId].masters) multiData[currentUserId].masters = {};
-                if (appCurrentCat) multiData[currentUserId].masters[appCurrentCat] = appMaster;
+                if (appCurrentCat) {
+                    // v2.3.2.136: ★ 跨使用者污染防護
+                    //   appMaster 是「參照」, 正常情況下它就是 multiData[currentUserId].masters[cat] 本身。
+                    //   但若使用者在切換時中途出錯, appMaster 可能還停在「別的使用者」的物件 ——
+                    //   這時寫回去會讓兩個使用者共用同一份教材庫, 後續編輯會互相影響。
+                    //   偵測到不一致就拒絕寫回, 並重新綁回正確的物件。
+                    var _v136Own = multiData[currentUserId].masters[appCurrentCat];
+                    if (_v136Own && _v136Own !== appMaster) {
+                        console.warn('v2.3.2.136: ⚠️ appMaster 與目前使用者 (' + (multiData[currentUserId].name || currentUserId) +
+                            ') 的教材庫不是同一個物件 → 已拒絕寫回並重新綁定 (避免污染其他使用者)');
+                        appMaster = _v136Own;
+                    } else {
+                        multiData[currentUserId].masters[appCurrentCat] = appMaster;
+                    }
+                }
                 multiData[currentUserId].missions = appMissions;
                 multiData[currentUserId].logs = appLogs;
                 multiData[currentUserId].plans = appPlans;
@@ -5480,6 +5548,46 @@ loadBoardHeader();
         }
 
         // v2.3.2.130: 診斷工具 — 預設 dry-run, 傳 true 才實際修改
+        // v2.3.2.136: 使用者隔離診斷 — 檢查 appMaster 是否真的屬於目前使用者
+        window.diagnoseUserIsolation = function () {
+            var rows = [];
+            Object.keys(multiData).forEach(function (uid) {
+                var u = multiData[uid];
+                var cats = Object.keys((u && u.masters) || {});
+                var subs = 0, units = 0;
+                cats.forEach(function (c) {
+                    var cm = u.masters[c] || {};
+                    subs += Object.keys(cm).length;
+                    Object.keys(cm).forEach(function (sub) {
+                        units += (_collectSubjectUnits(cm[sub]) || []).length;
+                    });
+                });
+                rows.push({
+                    '使用者': u.name || uid,
+                    'uid': uid,
+                    '大分類': cats.join(','),
+                    '科目數': subs,
+                    '單元數': units,
+                    '目前?': (uid === currentUserId ? '✅ 是' : ''),
+                    '計畫數': ((u.plans || []).length),
+                    '任務數': (u.plans || []).reduce(function (n, p) {
+                        return n + Object.keys(p.grid || {}).reduce(function (m, d) { return m + (p.grid[d] || []).length; }, 0);
+                    }, 0)
+                });
+            });
+            console.log('%c=== 使用者資料隔離診斷 ===', 'color:#fff;background:#3498db;padding:2px 6px');
+            console.table(rows);
+            var cur = multiData[currentUserId];
+            var own = cur && cur.masters ? cur.masters[appCurrentCat] : null;
+            var okBind = (own === appMaster);
+            console.log('%cappMaster 是否為目前使用者的教材庫物件: ' + (okBind ? '✅ 是 (隔離正常)' : '❌ 否 (有污染風險!)'),
+                'color:' + (okBind ? '#27ae60' : '#e74c3c') + ';font-weight:bold');
+            if (!okBind) {
+                console.log('→ 請執行一次「重新整理頁面」讓 appMaster 重新綁定');
+            }
+            return rows;
+        };
+
         window.diagnoseEmptyVol = function (apply) {
             var user = multiData[currentUserId];
             if (!user) { console.log('找不到目前使用者資料'); return; }
@@ -18183,7 +18291,15 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 };
                 saveToLocal();
                 el('user-selector').innerHTML += `<option value="${newId}">${name}</option>`;
+                // v2.3.2.136: 建立後立即切換到新使用者
+                //   舊碼只把選項加進下拉但不改 currentUserId, 導致:
+                //   - 使用者以為自己在看新使用者, 實際上 currentUserId 還是舊的
+                //   - 教材庫頁面永遠不會重整 → 看到舊使用者的資料
+                //   切過去之後, 新使用者看到的就是空白教材庫 (符合預期)。
+                el('user-selector').value = newId;
+                switchUser();
                 renderUserManageList();
+                alert('✅ 已建立「' + name + '」\n\n教材庫是空的, 請從左側「1. 建立基本教材庫」開始建立。');
             });
         }
         function renameUser(uid) { openInputModal('✏️ 修改學生名稱', multiData[uid].name, function(newName) { if (newName !== multiData[uid].name) { multiData[uid].name = newName; saveToLocal(); initUsers(); renderUserManageList(); } }); }
