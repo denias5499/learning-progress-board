@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.136]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.137]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5733,6 +5733,123 @@ loadBoardHeader();
         };
 
         // v2.3.2.135: 完整順延紀錄診斷 — 每一筆都列出, 含被排除的原因
+        // v2.3.2.137: ★ 月曆頁數連續性診斷
+        //   用途: 直接回答「這個單元有沒有漏排頁數?」
+        //   做法: 把每個單元在月曆上的所有任務頁碼區間收集起來, 排序後
+        //         1) 合併重疊 2) 找出中間的「洞」(hole) 3) 找出重複排到的頁
+        //   只讀, 不會改動任何資料。
+        //   這是 v2.3.2.134 U10 事件教訓的直接產物:
+        //     當時靠肉眼看月曆, 一度以為 P.225~231 漏排了,
+        //     實際上是 P.218~225 / P.226~231 — 頁數是連續的, 沒有洞。
+        window.diagnoseCalendarGaps = function (subjectFilter) {
+            // key: 有 unitId 用 unitId, 沒有就用 科目+名稱 (手動任務)
+            var groups = {};
+            appPlans.forEach(function (p) {
+                var grid = p.grid || {};
+                Object.keys(grid).sort().forEach(function (d) {
+                    var tasks = grid[d];
+                    if (!Array.isArray(tasks)) return;
+                    tasks.forEach(function (t) {
+                        var sp = Number(t.startPage) || 0;
+                        var ep = Number(t.endPage) || 0;
+                        if (!sp || !ep || ep < sp) return;
+                        if (subjectFilter && t.subject !== subjectFilter) return;
+                        var nm = '';
+                        if (t.unitName) nm = t.unitName;
+                        else if (t.text) nm = t.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
+                        var key = t.unitId ? ('u:' + t.unitId) : ('m:' + (t.subject || '?') + '|' + nm);
+                        if (!groups[key]) {
+                            groups[key] = {
+                                subject: t.subject || '(未分類)',
+                                unitId: t.unitId || '',
+                                name: nm || '(無名稱)',
+                                cat: t.cat || '',
+                                mis: t.mis || '',
+                                ranges: []
+                            };
+                        }
+                        groups[key].ranges.push({ start: sp, end: ep, date: d, plan: p.name || p.id, text: t.text || '' });
+                    });
+                });
+            });
+
+            var rows = [];
+            Object.keys(groups).forEach(function (key) {
+                var g = groups[key];
+                var rs = g.ranges.slice().sort(function (a, b) { return a.start - b.start || a.end - b.end; });
+
+                // union: 合併「重疊或相鄰」→ 這是算「洞」的依據
+                //   (相鄰也算合併, 因為 210~217 + 218~225 是正常的接續, 中間沒有洞)
+                // orig : 保留原始任務區間 → 顯示用 (讓人看得到到底排了幾段)
+                var union = [];
+                var overlaps = [];
+                rs.forEach(function (r) {
+                    var last = union[union.length - 1];
+                    if (last && r.start <= last.end + 1) {
+                        if (r.start <= last.end) {
+                            // 有重疊
+                            var ovFrom = r.start, ovTo = Math.min(r.end, last.end);
+                            if (ovFrom <= ovTo) {
+                                overlaps.push('P.' + ovFrom + (ovFrom === ovTo ? '' : '~' + ovTo) + ' (' + last.date + ' & ' + r.date + ')');
+                            }
+                        }
+                        if (r.end > last.end) { last.end = r.end; last.date = r.date; last.text = r.text; }
+                    } else {
+                        union.push({ start: r.start, end: r.end, date: r.date, text: r.text });
+                    }
+                });
+
+                // 找「洞」— union 區間之間的缺口
+                var holes = [];
+                for (var i = 1; i < union.length; i++) {
+                    var prev = union[i - 1], cur = union[i];
+                    if (cur.start > prev.end + 1) {
+                        var hFrom = prev.end + 1, hTo = cur.start - 1;
+                        holes.push('P.' + hFrom + (hFrom === hTo ? '' : '~' + hTo));
+                    }
+                }
+
+                var span = rs.length ? ('P.' + rs[0].start + '~' + rs[rs.length - 1].end) : '(無)';
+                var segs = rs.map(function (m) {
+                    return 'P.' + m.start + (m.start === m.end ? '' : '~' + m.end) + ' (' + m.date + ')';
+                }).join(' / ');
+
+                rows.push({
+                    '科目': g.subject,
+                    '單元': g.name,
+                    'unitId': g.unitId,
+                    '總範圍': span,
+                    '任務數': rs.length,
+                    '分段': segs,
+                    '洞': holes.length ? holes.join(', ') : '—',
+                    '重疊': overlaps.length ? overlaps.join(', ') : '—',
+                    '狀態': (holes.length ? '⚠️ 有洞' : (overlaps.length ? '⚠️ 有重疊' : '✅ 連續'))
+                });
+            });
+
+            // 排序: 有洞的排最前面
+            rows.sort(function (a, b) {
+                var av = a['狀態'] === '✅ 連續' ? 1 : 0, bv = b['狀態'] === '✅ 連續' ? 1 : 0;
+                return av - bv;
+            });
+
+            var bad = rows.filter(function (r) { return r['狀態'] !== '✅ 連續'; });
+            console.log('%c=== 月曆頁數連續性診斷' + (subjectFilter ? (' — ' + subjectFilter) : '') + ' ===',
+                'color:#fff;background:#' + (bad.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            console.log('共 ' + rows.length + ' 個單元, 其中 ' + bad.length + ' 個有洞或重疊');
+            if (rows.length) console.table(rows);
+            if (bad.length) {
+                console.warn('%c⚠️ 發現頁數不連續 — 這就是「漏排」的真正證據',
+                    'color:#e74c3c;font-weight:bold');
+                bad.forEach(function (r) {
+                    console.warn('  • ' + r['科目'] + ' / ' + r['單元'] + ' → 洞: ' + r['洞'] + '  重疊: ' + r['重疊']);
+                });
+            } else {
+                console.log('%c✅ 所有單元的頁碼都連續, 沒有漏排', 'color:#27ae60;font-weight:bold');
+            }
+            return rows;
+        };
+
         window.diagnoseDeferRecords = function (subjectFilter) {
             var recs = window._v135AnalyzeDefer();
             if (subjectFilter) {
