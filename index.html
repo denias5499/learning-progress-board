@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.139]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.140]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4510,6 +4510,14 @@ loadBoardHeader();
                     // v1.5.8: 進度大分類獨立教材庫 migrate (在 v1.5.2 migrate 之前, 讓 master 結構還是舊的時被搬到 masters[cat])
                     _v158Migrate(uid);
 
+                // v2.3.2.140: ★ 清掉 v1.5.3 自動注入的髒教材庫
+                //   v2.3.2.132 的 purgeInjectedLegacyMaster() 只看 user.master,
+                //   但那時 v1.5.8 已經把 master 搬到 masters[cat] 並刪掉舊欄位 → 永遠清不到。
+                //   這裡補上 masters[cat] 的版本 (比對 unit id 集合 + 「從沒用過」條件)。
+                try { _v140PurgeInjectedMasters(uid); } catch (e) {
+                    console.warn('v2.3.2.140: 清除注入髒資料失敗 (uid=' + uid + '):', e && e.message);
+                }
+
                     // v1.5.29: 同步 plan.grid 裡 task.mis 跟 log.mission (頁數重疊比對，處理順延任務)
                     _v1529Migrate(uid);
 
@@ -5822,7 +5830,211 @@ loadBoardHeader();
             console.table(rows);
             console.log('%c如果「兩者一致?」是 ❌ → 程式 thinks 你是 A 但實際在用 B, 請重新整理頁面', 'color:#e67e22');
             console.log('%c如果某位使用者的教材庫裡出現了別人的科目名 → 資料層被污染, 需要另外清理', 'color:#e67e22');
+
+            // v2.3.2.140: 補上「v1.5.3 自動注入」的檢查
+            var injected = _v140FindInjectedMasters();
+            console.log('%c=== v1.5.3 自動注入檢查 ===', 'color:#fff;background:#' + (injected.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            if (!injected.length) {
+                console.log('%c✅ 沒有任何使用者帶著 v1.5.3 注入的教材庫', 'color:#27ae60;font-weight:bold');
+            } else {
+                console.table(injected.map(function (f) {
+                    return {
+                        '使用者': f.userName, '分類': f.cat, '科目': f.subject, 'unit 數': f.unitCount,
+                        '計畫數': f.planCount, '紀錄數': f.logCount,
+                        '★ 判定': f.isVictim ? '⚠️ 被注入 (從沒用過) → 可清除' : '🔒 原始擁有者 (不動)'
+                    };
+                }));
+                if (injected.some(function (f) { return f.isVictim; })) {
+                    console.log('%c★ 執行 fixInjectedMaster(true) 可清除注入的髒教材庫', 'color:#e74c3c;font-weight:bold');
+                }
+            }
             return rows;
+        };
+
+        // v2.3.2.140: ★★ v1.5.3 自動注入髒資料 — 偵測 + 清除
+        //
+        // 背景: v1.5.3 有個「從硬編碼備份復原」的功能, 會把「張裕宣」的教材結構
+        //   (8 科 147 units, 見 window._v153_BACKUP_MASTER_STR) 灌進
+        //   「每一個 master 是空的使用者」→ 新建立的學生 (例如「張裕如」)
+        //   會直接拿到張裕宣的整套教材庫。這就是「切到張裕如卻看到張裕宣教材」的真正來源。
+        //
+        // v2.3.2.132 的清理漏在這裡:
+        //   purgeInjectedLegacyMaster() 只檢查 user.master 這個「舊單一 master」欄位。
+        //   但注入發生後, v1.5.8 的 migrate 會把 user.master 搬到
+        //   user.masters['會考複習'] 並 delete user.master →
+        //   之後 purgeInjectedLegacyMaster() 看到 user.master 不存在 → 永遠回傳 0
+        //   → 髒資料就一直留在 masters 裡, 清理從未生效。
+        //
+        // v2.3.2.140 修法: 改比對「unit id 集合」, 而且掃 masters[cat] 的 3 層架構。
+        //   安全條件 (兩個都要成立才清除):
+        //     a) 該科目的 unit id 集合與 v1.5.3 備份的某一科「完全相同」
+        //     b) 該使用者「完全沒有 plans 也沒有 logs」→ 代表他從沒用過這份教材庫
+        //   張裕宣本人有計畫與紀錄 → 永遠不會被動到。
+        //   冪等: 清完就沒有相同集合了, 下次再跑是 no-op。
+        function _v140BackupUnitIndex() {
+            var idx = {};
+            var raw = window._v153_BACKUP_MASTER_STR;
+            if (!raw) return idx;
+            var backup;
+            try { backup = JSON.parse(raw); } catch (e) { return idx; }
+            Object.keys(backup).forEach(function (subName) {
+                var s = backup[subName] || {};
+                var set = {};
+                if (s.type === 'custom') {
+                    (s.units || []).forEach(function (u) { if (u && u.id) set[u.id] = true; });
+                } else {
+                    Object.keys(s.vols || {}).forEach(function (v) {
+                        (s.vols[v] || []).forEach(function (u) { if (u && u.id) set[u.id] = true; });
+                    });
+                }
+                idx[subName] = Object.keys(set).sort();
+            });
+            return idx;
+        }
+
+        // 從 3 層架構 (materials → instances → units/vols) 抽出 unit id 集合
+        //   注意: v1.5.2 遷移會把 volume 型同時塞進 instance.units (攤平) 和 instance.vols,
+        //   所以這裡用 Set 去重, 才不會同一個 id 被算兩次。
+        function _v140SubjectUnitIds(subjectObj) {
+            var set = {};
+            if (!subjectObj || !subjectObj.materials) return [];
+            Object.keys(subjectObj.materials).forEach(function (t) {
+                var to = subjectObj.materials[t] || {};
+                (to.instances || []).forEach(function (ins) {
+                    if (!ins) return;
+                    (ins.units || []).forEach(function (u) { if (u && u.id) set[u.id] = true; });
+                    if (ins.vols) Object.keys(ins.vols).forEach(function (v) {
+                        (ins.vols[v] || []).forEach(function (u) { if (u && u.id) set[u.id] = true; });
+                    });
+                });
+            });
+            return Object.keys(set).sort();
+        }
+
+        // ★ 找出所有「unit id 集合完全等於 v1.5.3 備份某一科」的教材庫科目
+        function _v140FindInjectedMasters() {
+            var idx = _v140BackupUnitIndex();
+            var bySig = {};
+            Object.keys(idx).forEach(function (subName) {
+                if (!idx[subName].length) return;
+                bySig[idx[subName].join('|')] = subName;
+            });
+            var found = [];
+            Object.keys(multiData || {}).forEach(function (uid) {
+                var u = multiData[uid];
+                if (!u) return;
+                var ms = u.masters || {};
+                Object.keys(ms).forEach(function (cat) {
+                    var catSubjects = ms[cat];
+                    if (!catSubjects || typeof catSubjects !== 'object') return;
+                    Object.keys(catSubjects).forEach(function (subName) {
+                        var ids = _v140SubjectUnitIds(catSubjects[subName]);
+                        if (!ids.length) return;
+                        var match = bySig[ids.join('|')];
+                        if (!match) return;
+                        var hasPlans = (u.plans || []).length > 0;
+                        var hasLogs = (u.logs || []).length > 0;
+                        found.push({
+                            uid: uid,
+                            userName: u.name || uid,
+                            cat: cat,
+                            subject: subName,
+                            backupSubject: match,
+                            unitCount: ids.length,
+                            hasPlans: hasPlans,
+                            hasLogs: hasLogs,
+                            planCount: (u.plans || []).length,
+                            logCount: (u.logs || []).length,
+                            // ★ 只有「完全沒用過」的使用者才允許清除
+                            isVictim: (!hasPlans && !hasLogs),
+                            key: uid + '|' + cat + '|' + subName
+                        });
+                    });
+                });
+            });
+            return found;
+        }
+
+        // ★ 清除某個使用者的注入髒資料 (只清 isVictim 的)
+        function _v140PurgeInjectedMasters(uid) {
+            var all = _v140FindInjectedMasters();
+            var hit = all.filter(function (f) { return f.uid === uid && f.isVictim; });
+            if (!hit.length) return 0;
+            var removed = 0;
+            hit.forEach(function (f) {
+                var catSubjects = multiData[uid] && multiData[uid].masters && multiData[uid].masters[f.cat];
+                if (!catSubjects) return;
+                if (catSubjects[f.subject]) { delete catSubjects[f.subject]; removed++; }
+            });
+            if (removed) {
+                console.warn('v2.3.2.140: ✅ 已移除「' + (multiData[uid].name || uid) + '」被 v1.5.3 注入的髒教材庫: ' +
+                    hit.map(function (f) { return f.subject + '(' + f.unitCount + ' units)'; }).join(', ') +
+                    ' → 該學生的教材庫回到空白');
+            }
+            return removed;
+        }
+
+        // v2.3.2.140: 唯讀診斷 — v1.5.3 注入的髒資料
+        window.diagnoseInjectedMaster = function () {
+            var found = _v140FindInjectedMasters();
+            console.log('%c=== v1.5.3 自動注入髒資料診斷 ===', 'color:#fff;background:#' + (found.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            if (!found.length) {
+                console.log('%c✅ 沒有任何使用者帶著 v1.5.3 注入的教材庫', 'color:#27ae60;font-weight:bold');
+                return [];
+            }
+            console.table(found.map(function (f) {
+                return {
+                    '使用者': f.userName,
+                    '進度大分類': f.cat,
+                    '科目': f.subject,
+                    'unit 數': f.unitCount,
+                    '對應備份科目': f.backupSubject,
+                    '計畫數': f.planCount,
+                    '紀錄數': f.logCount,
+                    '★ 判定': f.isVictim ? '⚠️ 疑似被注入 (從沒用過) → 可清除' : '🔒 原始擁有者 (有在用, 不動)'
+                };
+            }));
+            var victims = found.filter(function (f) { return f.isVictim; });
+            console.log('%c★ 有 ' + victims.length + ' 個科目符合「被注入且從沒用過」→ 執行 fixInjectedMaster(true) 可清除',
+                'color:' + (victims.length ? '#e74c3c' : '#27ae60') + ';font-weight:bold');
+            console.log('%c⚠️ 註: 這份 v1.5.3 備份的內容是「張裕宣」的教材 (8 科 147 units)', 'color:#e67e22');
+            return found;
+        };
+
+        // v2.3.2.140: ★ 清除注入髒資料 (預設 dry-run)
+        window.fixInjectedMaster = function (apply) {
+            var found = _v140FindInjectedMasters();
+            var victims = found.filter(function (f) { return f.isVictim; });
+            if (!victims.length) {
+                console.log('%c✅ 沒有需要清除的注入資料', 'color:#27ae60;font-weight:bold');
+                return 0;
+            }
+            console.table(victims.map(function (f) {
+                return { '使用者': f.userName, '分類': f.cat, '科目': f.subject, 'unit 數': f.unitCount, 'key': f.key };
+            }));
+            if (apply !== true) {
+                console.log('%c這是預覽 (dry-run)。要真的清除請執行 fixInjectedMaster(true)',
+                    'color:#f39c12;font-weight:bold');
+                return 0;
+            }
+            // ★ 先存 undo + 安全備份
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushSafetyBackup('fix-injected-master'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+
+            var removed = 0;
+            Object.keys(multiData || {}).forEach(function (uid) {
+                removed += _v140PurgeInjectedMasters(uid);
+            });
+            if (removed) {
+                saveToLocal();
+                // ★ 教材庫畫面重建 (清掉的是科目, 三層下拉都要重畫)
+                _v139AssertMasterOwnership('fixInjectedMaster');
+                _v139SyncMasterUI('fixInjectedMaster');
+            }
+            console.log('%c✅ 已清除 ' + removed + ' 個被注入的髒科目 (該學生的教材庫已回到空白)',
+                'color:#27ae60;font-weight:bold');
+            console.log('→ 需要還原請按「↩️ 復原」按鈕 (有 undo 快照)');
+            return removed;
         };
 
         window.diagnoseUserIsolation = function () {
