@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.138]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.139]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4770,6 +4770,11 @@ loadBoardHeader();
             var targetUser = multiData[newUid];
             if (!targetUser) {
                 console.warn('v2.3.2.136: 找不到使用者', newUid, ', 取消切換');
+                // v2.3.2.139: ★ 取消切換時, 把下拉改回「實際正在使用的人」
+                //   否則畫面會出現「下拉顯示張裕如, 內容卻是張裕宣」的欺騙狀態
+                var selU = el('user-selector');
+                if (selU) selU.value = currentUserId;
+                _v136UpdateUserHints();
                 return;
             }
             currentUserId = newUid;
@@ -4940,7 +4945,81 @@ loadBoardHeader();
             } catch (e) {
                 console.warn('v2.3.2.136: 切換使用者後重整教材庫頁面失敗:', e && e.message);
             }
-            _v136UpdateUserHints();
+            // v2.3.2.139: ★ 用「唯一真實來源」同步取代手動重建
+            //   (會再做一次擁有者檢查 + 從 appMaster 重建三層下拉)
+            _v139SyncMasterUI('switchUser');
+        }
+
+        // v2.3.2.139: ★★ 教材庫「擁有者守門員」
+        //   只做檢查 + 重新綁定, 不重畫 (可以安全地從任何地方呼叫)
+        //   回傳 true = 一切正常, false = 有問題已被修正 (呼叫端應該重畫)
+        function _v139AssertMasterOwnership(reason) {
+            try {
+                var u = multiData[currentUserId];
+                if (!u) return true;
+                if (!u.masters) u.masters = {};
+
+                // 1. 使用者下拉顯示的人 ≠ 真正在使用的人 → 最容易騙到使用者的情況
+                //    症狀: 下拉顯示「張裕如」, 畫面卻全是「張裕宣」的教材
+                var selU = el('user-selector');
+                if (selU && selU.value !== currentUserId) {
+                    var shownName = (multiData[selU.value] && multiData[selU.value].name) || selU.value;
+                    var realName = u.name || currentUserId;
+                    console.warn('v2.3.2.139: ⚠️ [' + reason + '] 使用者下拉顯示「' + shownName +
+                        '」, 但目前實際使用的是「' + realName + '」→ 已把下拉改回實際使用者');
+                    selU.value = currentUserId;
+                }
+
+                // 2. appMaster 必須是目前使用者的教材庫物件
+                var own = appCurrentCat ? u.masters[appCurrentCat] : null;
+                if (own && own !== appMaster) {
+                    console.warn('v2.3.2.139: ⚠️ [' + reason + '] appMaster 不屬於目前使用者「' + (u.name || currentUserId) +
+                        '」→ 已重新綁定 (避免改到別人的教材)');
+                    appMaster = own;
+                    return false;
+                }
+                if (!own && appMaster && Object.keys(appMaster).length > 0) {
+                    console.warn('v2.3.2.139: ⚠️ [' + reason + '] 目前使用者的分類「' + (appCurrentCat || '(無)') +
+                        '」是空的, 但 appMaster 有內容 → 已清空 (絕不顯示其他使用者的教材)');
+                    appMaster = {};
+                    return false;
+                }
+                return true;
+            } catch (e) {
+                console.warn('v2.3.2.139: 擁有者檢查失敗 (' + reason + '):', e && e.message);
+                return true;
+            }
+        }
+
+        // v2.3.2.139: ★★ 教材庫 UI 的「唯一真實來源」同步
+        //   每次要顯示教材庫時都呼叫 → 下拉選單一律從 appMaster 重建,
+        //   絕不會留下「上一位使用者」的殘留 DOM。
+        function _v139SyncMasterUI(reason) {
+            try {
+                _v139AssertMasterOwnership(reason);
+                var u = multiData[currentUserId];
+                if (!u) return;
+
+                // 重建第 1 層: 科目
+                var subs = Object.keys(appMaster || {});
+                var sel = el('master-subject');
+                var prevSub = sel ? sel.value : '';
+                var keep = (prevSub && subs.indexOf(prevSub) >= 0) ? prevSub : (subs[0] || '');
+                if (sel) {
+                    sel.innerHTML = subs.length
+                        ? subs.map(function (s) { return '<option value="' + escapeHtml(s) + '">' + escapeHtml(s) + '</option>'; }).join('')
+                        : '<option value="">(無)</option>';
+                    sel.value = keep;
+                }
+                // 重建第 2、3 層: 教材類型 / 教材名稱
+                populateMasterTypeDropdown();
+                // 重建編輯器
+                renderMasterEditor();
+                // 更新畫面上的使用者標示
+                _v136UpdateUserHints();
+            } catch (e) {
+                console.warn('v2.3.2.139: 教材庫同步失敗 (' + reason + '):', e && e.message);
+            }
         }
 
         // v2.3.2.136: 在畫面上標示「目前正在編輯誰的教材庫」
@@ -4950,7 +5029,13 @@ loadBoardHeader();
                 var nm = (u && u.name) ? u.name : '(未知使用者)';
                 var hint = '👤 目前教材庫：' + nm;
                 var box = el('master-current-user-hint');
-                if (box) box.textContent = hint;
+                if (box) {
+                    box.textContent = hint;
+                    // v2.3.2.139: 醒目化 — 避免使用者以為在看別人的教材
+                    box.style.background = '#fef3c7';
+                    box.style.borderColor = '#f59e0b';
+                    box.style.color = '#92400e';
+                }
                 var title = document.querySelector('#pane-master .page-title, #pane-master h2');
                 if (title) title.setAttribute('data-owner', nm);
             } catch (e) { /* 純顯示, 失敗無妨 */ }
@@ -5549,6 +5634,197 @@ loadBoardHeader();
 
         // v2.3.2.130: 診斷工具 — 預設 dry-run, 傳 true 才實際修改
         // v2.3.2.136: 使用者隔離診斷 — 檢查 appMaster 是否真的屬於目前使用者
+        // v2.3.2.139: ★ 找出「頁碼被完全包含」的重複任務
+        //   情境: 同一個計畫、同一個單元, 有兩筆任務的頁碼互相包含 →
+        //         同一頁被排了兩次 (例: 應用文（二）P.151~166 與 P.156~166 同時在 9/22)
+        function _v139FindDuplicateTasks() {
+            var out = [];
+            appPlans.forEach(function (p) {
+                var grid = p.grid || {};
+                var byUnit = {};
+                Object.keys(grid).sort().forEach(function (d) {
+                    (grid[d] || []).forEach(function (t) {
+                        var sp = Number(t.startPage) || 0, ep = Number(t.endPage) || 0;
+                        if (!sp || !ep || ep < sp) return;
+                        var nm = t.unitName || '';
+                        if (!nm && t.text) nm = t.text.replace(/\s*P\.\d+(~\d+)?\s*$/, '').trim();
+                        var k = t.unitId ? ('u:' + t.unitId) : ('m:' + (t.subject || '?') + '|' + nm);
+                        (byUnit[k] = byUnit[k] || []).push({ date: d, task: t, sp: sp, ep: ep });
+                    });
+                });
+                Object.keys(byUnit).forEach(function (k) {
+                    var arr = byUnit[k];
+                    if (arr.length < 2) return;
+                    // 寬的先排 → 依次判斷是否被前面的「保留項」包含
+                    var sorted = arr.slice().sort(function (a, b) {
+                        var sa = a.ep - a.sp, sb = b.ep - b.sp;
+                        if (sb !== sa) return sb - sa;
+                        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+                        return String(a.task.id) < String(b.task.id) ? -1 : 1;
+                    });
+                    var kept = [];
+                    sorted.forEach(function (r) {
+                        var host = null;
+                        for (var i = 0; i < kept.length; i++) {
+                            var K = kept[i];
+                            if (r.sp >= K.sp && r.ep <= K.ep) { host = K; break; }
+                        }
+                        if (host) {
+                            out.push({
+                                key: p.id + '|' + r.date + '|' + k + '|' + r.task.id,
+                                planId: p.id,
+                                planName: p.name || p.id,
+                                date: r.date,
+                                subject: r.task.subject || '',
+                                unitName: r.task.unitName || '',
+                                unitKey: k,
+                                removeId: r.task.id,
+                                removeText: r.task.text || '',
+                                removeRange: 'P.' + r.sp + '~' + r.ep,
+                                removeDone: !!r.task.isDone,
+                                keepText: host.task.text || '',
+                                keepRange: 'P.' + host.sp + '~' + host.ep,
+                                keepDate: host.date,
+                                keepId: host.task.id,
+                                overlap: 'P.' + r.sp + '~' + r.ep
+                            });
+                        } else {
+                            kept.push(r);
+                        }
+                    });
+                });
+            });
+            return out;
+        }
+
+        // v2.3.2.139: 預覽重複任務 (唯讀)
+        window.diagnoseDuplicateTasks = function () {
+            var dups = _v139FindDuplicateTasks();
+            console.log('%c=== 重複任務診斷 ===', 'color:#fff;background:#' + (dups.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            if (!dups.length) {
+                console.log('%c✅ 沒有重複任務', 'color:#27ae60;font-weight:bold');
+                return [];
+            }
+            console.log('共 ' + dups.length + ' 筆重複 (頁碼被另一筆完全包含)');
+            console.table(dups.map(function (d, i) {
+                return {
+                    '#': i,
+                    'key (複製這個)': d.key,
+                    '計畫': d.planName,
+                    '日期': d.date,
+                    '科目': d.subject,
+                    '單元': d.unitName,
+                    '★ 建議移除': d.removeText + ' (' + d.removeRange + ')',
+                    '移除已完成': d.removeDone ? '✅ 是' : '',
+                    '保留': d.keepText + ' (' + d.keepRange + ' @ ' + d.keepDate + ')'
+                };
+            }));
+            console.warn('%c⚠️ 這些任務的頁碼互相重疊 — 同一頁被排了兩次', 'color:#e74c3c;font-weight:bold');
+            console.log('→ 確認後執行 dedupeDuplicateTasks(true) 會移除「建議移除」那一筆 (並保留 undo 快照)');
+            return dups;
+        };
+
+        // v2.3.2.139: ★ 移除重複任務 (預設 dry-run)
+        //   apply=true 才會真的刪; sel 可傳 key 陣列只刪指定幾筆
+        window.dedupeDuplicateTasks = function (apply, sel) {
+            var dups = _v139FindDuplicateTasks();
+            if (!dups.length) { console.log('沒有找到重複任務'); return 0; }
+            console.table(dups.map(function (d, i) {
+                return { '#': i, 'key': d.key, '計畫': d.planName, '日期': d.date, '建議移除': d.removeText, '保留': d.keepText };
+            }));
+            if (apply !== true) {
+                console.log('%c這是預覽 (dry-run)。要真的移除請執行 dedupeDuplicateTasks(true)',
+                    'color:#f39c12;font-weight:bold');
+                return 0;
+            }
+            var picked = dups;
+            if (sel && sel.length) {
+                picked = dups.filter(function (d) { return sel.indexOf(d.key) >= 0; });
+                if (picked.length !== sel.length) console.warn('有些 key 沒對上, 實際只會處理 ' + picked.length + ' 筆');
+            }
+            if (!picked.length) { console.log('沒有選到任何項目'); return 0; }
+
+            // ★ 先存 undo + 安全備份, 確保可以完整還原
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushSafetyBackup('dedupe-duplicate-tasks'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+
+            var removed = 0, removedLogs = 0;
+            picked.forEach(function (d) {
+                var plan = appPlans.find(function (p) { return p.id === d.planId; });
+                if (!plan || !plan.grid) return;
+                var arr = plan.grid[d.date];
+                if (!Array.isArray(arr)) return;
+                var before = arr.length;
+                plan.grid[d.date] = arr.filter(function (t) { return t.id !== d.removeId; });
+                if (plan.grid[d.date].length !== before) {
+                    removed++;
+                    // ★ 同時刪掉對應的 log, 否則 autoMigrateLogsToCalendar 會把它重建回來
+                    var lb = appLogs.length;
+                    appLogs = appLogs.filter(function (l) { return l.id !== 'cal_' + d.removeId; });
+                    if (appLogs.length !== lb) removedLogs++;
+                }
+            });
+            if (removed) {
+                saveToLocal();
+                invalidateSchedCache();
+                if (typeof renderCalendar === 'function') renderCalendar();
+                if (typeof renderDashboard === 'function') renderDashboard();
+                if (el('page-history') && el('page-history').style.display === 'block' && typeof renderHistoryTable === 'function') renderHistoryTable();
+            }
+            console.log('%c✅ 已移除 ' + removed + ' 筆重複任務 (並刪掉 ' + removedLogs + ' 筆對應 log)',
+                'color:#27ae60;font-weight:bold');
+            console.log('→ 需要還原請按「↩️ 復原」按鈕 (有 undo 快照)');
+            return removed;
+        };
+
+        // v2.3.2.139: ★ 教材庫隔離深度診斷
+        window.diagnoseMasterIsolation = function () {
+            var selU = el('user-selector');
+            var cur = multiData[currentUserId];
+            var own = (cur && cur.masters) ? cur.masters[appCurrentCat] : null;
+            console.log('%c=== 教材庫隔離深度診斷 ===', 'color:#fff;background:#3498db;padding:2px 6px');
+            console.log('%c目前狀態', 'color:#3498db;font-weight:bold');
+            console.table([{
+                '使用者下拉顯示': selU ? (selU.value || '(空)') : '(無元素)',
+                '下拉顯示的名字': selU && multiData[selU.value] ? multiData[selU.value].name : '?',
+                '實際 currentUserId': currentUserId,
+                '實際使用者的名字': cur ? (cur.name || '?') : '?',
+                '★ 兩者一致?': (selU && selU.value === currentUserId) ? '✅ 是' : '❌ 否 (下拉與實際不同!)',
+                'appCurrentCat': appCurrentCat || '(空)',
+                'appMaster 科目': Object.keys(appMaster || {}).join(', ') || '(空)',
+                '★ appMaster 是該使用者的物件?': (own === appMaster) ? '✅ 是' : '❌ 否 (污染風險!)',
+                '教材庫頁使用者提示': (el('master-current-user-hint') || {}).textContent || '(無)'
+            }]);
+            console.log('%c每位使用者的實際教材庫資料', 'color:#3498db;font-weight:bold');
+            var rows = [];
+            Object.keys(multiData).forEach(function (uid) {
+                var u = multiData[uid];
+                var cats = Object.keys((u && u.masters) || {});
+                var detail = cats.map(function (c) {
+                    var subs = Object.keys(u.masters[c] || {});
+                    var units = 0;
+                    subs.forEach(function (s) {
+                        try { units += (_collectSubjectUnits(u.masters[c][s]) || []).length; } catch (e) {}
+                    });
+                    return c + '[' + subs.length + '科/' + units + '單元' + (subs.length ? ': ' + subs.join(',') : '') + ']';
+                }).join(' | ');
+                rows.push({
+                    '使用者': u.name || uid,
+                    'uid': uid,
+                    '★ 目前?': uid === currentUserId ? '✅' : '',
+                    '教材庫': detail || '(無)',
+                    '計畫數': (u.plans || []).length,
+                    '任務數': (u.plans || []).reduce(function (n, p) {
+                        return n + Object.keys(p.grid || {}).reduce(function (m, d) { return m + (p.grid[d] || []).length; }, 0);
+                    }, 0)
+                });
+            });
+            console.table(rows);
+            console.log('%c如果「兩者一致?」是 ❌ → 程式 thinks 你是 A 但實際在用 B, 請重新整理頁面', 'color:#e67e22');
+            console.log('%c如果某位使用者的教材庫裡出現了別人的科目名 → 資料層被污染, 需要另外清理', 'color:#e67e22');
+            return rows;
+        };
+
         window.diagnoseUserIsolation = function () {
             var rows = [];
             Object.keys(multiData).forEach(function (uid) {
@@ -15298,6 +15574,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             populateSelect('master-set-cat', Object.keys(appMissions));
             // v1.5.8: 先讀當前 cat 的教材
             onMasterSetCatChange();
+            // v2.3.2.139: ★ 進設定頁時一律從 appMaster 重建教材庫畫面
+            _v139SyncMasterUI('openSettings');
             // v1.5.2: 確保每個 subject 都有 materials 欄位 (defensive)
             Object.keys(appMaster).forEach(function(s) {
                 if (!appMaster[s].materials) appMaster[s].materials = {};
@@ -15314,6 +15592,11 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active')); 
             if(el('btn-tab-' + tabId)) el('btn-tab-' + tabId).classList.add('active'); 
             if(el('pane-' + tabId)) el('pane-' + tabId).classList.add('active'); 
+            // v2.3.2.139: ★ 每次進入「建立基本教材庫」都從 appMaster 重建整個教材庫畫面
+            //   為什麼: switchTab() 原本只切換 CSS class, 從來不重整內容 →
+            //   下拉選單會一直是「上次渲染時」的殘留 DOM, 可能是上一位使用者的資料。
+            //   這是「切換使用者後還看得到別人的教材」的最後一環。
+            if(tabId === 'master') _v139SyncMasterUI('switchTab');
             if(tabId === 'mission') renderMissionCheckboxes(); 
             // v1.5.58: history tab 切換時自動 render 表格
             if(tabId === 'history' && typeof renderHistoryTable === 'function') renderHistoryTable(); 
@@ -15809,6 +16092,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         function renderMasterEditor() {
+            // v2.3.2.139: 畫任何教材庫內容之前, 先確認資料真的屬於目前使用者
+            _v139AssertMasterOwnership('renderMasterEditor');
             var sel = el('master-subject');
             var sub = sel ? sel.value : "";
             lastMasterSub = sub;
