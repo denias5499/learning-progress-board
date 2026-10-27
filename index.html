@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.149]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.150]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5120,6 +5120,13 @@ loadBoardHeader();
             } catch (e) { /* 純顯示, 失敗無妨 */ }
         }
 
+        // 保留目前使用者持有的 logs 參照，避免正常刪除被 stale 守門員撤銷。
+        function filterAppLogs(keep) {
+            for (var i = appLogs.length - 1; i >= 0; i--) {
+                if (!keep(appLogs[i])) appLogs.splice(i, 1);
+            }
+        }
+
         function saveToLocal() {
             // ★★ v2.3.2.145: stale 參照守門員
             //   appPlans/appLogs/appMissions 是「參照」。正常情況下它們就跟
@@ -5892,7 +5899,7 @@ loadBoardHeader();
                     removed++;
                     // ★ 同時刪掉對應的 log, 否則 autoMigrateLogsToCalendar 會把它重建回來
                     var lb = appLogs.length;
-                    appLogs = appLogs.filter(function (l) { return l.id !== 'cal_' + d.removeId; });
+                    filterAppLogs(function (l) { return l.id !== 'cal_' + d.removeId; });
                     if (appLogs.length !== lb) removedLogs++;
                 }
             });
@@ -7757,11 +7764,11 @@ loadBoardHeader();
                         detail: extractedUnitName
                     };
                     
-                    appLogs = appLogs.filter(l => l.id !== 'cal_' + task.id);
+                    filterAppLogs(l => l.id !== 'cal_' + task.id);
                     appLogs.push(logEntry);
 
                 } else {
-                    appLogs = appLogs.filter(l => l.id !== 'cal_' + task.id);
+                    filterAppLogs(l => l.id !== 'cal_' + task.id);
                 }
                 
                 saveToLocal();
@@ -8147,7 +8154,7 @@ loadBoardHeader();
             if(Array.isArray(plan.grid[dateStr])) {
                 plan.grid[dateStr] = plan.grid[dateStr].filter(t => t.id !== taskId);
             }
-            appLogs = appLogs.filter(l => l.id !== 'cal_' + taskId);
+            filterAppLogs(l => l.id !== 'cal_' + taskId);
             saveToLocal();
             openDoubleCheck();
             renderCalendar();
@@ -10948,7 +10955,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var pid = el('planner-selector').value; var dateStr = el('pc-date').value; var taskId = el('pc-taskid').value;
             var plan = appPlans.find(p => p.id === pid);
             if(Array.isArray(plan.grid[dateStr])) plan.grid[dateStr] = plan.grid[dateStr].filter(t => t.id !== taskId);
-            appLogs = appLogs.filter(l => l.id !== 'cal_' + taskId);
+            filterAppLogs(l => l.id !== 'cal_' + taskId);
             saveToLocal(); closeModal('modal-planner-cell'); renderCalendar(); renderDashboard(); 
             if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
         }
@@ -11982,7 +11989,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             task.text = `[${baseSubject}] ${baseName}`;
                         }
 
-                        appLogs = appLogs.filter(l => l.id !== 'cal_' + task.id);
+                        filterAppLogs(l => l.id !== 'cal_' + task.id);
 
                         if(ePage < planEnd) { 
                             var diff = planEnd - ePage; 
@@ -16571,7 +16578,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     });
                 }
                 
-                appLogs = appLogs.filter(l => l.id !== id); 
+                filterAppLogs(l => l.id !== id);
                 saveToLocal(); 
                 renderHistoryTable(); 
                 renderDashboard(); 
@@ -17542,7 +17549,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if (subjCount > 0) msg += '\n底下有 ' + subjCount + ' 個 subject 教材也會被刪掉。';
             if(!confirm(msg)) return;
             delete appMissions[cat];
-            appLogs = appLogs.filter(l => l.category !== cat);
+            filterAppLogs(l => l.category !== cat);
             // v1.5.8: 同步刪 masters[cat]
             var user = multiData[currentUserId];
             if (user && user.masters && user.masters[cat]) {
@@ -17601,7 +17608,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if(!cat || !mis) return; 
             if(confirm('刪除？')) { 
                 delete appMissions[cat][mis]; 
-                appLogs = appLogs.filter(l => !(l.category === cat && l.mission === mis)); 
+                filterAppLogs(l => !(l.category === cat && l.mission === mis));
                 syncAllCatMisDropdowns(cat, null);
                 if(!el('pane-master').classList.contains('active')) renderMissionCheckboxes(); 
                 updateFilters();
@@ -20052,6 +20059,9 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
         function _v146DataUrlToBlob(dataUrl) {
             return Promise.resolve().then(function () {
                 var parts = String(dataUrl).split(',');
+                if (parts.length !== 2 || !/^data:[^,]*;base64$/i.test(parts[0]) || !parts[1]) {
+                    throw new Error('圖片資料不是有效的 base64 data URL');
+                }
                 var mime = (parts[0].match(/:(.*?);/) || [, 'application/octet-stream'])[1];
                 var b64 = parts[1] || '';
                 var bin = atob(b64);
@@ -20113,14 +20123,24 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
         }
 
         // 還原單一 IDB 來源 (保留所有欄位, id 必須跟原本一致)
-        async function _v147RestoreIdbSource(src, records) {
+        async function _v147RestoreIdbSource(src, records, failures) {
             if (!records || !records.length) return 0;
-            var db = await _v147OpenDb(src.db, src.store);
-            if (!db) return 0;
+            var errors = failures || [];
+            var db;
+            try {
+                db = await _v147OpenDb(src.db, src.store);
+                if (!db) throw new Error('無法開啟圖片資料庫');
+            } catch (e) {
+                errors.push({ db: src.db, store: src.store, error: e.message || String(e) });
+                return 0;
+            }
             var n = 0;
             for (var i = 0; i < records.length; i++) {
                 var rec = records[i];
-                if (!rec || !rec.id) continue;
+                if (!rec || !rec.id) {
+                    errors.push({ db: src.db, store: src.store, index: i, error: '圖片缺少 ID' });
+                    continue;
+                }
                 var copy = {};
                 for (var k in rec) { if (Object.prototype.hasOwnProperty.call(rec, k)) copy[k] = rec[k]; }
                 try {
@@ -20128,17 +20148,17 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                         copy.data = await _v146DataUrlToBlob(copy.data);
                     }
                     delete copy._v147DataType;
-                    await new Promise(function (resolve) {
-                        try {
-                            var tx = db.transaction([src.store], 'readwrite');
-                            tx.objectStore(src.store).put(copy);
-                            tx.oncomplete = function () { resolve(); };
-                            tx.onerror = function () { resolve(); };
-                            tx.onabort = function () { resolve(); };
-                        } catch (e) { resolve(); }
+                    await new Promise(function (resolve, reject) {
+                        var tx = db.transaction([src.store], 'readwrite');
+                        tx.oncomplete = function () { resolve(); };
+                        tx.onerror = function () { reject(tx.error || new Error('圖片寫入失敗')); };
+                        tx.onabort = function () { reject(tx.error || new Error('圖片寫入已中止')); };
+                        tx.objectStore(src.store).put(copy);
                     });
                     n++;
-                } catch (e) { /* 單張失敗不影響其他 */ }
+                } catch (e) {
+                    errors.push({ db: src.db, store: src.store, id: rec.id, error: e.message || String(e) });
+                }
             }
             return n;
         }
@@ -20761,6 +20781,8 @@ document.getElementById('import-file').addEventListener('change', function(e) {
             //   同時相容 v146 舊格式 (images: [{id,type,data,createdAt}])
             var _v146ImgRestored = 0;
             var _v147RestoredStats = [];
+            var _v147ImageErrors = [];
+            var _v147ImagesFailed = 0;
             try {
                 if (data.idb) {
                     for (var _v147k = 0; _v147k < V147_IDB_SOURCES.length; _v147k++) {
@@ -20775,25 +20797,32 @@ document.getElementById('import-file').addEventListener('change', function(e) {
                             _v147recs2 = [];
                             for (var _v147m = 0; _v147m < _v147bucket.images.length; _v147m++) {
                                 var _v147im = _v147bucket.images[_v147m];
-                                if (!_v147im || !_v147im.id) continue;
+                                if (!_v147im || !_v147im.id) { _v147recs2.push(null); continue; }
                                 _v147recs2.push({ id: _v147im.id, data: _v147im.data, createdAt: _v147im.createdAt || '', _v147DataType: _v147im.type || 'dataurl' });
                             }
+                        } else {
+                            _v147ImageErrors.push({ db: _v147s2.db, error: '備份圖片清單格式錯誤' });
                         }
                         if (!_v147recs2 || !_v147recs2.length) continue;
-                        var _v147n2 = await _v147RestoreIdbSource(_v147s2, _v147recs2);
+                        var _v147n2 = await _v147RestoreIdbSource(_v147s2, _v147recs2, _v147ImageErrors);
                         _v146ImgRestored += _v147n2;
-                        _v147RestoredStats.push({ label: _v147s2.label, count: _v147n2 });
+                        _v147ImagesFailed += _v147recs2.length - _v147n2;
+                        _v147RestoredStats.push({ label: _v147s2.label, count: _v147n2, failed: _v147recs2.length - _v147n2 });
                     }
                 }
             } catch (e4) {
+                _v147ImageErrors.push({ error: e4.message || String(e4) });
                 console.warn('v2.3.2.147: 圖片還原失敗:', e4);
             }
 
-            if (failed > 0) {
-                alert('匯入部分完成: ' + written + ' 成功, ' + failed + ' 失敗\n' +
-                      '請檢查 console 查看失敗的 key');
+            var _v147Partial = failed > 0 || _v147ImagesFailed > 0 || _v147ImageErrors.length > 0;
+            if (_v147ImageErrors.length) {
+                console.error('圖片還原失敗明細:', _v147ImageErrors);
             }
-            var _v146DoneMsg = '🎉 還原完成! (' + written + ' 個資料區段)';
+            var _v146DoneMsg = _v147Partial
+                ? '⚠️ 匯入部分完成：資料區段成功 ' + written + '、失敗 ' + failed +
+                  '；圖片成功 ' + _v146ImgRestored + '、失敗 ' + _v147ImagesFailed + ' 張。'
+                : '🎉 還原完成! (' + written + ' 個資料區段)';
             if (_v147RestoredStats && _v147RestoredStats.length) {
                 var _v147rLines = [];
                 for (var _v147r = 0; _v147r < _v147RestoredStats.length; _v147r++) {
@@ -20803,8 +20832,17 @@ document.getElementById('import-file').addEventListener('change', function(e) {
                 }
                 if (_v147rLines.length) _v146DoneMsg += '\n(圖片已還原: ' + _v147rLines.join('、') + ')';
             }
+            if (_v147Partial) {
+                _v146DoneMsg += '\n部分資料尚未還原，請保留備份檔並重試。錯誤明細可在 console 查看。';
+                for (var _v150e = 0; _v150e < Math.min(5, _v147ImageErrors.length); _v150e++) {
+                    var _v150err = _v147ImageErrors[_v150e];
+                    _v146DoneMsg += '\n' + (_v150err.db || '圖片') +
+                        (_v150err.id ? ' / ' + _v150err.id : '') + ': ' + _v150err.error;
+                }
+            }
             _v146DoneMsg += '\n系統即將重新載入。';
             alert(_v146DoneMsg);
+            // 即使部分失敗也重新載入已匯入的資料，避免舊的記憶體狀態覆蓋它。
             window.location.reload();
         } catch(err) {
             alert('匯入失敗: ' + (err.message || '檔案格式錯誤或無法解析'));
