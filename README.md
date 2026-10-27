@@ -31,9 +31,19 @@
 
 ## 💾 資料儲存
 
-所有資料儲存在瀏覽器的 **localStorage** 中：
-- 每個 domain / file:// 路徑 獨立一份
-- 建議定期使用「匯出 JSON 備份」保存
+資料分散在幾個地方，**「匯出 JSON 備份」會全部打包**：
+
+| 位置 | 內容 | 備份涵蓋 |
+|---|---|---|
+| `localStorage['StudyMap_*']` | 教材庫、計畫、紀錄、答對率、看板設定、安全備份 | ✅ |
+| `localStorage['myStudyNotes']` | **錯題本文字**（錯題結構、原因、內容） | ✅ v2.3.2.146 起 |
+| `IndexedDB['wrongNoteImgDB'].images` | **錯題本圖片** | ✅ v2.3.2.146 起 |
+
+> ⚠️ v2.3.2.146 之前，`myStudyNotes` 因為沒有 `StudyMap_` 前綴、圖片又在 IndexedDB，
+> **錯題本從來沒被備份過**。舊的備份檔還原後錯題本會是空的。
+
+每個 domain / file:// 路徑 獨立一份資料。
+建議定期使用「匯出 JSON 備份」保存。
 
 ## 📂 檔案結構
 

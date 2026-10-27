@@ -1,3 +1,27 @@
+## v2.3.2.146 (2026-10-27) — 錯題本納入備份 / 還原
+
+### 問題
+「匯出 JSON 備份」只抓 `StudyMap_` 前綴的 localStorage key，但錯題本資料存在:
+- `localStorage['myStudyNotes']` — 錯題文字/結構（**沒有 `StudyMap_` 前綴**）
+- `IndexedDB['wrongNoteImgDB'].images` — 錯題圖片（note 的 `imageId` 指向它）
+
+→ **錯題本從來沒被備份過**。而且匯入端還有 `k.indexOf('StudyMap_') !== 0` 的安全過濾，
+就算備份檔裡有也還原不了。
+
+### 修法
+- 匯出：額外抓 `myStudyNotes` + 匯出 IndexedDB 圖片（Blob → base64 data URL，記錄原始型別）
+- 匯入：白名單放行 `myStudyNotes` + 還原 IndexedDB 圖片（id 必須與 note 的 `imageId` 一致）
+- 備份格式 `schema` 升為 `full-v2`，新增 `_meta.wrongNotes`（筆數 / 圖片數）
+- 匯出/匯入訊息顯示錯題本統計；圖片 > 50 張時提示備份檔會較大
+- 新增 `window.diagnoseBackupCoverage()` / `diagnoseBackupCoverageAsync()`
+
+### 驗證
+- `test/e2e/wrong-notes-backup.e2e.js` 18/18（備份→清除→還原完整循環）
+- 實際 `exportDataToFile()` / 匯入 handler 流程 12/12
+- npm test 315 pass / 0 fail
+
+---
+
 ## v1.5.176 (2026-08-17) — 樹狀圖 dropdowns 精修
 
 ### 改動
@@ -10,6 +34,7 @@
   - 選冊別: 進一步 filter 到該 vol
 - 修剩下 7 個 treeCat 引用 (init block + catLabel + mis4jump)
 - 加 type/vol filter 邏輯 (v1.5.176, 在 singleSubject 邏輯後)
+
 
 ## v1.5.175 (2026-08-17) — 學習統計分析 tab 樣式 + 樹狀圖 dropdowns + 教材庫頁面加速
 

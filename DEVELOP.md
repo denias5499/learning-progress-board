@@ -301,6 +301,44 @@ git pull --rebase origin main
 
 ---
 
+## 📎 8.5 備份涵蓋範圍
+
+```js
+// 診斷: 備份涵蓋了什麼、漏了什麼
+diagnoseBackupCoverage()              // 同步版
+await diagnoseBackupCoverageAsync()   // 連錯題圖片數量一起回報
+```
+
+回傳內容：
+- `localStorageKeys` — 所有 key 與大小
+- `coveredByBackup` — 會被備份的（`StudyMap_` 前綴）
+- `NOTCoveredByBackup` — **不會**被備份的（要特別留意）
+- `wrongNotes` — 錯題筆數、是否有圖片
+
+### 資料實際存哪
+
+| 位置 | 內容 | 備份涵蓋 |
+|---|---|---|
+| `localStorage['StudyMap_*']` | 教材庫、計畫、紀錄、答對率、看板設定、安全備份 | ✅ |
+| `localStorage['myStudyNotes']` | **錯題本文字** | ✅ v2.3.2.146 起 |
+| `IndexedDB['wrongNoteImgDB'].images` | **錯題本圖片** | ✅ v2.3.2.146 起 |
+
+### 新增備份範圍時的兩個注意
+
+1. **匯出端**要抓非 `StudyMap_` 前綴的 key → 用明確白名單，不要用「抓所有 key」
+   （會把同 origin 別的東西也抓進去）
+2. **匯入端**的安全過濾 `k.indexOf('StudyMap_') !== 0` 也要一起放行
+   → 否則備份了還原不了（這就是錯題本漏備的完整成因）
+
+### 測試
+
+```bash
+node test/e2e/wrong-notes-backup.e2e.js
+```
+真實瀏覽器跑「造資料 → 備份 → 清空 → 還原 → 驗證」完整循環。
+
+---
+
 ## 📞 9. 出問題了
 
 1. **先看版本徽章** —— 確定載入的是不是最新版
