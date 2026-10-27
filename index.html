@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.142]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.143]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4686,6 +4686,13 @@ loadBoardHeader();
                     console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
+                // v2.3.2.143: ★★ 自動清除 v1.5.3 注入污染 (放在存檔之前 → 清完直接存)
+                //   放這裡而不是迴圈裡: 所有 migration 都跑完, 資料才是最終狀態,
+                //   判定才準 (migration 可能會重建 masters)。
+                try { _v143AutoPurgePollutedUsers(); } catch (e) {
+                    console.warn('v2.3.2.143: 自動清除注入髒資料失敗:', e && e.message);
+                }
+
                 localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
                 currentUserId = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
                 if (!currentUserId || !multiData[currentUserId]) currentUserId = Object.keys(multiData)[0];
@@ -4980,6 +4987,25 @@ loadBoardHeader();
             // v2.3.2.139: ★ 用「唯一真實來源」同步取代手動重建
             //   (會再做一次擁有者檢查 + 從 appMaster 重建三層下拉)
             _v139SyncMasterUI('switchUser');
+
+            // v2.3.2.143: ★ 切換到某位學生時, 順便檢查並清掉他身上的注入髒資料
+            //   (匯入舊備份 / 換瀏覽器時, init 可能已經跑過 → 這裡是第二道保險)
+            try {
+                var _v143c = _v142ClassifyUser(currentUserId);
+                if (_v143c && _v143c.isPolluted) {
+                    _v143AutoPurgePollutedUsers();
+                    var _v143u = multiData[currentUserId];
+                    if (_v143u) {
+                        appCurrentCat = Object.keys(_v143u.masters || {})[0] || '';
+                        appMaster = _v143u.masters[appCurrentCat] || {};
+                        appMissions = _v143u.missions || {};
+                        appPlans = _v143u.plans || [];
+                        appLogs = _v143u.logs || [];
+                    }
+                }
+            } catch (e) {
+                console.warn('v2.3.2.143: 切換時檢查注入髒資料失敗:', e && e.message);
+            }
 
             // v2.3.2.142: ★★ 完整重繪 (修「切換使用者要 refresh 才生效」)
             //   switchUser() 從來沒有叫任何 render 函式 → 畫面一直是舊使用者的。
@@ -6350,7 +6376,7 @@ loadBoardHeader();
 
         // 收集一位使用者所有計畫任務的 unitId
         function _v142PlanTaskUnitIds(user) {
-            var set = {}, count = 0;
+            var set = {}, count = 0, manual = 0;
             (user.plans || []).forEach(function (p) {
                 if (!p || !p.grid) return;
                 Object.keys(p.grid).forEach(function (d) {
@@ -6358,10 +6384,11 @@ loadBoardHeader();
                         if (!t) return;
                         count++;
                         if (t.unitId) set[t.unitId] = true;
+                        else manual++;   // ★ 手動自訂任務 (沒有 unitId) = 使用者真的自己加的
                     });
                 });
             });
-            return { ids: set, taskCount: count };
+            return { ids: set, taskCount: count, manual: manual };
         }
 
         // ★ 完整分析一位使用者
@@ -6381,6 +6408,7 @@ loadBoardHeader();
             });
 
             var pt = _v142PlanTaskUnitIds(u);
+            var planManual = pt.manual;
             var planInjected = 0, planOwn = 0, planUnknown = 0;
             Object.keys(pt.ids).forEach(function (id) {
                 if (injected[id]) planInjected++;
@@ -6411,11 +6439,13 @@ loadBoardHeader();
                 planInjected: planInjected,
                 planOwn: planOwn,
                 planUnknown: planUnknown,
+                planManual: planManual,
                 logCount: logCount,
                 fullyInjectedMaster: fullyInjectedMaster,
                 fullyInjectedPlan: fullyInjectedPlan,
                 // ★ 污染受害者: master 100% 注入 + 計畫也 100% 來自注入的 unit + 沒有 log
-                isPolluted: fullyInjectedMaster && fullyInjectedPlan && logCount === 0
+                //   ★ 還要加「沒有手動自訂任務」—— 手動任務代表使用者真的自己排過, 不能刪
+                isPolluted: fullyInjectedMaster && fullyInjectedPlan && logCount === 0 && planManual === 0
             };
         }
 
@@ -6560,6 +6590,89 @@ loadBoardHeader();
             console.log('%c✅ 已刪除大分類「' + cat + '」(' + nSub + ' 個科目)', 'color:#27ae60;font-weight:bold');
             return 1;
         };
+
+        // v2.3.2.143: ★★ 全自動清除「v1.5.3 注入污染」
+        //
+        // 為什麼要做成自動:
+        //   污染來源 (_v153_BACKUP_MASTER_STR 自動注入) 早在 v132 就關掉了,
+        //   但已經被灌進去的資料還留在使用者的 localStorage 裡。
+        //   如果要使用者自己下指令才清, 等於「髒資料還在, 只是藏起來」——
+        //   而且只要他換台裝置 / 換瀏覽器 / 匯入舊備份, 髒資料又會回來。
+        //
+        //   判定條件是「確定性指紋」, 不是猜測:
+        //     master 的 unit id 100% 來自 v1.5.3 備份 (147 個已知 id)
+        //     + 計畫裡每個任務的 unitId 也 100% 來自那些 id
+        //     + 沒有任何手動自訂任務
+        //     + 沒有任何 log
+        //   符合 = 這份資料 100% 是注入出來的, 不可能是使用者自己建的。
+        //
+        //   安全性:
+        //     - 原始擁有者 (張裕宣) 有 1013 個自創 unit + 378 個任務 + log → 永遠不符合
+        //     - 冪等: 清完 master 變空 → isPolluted 變 false → 下次不會再觸發
+        //     - 每次執行前都存 undo 快照 + 安全備份 → 出問題按「↩️ 復原」就回得去
+        function _v143AutoPurgePollutedUsers() {
+            var victims = [];
+            Object.keys(multiData || {}).forEach(function (uid) {
+                var c = null;
+                try { c = _v142ClassifyUser(uid); } catch (e) { return; }
+                if (c && c.isPolluted) victims.push(c);
+            });
+            if (!victims.length) return [];
+
+            console.warn('%c=== v2.3.2.143: 偵測到 ' + victims.length + ' 位使用者帶著 v1.5.3 注入的髒資料, 自動清除 ===',
+                'color:#fff;background:#e74c3c;padding:2px 6px');
+            console.table(victims.map(function (c) {
+                return {
+                    '使用者': c.name, 'uid': c.uid,
+                    '教材庫 unit': c.masterIdCount + ' (100% 來自備份)',
+                    '計畫': c.planCount + ' 個 / ' + c.taskCount + ' 任務',
+                    'log': c.logCount,
+                    '★ 判定': '⚠️ 整份都是注入的 → 自動清除'
+                };
+            }));
+
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushSafetyBackup('auto-purge-polluted-users'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+
+            var msgs = [];
+            victims.forEach(function (c) {
+                var u = multiData[c.uid];
+                if (!u) return;
+                var nSub = 0;
+                Object.keys(u.masters || {}).forEach(function (cat) {
+                    var cs = u.masters[cat];
+                    if (!cs || typeof cs !== 'object') return;
+                    Object.keys(cs).forEach(function (sub) { delete cs[sub]; nSub++; });
+                });
+                // ★ 回到「剛建立新學生」的狀態 (跟 addNewUser() 一樣)
+                u.masters = { '會考複習': {}, '段考複習': {} };
+                u.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
+                u.plans = [];
+                u.logs = [];
+                console.warn('v2.3.2.143: 🧹 已自動清除「' + c.name + '」: ' + nSub + ' 個科目 / ' +
+                    c.masterIdCount + ' 個注入 unit / ' + c.planCount + ' 個計畫 / ' + c.taskCount + ' 個任務');
+                msgs.push('「' + c.name + '」的教材庫/計畫已清空（原本是 v1.5.3 注入的髒資料）');
+            });
+
+            try { saveToLocal(); } catch (e) { console.warn('存檔失敗:', e && e.message); }
+            _v143Toast('🧹 已自動清除 ' + victims.length + ' 位學生的髒教材庫：\n\n' + msgs.join('\n'), 'warn');
+            return victims;
+        }
+
+        // v2.3.2.143: 簡單的畫面通知
+        function _v143Toast(msg, kind) {
+            try {
+                var box = document.createElement('div');
+                box.textContent = msg;
+                var bg = kind === 'warn' ? '#f39c12' : '#27ae60';
+                box.style.cssText = 'position:fixed;top:70px;left:50%;transform:translateX(-50%);z-index:999999;' +
+                    'background:' + bg + ';color:#fff;padding:14px 20px;border-radius:10px;font-size:14px;' +
+                    'max-width:min(90vw,520px);white-space:pre-wrap;box-shadow:0 6px 24px rgba(0,0,0,.28);' +
+                    'font-family:system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;line-height:1.6;';
+                document.body.appendChild(box);
+                setTimeout(function () { box.remove(); }, 12000);
+            } catch (e) { /* 沒有 DOM 就算了 */ }
+        }
 
         window.diagnoseSharedUnits = function () {
             var pairs = _v141FindSharedUnits();
