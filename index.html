@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.140]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.141]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1789,6 +1789,11 @@
                             <button type="button" class="btn-outline" onclick="addMasterSubject()">➕ 新增科目</button>
                             <button type="button" class="btn-warning" onclick="renameMasterSubject()">✏️ 編輯科目名稱</button>
                             <button type="button" class="btn-danger" onclick="deleteMasterSubject()">🗑️ 刪除科目</button>
+                        </div>
+                        <!-- v2.3.2.141: 跨使用者污染的最終手段 — 明確清空本學生此分類的教材庫 -->
+                        <div class="setting-controls" style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">
+                            <button type="button" class="btn-danger" onclick="resetCurrentMaster()">🧹 清空「本學生」此分類的教材庫</button>
+                            <span style="font-size:12px; color:#666; margin-left:8px;">（只影響目前學生；有計畫時會警告）</span>
                         </div>
                     </div>
 
@@ -4518,6 +4523,13 @@ loadBoardHeader();
                     console.warn('v2.3.2.140: 清除注入髒資料失敗 (uid=' + uid + '):', e && e.message);
                 }
 
+                // v2.3.2.141: ★ 清掉「跨使用者複製」的 unit
+                //   用 unit id 交集當證據 (unit id 隨機產生, 兩份獨立教材庫不可能撞號)
+                //   只動「完全沒有 plans 也沒有 logs」的使用者 → 張裕宣本人永遠不會被動到
+                try { _v141PurgeCopiedMasters(uid); } catch (e) {
+                    console.warn('v2.3.2.141: 清除跨使用者複製 unit 失敗 (uid=' + uid + '):', e && e.message);
+                }
+
                     // v1.5.29: 同步 plan.grid 裡 task.mis 跟 log.mission (頁數重疊比對，處理順延任務)
                     _v1529Migrate(uid);
 
@@ -4800,6 +4812,13 @@ loadBoardHeader();
             var _v136Cats = Object.keys(user.masters || {});
             appCurrentCat = _v136Cats[0] || '';
             appMaster = user.masters[appCurrentCat] || {};
+            // v2.3.2.141: ★ 綁定當下就解除別名 (兩個使用者的 slot 指向同一個物件時)
+            var _v141Alien = _v141FindOtherOwner(appMaster, newUid, appCurrentCat);
+            if (_v141Alien) {
+                console.warn('v2.3.2.141: ⚠️ 這位學生的教材庫與「' + _v141Alien.userName + '」是同一個物件 → 已深拷貝一份 (解除別名)');
+                appMaster = _v141DeepCopy(appMaster);
+                user.masters[appCurrentCat] = appMaster;
+            }
 
             // v1.6.63: remap plan tasks to current masters unitIds
             // 新任務有 typeName+instanceName → 精確配對；舊任務靠 unitName + page range
@@ -5061,10 +5080,36 @@ loadBoardHeader();
                     //   偵測到不一致就拒絕寫回, 並重新綁回正確的物件。
                     var _v136Own = multiData[currentUserId].masters[appCurrentCat];
                     if (_v136Own && _v136Own !== appMaster) {
+                        // v2.3.2.136: 拒絕寫回, 重新綁回目前使用者自己的教材庫
                         console.warn('v2.3.2.136: ⚠️ appMaster 與目前使用者 (' + (multiData[currentUserId].name || currentUserId) +
                             ') 的教材庫不是同一個物件 → 已拒絕寫回並重新綁定 (避免污染其他使用者)');
                         appMaster = _v136Own;
+                    } else if (!_v136Own) {
+                        // v2.3.2.141: ★ slot 不存在時的分支
+                        //   若 appMaster 其實是「別的使用者」的教材庫 → 絕對不能匯入,
+                        //   建立一份空白的就好 (這正是 v136 要防的跨使用者污染)。
+                        var _v141AlienNew = _v141FindOtherOwner(appMaster, currentUserId, appCurrentCat);
+                        if (_v141AlienNew) {
+                            console.warn('v2.3.2.141: ⚠️ appMaster 屬於「' + _v141AlienNew.userName + '」(' +
+                                _v141AlienNew.cat + ') → 沒有匯入, 建立空白教材庫 (避免跨使用者污染)');
+                            appMaster = {};
+                        }
+                        multiData[currentUserId].masters[appCurrentCat] = appMaster;
                     } else {
+                        multiData[currentUserId].masters[appCurrentCat] = appMaster;
+                    }
+                    // v2.3.2.141: ★★ 解除「跨使用者別名」
+                    //   v136 的檢查只比對「目前使用者的 slot」→ 當兩個 slot 已經是同一個
+                    //   JS 物件時 (_v136Own === appMaster) 判定為「正常」→ 別名永久存在,
+                    //   而且 v139 的守門員也抓不到 (參照相同正是別名的特徵)。
+                    //   這裡改問「這個物件是不是同時被別的使用者持有」→ 是的話深拷貝一份
+                    //   給目前使用者, 從此各走各的。
+                    //   ★ 必須放在 v136 的 rebind 之後, 否則會把別人的教材庫深拷貝過來。
+                    var _v141Alien = _v141FindOtherOwner(appMaster, currentUserId, appCurrentCat);
+                    if (_v141Alien) {
+                        console.warn('v2.3.2.141: ⚠️ 教材庫與「' + _v141Alien.userName + '」(' +
+                            _v141Alien.cat + ') 是同一個物件 → 已深拷貝一份給目前使用者 (解除跨使用者別名)');
+                        appMaster = _v141DeepCopy(appMaster);
                         multiData[currentUserId].masters[appCurrentCat] = appMaster;
                     }
                 }
@@ -5848,6 +5893,25 @@ loadBoardHeader();
                     console.log('%c★ 執行 fixInjectedMaster(true) 可清除注入的髒教材庫', 'color:#e74c3c;font-weight:bold');
                 }
             }
+
+            // v2.3.2.141: 跨使用者共用 unit 檢查
+            console.log('%c=== 跨使用者共用 unit 檢查 ===', 'color:#fff;background:#' + (_v141FindSharedUnits().length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            var pairs = _v141FindSharedUnits();
+            if (!pairs.length) {
+                console.log('%c✅ 沒有任何 unit 被兩位使用者共用', 'color:#27ae60;font-weight:bold');
+            } else {
+                console.table(pairs.map(function (p) {
+                    var aA = p.a.hasPlans || p.a.hasLogs, bA = p.b.hasPlans || p.b.hasLogs;
+                    var vic = (!p.a.hasPlans && !p.a.hasLogs && bA) ? p.a : ((!p.b.hasPlans && !p.b.hasLogs && aA) ? p.b : null);
+                    return {
+                        '使用者A': p.a.userName, 'A 科目': p.a.subject,
+                        '使用者B': p.b.userName, 'B 科目': p.b.subject,
+                        '共用 units': p.sharedCount,
+                        '★ 判定': vic ? ('⚠️ ' + vic.userName + ' 的是複本 → 可清除') : '🔒 兩邊都有在用 → 不動'
+                    };
+                }));
+                console.log('%c★ 執行 fixSharedUnits(true) 可清除複製的 unit', 'color:#e74c3c;font-weight:bold');
+            }
             return rows;
         };
 
@@ -6035,6 +6099,279 @@ loadBoardHeader();
                 'color:#27ae60;font-weight:bold');
             console.log('→ 需要還原請按「↩️ 復原」按鈕 (有 undo 快照)');
             return removed;
+        };
+
+        // v2.3.2.141: ★★ 跨使用者教材庫「複製 / 別名」的完整處理
+        //
+        // 為什麼 v140 (比對 v1.5.3 備份) 沒抓到:
+        //   備份比對要求 unit id 集合「完全相同」。但實際情況是
+        //   張裕如的教材庫 = 某個時間點的張裕宣教材庫的複本,
+        //   而張裕宣的教材庫之後又長大 (加了單元/課本) → 兩邊集合不再相同 → 比不到。
+        //
+        // v141 改用「unit id 交集」當複製證據:
+        //   unit id 是 app 產生時隨機給的 (id_xxx), 兩份獨立的教材庫不可能撞到同一個 id。
+        //   只要兩位使用者的科目之間出現「共同 unit id」→ 其中一份一定是從另一份複製的。
+        //   這對「完全相同」「部分相同」「舊版複本」三種情況都有效。
+        //
+        // 清除規則 (保守):
+        //   只有「完全沒有 plans 也沒有 logs」的使用者才會被動 (代表他從沒用過這份教材庫)
+        //   → 張裕宣本人 (有 159 個任務) 永遠不會被動到。
+        //   而且只移除「被證明是複製」的 unit, 屬於該使用者的獨有 unit 會保留。
+
+        function _v141DeepCopy(obj) {
+            try { return JSON.parse(JSON.stringify(obj)); } catch (e) { return {}; }
+        }
+
+        // 找出「持有同一個 JS 物件」的其他使用者 (別名)
+        function _v141FindOtherOwner(target, selfUid, selfCat) {
+            if (!target || typeof target !== 'object') return null;
+            var hit = null;
+            Object.keys(multiData || {}).forEach(function (uid) {
+                if (hit) return;
+                if (uid === selfUid) return;
+                var u = multiData[uid];
+                var ms = (u && u.masters) || {};
+                Object.keys(ms).forEach(function (cat) {
+                    if (hit) return;
+                    if (ms[cat] === target) {
+                        hit = { uid: uid, userName: u.name || uid, cat: cat };
+                    }
+                });
+            });
+            return hit;
+        }
+
+        // 收集所有使用者的每個科目 + 其 unit id 集合
+        function _v141CollectMasterEntries() {
+            var entries = [];
+            Object.keys(multiData || {}).forEach(function (uid) {
+                var u = multiData[uid];
+                var ms = (u && u.masters) || {};
+                Object.keys(ms).forEach(function (cat) {
+                    var cs = ms[cat];
+                    if (!cs || typeof cs !== 'object') return;
+                    Object.keys(cs).forEach(function (sub) {
+                        var ids = _v140SubjectUnitIds(cs[sub]);
+                        if (!ids.length) return;
+                        entries.push({
+                            uid: uid, userName: u.name || uid, cat: cat, subject: sub,
+                            ids: ids, set: new Set(ids),
+                            hasPlans: (u.plans || []).length > 0,
+                            hasLogs: (u.logs || []).length > 0,
+                            unitCount: ids.length
+                        });
+                    });
+                });
+            });
+            return entries;
+        }
+
+        // ★ 找出所有「跨使用者共用 unit id」的科目對
+        function _v141FindSharedUnits() {
+            var entries = _v141CollectMasterEntries();
+            var pairs = [];
+            for (var i = 0; i < entries.length; i++) {
+                for (var j = i + 1; j < entries.length; j++) {
+                    var a = entries[i], b = entries[j];
+                    if (a.uid === b.uid) continue;
+                    if (a.cat !== b.cat) continue;
+                    var shared = a.ids.filter(function (id) { return b.set.has(id); });
+                    if (!shared.length) continue;
+                    pairs.push({ a: a, b: b, shared: shared, sharedCount: shared.length });
+                }
+            }
+            return pairs;
+        }
+
+        // 從某個科目裡移除指定的 unit id (會同步處理 units 與 vols)
+        function _v141RemoveUnits(subjectObj, removeSet) {
+            var removed = 0;
+            if (!subjectObj || !subjectObj.materials) return 0;
+            Object.keys(subjectObj.materials).forEach(function (t) {
+                var to = subjectObj.materials[t] || {};
+                (to.instances || []).forEach(function (ins) {
+                    if (!ins) return;
+                    if (Array.isArray(ins.units)) {
+                        var b1 = ins.units.length;
+                        ins.units = ins.units.filter(function (u) { return !(u && removeSet.has(u.id)); });
+                        removed += b1 - ins.units.length;
+                    }
+                    if (ins.vols) Object.keys(ins.vols).forEach(function (v) {
+                        var arr = ins.vols[v];
+                        if (!Array.isArray(arr)) return;
+                        var b2 = arr.length;
+                        ins.vols[v] = arr.filter(function (u) { return !(u && removeSet.has(u.id)); });
+                        removed += b2 - ins.vols[v].length;
+                    });
+                });
+            });
+            return removed;
+        }
+
+        // ★ 清除「從沒用過的使用者」身上被證明是複製的 unit
+        function _v141PurgeCopiedMasters(uid) {
+            var pairs = _v141FindSharedUnits();
+            var removedUnits = 0, removedSubjects = 0;
+            var touched = {};
+
+            pairs.forEach(function (p) {
+                // 誰是「受害者」? 沒有 plans 也沒有 logs 的那一方
+                var victim = null, source = null;
+                if (!p.a.hasPlans && !p.a.hasLogs && (p.b.hasPlans || p.b.hasLogs)) { victim = p.a; source = p.b; }
+                else if (!p.b.hasPlans && !p.b.hasLogs && (p.a.hasPlans || p.a.hasLogs)) { victim = p.b; source = p.a; }
+                else return;   // 兩邊都有在用, 或兩邊都沒用 → 不動 (報告即可)
+
+                if (victim.uid !== uid) return;
+
+                var u = multiData[victim.uid];
+                var cs = u && u.masters && u.masters[victim.cat];
+                if (!cs) return;
+                var subj = cs[victim.subject];
+                if (!subj) return;
+
+                var removeSet = new Set(p.shared);
+                var n = _v141RemoveUnits(subj, removeSet);
+                removedUnits += n;
+
+                // 整個科目都沒了 → 順便刪掉這個科目
+                if (_v140SubjectUnitIds(subj).length === 0) {
+                    delete cs[victim.subject];
+                    removedSubjects++;
+                }
+                touched[victim.cat + '|' + victim.subject] = {
+                    userName: victim.userName, cat: victim.cat, subject: victim.subject,
+                    removedUnits: n, source: source.userName + '/' + source.cat + '/' + source.subject
+                };
+            });
+
+            if (removedUnits) {
+                console.warn('v2.3.2.141: ✅ 已從「' + (multiData[uid] ? (multiData[uid].name || uid) : uid) +
+                    '」移除 ' + removedUnits + ' 個「從其他使用者複製來的 unit」, 並刪掉 ' + removedSubjects + ' 個空科目');
+                Object.keys(touched).forEach(function (k) {
+                    var t = touched[k];
+                    console.log('   - ' + t.userName + ' / ' + t.cat + ' / ' + t.subject +
+                        ' ← 複製自 ' + t.source + ' (移除 ' + t.removedUnits + ' units)');
+                });
+            }
+            return removedUnits;
+        }
+
+        // v2.3.2.141: 唯讀診斷 — 跨使用者共用 unit
+        window.diagnoseSharedUnits = function () {
+            var pairs = _v141FindSharedUnits();
+            console.log('%c=== 跨使用者共用 unit 診斷 ===', 'color:#fff;background:#' + (pairs.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            if (!pairs.length) {
+                console.log('%c✅ 沒有任何 unit 被兩位使用者共用', 'color:#27ae60;font-weight:bold');
+                return [];
+            }
+            console.log('unit id 是隨機產生的, 兩份獨立教材庫不可能撞號 → 共用 = 一定是複製而來');
+            console.table(pairs.map(function (p) {
+                var aActive = p.a.hasPlans || p.a.hasLogs;
+                var bActive = p.b.hasPlans || p.b.hasLogs;
+                var victim = (!p.a.hasPlans && !p.a.hasLogs && bActive) ? p.a :
+                             (!p.b.hasPlans && !p.b.hasLogs && aActive) ? p.b : null;
+                return {
+                    '使用者 A': p.a.userName, 'A 科目': p.a.subject, 'A units': p.a.unitCount, 'A 有在用?': aActive ? '✅' : '❌',
+                    '使用者 B': p.b.userName, 'B 科目': p.b.subject, 'B units': p.b.unitCount, 'B 有在用?': bActive ? '✅' : '❌',
+                    '共用 units': p.sharedCount,
+                    '★ 判定': victim ? ('⚠️ ' + victim.userName + ' 的那份是複本 → 可清除') : '🔒 兩邊都有在用 → 不動'
+                };
+            }));
+            var victims = pairs.filter(function (p) {
+                var aActive = p.a.hasPlans || p.a.hasLogs, bActive = p.b.hasPlans || p.b.hasLogs;
+                return (!p.a.hasPlans && !p.a.hasLogs && bActive) || (!p.b.hasPlans && !p.b.hasLogs && aActive);
+            });
+            if (victims.length) {
+                console.log('%c★ 有 ' + victims.length + ' 組可以清除 → 執行 fixSharedUnits(true)', 'color:#e74c3c;font-weight:bold');
+            }
+            return pairs;
+        };
+
+        // v2.3.2.141: ★ 清除跨使用者複製的 unit (預設 dry-run)
+        window.fixSharedUnits = function (apply) {
+            var pairs = _v141FindSharedUnits();
+            var victims = pairs.filter(function (p) {
+                var aActive = p.a.hasPlans || p.a.hasLogs, bActive = p.b.hasPlans || p.b.hasLogs;
+                return (!p.a.hasPlans && !p.a.hasLogs && bActive) || (!p.b.hasPlans && !p.b.hasLogs && aActive);
+            });
+            if (!victims.length) {
+                console.log('%c✅ 沒有可清除的複製 unit', 'color:#27ae60;font-weight:bold');
+                return 0;
+            }
+            console.table(victims.map(function (p) {
+                return { '使用者A': p.a.userName, 'A 科目': p.a.subject, '使用者B': p.b.userName, 'B 科目': p.b.subject, '共用 units': p.sharedCount };
+            }));
+            if (apply !== true) {
+                console.log('%c這是預覽 (dry-run)。要真的清除請執行 fixSharedUnits(true)', 'color:#f39c12;font-weight:bold');
+                return 0;
+            }
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushSafetyBackup('fix-shared-units'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+
+            var total = 0;
+            Object.keys(multiData || {}).forEach(function (uid) {
+                total += _v141PurgeCopiedMasters(uid);
+            });
+            if (total) {
+                saveToLocal();
+                _v139AssertMasterOwnership('fixSharedUnits');
+                _v139SyncMasterUI('fixSharedUnits');
+            }
+            console.log('%c✅ 已移除 ' + total + ' 個跨使用者複製的 unit', 'color:#27ae60;font-weight:bold');
+            return total;
+        };
+
+        // v2.3.2.141: ★ 手動重置某位學生某個分類的教材庫 (明確的最終手段)
+        window.resetUserMaster = function (uid, cat, apply) {
+            var u = multiData[uid];
+            if (!u) { console.error('找不到使用者', uid); return 0; }
+            if (!u.masters) u.masters = {};
+            var cat2 = cat || appCurrentCat || Object.keys(u.masters)[0] || '';
+            if (!cat2) { console.error('沒有可清空的大分類'); return 0; }
+            if (!u.masters[cat2]) u.masters[cat2] = {};
+            var subs = Object.keys(u.masters[cat2]);
+            var hasData = (u.plans || []).length > 0 || (u.logs || []).length > 0;
+            if (!subs.length) { console.log('這位學生在這個分類的教材庫本來就是空的'); return 0; }
+            if (apply !== true) {
+                console.log('%c這是預覽 (dry-run)。要真的清空請執行 resetUserMaster(' + JSON.stringify(uid) + ', ' + JSON.stringify(cat2) + ', true)',
+                    'color:#f39c12;font-weight:bold');
+                console.log('會清空: ' + (u.name || uid) + ' / ' + cat2 + ' → ' + subs.join(', '));
+                return 0;
+            }
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushSafetyBackup('reset-user-master'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+            // ★ 就地刪除 (保持物件參照不變, appMaster 不會與 multiData 脫節)
+            subs.forEach(function (s) { delete u.masters[cat2][s]; });
+            saveToLocal();
+            _v139AssertMasterOwnership('resetUserMaster');
+            _v139SyncMasterUI('resetUserMaster');
+            console.log('%c✅ 已清空「' + (u.name || uid) + '」在「' + cat2 + '」的教材庫 (' + subs.length + ' 個科目)',
+                'color:#27ae60;font-weight:bold');
+            if (hasData) console.warn('⚠️ 這位學生有計畫/紀錄, 排程可能會找不到對應單元 (可按「↩️ 復原」還原)');
+            return subs.length;
+        };
+
+        // v2.3.2.141: UI 按鈕用 — 清空「目前學生」在此大分類的教材庫
+        window.resetCurrentMaster = function () {
+            var u = multiData[currentUserId];
+            if (!u) return alert('找不到使用者');
+            var cat = appCurrentCat;
+            if (!cat) return alert('請先選擇進度大分類');
+            if (!u.masters || !u.masters[cat]) return alert('這位學生在這個分類還沒有教材庫');
+            var subs = Object.keys(u.masters[cat]);
+            if (!subs.length) return alert('✅ 這個分類的教材庫本來就是空的');
+            var planCount = (u.plans || []).length;
+            var logCount = (u.logs || []).length;
+            var msg = '確定要清空「' + (u.name || currentUserId) + '」在「' + cat + '」的整份教材庫嗎？\n\n' +
+                '會移除 ' + subs.length + ' 個科目：\n' + subs.join('、') + '\n\n';
+            if (planCount || logCount) {
+                msg += '⚠️ 這位學生有 ' + planCount + ' 個計畫 / ' + logCount + ' 筆紀錄。\n' +
+                    '清空後排程會找不到對應單元 (進度可能算不出來)。\n\n';
+            }
+            msg += '會存 undo 快照, 需要可以按「↩️ 復原」還原。\n\n確定要清空嗎？';
+            if (!confirm(msg)) return;
+            var n = window.resetUserMaster(currentUserId, cat, true);
+            alert(n ? ('✅ 已清空 ' + n + ' 個科目\n\n教材庫現在是空的。') : '沒有清掉任何東西');
         };
 
         window.diagnoseUserIsolation = function () {
