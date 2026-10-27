@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.148]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.149]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1946,7 +1946,7 @@
 
                 <hr class="history-hr">
                 
-                <div class="backup-row">
+                <div class="backup-row" id="backup-section">
                     <div class="backup-col">
                         <label class="backup-label">⚠️ 全機資料備份與還原</label>
                         <div class="backup-buttons">
@@ -21764,7 +21764,7 @@ function renderViewPage() {
                     </div>
                     <div style="display:flex;gap:5px;flex-wrap:wrap;">
                         <button id="bw-backup-btn" style="background:#10b981;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">💾 備份所有資料</button>
-                        <button id="bw-settings-btn" style="background:#fff;color:#065f46;border:1px solid #10b981;padding:6px 10px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;">⚙️ 設定</button>
+                        <button id="bw-settings-btn" title="跳到「教材庫與備份」頁最下面的備份區塊" style="background:#fff;color:#065f46;border:1px solid #10b981;padding:6px 10px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;">⚙️ 備份設定</button>
                     </div>
                 </div>
                 <button id="bw-close-btn" title="關閉" style="background:transparent;border:none;color:#9ca3af;font-size:16px;cursor:pointer;line-height:1;padding:0 2px;">✕</button>
@@ -21792,13 +21792,79 @@ function renderViewPage() {
         };
         document.getElementById('bw-settings-btn').onclick = (e) => {
             e.stopPropagation();
-            try { openSettings(); } catch (err) { console.error(err); }
+            _v149JumpToBackupSettings();
         };
         document.getElementById('bw-close-btn').onclick = (e) => {
             e.stopPropagation();
             w.remove();
             try { sessionStorage.setItem('backup_widget_dismissed', '1'); } catch (err) {}
         };
+    }
+
+    /**
+     * v2.3.2.149: 跳到「⚠️ 全機資料備份與還原」區塊
+     *
+     * 為什麼需要這個:
+     *   v148 的小工具「⚙️ 設定」只是呼叫 openSettings() → 切到「教材庫與備份」頁
+     *   但如果使用者「本來就在那一頁」(最常見的情况: 他正在看備份按鈕),
+     *   再按一次 → 畫面完全沒變 → 感覺就是壞的。
+     *   → 改成: 切頁 + 捲動到備份區塊 + 短暫高亮 + toast
+     *   → 不管人在哪, 都一定有可見的回饋
+     */
+    function _v149JumpToBackupSettings() {
+        let ok = true;
+        try {
+            openSettings();
+        } catch (err) {
+            ok = false;
+            console.error('[backup-widget] openSettings 失敗:', err);
+        }
+
+        // 讓畫面先完成換頁, 再捲動
+        const doScroll = () => {
+            const sec = document.getElementById('backup-section');
+            if (!sec) return;
+            try {
+                sec.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (e) {
+                sec.scrollIntoView();
+            }
+            // 短暫高亮, 讓使用者看見「就是這裡」
+            const prev = sec.style.background;
+            sec.style.transition = 'background 0.35s ease';
+            sec.style.background = '#fff3cd';
+            sec.style.borderRadius = '10px';
+            sec.style.padding = '8px';
+            setTimeout(() => {
+                sec.style.background = prev;
+                sec.style.transition = '';
+            }, 2200);
+        };
+
+        if (ok) {
+            requestAnimationFrame(() => setTimeout(doScroll, 120));
+            _v149Toast('⚙️ 已跳到「⚙️ 教材庫與備份」→ 捲到最下面的備份區塊', '#6b7280');
+        } else {
+            _v149Toast('⚠️ 跳轉失敗, 請直接點上方的「⚙️ 教材庫與備份」', '#ef4444');
+        }
+    }
+
+    /**
+     * v2.3.2.149: 小工具用的輕量 toast
+     */
+    function _v149Toast(msg, bg) {
+        try {
+            const old = document.getElementById('backup-widget-toast');
+            if (old) old.remove();
+            const t = document.createElement('div');
+            t.id = 'backup-widget-toast';
+            t.textContent = msg;
+            t.style.cssText = 'position:fixed;bottom:110px;right:12px;background:' + (bg || '#3b82f6') +
+                ';color:#fff;padding:9px 13px;border-radius:8px;font-size:12px;z-index:100002;' +
+                'font-family:system-ui;max-width:320px;line-height:1.5;box-shadow:0 4px 12px rgba(0,0,0,.18);';
+            document.body.appendChild(t);
+            setTimeout(() => { if (t.parentNode) t.remove(); }, 4000);
+        } catch (e) { /* toast 失敗不影響主要功能 */ }
     }
 
     /**
