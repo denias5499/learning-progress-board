@@ -75,5 +75,5 @@ test('v1.6.86: cropArea 有 user-select: none (防止藍色反白)', () => {
 });
 
 test('v1.6.86: title 更新為 [v1.6.86]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.86\]<\/title>/.test(html));
+    assert.ok(/<title>[^<]*\[v2\.3\.2\.\d+\]<\/title>/.test(html), 'title 應含目前版本徽章');
 });

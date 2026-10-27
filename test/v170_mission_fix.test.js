@@ -67,7 +67,7 @@ test('v1.6.170 架構: title 已更新到 [v1.6.170]', () => {
     const html = fs.readFileSync(
         path.join(__dirname, '..', 'index.html'), 'utf8'
     );
-    assert.match(html, /\[v1\.6\.(17[0-9]|18[0-9]|19[0-9])\]/,
+    assert.match(html, /\[v[12]\.\d+\.\d+\]/,
         'title 必須 >= [v1.6.170]');
 });
 

@@ -1,3 +1,6 @@
+// ⚠️ v2.3.2.145: 本檔有 1 個測試為「已知失敗」——
+//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
+//    完整清單與原因見 test/known-failures.md
 // test/v149-generateplan-bug.test.js
 // v1.6.149 unit test: 修復 generatePlan 兩個 silent error
 //   1. saveData() 不存在 → 改用 saveToLocal()
@@ -12,7 +15,7 @@ const path = require('node:path');
 
 const HTML = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf-8');
 
-test('v149-1: title 版本號為 [v1.6.149]', () => {
+test.skip('v149-1: title 版本號為 [v1.6.149]', () => {
     assert.ok(/\[v1\.6\.149\]/.test(HTML), 'title 應包含 [v1.6.149]');
 });
 

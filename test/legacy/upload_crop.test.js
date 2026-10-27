@@ -1,5 +1,12 @@
 // test/upload_crop.test.js -- v1.6.10 upload + crop box integration test
 const test = require('node:test');
+
+// ── jsdom rAF 迴圈會讓 node --test 的 event loop 永不結束 → 收集後統一 close ──
+const _allDoms = [];
+const { JSDOM: _JSDOM } = require('jsdom');
+function _mkDom(...args) { const d = new _JSDOM(...args); _allDoms.push(d); return d; }
+require('node:test').after(() => { _allDoms.forEach(d => { try { d.window.close(); } catch (e) {} }); });
+
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('path');
@@ -15,7 +22,7 @@ const lastScriptMatch = html.match(/<script>([\s\S]*?)<\/script>/);
 const allScripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
 
 function loadFullIndex() {
-    const dom = new JSDOM(html, {
+    const dom = _mkDom(html, {
         runScripts: 'outside-only',
         pretendToBeVisual: true,
         url: 'http://localhost/',

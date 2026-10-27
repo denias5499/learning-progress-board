@@ -1,11 +1,19 @@
 // 模擬 Denias 描述的場景: 國文 30 個 unit, 已排 25, 剩 5 未排
 // 撤回後再次進入智慧排程
 const { JSDOM } = require('jsdom');
-const fs = require('fs');
 
-const html = fs.readFileSync('/mnt/my_book/Denias/projects/learning-progress-board/index.html', 'utf-8');
+// ── jsdom rAF 迴圈會讓 node --test 的 event loop 永不結束 → 收集後統一 close ──
+const _allDoms = [];
+const { JSDOM: _JSDOM } = require('jsdom');
+function _mkDom(...args) { const d = new _JSDOM(...args); _allDoms.push(d); return d; }
+require('node:test').after(() => { _allDoms.forEach(d => { try { d.window.close(); } catch (e) {} }); });
 
-const dom = new JSDOM(html, {
+const path = require('path');
+const fs = require('fs');;
+
+const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf-8');
+
+const dom = _mkDom(html, {
     runScripts: 'dangerously',
     resources: 'usable',
     pretendToBeVisual: true,

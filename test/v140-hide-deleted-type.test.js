@@ -3,9 +3,10 @@
 // v1.6.139 誤把 array 當 object 查 key, 這版用 indexOf 修對
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('fs');
+const path = require('path');
+const fs = require('fs');;
 
-const IDX = fs.readFileSync('/mnt/my_book/Denias/projects/learning-progress-board/index.html', 'utf8');
+const IDX = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 
 test('v140: renderAeSubjectCardHtml 必須讀 _deletedTypes marker (array 結構)', () => {
     const fn = IDX.match(/function renderAeSubjectCardHtml\(sub, subUnits, cat, mis\)\s*\{[\s\S]*?function [a-z]/)[0];

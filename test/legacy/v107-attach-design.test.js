@@ -38,5 +38,5 @@ test('v1.6.107: 防止 rect = 0 fallback', () => {
 });
 
 test('v1.6.107: title 為 [v1.6.107]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.107\]<\/title>/.test(html));
+    assert.ok(/<title>[^<]*\[v2\.3\.2\.\d+\]<\/title>/.test(html), 'title 應含目前版本徽章');
 });

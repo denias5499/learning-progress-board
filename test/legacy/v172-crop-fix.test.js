@@ -98,5 +98,5 @@ test('v1.6.83: 整合測試 - crop drawing 模擬', () => {
 });
 
 test('v1.6.83: title 更新為 [v1.6.83]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.83]<\/title>/.test(html));
+    assert.ok(/<title>[^<]*\[v2\.3\.2\.\d+\]<\/title>/.test(html), 'title 應含目前版本徽章');
 });

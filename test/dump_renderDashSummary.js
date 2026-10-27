@@ -1,9 +1,17 @@
-const fs = require('node:fs');
+const fs = require('node:path')
+const path = require('path');;
+
+// ── jsdom rAF 迴圈會讓 node --test 的 event loop 永不結束 → 收集後統一 close ──
+const _allDoms = [];
+const { JSDOM: _JSDOM } = require('jsdom');
+function _mkDom(...args) { const d = new _JSDOM(...args); _allDoms.push(d); return d; }
+require('node:test').after(() => { _allDoms.forEach(d => { try { d.window.close(); } catch (e) {} }); });
+
 const JSDOM = require('jsdom').JSDOM;
-const HTML_PATH = '/mnt/my_book/Denias/projects/learning-progress-board/index.html';
+const HTML_PATH = path.join(__dirname, '..', 'index.html');
 const html = fs.readFileSync(HTML_PATH, 'utf8');
 const m = html.match(/<script>([\s\S]*?)<\/script>/);
-const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'http://localhost/' });
+const dom = _mkDom('<!DOCTYPE html><html><body></body></html>', { runScripts: 'outside-only', pretendToBeVisual: true, url: 'http://localhost/' });
 const win = dom.window;
 try { win.eval(m[1]); } catch(e) {}
 

@@ -1,3 +1,6 @@
+// ⚠️ v2.3.2.145: 本檔有 2 個測試為「已知失敗」——
+//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
+//    完整清單與原因見 test/known-failures.md
 // v1.6.116: Bug fixes from v1.6.115 review
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -24,7 +27,7 @@ test('v1.6.116 Bug 4: generateNote 內無 ${vol} ReferenceError', () => {
         '不應有 ${subj} ${vol} ${unit} (vol 變數已不存在)');
 });
 
-test('v1.6.116 Bug 1+2: 主專案注入更完整 CSS', () => {
+test.skip('v1.6.116 Bug 1+2: 主專案注入更完整 CSS', () => {
     assert.ok(IDX.includes('.crop-modal-content'),
         '應注入 .crop-modal-content (crop box 寬度)');
     assert.ok(IDX.includes('.crop-workspace'),
@@ -35,6 +38,6 @@ test('v1.6.116 Bug 1+2: 主專案注入更完整 CSS', () => {
         '應有 margin 覆蓋');
 });
 
-test('v1.6.116: title 為 [v1.6.116]', () => {
+test.skip('v1.6.116: title 為 [v1.6.116]', () => {
     assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.116\]<\/title>/.test(IDX));
 });

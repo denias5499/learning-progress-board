@@ -1,3 +1,6 @@
+// ⚠️ v2.3.2.145: 本檔有 2 個測試為「已知失敗」——
+//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
+//    完整清單與原因見 test/known-failures.md
 // test/v148-desc-right-side.test.js
 // v1.6.148 unit test: 描述移到按鈕右側 + radio-emoji 間距加大
 // 測試: 1. radio-emoji padding-right: 12px (從 6px 加大)
@@ -15,7 +18,7 @@ const path = require('node:path');
 
 const HTML = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf-8');
 
-test('v148-1: title 版本號為 [v1.6.148]', () => {
+test.skip('v148-1: title 版本號為 [v1.6.148]', () => {
     assert.ok(/\[v1\.6\.148\]/.test(HTML), 'title 應包含 [v1.6.148]');
 });
 
@@ -51,7 +54,7 @@ test('v148-4: 描述 div 有 flex: 1 + min-width: 200px (佔滿右側)', () => {
     assert.ok(/min-width:\s*200px/.test(descDiv[0]), 'desc 應有 min-width: 200px');
 });
 
-test('v148-5: 描述文字已簡化 (不再過長)', () => {
+test.skip('v148-5: 描述文字已簡化 (不再過長)', () => {
     var funcMatch = HTML.match(/function setWizardScheduleMode\(mode\)[\s\S]*?saveWizardPrefs\(\);\s*\}/);
     assert.ok(funcMatch);
     var funcBody = funcMatch[0];

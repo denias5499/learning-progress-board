@@ -1,5 +1,12 @@
 // test/helpers.js -- 共用 fixture + jsdom loader
 const fs = require('node:fs');
+
+// ── jsdom rAF 迴圈會讓 node --test 的 event loop 永不結束 → 收集後統一 close ──
+const _allDoms = [];
+const { JSDOM: _JSDOM } = require('jsdom');
+function _mkDom(...args) { const d = new _JSDOM(...args); _allDoms.push(d); return d; }
+require('node:test').after(() => { _allDoms.forEach(d => { try { d.window.close(); } catch (e) {} }); });
+
 const path = require('node:path');
 const { JSDOM } = require('jsdom');
 
@@ -22,24 +29,30 @@ const BACKUP_FIXTURE_PATH = path.join(__dirname, 'fixtures', 'studymap-backup-20
  */
 function loadIndex() {
     const html = fs.readFileSync(HTML_PATH, 'utf8');
-    const m = html.match(/<script>([\s\S]*?)<\/script>/);
-    if (!m) throw new Error('No <script> block found in index.html');
+    // ★ index.html 有多個 inline <script> block（樣式/資料模型/月曆/UI 綁定），
+    //   只抓第一個會漏掉後面的函式（例如 getUnitDonePagesByUnitIdMatch 在後面的 block）
+    const blocks = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)]
+        .map(m => m[1])
+        .filter(code => code.trim());
+    if (!blocks.length) throw new Error('No <script> block found in index.html');
 
-    const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    const dom = _mkDom('<!DOCTYPE html><html><body></body></html>', {
         runScripts: 'outside-only',
         pretendToBeVisual: true,
         url: 'http://localhost/',  // 啟用 localStorage (jsdom about:blank 沒 storage)
     });
 
     const win = dom.window;
-    try {
-        win.eval(m[1]);
-    } catch (e) {
-        // Init 邏輯可能在 jsdom 環境下因 DOM 不完整而 throw
-        // 我們只需要 function declarations，這些通常在 throw 之前已宣告
-        // 例如 getUnitDonePagesByUnitIdMatch (line 4596) 在 throw (line 8803) 之前
-        // eslint-disable-next-line no-console
-        if (process.env.TEST_DEBUG) console.warn('init throw (ignored):', e.message);
+    // ★ 依序 eval 所有 block；某個 block 的 init 在 jsdom 下 throw 不影響後續 block
+    for (const code of blocks) {
+        try {
+            win.eval(code);
+        } catch (e) {
+            // Init 邏輯可能在 jsdom 環境下因 DOM 不完整而 throw
+            // 我們只需要 function declarations，這些通常在 throw 之前已宣告
+            // eslint-disable-next-line no-console
+            if (process.env.TEST_DEBUG) console.warn('init throw (ignored):', e.message);
+        }
     }
 
     if (typeof win.getUnitDonePagesByUnitIdMatch !== 'function') {

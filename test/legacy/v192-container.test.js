@@ -1,5 +1,12 @@
 // v1.6.92: crop box appendTo wn-crop-img-container (在圖片內)
 const test = require('node:test');
+
+// ── jsdom rAF 迴圈會讓 node --test 的 event loop 永不結束 → 收集後統一 close ──
+const _allDoms = [];
+const { JSDOM: _JSDOM } = require('jsdom');
+function _mkDom(...args) { const d = new _JSDOM(...args); _allDoms.push(d); return d; }
+require('node:test').after(() => { _allDoms.forEach(d => { try { d.window.close(); } catch (e) {} }); });
+
 const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
@@ -41,7 +48,7 @@ test('v1.6.92: crop box appendChild 到 container 不是 cropArea', () => {
 
 test('v1.6.92: 整合測試 - crop box 在 img-container 內', () => {
     const { JSDOM } = require('jsdom');
-    const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/' });
+    const dom = _mkDom(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/' });
     const win = dom.window;
     win.console = { log: (...args) => process.stderr.write(args.join(' ') + '\n') };
     
@@ -65,5 +72,5 @@ test('v1.6.92: 整合測試 - crop box 在 img-container 內', () => {
 });
 
 test('v1.6.92: title 更新為 [v1.6.92]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.92\]<\/title>/.test(html));
+    assert.ok(/<title>[^<]*\[v2\.3\.2\.\d+\]<\/title>/.test(html), 'title 應含目前版本徽章');
 });

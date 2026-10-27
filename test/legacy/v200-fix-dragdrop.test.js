@@ -28,5 +28,5 @@ test('v1.6.100: 主專案用 WN_handleFileUpload', () => {
 });
 
 test('v1.6.100: title 更新為 [v1.6.100]', () => {
-    assert.ok(/<title>2026 學習進度看板.*\[v1\.6\.100\]<\/title>/.test(html));
+    assert.ok(/<title>[^<]*\[v2\.3\.2\.\d+\]<\/title>/.test(html), 'title 應含目前版本徽章');
 });

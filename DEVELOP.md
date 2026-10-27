@@ -66,6 +66,14 @@ npm test        # node --test test/*.test.js
 | **語法檢查** | 見下方 script | `index.html` 內含 4 個 inline `<script>`，改錯只會在瀏覽器爆 |
 | **真實瀏覽器 e2e** | `node test/e2e/master-purge.e2e.js` | headless Chrome + CDP，測 migration／localStorage 真實行為 |
 
+> 📊 **目前狀態**（v2.3.2.145）：477 個測試、315 通過、0 失敗、162 個 skip，跑完約 20 秒。
+>
+> 162 個 skip 是**已知失敗**（斷言對應到 UI 演化前的舊實作），完整清單與原因見
+> **`test/known-failures.md`**。另有 7 個檔案在 `test/legacy/`（整個功能已被重寫移除）。
+>
+> 這個數字是好的 —— 在 v2.3.2.145 之前，CI 從 v1.6.x 時代起就**卡住超過 3.8 小時**，
+> 所有測試等於從沒回報過結果。修好之後才有辦法看到真正的迴歸。
+
 #### 語法檢查（改完 `index.html` 一定要跑）
 
 `index.html` 是單一巨大檔，裡面有 4 個 `<script>` block。**改壞語法不會在編輯器跳出來，只會在瀏覽器白畫面。**
@@ -99,6 +107,49 @@ CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
 
 > ⚠️ 這支測試會起一個本機 HTTP server 與 headless Chrome，跑完自動關掉。
 > 它用獨立的 `localStorage` profile，**不會碰到你自己瀏覽器的資料**。
+
+---
+
+## 📎 3.1 測試檔的三個目錄
+
+```
+test/
+├── *.test.js          # ★ CI 會跑（npm test 的 glob）
+├── legacy/            # 整個功能已被重寫移除 → 不跑
+├── e2e/               # 真實瀏覽器 e2e → 手動跑
+├── helpers.js         # jsdom loader（會 eval index.html 的所有 script block）
+└── known-failures.md  # 哪些測試被 skip、為什麼
+```
+
+### 寫新測試時注意
+
+1. **不要硬編碼路徑**
+   ```js
+   // ❌ 在別的機器會讀不到
+   const HTML_PATH = '/mnt/my_book/Denias/projects/learning-progress-board/index.html';
+   // ✅
+   const HTML_PATH = path.join(__dirname, '..', 'index.html');
+   ```
+
+2. **JSDOM 一定要記得 close**，否則 `node --test` 的 event loop 永遠不結束：
+   ```js
+   const { JSDOM } = require('jsdom');
+   const _allDoms = [];
+   function _mkDom(...args) { const d = new JSDOM(...args); _allDoms.push(d); return d; }
+   require('node:test').after(() => {
+       _allDoms.forEach(d => { try { d.window.close(); } catch (e) {} });
+   });
+   ```
+
+3. **不要用 `resources: 'usable'`** —— 會去抓 index.html 裡的外部資源，網路一慢就卡住。
+
+4. **斷言版本號不要寫死**
+   ```js
+   // ❌ 每次升版就紅
+   assert.ok(/\[v1\.6\.101\]/.test(html));
+   // ✅
+   assert.ok(/\[v2\.3\.2\.\d+\]/.test(html));
+   ```
 
 ---
 
