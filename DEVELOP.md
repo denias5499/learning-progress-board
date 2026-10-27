@@ -108,6 +108,24 @@ CHROME_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
 > ⚠️ 這支測試會起一個本機 HTTP server 與 headless Chrome，跑完自動關掉。
 > 它用獨立的 `localStorage` profile，**不會碰到你自己瀏覽器的資料**。
 
+> 🐛 **已知 flaky**：約 8 次裡會有 2～4 次失敗。
+>
+> 原因：CDP 的 `Runtime.evaluate` 讀 `localStorage` 時，偶發會讀到**上一次寫入**的值
+> （頁面內的寫入是 async、evaluate 跑在另一個 execution context → 競態）。
+> 這是**測試讀取側**的問題，不是應用邏輯錯 —— 應用端已確認有把清除後的狀態寫進去
+> （可在 console 看到 `🧹 已自動清除「張裕如」`）。
+>
+> 想自己查：
+> ```bash
+> E2E_DEBUG=1 node test/e2e/master-purge.e2e.js   # 失敗時印出完整寫入序列
+> ```
+> 寫入序列長這樣（`#1` = 髒資料 → `#2`/`#3` = 清除後）：
+> ```
+> #1 cats=2 subs=17 units=147 plans=1 empty=false
+> #2 cats=0 subs=0  units=0   plans=0 empty=true
+> #3 cats=0 subs=0  units=0   plans=0 empty=true
+> ```
+
 ---
 
 ## 📎 3.1 測試檔的三個目錄

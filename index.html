@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.144]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.145]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -5116,6 +5116,20 @@ loadBoardHeader();
         }
 
         function saveToLocal() {
+            // ★★ v2.3.2.145: stale 參照守門員
+            //   appPlans/appLogs/appMissions 是「參照」。正常情況下它們就跟
+            //   multiData[currentUserId] 的同名欄位是同一個物件 → 下面寫回等於原樣寫回。
+            //   但若中途有人「整份替換」了 multiData 那一側 (自動清除 / 遷移 / 復原 / 匯入),
+            //   全域就會停在舊的 → 下面寫回會把舊資料蓋回去, 覆蓋掉剛才的變更!
+            //   → 偵測到不是同一個參照, 一律以 multiData 為準重新綁定。
+            try {
+                var _v145U = multiData && multiData[currentUserId];
+                if (_v145U) {
+                    if (_v145U.plans !== appPlans) appPlans = _v145U.plans || [];
+                    if (_v145U.logs !== appLogs) appLogs = _v145U.logs || [];
+                    if (_v145U.missions !== appMissions) appMissions = _v145U.missions || {};
+                }
+            } catch (e) { /* 守門員不該讓存檔失敗 */ }
             if(multiData[currentUserId]) {
                 // v1.5.8: appMaster 是當前 cat 的教材庫, 寫回 user.masters[appCurrentCat]
                 if (!multiData[currentUserId].masters) multiData[currentUserId].masters = {};
@@ -5143,7 +5157,9 @@ loadBoardHeader();
                         }
                         multiData[currentUserId].masters[appCurrentCat] = appMaster;
                     } else {
-                        multiData[currentUserId].masters[appCurrentCat] = appMaster;
+                        // ★ v2.3.2.145: appMaster 為 null 代表「這位使用者的教材庫已被清空」
+                        //   → 不要把 null 寫回去重建一個空殼 slot (那會讓大分類又出現)
+                        if (appMaster) multiData[currentUserId].masters[appCurrentCat] = appMaster;
                     }
                     // v2.3.2.141: ★★ 解除「跨使用者別名」
                     //   v136 的檢查只比對「目前使用者的 slot」→ 當兩個 slot 已經是同一個
@@ -6636,6 +6652,62 @@ loadBoardHeader();
         //     - 原始擁有者 (張裕宣) 有 1013 個自創 unit + 378 個任務 + log → 永遠不符合
         //     - 冪等: 清完 master 變空 → isPolluted 變 false → 下次不會再觸發
         //     - 每次執行前都存 undo 快照 + 安全備份 → 出問題按「↩️ 復原」就回得去
+        // ★★ v2.3.2.145: 寫入 family 資料的安全版本
+        //   背景: localStorage 約 5MB 配額, undo/safety/named 三種備份會佔空間。
+        //   當「自動清除污染使用者」要寫入「清除後」的狀態時, 剛存好的大快照
+        //   (含 masters) 可能讓配額剛好爆掉 → setItem 拋 QuotaExceededError
+        //   → 清除結果寫不進去 → localStorage 留著髒資料
+        //   → 使用者看到「有時清掉了、有時沒清掉」, 而且沒有任何錯誤提示!
+        //   → 所以: 寫入失敗就清掉備份再重試, 確保清除一定落地。
+        function _v145SafeSetFamily(data, tag) {
+            var payload = JSON.stringify(data);
+            try {
+                localStorage.setItem(STORAGE_KEY_FAMILY, payload);
+                return true;
+            } catch (e) {
+                console.warn('v2.3.2.145: ⚠️ 寫入失敗 (' + (e && e.name) + '), 清理備份後重試 (' + (tag || '') + ')');
+                try { localStorage.removeItem(STORAGE_KEY_SAFETY); } catch (e1) {}
+                try { localStorage.removeItem(STORAGE_KEY_UNDO); } catch (e2) {}
+                try { localStorage.removeItem(STORAGE_KEY_NAMED); } catch (e3) {}
+                try {
+                    localStorage.setItem(STORAGE_KEY_FAMILY, payload);
+                    console.warn('v2.3.2.145: ✅ 清理備份後寫入成功');
+                    return true;
+                } catch (e4) {
+                    console.error('v2.3.2.145: ❌ 寫入仍然失敗:', e4 && e4.message);
+                    return false;
+                }
+            }
+        }
+
+        // ★ v2.3.2.145: 把全域參照重新綁到 multiData 的「當前真實狀態」
+        //   誰會讓全域參照變 stale?
+        //   - 自動清除污染使用者 (multiData[uid].plans 被換成 [])
+        //   - 遷移 / 復原 / 匯入備份
+        //   → 任何「整份替換 multiData[uid] 的某個欄位」的流程都該呼叫這裡
+        function _v145RebindGlobals() {
+            var uid = null;
+            try { uid = localStorage.getItem(STORAGE_KEY_CURRENT_USER); } catch (e) {}
+            if (!uid || !multiData || !multiData[uid]) {
+                uid = (multiData && Object.keys(multiData)[0]) || null;
+            }
+            if (!uid || !multiData[uid]) return;
+            var u = multiData[uid];
+            // 計畫 / 紀錄 / 任務
+            appPlans = u.plans || [];
+            appLogs = u.logs || [];
+            appMissions = u.missions || {};
+            // 教材庫: slot 可能已被清空 (masters = {}) → appMaster 必須跟著清掉,
+            //   否則 saveToLocal() 會把它寫回去 → 「進度大分類」又被建回來
+            if (!u.masters) u.masters = {};
+            if (appCurrentCat && Object.prototype.hasOwnProperty.call(u.masters, appCurrentCat)) {
+                appMaster = u.masters[appCurrentCat];
+            } else {
+                appMaster = null;
+                appCurrentCat = null;
+            }
+        }
+
         function _v143AutoPurgePollutedUsers() {
             var victims = [];
             Object.keys(multiData || {}).forEach(function (uid) {
@@ -6663,10 +6735,13 @@ loadBoardHeader();
             //   multiData[undefined].plans 拋錯 → 快照沒存成 → 清除後無法還原!
             var msgs = [];
             victims.forEach(function (c) {
-                try { pushUndoSnapshotFor(c.uid); }
-                catch (e) { console.warn('v2.3.2.144: undo 快照失敗:', e && e.message); }
                 var u = multiData[c.uid];
                 if (!u) return;
+                // ★ v2.3.2.145: 先存 undo 快照 (清除前, 才能還原)
+                //   快照含 masters → 很大 → 容易把 localStorage 配額吃光
+                //   → 配額爆掉時清除結果寫不進去 (而且沒有任何錯誤提示)
+                try { pushUndoSnapshotFor(c.uid); }
+                catch (e) { console.warn('v2.3.2.145: undo 快照失敗:', e && e.message); }
                 var nSub = 0;
                 Object.keys(u.masters || {}).forEach(function (cat) {
                     var cs = u.masters[cat];
@@ -6689,12 +6764,21 @@ loadBoardHeader();
             });
 
             try { pushSafetyBackup('auto-purge-polluted-users'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+
+            // ★★ v2.3.2.145: 清除後「重新綁定全域參照」
+            //   appPlans / appLogs / appMissions / appMaster 都是「參照」,
+            //   指向清除「之前」的 multiData[currentUserId]。
+            //   清除只換掉了 multiData 那一側, 全域仍指向舊的 →
+            //   後續任何 saveToLocal() 都會把舊資料蓋回去 → 清除結果被還原!
+            //   (這是「有時清掉了、有時沒清掉」flaky 的真正原因)
+            try { _v145RebindGlobals(); }
+            catch (e) { console.warn('v2.3.2.145: 全域參照重綁失敗:', e && e.message); }
             // ★ v2.3.2.144: 直接寫入 multiData, 不走 saveToLocal()
             //   為什麼: saveToLocal() 會把全域的 appPlans/appLogs/appMissions
             //   蓋回 multiData[currentUserId] → 會把剛清掉的資料又蓋回去!
             //   而且在 initUsers 階段 currentUserId 還是舊的, 蓋錯人更麻煩。
-            try { localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData)); }
-            catch (e) { console.warn('v2.3.2.144: 存檔失敗:', e && e.message); }
+            try { _v145SafeSetFamily(multiData, 'auto-purge'); }
+            catch (e) { console.warn('v2.3.2.145: 存檔失敗:', e && e.message); }
             _v143Toast('🧹 已自動清除 ' + victims.length + ' 位學生的髒教材庫：\n\n' + msgs.join('\n'), 'warn');
             return victims;
         }

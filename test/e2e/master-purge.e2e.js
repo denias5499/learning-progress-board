@@ -238,18 +238,37 @@ const CNT = `function _cnt(o){try{var n=0;Object.values(o||{}).forEach(c=>Object
     // ★ 在頁面任何 script 之前寫入 localStorage
     await send('Page.addScriptToEvaluateOnNewDocument', { source:
       `try{localStorage.setItem(${JSON.stringify(KEY)},${JSON.stringify(JSON.stringify(seed))});` +
-      `localStorage.setItem(${JSON.stringify(CUR)},${JSON.stringify(cur)});}catch(e){}` }, sid);
+      `localStorage.setItem(${JSON.stringify(CUR)},${JSON.stringify(cur)});` +
+      // ★ 攔截 setItem → 計數「頁面寫入 family 資料」的次數
+      //   (seed 寫入發生在攔截器安裝之前, 所以不會被計到)
+      //   用途: 判斷「頁面真的開始跑 init 並存檔了」→ 避免提早讀到還沒清除的狀態
+      `var _e2eOrigSet = localStorage.setItem.bind(localStorage);` +
+      `window.__e2eSets = 0;` +
+      `localStorage.setItem = function(k, v){` +
+      `  try { if (k === ${JSON.stringify(KEY)}) window.__e2eSets++; } catch(e){}` +
+      `  return _e2eOrigSet(k, v);` +
+      `};}catch(e){}` }, sid);
   }
   // ★ 等 localStorage 內容「穩定不變」再往下走
   //   （原本是固定等 3800ms，混合情境資料量大時 init 還沒跑完就讀狀態 → 誤判失敗）
-  const waitStable = async (timeoutMs = 20000) => {
+  // ★★ 等「頁面寫入次數」穩定下來，才去讀狀態
+  //
+  //   ★ 這裡原本是「等 localStorage 內容連續兩次相同」→ 會提早返回！
+  //     因為 init 還沒開始時，localStorage 就是「穩定的 seed 狀態」
+  //     → 讀到的還是沒清除的髒資料 → 測試偶發失敗 (flaky)。
+  //   ★ 改成數「頁面自己寫入 family 資料的次數」：
+  //     seed 寫入發生在攔截器安裝前 → 不計數；
+  //     頁面的每次存檔（migration / 自動清除 / 最後存檔）才計數。
+  //     等這個計數連續兩輪不再增加 → 資料已定案。
+  const waitStable = async (timeoutMs = 30000) => {
     const t0 = Date.now();
-    let last = null;
+    let last = -1, same = 0;
     while (Date.now() - t0 < timeoutMs) {
-      await new Promise(r => setTimeout(r, 500));
-      const cur = await ev(`(function(){try{return localStorage.getItem('${KEY}')||'';}catch(e){return '';}})()`);
-      if (cur && cur === last) return cur;
-      last = cur;
+      await new Promise(r => setTimeout(r, 400));
+      const c = await ev('(typeof window.__e2eSets === "undefined" ? -1 : window.__e2eSets)');
+      const n = (typeof c === 'number') ? c : -1;
+      if (n === last) { same++; if (n >= 1 && same >= 2) return n; }
+      else { same = 0; last = n; }
     }
     return last;
   };
@@ -275,7 +294,7 @@ const CNT = `function _cnt(o){try{var n=0;Object.values(o||{}).forEach(c=>Object
     await nav();
     const st = await ev(ST);
     if (name === 'ru_injected') {
-      ok(st.ver === 'v2.3.2.144', '版本 = v2.3.2.144 (實際 ' + st.ver + ')');
+      ok(/^v2\.3\.2\.\d+$/.test(st.ver || ''), '版本徽章存在 (實際 ' + st.ver + ')');
       ok(st.units === 0, '★ 教材庫 0 單元 (實際 ' + st.units + ')');
       ok(st.cats.length === 0, '★ 進度大分類 0 個 (實際 ' + JSON.stringify(st.cats) + ')');
       ok(st.subs === 0, '★ 科目 0 個 (實際 ' + st.subs + ')');

@@ -42,7 +42,6 @@ console_fix_*.js
 restore_phase2_fix.sh
 add_styles.py
 _test_v140/
-wrong-notes/
 test-*.jpg
 comparison_final.jpg
 test_fft.jpg
