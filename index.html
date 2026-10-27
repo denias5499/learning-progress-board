@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.151]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.152]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4763,6 +4763,11 @@ loadBoardHeader();
                 _v136UpdateUserHints();
                 return;
             }
+            // 先取消舊教材畫面的延遲繪製，再切換資料來源。
+            window._masterEditorRenderId = (window._masterEditorRenderId || 0) + 1;
+            lastMasterSub = '';
+            window.isMasterDirty = false;
+            window._skipLoadUnits = false;
             currentUserId = newUid;
             localStorage.setItem(STORAGE_KEY_CURRENT_USER, currentUserId);
             var user = targetUser;
@@ -4921,27 +4926,6 @@ loadBoardHeader();
             autoMigrateLogsToCalendar();
             updateFilters();
 
-            // v2.3.2.136: ★ 切換使用者後重整教材庫頁面
-            //   症狀: 新增使用者後打開教材庫, 會看到「上一位使用者」的科目/類型/教材下拉。
-            //   原因: switchUser() 從來沒有重整教材庫頁面, 下拉選單一直是舊的 DOM。
-            //   那些選項值是「上一位使用者的真實資料」(例如 instance 名稱) — 不是新使用者的。
-            //   修完之後新使用者看到的就是空白教材庫。
-            try {
-                var _v136Msc = el('master-set-cat');
-                if (_v136Msc) {
-                    // 先把 cat 下拉對到新使用者的第一個 cat, 再讓它重整各層下拉
-                    _v136Msc.value = appCurrentCat || '';
-                    onMasterSetCatChange();
-                } else {
-                    syncAllCatMisDropdowns();
-                }
-            } catch (e) {
-                console.warn('v2.3.2.136: 切換使用者後重整教材庫頁面失敗:', e && e.message);
-            }
-            // v2.3.2.139: ★ 用「唯一真實來源」同步取代手動重建
-            //   (會再做一次擁有者檢查 + 從 appMaster 重建三層下拉)
-            _v139SyncMasterUI('switchUser');
-
             // v2.3.2.143: ★ 切換到某位學生時, 順便檢查並清掉他身上的注入髒資料
             //   (匯入舊備份 / 換瀏覽器時, init 可能已經跑過 → 這裡是第二道保險)
             try {
@@ -5012,6 +4996,8 @@ loadBoardHeader();
         //   絕不會留下「上一位使用者」的殘留 DOM。
         function _v139SyncMasterUI(reason) {
             try {
+                // 分類選項與資料先對齊，再建立科目／教材選單及編輯器。
+                syncAllCatMisDropdowns(appCurrentCat);
                 _v139AssertMasterOwnership(reason);
                 var u = multiData[currentUserId];
                 if (!u) return;
@@ -6287,7 +6273,10 @@ loadBoardHeader();
         //         updateFilters() 只重建篩選下拉, 畫面本身還是舊使用者的。
         //   修法: 換完資料後把「所有會畫出使用者資料的畫面」重畫一次。
         function _v142RerenderAfterUserSwitch() {
+            // 重繪任何畫面前，先把分類選單及 appMaster 綁到目前使用者。
+            syncAllCatMisDropdowns(appCurrentCat);
             var list = [
+                ['invalidateSchedCache', 'function'],
                 ['updateFilters', 'function'],
                 ['renderCalendar', 'function'],
                 ['renderDashboard', 'function'],
@@ -6295,11 +6284,8 @@ loadBoardHeader();
                 ['renderMonthlyAnalysis', 'function'],
                 ['renderMissionCheckboxes', 'function'],
                 ['renderHistoryTable', 'function'],
-                ['syncAllCatMisDropdowns', 'function'],
-                ['onMasterSetCatChange', 'function'],
                 ['_v136UpdateUserHints', 'function'],
-                ['_v139SyncMasterUI', 'function'],
-                ['invalidateSchedCache', 'function']
+                ['_v139SyncMasterUI', 'function']
             ];
             var done = [], failed = [];
             list.forEach(function (it) {
@@ -6310,15 +6296,6 @@ loadBoardHeader();
                     failed.push(fn + ' (' + (e && e.message) + ')');
                 }
             });
-            // 教材庫頁的 cat 下拉要對到新使用者真正的第一個分類
-            try {
-                var msc = el('master-set-cat');
-                if (msc) {
-                    var cats = Object.keys((multiData[currentUserId] || {}).masters || {});
-                    msc.innerHTML = cats.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
-                    msc.value = appCurrentCat || (cats[0] || '');
-                }
-            } catch (e) { failed.push('master-set-cat (' + (e && e.message) + ')'); }
             console.log('v2.3.2.142: ✅ 切換使用者後已重繪: ' + (done.join(', ') || '(無)') +
                 (failed.length ? ' | ⚠️ 失敗: ' + failed.join(', ') : ''));
         }
@@ -16595,9 +16572,17 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         function syncAllCatMisDropdowns(newCatValue = null, newMisValue = null) {
             var activeCat = newCatValue || (el('pane-master').classList.contains('active') ? el('master-set-cat').value : el('set-cat').value);
             var activeMis = newMisValue || (el('pane-master').classList.contains('active') ? el('master-set-mis').value : el('set-mis').value);
-
-            populateSelect('master-set-cat', Object.keys(appMissions), activeCat);
-            populateSelect('set-cat', Object.keys(appMissions), activeCat);
+            var user = multiData[currentUserId] || {};
+            // 教材庫可獨立於任務存在；合併分類名稱，但不補寫任何資料。
+            var cats = Object.keys(user.masters || {});
+            Object.keys(appMissions).forEach(function (cat) {
+                if (cats.indexOf(cat) < 0) cats.push(cat);
+            });
+            if (cats.indexOf(activeCat) < 0) activeCat = cats[0] || '';
+            appCurrentCat = activeCat;
+            appMaster = (user.masters && user.masters[activeCat]) || {};
+            populateSelect('master-set-cat', cats, activeCat);
+            populateSelect('set-cat', cats, activeCat);
             
             if (activeCat && appMissions[activeCat]) {
                 populateSelect('master-set-mis', Object.keys(appMissions[activeCat]), activeMis);
@@ -16610,9 +16595,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         function openSettings() {
             showPage('page-settings');
-            populateSelect('master-set-cat', Object.keys(appMissions));
-            // v1.5.8: 先讀當前 cat 的教材
-            onMasterSetCatChange();
             // v2.3.2.139: ★ 進設定頁時一律從 appMaster 重建教材庫畫面
             _v139SyncMasterUI('openSettings');
             // v2.3.2.144: ★ 更新教材庫健康狀態列
@@ -16621,9 +16603,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             Object.keys(appMaster).forEach(function(s) {
                 if (!appMaster[s].materials) appMaster[s].materials = {};
             });
-            populateMasterTypeDropdown();
-            renderMasterEditor();
-            populateSelect('set-cat', Object.keys(appMissions));
             onSetCatChange();
         }
 
@@ -16644,6 +16623,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
         
         function extractCurrentEditorData() {
+            var editorRoot = el('master-editor-root');
+            if (editorRoot && ((editorRoot.dataset.userId && editorRoot.dataset.userId !== currentUserId) ||
+                (editorRoot.dataset.category && editorRoot.dataset.category !== appCurrentCat) ||
+                editorRoot.dataset.renderReady === 'false')) return;
             var sub = lastMasterSub || el('master-subject').value;
             if(!sub || !appMaster[sub]) { return; }
 
@@ -16711,8 +16694,11 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         function populateMasterTypeDropdown() {
             var sub = el('master-subject').value;
             var typeSel = el('master-type');
-            if (!typeSel || !sub) return;
+            if (!typeSel) return;
             typeSel.innerHTML = '';
+            var instSel = el('master-instance');
+            if (instSel) instSel.innerHTML = '';
+            if (!sub) return;
             var subject = appMaster[sub];
             var materials = (subject && subject.materials) ? subject.materials : {};
             Object.keys(materials).forEach(function(typeName) {
@@ -17133,6 +17119,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         function renderMasterEditor() {
+            var renderId = (window._masterEditorRenderId || 0) + 1;
+            window._masterEditorRenderId = renderId;
+            var renderUserId = currentUserId;
+            var skipLoadUnits = !!window._skipLoadUnits;
             // v2.3.2.139: 畫任何教材庫內容之前, 先確認資料真的屬於目前使用者
             _v139AssertMasterOwnership('renderMasterEditor');
             var sel = el('master-subject');
@@ -17141,6 +17131,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             window.isMasterDirty = false;
 
             var root = el('master-editor-root'); root.innerHTML = '';
+            root.dataset.userId = currentUserId;
+            root.dataset.category = appCurrentCat || '';
+            root.dataset.renderReady = 'true';
             if(!sub) { root.innerHTML = '<div style="text-align:center; padding:20px; color:#95a5a6;">請先新增科目</div>'; return; }
 
             // v1.5.2: 根據 instance 決定 render 哪個資料
@@ -17150,12 +17143,13 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 return;
             }
             var s = data.instance;
+            var renderMaster = appMaster;
             // v1.5.151: 移到 if 之前 (custom 分支的 onclick 模板會用到)
             var isUB = isUnitBasedType(data.typeObj);
 
             if (s.type === 'custom') {
                 root.innerHTML = '<div class="vol-title">✏️ 單元範圍設定 (可直接點選格子編輯)</div><div id="cfg-list-custom"></div><div style="margin-top:10px;"><button type="button" class="btn-outline" onclick="addSettingRow(\'cfg-list-custom\', null, ' + isUB + ')">➕ 新增單元</button></div>';
-                if (!window._skipLoadUnits) {
+                if (!skipLoadUnits) {
                     (s.units || []).forEach(u => addSettingRow('cfg-list-custom', u, isUnitBasedType(data.typeObj)));
                 } else {
                     addSettingRow('cfg-list-custom', null, isUnitBasedType(data.typeObj));
@@ -17192,12 +17186,16 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     html += '<div style="text-align:center; margin-top:20px;"><button type="button" class="btn-warning" onclick="addMasterVolume()">➕ 新增第一冊</button></div>';
                 }
                 root.innerHTML = html;
+                root.dataset.renderReady = 'false';
                 setTimeout(() => {
-                    if (!window._skipLoadUnits) {
+                    if (renderId !== window._masterEditorRenderId || renderUserId !== currentUserId ||
+                        renderMaster !== appMaster || !root.isConnected) return;
+                    if (!skipLoadUnits) {
                         volsToRender.forEach(vol => { (s.vols[vol] || []).forEach(u => addSettingRow('cfg-list-'+vol, u, isUB)); });
                     } else {
                         volsToRender.forEach(vol => { addSettingRow('cfg-list-'+vol, null, isUB); });
                     }
+                    root.dataset.renderReady = 'true';
                 }, 0);
             }
         }
@@ -17270,6 +17268,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         function onMasterSetCatChange() {
             _v144UpdateMasterHealth();
+            syncAllCatMisDropdowns(el('master-set-cat').value);
             var cat = el('master-set-cat').value;
             // v1.5.8: 切換 appMaster 到選中的 cat 的教材庫
             var user = multiData[currentUserId];
