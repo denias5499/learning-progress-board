@@ -20,3 +20,32 @@ package-lock.json
 
 # OpenClaw working directory
 .openclaw/
+
+# ── 歷史備份快照（不要追蹤；本機保留，復原用）──
+backup-*.tar.gz
+backup-*.tgz
+backups/
+index.html.*.backup
+index.html.bak-v*
+index.html.fixed
+index.html.restore
+index.html.phase2.backup
+index.html.compat.backup
+index.html.pre-revert.*
+*.bak-v*
+
+# ── 除錯 / 一次性工具腳本（用完即棄）──
+dump_*.js
+fix_*.py
+fix_*.js
+console_fix_*.js
+restore_phase2_fix.sh
+add_styles.py
+_test_v140/
+wrong-notes/
+test-*.jpg
+comparison_final.jpg
+test_fft.jpg
+
+# ── 開發期暫存 ──
+.tmp-blocks/
