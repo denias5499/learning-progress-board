@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.143]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.144]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1760,6 +1760,11 @@
                 
                 <div id="pane-master" class="tab-pane active">
                     <div id="master-current-user-hint" style="font-size:0.9em; color:var(--primary); font-weight:bold; margin-bottom:10px; padding:6px 10px; background:#eff6ff; border-radius:6px; border:1px solid #bfdbfe;">👤 目前教材庫：—</div>
+                    <!-- v2.3.2.144: ★ 教材庫健康狀態 + 版本徽章 (讓「到底清乾淨了沒」一眼看得到) -->
+                    <div id="master-health-box" style="font-size:0.9em; margin-bottom:10px; padding:8px 12px; border-radius:6px; border:1px solid var(--border); background:#f8fafc;">
+                        <span id="master-health-text">📦 教材庫狀態：檢查中…</span>
+                        <span id="master-version-badge" style="float:right; font-family:ui-monospace,monospace; font-size:11px; color:#888;">v?</span>
+                    </div>
                     <!-- 進度大分類與任務 (新增於教材庫上方) -->
                     <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
                         <div class="form-group" style="flex: 1; min-width: 250px;">
@@ -4105,7 +4110,8 @@ function initGlobalScheduleMode() {
             if (!user) return;
 
             // 1. 加「地科」subject (空的) - v1.5.8 改寫到 masters[會考複習]
-            if (user.masters && user.masters['會考複習'] && !user.masters['會考複習']['地科']) {
+            // v2.3.2.144: ★ 已清空的使用者不再被補回「地科」
+            if (user.masters && user.masters['會考複習'] && !user.masters['會考複習']['地科'] && !user._v144Empty) {
                 user.masters['會考複習']['地科'] = {
                     materials: {
                         '複習講義': { id: 'mt_' + genId(), name: '複習講義', instances: [] },
@@ -4215,13 +4221,19 @@ function initGlobalScheduleMode() {
             }
 
             // v2.3.2.125: 也 rescue 用戶本身 masters 結構不完整
+            // v2.3.2.144: ★ 標記為「已清空」的使用者 → 不再自動重建大分類
+            //   為什麼: 清理完張裕如的髒資料後, 下面這幾行會在下一次載入時
+            //   把 會考複習 / 段考複習 又建回來 → 使用者看到「清完還是有分類」→
+            //   誤以為沒清乾淨。標記 _v144Empty 後就真的空到底。
             if (!user.masters) user.masters = {};
-            if (!user.masters['會考複習']) user.masters['會考複習'] = {};
-            if (!user.masters['段考複習']) {
-                user.masters['段考複習'] = { '國文': { materials: {} }, '數學': { materials: {} }, '英文': { materials: {} }, '歷史': { materials: {} }, '地理': { materials: {} }, '公民': { materials: {} }, '理化': { materials: {} }, '地科': { materials: {} } };
-                user._v1511_default_added = true;
+            if (!user._v144Empty) {
+                if (!user.masters['會考複習']) user.masters['會考複習'] = {};
+                if (!user.masters['段考複習']) {
+                    user.masters['段考複習'] = { '國文': { materials: {} }, '數學': { materials: {} }, '英文': { materials: {} }, '歷史': { materials: {} }, '地理': { materials: {} }, '公民': { materials: {} }, '理化': { materials: {} }, '地科': { materials: {} } };
+                    user._v1511_default_added = true;
+                }
+                if (!user.missions) user.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
             }
-            if (!user.missions) user.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
 
             // v2.3.2.126 (A): 修復 plan.grid 內 task.vol 與 master 不一致的歷史資料
             // 情境: 排程當時 master 有多份同 unit 的不同卷次, 後來 master 整併成單一卷次,
@@ -5355,16 +5367,27 @@ loadBoardHeader();
             if (m) m.remove();
         }
 
+        // v2.3.2.144: ★ 指定 uid 的 undo 快照
+        //   為什麼要加: pushUndoSnapshot() 用的是全域 currentUserId,
+        //   而「自動清除髒資料」發生在 initUsers() 裡 (currentUserId 還沒被設定)
+        //   → multiData[undefined].plans 拋錯 → 快照沒存成 → 清除後按「↩️ 復原」救不回來。
+        function pushUndoSnapshotFor(uid) {
+            var _old = currentUserId;
+            try { currentUserId = uid; pushUndoSnapshot(); }
+            finally { currentUserId = _old; }
+        }
+
         function pushUndoSnapshot() {
             try {
                 var raw = localStorage.getItem(STORAGE_KEY_UNDO) || '{}';
                 var stack = JSON.parse(raw);
                 if (!stack[currentUserId]) stack[currentUserId] = [];
-                // 深拷貝 multiData 摘要 (plans + logs + missions)
+                // 深拷貝 multiData 摘要 (plans + logs + missions + masters)
                 var snap = JSON.parse(JSON.stringify({
                     plans: multiData[currentUserId].plans,
                     logs: multiData[currentUserId].logs,
-                    missions: multiData[currentUserId].missions
+                    missions: multiData[currentUserId].missions,
+                    masters: multiData[currentUserId].masters
                 }));
                 snap._time = Date.now();
                 stack[currentUserId].push(snap);
@@ -6544,22 +6567,25 @@ loadBoardHeader();
             if (!confirm(msg)) return;
             var ok = confirm('⚠️ 最後確認：\n\n這會讓「' + (u.name || uid) + '」回到「剛建立新學生」的狀態。\n\n確定？');
             if (!ok) return;
-            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushUndoSnapshotFor(uid); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
             try { pushSafetyBackup('reset-all-user-data'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
-            u.masters = { '會考複習': {}, '段考複習': {} };
-            u.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
+            // ★ v2.3.2.144: 真正清空 — 連「進度大分類」都清掉
+            u.masters = {};
+            u.missions = {};
             u.plans = [];
             u.logs = [];
+            u._v144Empty = true;   // 下次載入不要再自動重建大分類
             saveToLocal();
             if (uid === currentUserId) {
-                appCurrentCat = '會考複習';
-                appMaster = u.masters['會考複習'];
+                appCurrentCat = '';
+                appMaster = {};
                 appPlans = u.plans; appLogs = u.logs; appMissions = u.missions;
                 _v139AssertMasterOwnership('resetAllUserData');
                 _v139SyncMasterUI('resetAllUserData');
                 _v142RerenderAfterUserSwitch();
+                _v144UpdateMasterHealth();
             }
-            alert('✅ 已完整重置「' + (u.name || uid) + '」');
+            alert('✅ 已完整重置「' + (u.name || uid) + '」（教材庫／計畫／紀錄／大分類全部清空）');
         };
 
         // v2.3.2.142: ★ 刪除某位學生的某個大分類 (含底下的教材)
@@ -6631,11 +6657,14 @@ loadBoardHeader();
                 };
             }));
 
-            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
-            try { pushSafetyBackup('auto-purge-polluted-users'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
-
+            // ★ v2.3.2.144: undo 快照要用「該受害者自己的 uid」
+            //   舊碼用 pushUndoSnapshot() → 它讀全域 currentUserId,
+            //   而自動清除發生在 initUsers 裡 (currentUserId 還沒被設定) →
+            //   multiData[undefined].plans 拋錯 → 快照沒存成 → 清除後無法還原!
             var msgs = [];
             victims.forEach(function (c) {
+                try { pushUndoSnapshotFor(c.uid); }
+                catch (e) { console.warn('v2.3.2.144: undo 快照失敗:', e && e.message); }
                 var u = multiData[c.uid];
                 if (!u) return;
                 var nSub = 0;
@@ -6644,17 +6673,28 @@ loadBoardHeader();
                     if (!cs || typeof cs !== 'object') return;
                     Object.keys(cs).forEach(function (sub) { delete cs[sub]; nSub++; });
                 });
-                // ★ 回到「剛建立新學生」的狀態 (跟 addNewUser() 一樣)
-                u.masters = { '會考複習': {}, '段考複習': {} };
-                u.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
+                // ★ v2.3.2.144: 真正清空 — 連「進度大分類」都清掉
+                //   v143 只清科目, 留下 會考複習/段考複習 兩個空殼 →
+                //   畫面上看起來「還是有東西」→ 讓人誤以為沒清乾淨。
+                u.masters = {};
+                u.missions = {};
                 u.plans = [];
                 u.logs = [];
-                console.warn('v2.3.2.143: 🧹 已自動清除「' + c.name + '」: ' + nSub + ' 個科目 / ' +
-                    c.masterIdCount + ' 個注入 unit / ' + c.planCount + ' 個計畫 / ' + c.taskCount + ' 個任務');
-                msgs.push('「' + c.name + '」的教材庫/計畫已清空（原本是 v1.5.3 注入的髒資料）');
+                // ★ 標記: 讓 _v158Migrate / _v154Migrate 下次載入不要再把
+                //   會考複習 / 段考複習 / 地科 建回來
+                u._v144Empty = true;
+                console.warn('v2.3.2.144: 🧹 已自動清除「' + c.name + '」: ' + nSub + ' 個科目 / ' +
+                    c.masterIdCount + ' 個注入 unit / ' + c.planCount + ' 個計畫 / ' + c.taskCount + ' 個任務 (連大分類一併清空)');
+                msgs.push('「' + c.name + '」的教材庫／計畫／紀錄已清空（原本是 v1.5.3 注入的髒資料）');
             });
 
-            try { saveToLocal(); } catch (e) { console.warn('存檔失敗:', e && e.message); }
+            try { pushSafetyBackup('auto-purge-polluted-users'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+            // ★ v2.3.2.144: 直接寫入 multiData, 不走 saveToLocal()
+            //   為什麼: saveToLocal() 會把全域的 appPlans/appLogs/appMissions
+            //   蓋回 multiData[currentUserId] → 會把剛清掉的資料又蓋回去!
+            //   而且在 initUsers 階段 currentUserId 還是舊的, 蓋錯人更麻煩。
+            try { localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData)); }
+            catch (e) { console.warn('v2.3.2.144: 存檔失敗:', e && e.message); }
             _v143Toast('🧹 已自動清除 ' + victims.length + ' 位學生的髒教材庫：\n\n' + msgs.join('\n'), 'warn');
             return victims;
         }
@@ -16542,6 +16582,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             onMasterSetCatChange();
             // v2.3.2.139: ★ 進設定頁時一律從 appMaster 重建教材庫畫面
             _v139SyncMasterUI('openSettings');
+            // v2.3.2.144: ★ 更新教材庫健康狀態列
+            _v144UpdateMasterHealth();
             // v1.5.2: 確保每個 subject 都有 materials 欄位 (defensive)
             Object.keys(appMaster).forEach(function(s) {
                 if (!appMaster[s].materials) appMaster[s].materials = {};
@@ -16562,7 +16604,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             //   為什麼: switchTab() 原本只切換 CSS class, 從來不重整內容 →
             //   下拉選單會一直是「上次渲染時」的殘留 DOM, 可能是上一位使用者的資料。
             //   這是「切換使用者後還看得到別人的教材」的最後一環。
-            if(tabId === 'master') _v139SyncMasterUI('switchTab');
+            if(tabId === 'master') { _v139SyncMasterUI('switchTab'); _v144UpdateMasterHealth(); }
             if(tabId === 'mission') renderMissionCheckboxes(); 
             // v1.5.58: history tab 切換時自動 render 表格
             if(tabId === 'history' && typeof renderHistoryTable === 'function') renderHistoryTable(); 
@@ -17152,7 +17194,49 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             container.appendChild(div); 
         }
 
+        // v2.3.2.144: ★ 更新「教材庫健康狀態」列
+        //   為什麼: 之前只能靠 Console 才知道清乾淨了沒 →
+        //   使用者看到「還是大分類還在」就以為沒清成功, 其實可能早就清乾淨了。
+        //   現在直接把數字顯示在畫面上, 不用開 F12。
+        function _v144UpdateMasterHealth() {
+            var box = el('master-health-box');
+            var txt = el('master-health-text');
+            var badge = el('master-version-badge');
+            if (badge) {
+                var vm = (document.title || '').match(/\[(v[\d.]+)\]/);
+                badge.textContent = vm ? vm[1] : 'v?';
+            }
+            if (!box || !txt) return;
+            var u = (typeof multiData !== 'undefined' && typeof currentUserId !== 'undefined') ? multiData[currentUserId] : null;
+            if (!u) { txt.textContent = '📦 教材庫狀態：—'; return; }
+            var cats = Object.keys(u.masters || {});
+            var nSub = 0, nUnit = 0;
+            cats.forEach(function (c) {
+                Object.keys(u.masters[c] || {}).forEach(function (s) {
+                    nSub++;
+                    try { nUnit += _v140SubjectUnitIds(u.masters[c][s]).length; } catch (e) {}
+                });
+            });
+            var nPlan = (u.plans || []).length;
+            var nLog = (u.logs || []).length;
+            if (cats.length === 0 && nSub === 0 && nUnit === 0) {
+                txt.textContent = '✅ 教材庫是空的（0 大分類 / 0 科目 / 0 單元）'
+                    + (nPlan ? '　·　仍有 ' + nPlan + ' 個計畫' : '')
+                    + (nLog ? '　·　' + nLog + ' 筆紀錄' : '');
+                box.style.background = '#ecfdf5'; box.style.borderColor = '#6ee7b7'; box.style.color = '#065f46';
+            } else if (nUnit === 0) {
+                txt.textContent = '📦 教材庫：' + cats.length + ' 個大分類 / ' + nSub + ' 個科目 / 0 個單元（空的殼）'
+                    + (nPlan ? '　·　' + nPlan + ' 個計畫' : '');
+                box.style.background = '#fffbeb'; box.style.borderColor = '#fcd34d'; box.style.color = '#92400e';
+            } else {
+                txt.textContent = '📦 教材庫：' + cats.length + ' 個大分類 / ' + nSub + ' 個科目 / ' + nUnit + ' 個單元'
+                    + (nPlan ? '　·　' + nPlan + ' 個計畫' : '') + (nLog ? '　·　' + nLog + ' 筆紀錄' : '');
+                box.style.background = '#eff6ff'; box.style.borderColor = '#bfdbfe'; box.style.color = '#1e40af';
+            }
+        }
+
         function onMasterSetCatChange() {
+            _v144UpdateMasterHealth();
             var cat = el('master-set-cat').value;
             // v1.5.8: 切換 appMaster 到選中的 cat 的教材庫
             var user = multiData[currentUserId];
@@ -17226,6 +17310,11 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         function addCat() {
             openInputModal('➕ 新增大分類', '', function(name) {
+                // v2.3.2.144: 使用者自己開始用了 → 拿掉「已清空」標記
+                try {
+                    var _u = multiData[currentUserId];
+                    if (_u && _u._v144Empty) { delete _u._v144Empty; }
+                } catch (e) {}
                 if(appMissions[name]) return alert('已存在！');
                 appMissions[name] = {};
                 // v1.5.8: 同步在 user.masters 加空殻
@@ -17242,6 +17331,11 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         // v1.5.0: 新增進度分類 wizard - 同時選教材科目, 開啟後單元保持空白
         function addCatWithSubject() {
+            // v2.3.2.144: 使用者自己開始用了 → 拿掉「已清空」標記
+            try {
+                var _u2 = multiData[currentUserId];
+                if (_u2 && _u2._v144Empty) { delete _u2._v144Empty; }
+            } catch (e) {}
             // populate subject dropdown with existing subjects
             var sel = el('add-cat-subject');
             var subjects = Object.keys(appMaster || {});
