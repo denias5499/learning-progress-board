@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.147]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.148]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -20234,7 +20234,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             var report = { json: null, disk: null, errors: [] };
             var toast = document.createElement('div');
             toast.id = 'backup-everything-toast';
-            toast.style.cssText = 'position:fixed;bottom:80px;right:10px;background:#3b82f6;color:white;padding:10px 14px;border-radius:8px;font-size:12px;z-index:100001;font-family:system-ui;max-width:340px;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,.15);';
+            toast.style.cssText = 'position:fixed;bottom:150px;right:12px;background:#3b82f6;color:white;padding:10px 14px;border-radius:8px;font-size:12px;z-index:100001;font-family:system-ui;max-width:340px;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,.15);';
             toast.textContent = '⏳ 正在備份所有資料...';
             document.body.appendChild(toast);
 
@@ -20343,7 +20343,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             }
             toast.style.background = report.errors.length ? '#f59e0b' : '#10b981';
             toast.textContent = lines.join('\n');
-            setTimeout(function () { if (toast.parentNode) toast.remove(); }, 12000);
+            setTimeout(function () { if (toast.parentNode) toast.remove(); }, 15000);
             return report;
         };
 
@@ -21693,6 +21693,15 @@ function renderViewPage() {
      * 顯示「請選 DB folder」按鈕
      */
     function _showPickerBanner() {
+        // v2.3.2.148: 舊的「選 folder」流程對應的資料層是空的 → 改成誠實的備份工具
+        _showBackupWidget();
+        window.diskDB.setup({
+            userId: 'config',
+            tryStored: false,
+            pickIfMissing: false,
+            migrate: true
+        }).catch(e => console.warn('[v2.2.0] IndexedDB-only setup failed:', e));
+        return;
         const banner = document.createElement('div');
         banner.id = 'diskdb-picker-banner';
         banner.style.cssText = 'position:fixed;bottom:10px;right:10px;background:#FFFEE1;color:#2c2410; /* v2.3.2.5d: 用戶指定 Picker banner */padding:14px 16px;border-radius:8px;font-size:13px;font-family:system-ui;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:360px;line-height:1.5;border:2px solid #8a7c3a;';
@@ -21723,9 +21732,92 @@ function renderViewPage() {
     }
 
     /**
+     * ★ v2.3.2.148: 誠實的備份小工具
+     *
+     * 為什麼取代舊的 DiskDB banner:
+     *   舊的「下載備份 (13 個 JSON)」下載的是 LearningProgressDB 的 12 個 store,
+     *   但那個 migration 只找 userId='config' (真實使用者 id 不叫這個)
+     *   → stores 從頭到尾都是空的 → 下載到的是 13 個空檔案
+     *   而「載入備份」只是把 JSON 讀進那個沒人讀的 IndexedDB → 畫面不會變
+     *   → 這兩個按鈕給人「我備份好了」的假安全感, 實際上什麼都沒備到
+     *
+     *   現在改成一個真的按鈕: 打包 localStorage 全部 + 3 個 IDB 的圖片
+     */
+    function _showBackupWidget() {
+        // 同一個 session 內關過就不再打擾
+        try { if (sessionStorage.getItem('backup_widget_dismissed') === '1') return; } catch (e) {}
+
+        const old = document.getElementById('backup-widget');
+        if (old) old.remove();
+
+        const w = document.createElement('div');
+        w.id = 'backup-widget';
+        w.style.cssText = 'position:fixed;bottom:12px;right:12px;background:#fff;border:2px solid #10b981;border-radius:10px;padding:12px 14px;box-shadow:0 6px 18px rgba(0,0,0,.16);z-index:99999;font-family:system-ui;font-size:12.5px;line-height:1.55;max-width:300px;color:#1f2937;';
+
+        w.innerHTML = `
+            <div style="display:flex;align-items:flex-start;gap:6px;">
+                <div style="flex:1;">
+                    <div style="font-weight:700;font-size:13.5px;margin-bottom:4px;">💾 資料備份</div>
+                    <div style="color:#4b5563;font-size:11.5px;margin-bottom:9px;">
+                        一次打包全部：教材庫 / 計畫 / 紀錄 / 答對率 / 看板 /<br>
+                        <b>錯題本(含圖片)</b> / <b>模考卷與複盤照片</b>
+                    </div>
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <button id="bw-backup-btn" style="background:#10b981;color:#fff;border:none;padding:6px 12px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;">💾 備份所有資料</button>
+                        <button id="bw-settings-btn" style="background:#fff;color:#065f46;border:1px solid #10b981;padding:6px 10px;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer;">⚙️ 設定</button>
+                    </div>
+                </div>
+                <button id="bw-close-btn" title="關閉" style="background:transparent;border:none;color:#9ca3af;font-size:16px;cursor:pointer;line-height:1;padding:0 2px;">✕</button>
+            </div>
+        `;
+        document.body.appendChild(w);
+
+        document.getElementById('bw-backup-btn').onclick = async (e) => {
+            e.stopPropagation();
+            const btn = e.currentTarget;
+            btn.disabled = true;
+            btn.textContent = '⏳ 備份中...';
+            try {
+                if (typeof window.backupEverything === 'function') {
+                    await window.backupEverything();
+                } else {
+                    await exportDataToFile();
+                }
+            } catch (err) {
+                console.error('[backup-widget] 備份失敗:', err);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '💾 備份所有資料';
+            }
+        };
+        document.getElementById('bw-settings-btn').onclick = (e) => {
+            e.stopPropagation();
+            try { openSettings(); } catch (err) { console.error(err); }
+        };
+        document.getElementById('bw-close-btn').onclick = (e) => {
+            e.stopPropagation();
+            w.remove();
+            try { sessionStorage.setItem('backup_widget_dismissed', '1'); } catch (err) {}
+        };
+    }
+
+    /**
      * 顯示「請用 Chrome/Edge」banner (不支援的瀏覽器)
+     * @deprecated v2.3.2.148 起改用 _showBackupWidget()
      */
     function _showUnsupportedBanner() {
+        // v2.3.2.148: 舊 banner 改成誠實的備份小工具
+        //   但 DiskDB 的 IndexedDB-only init 還是要跑 (維持既有行為)
+        _showBackupWidget();
+        window.diskDB.setup({
+            userId: 'config',
+            tryStored: false,
+            pickIfMissing: false,
+            migrate: true
+        }).then(() => {
+            console.log('[v2.2.0] IndexedDB-only init 完成 (Safari/Firefox)');
+        }).catch(e => console.warn('[v2.2.0] IndexedDB-only setup failed:', e));
+        return;
         const banner = document.createElement('div');
         banner.id = 'diskdb-unsupported-banner';
         banner.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#FFFEE1;color:#2c2410;padding:20px 24px;border-radius:12px;font-size:16px;font-family:system-ui;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.25);max-width:480px;line-height:1.6;border:2px solid #8a7c3a;';
@@ -21793,6 +21885,9 @@ function renderViewPage() {
      * 顯示「已就緒」banner (folder 已綁定)
      */
     async function _showReadyBanner(result) {
+        // v2.3.2.148: 舊 banner 顯示「每 30 秒自動 sync」但寫出去的是過期快照 → 改成誠實的備份工具
+        _showBackupWidget();
+        return;
         // 移除舊 banner
         const old = document.getElementById('diskdb-ready-banner');
         if (old) old.remove();

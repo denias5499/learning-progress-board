@@ -1,3 +1,62 @@
+## v2.3.2.148 (2026-10-27) — 換掉會誤導人的 DiskDB banner
+
+### Denias 問
+> 畫面右下方的「下載備份」和「載入備份」是做什麼用的？
+
+（截圖顯示「⚠️ v2.2.0 Safari/Firefox 模式」banner）
+
+### 查證結果：這兩個按鈕對實際資料沒有用
+
+DiskDB（v2.2.0 資料層）寫進 `IndexedDB['LearningProgressDB']`（12 個 store），
+但它的 migration 有兩個致命問題：
+
+1. **只找 `userId='config'`** → `data['config']` 在真實資料裡不存在
+   → `reason: 'no_user'` → 直接跳過 → **12 個 store 從頭到尾都是空的**
+2. **一次性**（`meta.migration_v2` 擋著，第二次執行直接 return）
+   → 而且 app 從來不把 localStorage 的變化寫回 DiskDB
+
+實測確認：`users / subjects / units / tasks / plans …` **全部 0 筆**。
+
+所以：
+- **「💾 下載備份 (13 個 JSON)」** → 下載到的是 13 個**空檔案**
+- **「📂 載入備份」** → 把 JSON 讀進那個**沒有人讀**的 IndexedDB → 畫面不會變
+
+→ 這是**假安全感**：看起來有在備份，實際上什麼都沒備到。
+
+### 修法
+
+換成一個**誠實的備份小工具**（右下角）：
+
+```
+💾 資料備份
+一次打包全部：教材庫 / 計畫 / 紀錄 / 答對率 / 看板 /
+錯題本(含圖片) / 模考卷與複盤照片
+[💾 備份所有資料]  [⚙️ 設定]  [✕]
+```
+
+- 「💾 備份所有資料」→ `window.backupEverything()`（v2.3.2.147 的那顆）
+- 「⚙️ 設定」→ 開啟「⚙️ 教材庫與備份」頁
+- 關閉鈕會記在 `sessionStorage`，同一個 session 不再打擾
+- 舊的三個 banner（unsupported / picker / ready）都改成呼叫這個小工具
+- DiskDB 的程式碼本身保留不動（`IndexedDB-only init` 照跑），只是不再用它的 UI 說謊
+
+### 為什麼不做「把 DiskDB 修好」
+DiskDB 的 folder 自動同步要真的有用，需要：
+1. migration 改成涵蓋**所有**使用者（不只是 'config'）
+2. app 每次 `saveToLocal()` 後要把變化**增量寫回** DiskDB
+
+第 2 點會動到主程式的存檔路徑 —— 那是關鍵路徑，近年資料完整性問題很多
+（v136–v145 都在修那邊）。這次先不做，等有需要再說。
+
+### 驗證
+- `test/e2e/backup-widget.e2e.js` **34/34**
+  （Safari 模式 + Chrome 模式 各跑一遍：UI、按鈕、備份內容、關閉鈕）
+- `test/e2e/backup-all-dbs.e2e.js` 29/29
+- `test/e2e/wrong-notes-backup.e2e.js` 18/18
+- npm test 315 pass / 0 fail / 162 skip
+
+---
+
 ## v2.3.2.147 (2026-10-27) — 「備份所有資料」一鍵按鈕 + 補上模考圖片
 
 ### 問題
