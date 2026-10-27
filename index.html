@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.150]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.151]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4114,20 +4114,7 @@ function initGlobalScheduleMode() {
             var user = multiData[uid];
             if (!user) return;
 
-            // 1. 加「地科」subject (空的) - v1.5.8 改寫到 masters[會考複習]
-            // v2.3.2.144: ★ 已清空的使用者不再被補回「地科」
-            if (user.masters && user.masters['會考複習'] && !user.masters['會考複習']['地科'] && !user._v144Empty) {
-                user.masters['會考複習']['地科'] = {
-                    materials: {
-                        '複習講義': { id: 'mt_' + genId(), name: '複習講義', instances: [] },
-                        '複習卷': { id: 'mt_' + genId(), name: '複習卷', instances: [] },
-                        '數字題本': { id: 'mt_' + genId(), name: '數字題本', instances: [] },
-                        '模擬題本': { id: 'mt_' + genId(), name: '模擬題本', instances: [] },
-                        '考古題': { id: 'mt_' + genId(), name: '考古題', instances: [] }
-                    }
-                };
-                console.log('v1.5.4: ✅ 加了「地科」subject (空的, 9 個 subject 總計)');
-            }
+            // v2.3.2.151: 遷移只保留或轉換既有資料，不自動建立科目。
 
             // 2. Rename missions in plans (📚 一模 → 一模, 📦 暑假複習進度 → 二模)
             var renameCount = 0;
@@ -4165,12 +4152,6 @@ function initGlobalScheduleMode() {
                 });
             });
 
-            // 4. 確保 missions 結構有 會考複習 + 段考複習 categories
-            if (!rebuilt['會考複習']) rebuilt['會考複習'] = {};
-            if (!rebuilt['會考複習']['一模']) rebuilt['會考複習']['一模'] = [];
-            if (!rebuilt['會考複習']['二模']) rebuilt['會考複習']['二模'] = [];
-            if (!rebuilt['段考複習']) rebuilt['段考複習'] = {};
-
             // v1.5.20: merge 既有 user.missions, 不覆蓋
             var existingMissions = user.missions || {};
             user.missions = rebuilt;
@@ -4207,38 +4188,21 @@ function initGlobalScheduleMode() {
         // v1.5.8: migrate - 進度大分類 (Category) 獨立教材庫
         // 從舊結構 master → masters[cat]
         // 現有 8 個 subject (v1.5.3 從備份復原) 全部是會考複習 mission 用的, 搬到 masters[會考複習]
-        // 加 masters[段考複習] = {} 空殻 (等 Denias 自己建)
+        // v2.3.2.151: 不再補建預設分類、科目或任務。
         function _v158Migrate(uid) {
             var user = multiData[uid];
             if (!user) return;
 
-            // v2.3.2.125: rescue 舊壞 user (有 master 但沒 masters) — 由 v2.3.2.124 前 addNewUser typo 造成
+            // v2.3.2.151: 只搬移這位使用者自己的非空舊教材，不補預設分類或科目。
             if (user.master && !user.masters) {
-                console.warn('v2.3.2.125: 救援舊壞 user (有 master 但沒 masters), uid=' + uid);
-                if (!user.masters) user.masters = {};
-                if (!user.masters['會考複習']) user.masters['會考複習'] = {};
-                if (!user.masters['段考複習']) user.masters['段考複習'] = {};
-                if (Object.keys(user.master).length > 0 && Object.keys(user.masters['會考複習']).length === 0) {
-                    // 把舊 master 的資料搬到 會考複習 (假設原本是從會考複習 master migrate 來的)
+                user.masters = {};
+                if (Object.keys(user.master).length > 0) {
                     user.masters['會考複習'] = user.master;
                 }
                 delete user.master;
             }
-
-            // v2.3.2.125: 也 rescue 用戶本身 masters 結構不完整
-            // v2.3.2.144: ★ 標記為「已清空」的使用者 → 不再自動重建大分類
-            //   為什麼: 清理完張裕如的髒資料後, 下面這幾行會在下一次載入時
-            //   把 會考複習 / 段考複習 又建回來 → 使用者看到「清完還是有分類」→
-            //   誤以為沒清乾淨。標記 _v144Empty 後就真的空到底。
             if (!user.masters) user.masters = {};
-            if (!user._v144Empty) {
-                if (!user.masters['會考複習']) user.masters['會考複習'] = {};
-                if (!user.masters['段考複習']) {
-                    user.masters['段考複習'] = { '國文': { materials: {} }, '數學': { materials: {} }, '英文': { materials: {} }, '歷史': { materials: {} }, '地理': { materials: {} }, '公民': { materials: {} }, '理化': { materials: {} }, '地科': { materials: {} } };
-                    user._v1511_default_added = true;
-                }
-                if (!user.missions) user.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
-            }
+            if (!user.missions) user.missions = {};
 
             // v2.3.2.126 (A): 修復 plan.grid 內 task.vol 與 master 不一致的歷史資料
             // 情境: 排程當時 master 有多份同 unit 的不同卷次, 後來 master 整併成單一卷次,
@@ -4336,19 +4300,6 @@ function initGlobalScheduleMode() {
                 console.warn('v2.3.2.129: 安全備份瘦身失敗 (不影響其他功能):', e3 && e3.message);
             }
 
-            // 1. 如果有 master 但沒有 masters → migrate
-            if (user.master && !user.masters) {
-                console.log('v1.5.8: 檢測到舊 master 結構, 開始 migrate 到 masters[cat]');
-                user.masters = {
-                    '會考複習': user.master
-                };
-                delete user.master;
-                console.log('v1.5.8: ✅ 舊 master (含 ' + Object.keys(user.masters['會考複習']).length + ' 個 subject) 搬到 masters[會考複習]');
-            }
-
-            // 2. 確保 masters 存在
-            if (!user.masters) user.masters = {};
-
             // 3. 從 missions keys 補上可能缺的 cat (例如 Denias 之後手動加 mission)
             if (user.missions) {
                 Object.keys(user.missions).forEach(function(cat) {
@@ -4357,20 +4308,6 @@ function initGlobalScheduleMode() {
                         console.log('v1.5.8: 補上 masters[' + cat + '] = {} (空的)');
                     }
                 });
-            }
-
-            // 4. 確保兩個預設 cat 都存在
-            if (!user.masters['會考複習']) user.masters['會考複習'] = {};
-            if (!user.masters['段考複習']) user.masters['段考複習'] = {};
-
-            // v1.5.11: 為「段考複習」自動建 8 個 default 科目 (Denias 16:02 要求, 不要 confirm dialog)
-            if (Object.keys(user.masters['段考複習']).length === 0 && !user._v1511_default_added) {
-                var defaults = ['國文','數學','英文','歷史','地理','公民','理化','地科'];
-                defaults.forEach(function(subName) {
-                    user.masters['段考複習'][subName] = { materials: {} };
-                });
-                user._v1511_default_added = true;
-                console.log('v1.5.11: 為「段考複習」自動建了 ' + defaults.length + ' 個 default subjects');
             }
 
             console.log('v1.5.8: ✅ migrate 完成, masters cats = [' + Object.keys(user.masters).join(', ') + ']');
@@ -19941,17 +19878,15 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
         function addNewUser() {
             openInputModal('➕ 建立新學生', '', function(name) {
                 var newId = genId();
-                // v2.3.2.125: 修正 typo (舊 code 用 master:{}, v1.5.8 後應為 masters), 並補上預設 masters/missions 結構避免 init crash
+                // v2.3.2.151: 新學生從真正空白的教材庫開始。
                 multiData[newId] = {
                     name: name,
-                    masters: {
-                        '會考複習': {},
-                        '段考複習': { '國文': { materials: {} }, '數學': { materials: {} }, '英文': { materials: {} }, '歷史': { materials: {} }, '地理': { materials: {} }, '公民': { materials: {} }, '理化': { materials: {} }, '地科': { materials: {} } }
-                    },
-                    missions: { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} },
+                    masters: {},
+                    missions: {},
                     logs: [],
                     plans: [],
-                    avatar: ''
+                    avatar: '',
+                    _v144Empty: true
                 };
                 saveToLocal();
                 el('user-selector').innerHTML += `<option value="${newId}">${name}</option>`;
