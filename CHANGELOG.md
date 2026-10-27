@@ -1,3 +1,44 @@
+## v2.3.2.147 (2026-10-27) — 「備份所有資料」一鍵按鈕 + 補上模考圖片
+
+### 問題
+Denias 問「現在要 backup 所有 db 在哪裡做？」→ 盤點後發現**還漏兩個 DB**：
+
+| 位置 | 內容 | v146 |
+|---|---|---|
+| `IndexedDB['mockExamImgDB'].mockExamImages` | 模考卷圖片 | ❌ 漏 |
+| `IndexedDB['mockExamReviewDB'].mockExamReviewImages` | 模考複盤照片 | ❌ 漏 |
+
+v146 只把 `wrongNoteImgDB` 加進備份，其他 IDB 沒動。
+
+### 修法
+
+- **通用 IDB helper**：`_v147OpenDb / _v147GetAllRecords / _v147ExportIdbSource / _v147RestoreIdbSource`
+  - 原本 v146 的 helper 是寫死單一 DB，現在由 `V147_IDB_SOURCES` 清單驅動
+  - ★ **保留記錄的所有欄位**（`examId` / `slot` / `name` …）
+    —— 少了 `examId`+`slot`，複盤照片就接不回對應的考卷
+- `Blob` 圖片 → base64 data URL，用 `_v147DataType` 標記原始型別，還原時轉回 `Blob`
+- 格式 `schema` → `full-v3`，`_meta` 加 `idbStats`（每個來源筆數）與 `totalImages`
+- **相容 v146 格式**：匯入端同時吃 `records`（新）與 `images`（舊）兩種結構
+- **新增 `💾 備份所有資料` 一鍵按鈕**（`window.backupEverything()`）
+  = JSON 備份（localStorage 全部 + 3 個 IDB）+ DiskDB 資料夾同步（若已綁定）
+- 匯出/匯入訊息顯示每個來源的圖片數
+- `diagnoseBackupCoverageAsync()` 列出全部 IDB 來源與筆數
+
+### 踩到的坑
+- `exportDataToFile()` 走 `showSaveFilePicker` 路徑時，`writable.write(dataStr)` 收到的是
+  **字串**不是 Blob → 一鍵備份裡 `createObjectURL(string)` 會丟
+  "Overload resolution failed" → 必須用 `instanceof Blob` 判斷
+- `exportDataToFile()` 結尾有 `confirm()` → 在 headless 測試會**永久阻塞**，
+  也會讓使用者連續看到兩個對話框 → 一鍵備份裡要壓掉它
+
+### 驗證
+- `test/e2e/backup-all-dbs.e2e.js` **29/29**
+  （3 個 DB 造資料 → 備份 → 全清 → 還原 → 逐欄位比對，含 `examId`/`slot`/`name`）
+- `test/e2e/wrong-notes-backup.e2e.js` 18/18（v146 相容沒壞）
+- npm test 315 pass / 0 fail / 162 skip
+
+---
+
 ## v2.3.2.146 (2026-10-27) — 錯題本納入備份 / 還原
 
 ### 問題

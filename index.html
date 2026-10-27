@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.146]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.147]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1950,10 +1950,15 @@
                     <div class="backup-col">
                         <label class="backup-label">⚠️ 全機資料備份與還原</label>
                         <div class="backup-buttons">
+                            <button type="button" class="btn-success" onclick="backupEverything()" title="一次備份所有資料: JSON (教材庫+計畫+紀錄+錯題本+模考圖片) + 資料夾同步">💾 備份所有資料</button>
                             <button type="button" class="btn-primary" onclick="exportDataToFile()">📥 匯出 JSON 備份</button>
                             <button type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
 
                             <input type="file" id="import-file" class="file-input-hidden" accept=".json">
+                        </div>
+                        <div style="font-size:0.85em;color:#7f8c8d;margin-top:6px;line-height:1.6;">
+                            💾「備份所有資料」= 一鍵打包 <b>教材庫 / 計畫 / 紀錄 / 答對率 / 看板 / 錯題本(含圖片) / 模考卷與複盤照片</b><br>
+                            📥 只匯出 JSON（相同內容，不含資料夾同步）　📤 從 JSON 還原
                         </div>
                     </div>
                     <button type="button" class="btn-info" onclick="dedupTraceAndShow()" style="margin-right:8px;">🔍 診斷教材庫</button>
@@ -19977,14 +19982,24 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
         var WN_IMG_DB = 'wrongNoteImgDB';
         var WN_IMG_STORE = 'images';
 
-        function _v146OpenImgDb() {
+        // ★ v2.3.2.147: 所有「圖片類」IndexedDB 來源清單
+        //   每一筆資料都在 IndexedDB 裡 → 舊的「只抓 localStorage」備份全都漏掉
+        //   欄位: db=DB 名稱, store=object store 名稱, label=顯示用名稱
+        var V147_IDB_SOURCES = [
+            { db: 'wrongNoteImgDB',     store: 'images',               label: '錯題本圖片' },
+            { db: 'mockExamImgDB',      store: 'mockExamImages',       label: '模考卷圖片' },
+            { db: 'mockExamReviewDB',   store: 'mockExamReviewImages', label: '模考複盤照片' }
+        ];
+
+        // 開啟 (沒有就建) 指定的 IDB + object store
+        function _v147OpenDb(dbName, storeName) {
             return new Promise(function (resolve) {
                 try {
-                    var req = indexedDB.open(WN_IMG_DB, 1);
+                    var req = indexedDB.open(dbName, 1);
                     req.onupgradeneeded = function (e) {
                         var db = e.target.result;
-                        if (!db.objectStoreNames.contains(WN_IMG_STORE)) {
-                            var s = db.createObjectStore(WN_IMG_STORE, { keyPath: 'id' });
+                        if (!db.objectStoreNames.contains(storeName)) {
+                            var s = db.createObjectStore(storeName, { keyPath: 'id' });
                             try { s.createIndex('createdAt', 'createdAt', { unique: false }); } catch (e2) {}
                         }
                     };
@@ -19994,11 +20009,13 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             });
         }
 
-        function _v146GetAllImages(db) {
+        // 讀取整個 object store
+        function _v147GetAllRecords(db, storeName) {
             return new Promise(function (resolve) {
                 try {
-                    var tx = db.transaction([WN_IMG_STORE], 'readonly');
-                    var st = tx.objectStore(WN_IMG_STORE);
+                    if (!db.objectStoreNames.contains(storeName)) { resolve([]); return; }
+                    var tx = db.transaction([storeName], 'readonly');
+                    var st = tx.objectStore(storeName);
                     var out = [];
                     // getAll 不支援時退回 cursor
                     if (typeof st.getAll === 'function') {
@@ -20016,6 +20033,10 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 } catch (e) { resolve([]); }
             });
         }
+
+        function _v146OpenImgDb() { return _v147OpenDb(WN_IMG_DB, WN_IMG_STORE); }
+
+        function _v146GetAllImages(db) { return _v147GetAllRecords(db, WN_IMG_STORE); }
 
         function _v146BlobToDataUrl(blob) {
             return new Promise(function (resolve, reject) {
@@ -20041,7 +20062,34 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             });
         }
 
-        // 匯出錯題本圖片 → [{id, type, data, createdAt}]
+        // 匯出單一 IDB 來源 → 完整保留所有欄位 (id / examId / slot / name ... 都不能漏!)
+        //   data 欄位若是 Blob → 轉 base64 data URL, 並用 _v147DataType 標記原始型別
+        async function _v147ExportIdbSource(src) {
+            var db = await _v147OpenDb(src.db, src.store);
+            if (!db) return [];
+            var recs = await _v147GetAllRecords(db, src.store);
+            var out = [];
+            for (var i = 0; i < recs.length; i++) {
+                var r = recs[i];
+                if (!r || !r.id) continue;
+                var copy = {};
+                for (var k in r) { if (Object.prototype.hasOwnProperty.call(r, k)) copy[k] = r[k]; }
+                try {
+                    if (r.data instanceof Blob) {
+                        copy.data = await _v146BlobToDataUrl(r.data);
+                        copy._v147DataType = 'blob';
+                    } else if (typeof r.data === 'string') {
+                        copy._v147DataType = 'dataurl';
+                    } else {
+                        continue; // 沒有可存的 data → 跳過
+                    }
+                } catch (e) { continue; }
+                out.push(copy);
+            }
+            return out;
+        }
+
+        // 匯出錯題本圖片 → [{id, type, data, createdAt}] (v146 相容格式)
         async function _v146ExportWrongNoteImages(onProgress) {
             var db = await _v146OpenImgDb();
             if (!db) return [];
@@ -20064,26 +20112,26 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             return out;
         }
 
-        // 還原錯題本圖片 (id 必須跟 notes 裡的 imageId 一致)
-        async function _v146RestoreWrongNoteImages(images) {
-            if (!images || !images.length) return 0;
-            var db = await _v146OpenImgDb();
+        // 還原單一 IDB 來源 (保留所有欄位, id 必須跟原本一致)
+        async function _v147RestoreIdbSource(src, records) {
+            if (!records || !records.length) return 0;
+            var db = await _v147OpenDb(src.db, src.store);
             if (!db) return 0;
             var n = 0;
-            for (var i = 0; i < images.length; i++) {
-                var img = images[i];
-                if (!img || !img.id) continue;
-                var data = img.data;
+            for (var i = 0; i < records.length; i++) {
+                var rec = records[i];
+                if (!rec || !rec.id) continue;
+                var copy = {};
+                for (var k in rec) { if (Object.prototype.hasOwnProperty.call(rec, k)) copy[k] = rec[k]; }
                 try {
-                    if (img.type === 'blob' && typeof data === 'string') {
-                        data = await _v146DataUrlToBlob(data);
+                    if (copy._v147DataType === 'blob' && typeof copy.data === 'string') {
+                        copy.data = await _v146DataUrlToBlob(copy.data);
                     }
+                    delete copy._v147DataType;
                     await new Promise(function (resolve) {
                         try {
-                            var tx = db.transaction([WN_IMG_STORE], 'readwrite');
-                            tx.objectStore(WN_IMG_STORE).put({
-                                id: img.id, data: data, createdAt: img.createdAt || new Date().toISOString()
-                            });
+                            var tx = db.transaction([src.store], 'readwrite');
+                            tx.objectStore(src.store).put(copy);
                             tx.oncomplete = function () { resolve(); };
                             tx.onerror = function () { resolve(); };
                             tx.onabort = function () { resolve(); };
@@ -20095,6 +20143,19 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             return n;
         }
 
+        // 還原錯題本圖片 (id 必須跟 notes 裡的 imageId 一致)
+        async function _v146RestoreWrongNoteImages(images) {
+            if (!images || !images.length) return 0;
+            // v146 格式: [{id, type, data, createdAt}] → 轉成 records 格式
+            var recs = [];
+            for (var i = 0; i < images.length; i++) {
+                var im = images[i];
+                if (!im || !im.id) continue;
+                recs.push({ id: im.id, data: im.data, createdAt: im.createdAt || '', _v147DataType: im.type || 'dataurl' });
+            }
+            return _v147RestoreIdbSource({ db: WN_IMG_DB, store: WN_IMG_STORE }, recs);
+        }
+
         // 錯題本文字 (myStudyNotes)
         function _v146ExportWrongNoteText() {
             try {
@@ -20104,9 +20165,25 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             } catch (e) { return null; }
         }
 
-        // ★ v2.3.2.146: 診斷 (async 版, 會連圖片數量一起回報)
+        // ★ v2.3.2.147: 診斷 (async 版) — 列出每個 IDB 的筆數與涵蓋狀態
         window.diagnoseBackupCoverageAsync = async function () {
             var base = window.diagnoseBackupCoverage();
+            base.idbSources = [];
+            for (var i = 0; i < V147_IDB_SOURCES.length; i++) {
+                var src = V147_IDB_SOURCES[i];
+                var info = { db: src.db, store: src.store, label: src.label, count: -1, exists: false, covered: true };
+                try {
+                    var db = await _v147OpenDb(src.db, src.store);
+                    info.exists = !!db;
+                    if (db) {
+                        var recs = await _v147GetAllRecords(db, src.store);
+                        info.count = recs.length;
+                    }
+                } catch (e) { info.count = -1; }
+                base.idbSources.push(info);
+            }
+            base.totalImages = base.idbSources.reduce(function (a, b) { return a + (b.count > 0 ? b.count : 0); }, 0);
+            base.idbTotal = base.idbSources.reduce(function (a, b) { return a + (b.count > 0 ? b.count : 0); }, 0);
             try {
                 var db = await _v146OpenImgDb();
                 var recs = db ? await _v146GetAllImages(db) : [];
@@ -20149,6 +20226,127 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             };
         };
 
+        // ★ v2.3.2.147: 一鍵「備份所有資料」
+        //   = JSON 備份 (localStorage 全部 + 3 個 IDB 的圖片)
+        //   + DiskDB 資料夾同步 (若已綁定 iCloud/Dropbox/NAS 資料夾)
+        //   → 使用者只要按這一個, 就不會漏掉任何一層
+        window.backupEverything = async function () {
+            var report = { json: null, disk: null, errors: [] };
+            var toast = document.createElement('div');
+            toast.id = 'backup-everything-toast';
+            toast.style.cssText = 'position:fixed;bottom:80px;right:10px;background:#3b82f6;color:white;padding:10px 14px;border-radius:8px;font-size:12px;z-index:100001;font-family:system-ui;max-width:340px;line-height:1.6;box-shadow:0 4px 12px rgba(0,0,0,.15);';
+            toast.textContent = '⏳ 正在備份所有資料...';
+            document.body.appendChild(toast);
+
+            try {
+                // ── 1. DiskDB 資料夾同步 (先做, 失敗不影響 JSON) ──
+                try {
+                    if (window.diskDB && typeof window.diskDB.syncAllToDisk === 'function') {
+                        var r = await window.diskDB.syncAllToDisk();
+                        report.disk = r;
+                        toast.textContent = '⏳ 資料夾同步完成, 正在產生 JSON 備份...';
+                    }
+                } catch (e) {
+                    report.errors.push('資料夾同步: ' + (e && e.message ? e.message : e));
+                }
+
+                // ── 2. JSON 備份 ──
+                // 攔截 showSaveFilePicker, 自己收下內容並統計 (不彈對話框, 由呼叫端決定要不要下載)
+                var captured = null;
+                var origPicker = window.showSaveFilePicker;
+                var origCreate = URL.createObjectURL;
+                var origClick = HTMLAnchorElement.prototype.click;
+                var origConfirm = window.confirm;
+                var capturedBlob = null;
+                try {
+                    window.showSaveFilePicker = async function () {
+                        return { createWritable: async function () {
+                            return {
+                                // ★ write() 收到的是字串 (JSON) 或 Blob → 兩種都要能處理
+                                write: async function (d) {
+                                    if (captured == null) captured = d;
+                                    if (d instanceof Blob) capturedBlob = d;
+                                },
+                                close: async function () {}
+                            };
+                        }};
+                    };
+                    URL.createObjectURL = function (blob) { capturedBlob = blob; return 'blob:v147'; };
+                    HTMLAnchorElement.prototype.click = function () {};
+                    // ★ 壓掉 exportDataToFile() 自己的 confirm (它會問「要不要關閉畫面」)
+                    //   否則使用者會連續看到兩個對話框; 而且在 headless 測試會永久阻塞
+                    window.confirm = function () { return false; };
+                    await exportDataToFile();
+                } finally {
+                    window.showSaveFilePicker = origPicker;
+                    URL.createObjectURL = origCreate;
+                    HTMLAnchorElement.prototype.click = origClick;
+                    window.confirm = origConfirm;
+                }
+
+                if (captured) {
+                    var snap = null;
+                    try { snap = JSON.parse(captured); } catch (e) {}
+                    report.json = {
+                        keyCount: snap && snap._meta ? snap._meta.keyCount : 0,
+                        schema: snap && snap._meta ? snap._meta.schema : '?',
+                        wrongNotes: snap && snap._meta ? snap._meta.wrongNotes : null,
+                        idbStats: snap && snap._meta ? snap._meta.idbStats : null,
+                        totalImages: snap && snap._meta ? snap._meta.totalImages : 0,
+                        bytes: captured.length
+                    };
+                    // 真的下載
+                    try {
+                        var blob = (capturedBlob instanceof Blob) ? capturedBlob
+                                 : new Blob([String(captured == null ? '' : captured)], { type: 'application/json' });
+                        var url = URL.createObjectURL(blob);
+                        var a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'StudyMap_FullBackup_' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '') + '.json';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+                    } catch (e) {
+                        report.errors.push('下載: ' + (e && e.message ? e.message : e));
+                    }
+                }
+            } catch (e) {
+                report.errors.push('JSON 備份: ' + (e && e.message ? e.message : e));
+            }
+
+            // 結果提示
+            var lines = ['✅ 備份完成', ''];
+            if (report.json) {
+                lines.push('📄 JSON: ' + report.json.keyCount + ' 個資料區段 (' + report.json.schema + ')');
+                if (report.json.wrongNotes) lines.push('   錯題本: ' + report.json.wrongNotes.noteCount + ' 筆');
+                if (report.json.idbStats) {
+                    for (var i = 0; i < report.json.idbStats.length; i++) {
+                        var st = report.json.idbStats[i];
+                        if (st.count > 0) lines.push('   ' + st.label + ': ' + st.count + ' 張');
+                    }
+                }
+            } else {
+                lines.push('⚠️ JSON 備份未完成');
+            }
+            if (report.disk) {
+                lines.push('📁 資料夾: ' + (report.disk.mode === 'folder'
+                    ? ('已寫 ' + report.disk.written + ' 個檔案')
+                    : ('已下載 ' + report.disk.written + ' 個檔案')));
+            } else {
+                lines.push('ℹ️ 資料夾: 未綁定或未啟用 (JSON 備份已包含全部資料)');
+            }
+            if (report.errors.length) {
+                lines.push('');
+                lines.push('⚠️ 部分失敗:');
+                for (var e2 = 0; e2 < report.errors.length; e2++) lines.push('   ' + report.errors[e2]);
+            }
+            toast.style.background = report.errors.length ? '#f59e0b' : '#10b981';
+            toast.textContent = lines.join('\n');
+            setTimeout(function () { if (toast.parentNode) toast.remove(); }, 12000);
+            return report;
+        };
+
         async function exportDataToFile() {
             // v1.5.226: 全機備份改寫 — 抓所有 StudyMap_ 前綴的 localStorage 資料
             if (el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
@@ -20182,30 +20380,41 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             if (_v146Notes != null) {
                 snapshot.keys[WN_STORAGE_KEY_NOTES] = _v146Notes;
             }
-            // ★ v2.3.2.146: 錯題本圖片 (IndexedDB 'wrongNoteImgDB' → images)
-            var _v146Imgs = [];
-            try {
-                // 圖片轉 base64 會撐大 33%, 數量多時備份檔會很大 → 先告知再繼續
-                var _v146Db = await _v146OpenImgDb();
-                var _v146Count = _v146Db ? (await _v146GetAllImages(_v146Db)).length : 0;
-                if (_v146Count > 50) {
-                    console.log('v2.3.2.146: 錯題本圖片 ' + _v146Count + ' 張, 正在轉換成 base64 (備份檔會比較大)...');
+            // ★ v2.3.2.147: 所有 IDB 圖片來源 (錯題本 / 模考卷 / 模考複盤)
+            //   舊版只抓 wrongNoteImgDB → 模考的圖片一直沒被備份過
+            snapshot.idb = snapshot.idb || {};
+            var _v147IdbStats = [];
+            var _v147TotalImgs = 0;
+            for (var _v147i = 0; _v147i < V147_IDB_SOURCES.length; _v147i++) {
+                var _v147src = V147_IDB_SOURCES[_v147i];
+                var _v147recs = [];
+                try {
+                    _v147recs = await _v147ExportIdbSource(_v147src);
+                } catch (e) {
+                    console.warn('v2.3.2.147: ' + _v147src.label + ' 匯出失敗:', e);
                 }
-                _v146Imgs = await _v146ExportWrongNoteImages();
-            } catch (e) {
-                console.warn('v2.3.2.146: 錯題本圖片匯出失敗:', e);
+                if (_v147recs.length) {
+                    snapshot.idb[_v147src.db] = { store: _v147src.store, records: _v147recs };
+                    _v147TotalImgs += _v147recs.length;
+                }
+                _v147IdbStats.push({ db: _v147src.db, store: _v147src.store, label: _v147src.label, count: _v147recs.length });
             }
-            if (_v146Imgs.length) {
-                snapshot.idb = snapshot.idb || {};
+            // v146 相容: 錯題本圖片也放一份舊格式 (舊版還原程式讀得到)
+            var _v146Imgs = [];
+            try { _v146Imgs = await _v146ExportWrongNoteImages(); } catch (e) {}
+            if (_v146Imgs.length && !snapshot.idb[WN_IMG_DB]) {
                 snapshot.idb[WN_IMG_DB] = { store: WN_IMG_STORE, images: _v146Imgs };
             }
+
             snapshot._meta.keyCount = Object.keys(snapshot.keys).length;
-            snapshot._meta.schema = 'full-v2';
-            snapshot._meta.note = '全機備份: 教材庫 + 答對率 + PlanEvents + 看板 + 主題 + 偏好 + 安全備份/快照 + 錯題本(含圖片)';
+            snapshot._meta.schema = 'full-v3';
+            snapshot._meta.note = '全機備份: 教材庫 + 答對率 + PlanEvents + 看板 + 主題 + 偏好 + 安全備份/快照 + 錯題本(含圖片) + 模考圖片';
             snapshot._meta.wrongNotes = {
                 noteCount: Array.isArray(_v146Notes) ? _v146Notes.length : ((_v146Notes != null) ? 1 : 0),
-                imageCount: _v146Imgs.length
+                imageCount: (_v147IdbStats.filter(function (x) { return x.db === WN_IMG_DB; })[0] || {}).count || 0
             };
+            snapshot._meta.idbStats = _v147IdbStats;
+            snapshot._meta.totalImages = _v147TotalImgs;
 
             var dataStr = JSON.stringify(snapshot, null, 2);
             var defaultFilename = "StudyMap_Backup_" + getLocalDateString(new Date()) + ".json";
@@ -20229,6 +20438,14 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                     var _v146Msg = "✅ JSON 備份匯出成功！\n\n(已備份 " + snapshot._meta.keyCount + " 個資料區段)";
                     if (snapshot._meta.wrongNotes) {
                         _v146Msg += "\n(錯題本: " + snapshot._meta.wrongNotes.noteCount + " 筆 / 圖片 " + snapshot._meta.wrongNotes.imageCount + " 張)";
+                    }
+                    if (snapshot._meta.idbStats) {
+                        var _v147Lines = [];
+                        for (var _v147j = 0; _v147j < snapshot._meta.idbStats.length; _v147j++) {
+                            var _v147st = snapshot._meta.idbStats[_v147j];
+                            if (_v147st.count > 0) _v147Lines.push(_v147st.label + " " + _v147st.count + " 張");
+                        }
+                        if (_v147Lines.length) _v146Msg += "\n(圖片: " + _v147Lines.join('、') + ")";
                     }
                     _v146Msg += "\n\n請問是否要關閉教材庫設定與系統備份畫面？";
                     if (confirm(_v146Msg)) {
@@ -20478,12 +20695,30 @@ document.getElementById('import-file').addEventListener('change', function(e) {
                 var keyCount = Object.keys(keysToWrite).length;
                 var backupTime = data._meta.exportedAt || '未知時間';
                 var _v146BackupNotes = (data._meta && data._meta.wrongNotes) ? data._meta.wrongNotes : null;
-                var _v146BackupImgCount = (data.idb && data.idb[WN_IMG_DB] && data.idb[WN_IMG_DB].images)
-                    ? data.idb[WN_IMG_DB].images.length : 0;
+                var _v146BackupImgCount = 0;
+                var _v146BackupImgLines = [];
+                if (data.idb) {
+                    for (var _v146bk in data.idb) {
+                        if (!Object.prototype.hasOwnProperty.call(data.idb, _v146bk)) continue;
+                        var _v146bb = data.idb[_v146bk];
+                        var _v146bc = (bb => (bb && Array.isArray(bb.records)) ? bb.records.length
+                                       : (bb && Array.isArray(bb.images)) ? bb.images.length : 0)(_v146bb);
+                        if (_v146bc > 0) {
+                            _v146BackupImgCount += _v146bc;
+                            var _v146srcMeta = null;
+                            for (var _v146sl = 0; _v146sl < V147_IDB_SOURCES.length; _v146sl++) {
+                                if (V147_IDB_SOURCES[_v146sl].db === _v146bk) _v146srcMeta = V147_IDB_SOURCES[_v146sl];
+                            }
+                            _v146BackupImgLines.push((_v146srcMeta ? _v146srcMeta.label : _v146bk) + ' ' + _v146bc + ' 張');
+                        }
+                    }
+                }
                 var _v146Extra = '';
                 if (_v146BackupNotes) {
-                    _v146Extra = '\n錯題本: ' + _v146BackupNotes.noteCount + ' 筆 / 圖片 ' +
-                        (_v146BackupImgCount || _v146BackupNotes.imageCount || 0) + ' 張';
+                    _v146Extra = '\n錯題本: ' + _v146BackupNotes.noteCount + ' 筆';
+                }
+                if (_v146BackupImgLines.length) {
+                    _v146Extra += '\n圖片: ' + _v146BackupImgLines.join('、');
                 }
                 if (!confirm('⚠️ 偵測到「全機備份」格式\n\n' +
                         '備份時間: ' + backupTime + '\n' +
@@ -20522,14 +20757,36 @@ document.getElementById('import-file').addEventListener('change', function(e) {
                 }
             }
 
-            // ★ v2.3.2.146: 還原錯題本圖片 (IndexedDB)
+            // ★ v2.3.2.147: 還原所有 IDB 圖片來源 (錯題本 / 模考卷 / 模考複盤)
+            //   同時相容 v146 舊格式 (images: [{id,type,data,createdAt}])
             var _v146ImgRestored = 0;
+            var _v147RestoredStats = [];
             try {
-                if (data.idb && data.idb[WN_IMG_DB] && Array.isArray(data.idb[WN_IMG_DB].images)) {
-                    _v146ImgRestored = await _v146RestoreWrongNoteImages(data.idb[WN_IMG_DB].images);
+                if (data.idb) {
+                    for (var _v147k = 0; _v147k < V147_IDB_SOURCES.length; _v147k++) {
+                        var _v147s2 = V147_IDB_SOURCES[_v147k];
+                        var _v147bucket = data.idb[_v147s2.db];
+                        if (!_v147bucket) continue;
+                        var _v147recs2 = null;
+                        if (Array.isArray(_v147bucket.records)) {
+                            _v147recs2 = _v147bucket.records;
+                        } else if (Array.isArray(_v147bucket.images)) {
+                            // v146 舊格式
+                            _v147recs2 = [];
+                            for (var _v147m = 0; _v147m < _v147bucket.images.length; _v147m++) {
+                                var _v147im = _v147bucket.images[_v147m];
+                                if (!_v147im || !_v147im.id) continue;
+                                _v147recs2.push({ id: _v147im.id, data: _v147im.data, createdAt: _v147im.createdAt || '', _v147DataType: _v147im.type || 'dataurl' });
+                            }
+                        }
+                        if (!_v147recs2 || !_v147recs2.length) continue;
+                        var _v147n2 = await _v147RestoreIdbSource(_v147s2, _v147recs2);
+                        _v146ImgRestored += _v147n2;
+                        _v147RestoredStats.push({ label: _v147s2.label, count: _v147n2 });
+                    }
                 }
             } catch (e4) {
-                console.warn('v2.3.2.146: 錯題本圖片還原失敗:', e4);
+                console.warn('v2.3.2.147: 圖片還原失敗:', e4);
             }
 
             if (failed > 0) {
@@ -20537,7 +20794,15 @@ document.getElementById('import-file').addEventListener('change', function(e) {
                       '請檢查 console 查看失敗的 key');
             }
             var _v146DoneMsg = '🎉 還原完成! (' + written + ' 個資料區段)';
-            if (_v146ImgRestored > 0) _v146DoneMsg += '\n(錯題本圖片已還原 ' + _v146ImgRestored + ' 張)';
+            if (_v147RestoredStats && _v147RestoredStats.length) {
+                var _v147rLines = [];
+                for (var _v147r = 0; _v147r < _v147RestoredStats.length; _v147r++) {
+                    if (_v147RestoredStats[_v147r].count > 0) {
+                        _v147rLines.push(_v147RestoredStats[_v147r].label + ' ' + _v147RestoredStats[_v147r].count + ' 張');
+                    }
+                }
+                if (_v147rLines.length) _v146DoneMsg += '\n(圖片已還原: ' + _v147rLines.join('、') + ')';
+            }
             _v146DoneMsg += '\n系統即將重新載入。';
             alert(_v146DoneMsg);
             window.location.reload();

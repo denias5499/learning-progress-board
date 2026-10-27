@@ -322,6 +322,28 @@ await diagnoseBackupCoverageAsync()   // 連錯題圖片數量一起回報
 | `localStorage['StudyMap_*']` | 教材庫、計畫、紀錄、答對率、看板設定、安全備份 | ✅ |
 | `localStorage['myStudyNotes']` | **錯題本文字** | ✅ v2.3.2.146 起 |
 | `IndexedDB['wrongNoteImgDB'].images` | **錯題本圖片** | ✅ v2.3.2.146 起 |
+| `IndexedDB['mockExamImgDB'].mockExamImages` | **模考卷圖片** | ✅ v2.3.2.147 起 |
+| `IndexedDB['mockExamReviewDB'].mockExamReviewImages` | **模考複盤照片** | ✅ v2.3.2.147 起 |
+
+> 另有 `IndexedDB['LearningProgressDB']`（DiskDB，12 stores）→
+> 那是 **v2.2.0 資料層**，會每 30 秒自動 sync 成 JSON 檔到使用者選的
+> iCloud/Dropbox/NAS 資料夾。**不含**錯題本與模考圖片（那些只在 localStorage/上面 3 個 IDB）。
+
+### 新增 IDB 來源到備份
+
+`V147_IDB_SOURCES` 清單驅動 —— 加新的圖片 DB 只要加一行：
+
+```js
+var V147_IDB_SOURCES = [
+    { db: 'wrongNoteImgDB',   store: 'images',               label: '錯題本圖片' },
+    { db: 'mockExamImgDB',    store: 'mockExamImages',       label: '模考卷圖片' },
+    { db: 'mockExamReviewDB', store: 'mockExamReviewImages', label: '模考複盤照片' }
+];
+```
+
+⚠️ **`store` 的記錄裡所有欄位都會被保留** —— 例如複盤照片的 `examId` / `slot` / `name`
+少一個，照片就接不回對應的考卷。`_v147ExportIdbSource()` 會複製整筆 record，
+`_v147RestoreIdbSource()` 會原樣寫回（只轉換 `data` 欄的 Blob ↔ base64）。
 
 ### 新增備份範圍時的兩個注意
 

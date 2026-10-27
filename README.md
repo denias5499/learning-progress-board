@@ -38,12 +38,29 @@
 | `localStorage['StudyMap_*']` | 教材庫、計畫、紀錄、答對率、看板設定、安全備份 | ✅ |
 | `localStorage['myStudyNotes']` | **錯題本文字**（錯題結構、原因、內容） | ✅ v2.3.2.146 起 |
 | `IndexedDB['wrongNoteImgDB'].images` | **錯題本圖片** | ✅ v2.3.2.146 起 |
+| `IndexedDB['mockExamImgDB'].mockExamImages` | **模考卷圖片** | ✅ v2.3.2.147 起 |
+| `IndexedDB['mockExamReviewDB'].mockExamReviewImages` | **模考複盤照片** | ✅ v2.3.2.147 起 |
 
 > ⚠️ v2.3.2.146 之前，`myStudyNotes` 因為沒有 `StudyMap_` 前綴、圖片又在 IndexedDB，
-> **錯題本從來沒被備份過**。舊的備份檔還原後錯題本會是空的。
+> **錯題本從來沒被備份過**。v2.3.2.147 之前，**模考的圖片也從來沒被備份過**。
+> 舊的備份檔還原後這些會是空的。
 
 每個 domain / file:// 路徑 獨立一份資料。
-建議定期使用「匯出 JSON 備份」保存。
+
+### 怎麼備份
+
+**⚙️ 教材庫與備份 → 「⚠️ 全機資料備份與還原」→ 💾 備份所有資料**（推薦）
+
+一次打包全部東西（上面表格的所有項目）+ 同步到你綁定的 iCloud/Dropbox/NAS 資料夾。
+
+其他兩個按鈕：
+- **📥 匯出 JSON 備份** — 只匯出 JSON（內容相同，不含資料夾同步）
+- **📤 匯入 JSON 還原** — 從備份檔還原
+
+想確認備份涵蓋了什麼，在 console 執行：
+```js
+await diagnoseBackupCoverageAsync()
+```
 
 ## 📂 檔案結構
 
