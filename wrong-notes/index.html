@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>錯題資料庫 [v2.3.2.108]</title>
+    <!-- 引入 PDF.js 以支援 PDF 解析 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+    </script>
+    <style>
+        :root {
+            /* --- Pantone 專屬色彩設定 --- */
+            --bg-ice-melt: #dbeae8;       
+            --btn-peach-dust: #f0d8cc;    
+            --btn-almost-aqua: #cad5c2;   
+            --btn-orchid-tint: #dbd0e0;   
+            --btn-lemon-icing: #f6edcc;   
+            --header-aqua-sky: #7bc4c4;   
+            
+            --btn-generate: rgba(125, 203, 202, 0.7); 
+            --btn-generate-solid: #7DCBCA; 
+            --btn-generate-shadow: #59a3a2;
+
+            /* 底部按鍵 Pantone 色 */
+            --btn-complete-base: rgba(243, 208, 84, 0.85); /* Pantone 13-0624 */
+            --btn-complete-hover: rgba(243, 208, 84, 1);
+            
+            --btn-cancel-base: rgba(162, 151, 177, 0.85); /* Pantone 16-3610 Quiet violet */
+            --btn-cancel-hover: rgba(162, 151, 177, 1);
+
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --theme-blue: #1a82e2;
+        }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            background: var(--bg-ice-melt);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex; flex-direction: column;
+        }
+
+        /* --- 頂部導覽列 --- */
+        .top-navbar {
+            display: flex; justify-content: space-between; align-items: center;
+            background: rgba(255, 255, 255, 0.4); backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.6); padding: 15px 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: sticky; top: 0; z-index: 1000;
+            width: 100%; box-sizing: border-box;
+        }
+
+        .nav-brand {
+            font-size: 26px; font-weight: bold; color: #2c3e50; letter-spacing: 2px;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.8); margin-right: 30px; white-space: nowrap;
+        }
+
+        .nav-links { flex: 1; display: flex; gap: 15px; align-items: center; }
+
+        .btn-3d {
+            padding: 10px 20px; border: 2px solid rgba(255,255,255,0.6); border-radius: 18px;
+            font-weight: bold; font-size: 15px; color: #444; cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); text-align: center; outline: none;
+            box-shadow: 0 5px 0 rgba(0,0,0,0.08), 0 8px 10px rgba(0,0,0,0.05);
+        }
+        .btn-import { background-color: var(--btn-peach-dust); }
+        .btn-view { background-color: var(--btn-almost-aqua); }
+        .btn-data { background-color: var(--btn-orchid-tint); }
+        .btn-practice { background-color: var(--btn-lemon-icing); }
+
+        .btn-3d:hover {
+            transform: scale(1.1) translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.15); border-color: #fff; z-index: 5;
+        }
+        .btn-3d:active { transform: translateY(5px); box-shadow: 0 0 0 rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.05); }
+
+        .btn-3d.active-nav {
+            transform: scale(1.15) translateY(-4px); border: 2px solid #fff; color: #222;
+            box-shadow: 0 8px 0 rgba(0,0,0,0.15), 0 15px 20px rgba(0,0,0,0.15); z-index: 10;
+        }
+
+        .nav-right { display: flex; justify-content: flex-end; align-items: center; }
+
+        /* --- 學生面板 UI --- */
+        .student-panel {
+            display: flex; align-items: center; background: #f4f6f9; padding: 6px 15px 6px 6px;
+            border-radius: 40px; border: 1px solid #e1e4e8; box-shadow: 0 2px 8px rgba(0,0,0,0.05); gap: 8px;
+        }
+        .sp-avatar {
+            width: 38px; height: 38px; border-radius: 50%; background: #fff; border: 2px solid #ddd;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden; position: relative;
+        }
+        .sp-avatar span { font-size: 22px; }
+
+        .sp-select-wrapper select {
+            background: transparent; border: none; color: #333; font-size: 16px; font-weight: bold; outline: none; cursor: pointer; max-width: 120px; appearance: auto;
+        }
+
+        /* --- 主內容區 --- */
+        .app-container {
+            width: 100%; max-width: 100%; margin: 0; padding: 0 25px; position: relative; display: flex; flex-direction: column; flex-grow: 1; box-sizing: border-box;
+        }
+        .page { display: none; padding: 0; flex-direction: column; width: 100%; }
+        .page.active { display: flex; }
+
+        /* --- 錯題匯入頁面 --- */
+        /* v2.3.2.69: Step 1 底色 改 #DCEBE8 (淺薄荷綠／淡灰綠 RGB 220,235,232) */
+        .step-container {
+            background: #DCEBE8; padding: 20px 0; border-radius: 0; margin-bottom: 0; box-shadow: none; border-bottom: 1px solid #eee;
+        }
+        .step-title { font-weight: bold; font-size: 18px; margin-bottom: 15px; color: var(--theme-blue); }
+        
+        .drop-zone {
+            border: 2px dashed var(--theme-blue); border-radius: 10px; padding: 30px 20px;
+            text-align: center; background: #f8fbff; cursor: pointer; transition: 0.2s;
+        }
+        /* v2.3.2.86: 拖曳高亮 — 靜態飽和藍色 (移除動畫, 避免卡頓) */
+        .drop-zone:hover, .drop-zone.dragover {
+            background: #c8e6ff;
+            border-color: #0066cc;
+            border-style: solid;
+            border-width: 3px;
+        }
+        .drop-zone.dragover p { color: #0066cc; }
+        .drop-zone p { font-size: 18px; color: #333; margin: 0; font-weight: bold; pointer-events: none; }
+        .drop-zone input[type="file"] { display: none; }
+        
+        .or-divider { text-align: center; font-weight: bold; color: #666; font-size: 16px; margin: 10px 0; }
+
+        .slider-container { display: flex; overflow-x: auto; gap: 20px; padding-bottom: 15px; scroll-snap-type: x mandatory; }
+        .slider-container::-webkit-scrollbar { height: 10px; }
+        .slider-container::-webkit-scrollbar-thumb { background: #bbb; border-radius: 5px; }
+        
+        .file-card {
+            min-width: 320px; background: #fff; border: 1px solid #ddd; position: relative;
+            border-radius: 10px; padding: 15px; scroll-snap-align: start; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .delete-card-btn {
+            position: absolute; top: 10px; right: 10px; background: #ff4757; color: white; border: none; border-radius: 50%;
+            width: 28px; height: 28px; cursor: pointer; font-size: 16px; font-weight: bold; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.2s; z-index: 10;
+        }
+        .delete-card-btn:hover { transform: scale(1.15); background: #ff6b81; }
+        .file-card img { width: 100%; height: 180px; object-fit: contain; background: #eee; border-radius: 5px; margin-bottom: 15px; border: 1px solid #ddd;}
+        
+        select, input[type="text"] {
+            width: 100%; padding: 8px; margin-top: 5px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; box-sizing: border-box;
+        }
+        /* v2.3.2.70: 錯誤原因 滿版 — flex-wrap + 加大按鈕 + 圓角背景 */
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 6px 0; }
+        .checkbox-group label { display: inline-flex; align-items: center; margin-right: 0; margin-bottom: 0; font-size: 15px; padding: 6px 12px; background: rgba(0,0,0,0.04); border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+        .checkbox-group label:hover { background: rgba(0,0,0,0.08); }
+        .checkbox-group input[type=checkbox] { transform: scale(1.2); margin-right: 6px; }
+        
+        .generate-btn {
+            background: var(--btn-generate); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+            color: #fff; border: 1px solid rgba(255,255,255,0.6); padding: 15px; 
+            font-size: 18px; font-weight: bold; border-radius: 12px; cursor: pointer; 
+            width: 100%; margin: 10px 0; display: block; 
+            box-shadow: 0 6px 0 var(--btn-generate-shadow), 0 10px 15px rgba(0,0,0,0.1); 
+            transition: all 0.2s ease; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+        .generate-btn:hover { 
+            background: var(--btn-generate-solid); transform: translateY(-2px); 
+            box-shadow: 0 8px 0 var(--btn-generate-shadow), 0 15px 20px rgba(0,0,0,0.15); 
+        }
+        .generate-btn:active { 
+            transform: translateY(6px); box-shadow: 0 0 0 var(--btn-generate-shadow), 0 4px 6px rgba(0,0,0,0.2); 
+        }
+
+        /* --- 全螢幕預覽與框選介面 --- */
+        /* v2.3.2.71: 框選 modal 背景 改 #DCEBE8 (淡薄荷綠) */
+        #crop-modal {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #DCEBE8; box-shadow: inset 0 0 0 8px #ffffff, 0 0 0 8px #ffffff; border: 8px solid #ffffff; box-sizing: border-box; z-index: 2000; flex-direction: column; overflow: hidden;; z-index: 2000; flex-direction: column; overflow: hidden;
+        }
+        
+        .crop-header-wrapper {
+            width: 100%; display: flex; justify-content: center; padding-top: 20px;
+        }
+        /* v2.3.2.75: 框選 header 灰色 #BCC6C9 → #DCEBE8 (跟 modal 底色一致, 不超過白色邊框) */
+        .crop-header {
+            background: #DCEBE8; color: #2c3e50; padding: 15px 20px; text-align: center; font-size: 16px; font-weight: bold;
+            width: 100%; border-radius: 0; box-shadow: none;
+            box-sizing: border-box;
+        }
+
+        /* v2.3.2.76: 手動框選按鈕 加大 + hover 高亮凸起 */
+        .glass-btn-small {
+            padding: 10px 22px; border: 2px solid rgba(255,255,255,0.8); border-radius: 22px;
+            font-size: 16px; font-weight: bold; color: #333; cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.15); transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); outline: none;
+        }
+        .glass-btn-small:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+            background: #ffd4b2 !important;
+            border-color: #ff9f6b;
+        }
+        .glass-btn-small:active { transform: translateY(0) scale(0.98); }
+        
+        /* v2.3.2.73: 框選 crop-workspace padding 0, 讓 page-container 真正延伸到 #DCEBE8 邊框 */
+        .crop-workspace {
+            flex: 1; overflow-y: auto; padding: 0 0 100px 0; 
+            display: flex; flex-direction: column; align-items: stretch; gap: 20px;
+        }
+        /* v2.3.2.92: 圖片框不超出薄荷綠底色 — 加 margin 8px 內縮 + box-sizing */
+        .page-container {
+            position: relative; width: calc(100% - 16px); max-width: calc(100% - 16px); margin: 0 8px 20px 8px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.1); box-sizing: border-box;
+            border-radius: 0 0 12px 12px; user-select: none;
+        }
+        /* v2.3.2.118: 移除 img 4px 桃色邊框 (造成頁面四角凸/凹不對稱, 改用 page-container box-shadow 區隔) */
+        .page-container img { width: 100% !important; max-width: 100% !important; height: auto !important; display: block; box-sizing: border-box; }
+
+        
+        /* 支援拖曳與四角縮放的藍色框 */
+        .mock-crop-box {
+            position: absolute; border: 3px solid var(--theme-blue); background: rgba(26,130,226,0.15);
+            min-width: 50px; min-height: 30px; cursor: move; box-sizing: border-box;
+        }
+        .mock-crop-box:hover { border-color: #0056b3; background: rgba(0,86,179,0.2); z-index: 5; }
+
+        /* v2.3.2.118: 紅色 X 改到框內右上 (不要凸出) */
+        .delete-box-btn {
+            position: absolute; top: 4px; right: 4px; background: #ff4757; color: white;
+            border-radius: 50%; width: 22px; height: 22px; font-size: 12px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .delete-box-btn:hover { transform: scale(1.15); background: #e84118; }
+
+        /* v2.3.2.118: 完全隱藏 resize handle 圓點 (用戶不要看到 4 個圓點)
+           但 .br 角落保留透明拉柄, hover 時才顯示 */
+        /* v2.3.2.118: 只隱藏 tl/tr/bl, 保留 .resize-handle.br 為可見但透明 (沒圓點, 但可拖曳) */
+        .resize-handle.tl, .resize-handle.tr, .resize-handle.bl { display: none !important; }
+        /* 右下角: 完全透明但可拖曳 — 沒有圓點視覺, 但有 20x20 可點擊區域 */
+        .resize-handle.br {
+            position: absolute; bottom: 0; right: 0; width: 24px; height: 24px;
+            display: block !important; visibility: visible !important;
+            background: transparent; border: none; border-radius: 0;
+            box-shadow: none; cursor: nwse-resize; z-index: 12;
+        }
+        .resize-handle.br:hover { background: rgba(30, 130, 226, 0.2); }
+        .resize-handle.br::after {  /* 視覺提示: 斜線小箭頭, 但只在 hover 時 */
+            content: ''; position: absolute; bottom: 4px; right: 4px;
+            width: 8px; height: 8px;
+            border-right: 2px solid var(--theme-blue);
+            border-bottom: 2px solid var(--theme-blue);
+            opacity: 0; transition: opacity 0.15s;
+        }
+        .resize-handle.br:hover::after { opacity: 0.7; }
+
+        .add-crop-btn {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 36px; height: 36px; background: #007aff; color: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-weight: bold;
+            cursor: pointer; font-size: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: 0.2s; z-index: 5;
+        }
+        .add-crop-btn:hover { transform: translate(-50%, -50%) scale(1.15); }
+        .add-crop-btn.selected { background: #34c759; }
+
+        /* 底部操作按鍵區 */
+        .crop-modal-footer {
+            position: fixed; bottom: 35px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; z-index: 2001;
+        }
+
+        .glass-btn {
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.7); padding: 12px 40px; border-radius: 30px;
+            font-size: 18px; font-weight: bold; color: #333; cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.6);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 2px;
+        }
+        
+        .glass-btn-complete { background: var(--btn-complete-base); }
+        .glass-btn-complete:hover {
+            transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 25px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.8);
+            background: var(--btn-complete-hover);
+        }
+
+        .glass-btn-cancel { background: var(--btn-cancel-base); color: #fff; border-color: rgba(255,255,255,0.3); }
+        .glass-btn-cancel:hover {
+            transform: scale(1.1) translateY(-5px); box-shadow: 0 15px 25px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.5);
+            background: var(--btn-cancel-hover);
+        }
+
+        /* --- 筆記頁與檢視區 --- */
+        .note-slot {
+            display: flex; flex-direction: column; background: #fff; border-radius: 0; box-shadow: none; margin-bottom: 30px; overflow: hidden; border: 1px solid #e0e0e0;
+            break-inside: avoid;
+        }
+        .note-slot-header {
+            background: var(--header-aqua-sky); color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); 
+        }
+        .note-slot-body { display: flex; min-height: 450px; }
+        .note-left {
+            width: 25%; border-right: 2px solid #ddd; padding: 15px; background: #fafafa; box-sizing: border-box; display: flex; flex-direction: column; position: relative;
+        }
+        .note-left h4 { margin: 0 0 15px 0; color: #333; font-size: 16px;}
+        .note-left label { display: block; margin-bottom: 10px; font-size: 15px; color: #555;}
+        
+        .note-right { width: 75%; display: flex; flex-direction: column; }
+        
+        .note-img-area {
+            flex: 1; min-height: 250px; border-bottom: 2px dashed #999; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 15px; background: #fff;
+        }
+        .note-img-area img { width: 100%; height: 100%; max-height: 400px; object-fit: contain; display: block; }
+        
+        .note-grid-area {
+            flex: 1; min-height: 200px; background-color: #fff; background-image: linear-gradient(#e0e0e0 1px, transparent 1px), linear-gradient(90deg, #e0e0e0 1px, transparent 1px); background-size: 25px 25px; padding: 10px 15px; outline: none; overflow-y: auto; font-size: 18px; line-height: 25px; color: #222;
+        }
+        .note-grid-area:empty:before { content: attr(placeholder); color: #aaa; }
+
+        .save-btn-container { text-align: center; margin-bottom: 30px; margin-top: 20px; }
+        /* v2.3.2.93: 儲存筆記按鈕 (#EDFFAD) 字體縮小 26px → 18px */
+        .btn-save {
+            background-color: #EDFFAD; color: #2c3e50; font-size: 18px; font-weight: bold;
+            padding: 14px 50px; border: none; border-radius: 24px; cursor: pointer;
+            box-shadow: 0 5px 0 #b8d97a, 0 8px 14px rgba(0,0,0,0.15);
+            transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1); letter-spacing: 1px;
+        }
+        .btn-save:hover {
+            background-color: #f0ffb8; transform: translateY(-3px);
+            box-shadow: 0 10px 0 #b8d97a, 0 14px 25px rgba(0,0,0,0.25);
+        }
+        .btn-save:active { transform: translateY(7px); box-shadow: 0 0 0 #b8d97a; }
+
+        /* --- 查看錯題筆記頁面選單特效 (恢復版本17的精巧按鈕配置) --- */
+        /* v2.3.2.64: 當日筆記 篩選列 滿版 (拉大 padding, 確保碰到邊框) */
+        .filter-bar {
+            background: rgba(255,255,255,0.9); padding: 15px 25px; border-radius: 12px; margin: 0 0 20px 0; display: flex; gap: 15px; justify-content: flex-start; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;
+        }
+        
+        .filter-select { 
+            padding: 10px 15px; font-size: 15px; border-radius: 20px; border: 2px solid #fff; outline: none; width: 150px; cursor: pointer; background: var(--bg-ice-melt); color: #333; font-weight: bold; transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        #filter-time { background: var(--btn-almost-aqua); color: #333; }
+
+        .filter-select:hover { 
+            transform: scale(1.1) translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.15); border-color: #fff; z-index: 5;
+        }
+        .filter-select:focus, .filter-select:active { 
+            transform: scale(1.15) translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.25); z-index: 10; border-color: var(--theme-blue);
+        }
+
+        .btn-print {
+            margin-left: auto; padding: 10px 25px; background: #a29bfe; border: none; border-radius: 20px; font-size: 15px;
+            font-weight: bold; cursor: pointer; color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: 0.2s;
+        }
+        .btn-print:hover { transform: scale(1.05); box-shadow: 0 6px 10px rgba(0,0,0,0.15); background: #8c82fc; }
+
+        #view-slots-container { display: flex; flex-direction: column; gap: 20px; }
+        
+        .note-action-btns { margin-top: auto; display: flex; gap: 10px; padding-top: 15px; border-top: 1px solid #ddd; }
+        .action-btn-small { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; color: #fff; }
+        /* v2.3.2.109: 刪除按鈕 hover 立體 (跟其他 btn-3d 一致) */
+        .btn-delete-note { background: #ff6b6b !important; color: #fff !important; }
+        .btn-delete-note:hover { transform: translateY(-3px) scale(1.03); background: #ff5252 !important; box-shadow: 0 6px 0 #c44545, 0 10px 18px rgba(255,107,107,0.4); }
+        .btn-delete-note:active { transform: translateY(3px); box-shadow: 0 0 0 #c44545; }
+        /* v2.3.2.96: 編輯按鈕字體加大 */
+        .btn-edit-note { background: #feca57; color: #333; font-size: 16px; font-weight: bold; padding: 8px 16px; }
+        /* v2.3.2.92: 儲存按鈕 (note slot 內) C7M0Y32K0 印刷色 = #EDFFAD */
+        /* v2.3.2.93: 儲存按鈕 (note slot 內) 立體化 + 字體加大 */
+        .btn-save-note {
+            background: #EDFFAD; color: #2c3e50; font-size: 18px; font-weight: bold;
+            padding: 12px 20px;
+            box-shadow: 0 4px 0 #b8d97a, 0 6px 12px rgba(184,217,122,0.3);
+            transition: all 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        .btn-save-note:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #b8d97a, 0 8px 16px rgba(184,217,122,0.4); }
+        .btn-save-note:active { transform: translateY(4px); box-shadow: 0 0 0 #b8d97a; }
+        
+        .placeholder-text { text-align: center; color: #777; margin-top: 50px; font-size: 20px; }
+
+        /* === 列印專用樣式 === */
+        @media print {
+            body { background: #fff; color: #000; }
+            /* v1.6.135.6: 列印只印查看頁, 其他全部隱藏 */
+            .top-navbar, .filter-bar, .save-btn-container, .note-action-btns { display: none !important; }
+            #import-page, #note-page, #data-page, #practice-page { display: none !important; }
+            #view-page { display: block !important; padding: 0; }
+            .app-container { margin: 0; padding: 0; max-width: 100%; width: 100%; }
+            /* v2.3.2.80: 列印 A4 size — 容器 + note-slot 縮放, 右邊不超出 A4 */
+            .app-container, #view-page, #view-slots-container { width: 100% !important; max-width: 180mm !important; margin: 0 auto !important; padding: 0 !important; box-sizing: border-box; }
+            .note-slot { border: 2px solid #ccc; box-shadow: none; margin-bottom: 20px; page-break-inside: avoid; break-inside: avoid; width: 100%; max-width: 100%; box-sizing: border-box; }
+            .note-slot-header { background: #eee !important; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; border-bottom: 2px solid #ccc; text-shadow: none; font-size: 14px; padding: 8px 12px; }
+            .note-slot-body { min-height: auto; display: flex; }
+            .note-left { background: #fff; width: 22%; padding: 8px; box-sizing: border-box; }
+            .note-left h4 { font-size: 13px; margin: 0 0 8px 0; }
+            .note-left label { font-size: 12px; margin-bottom: 6px; }
+            .note-right { width: 78%; display: flex; flex-direction: column; }
+            .note-img-area { min-height: 120px; border-bottom: 1px solid #ccc; padding: 8px; }
+            .note-img-area img { max-height: 220px; max-width: 100%; }
+            .note-grid-area { min-height: 80px; background-image: none !important; padding: 6px 8px; font-size: 14px; line-height: 20px; }
+            /* 整個 note-slot 縮 8%, 確保 A4 內寬容納 */
+            .note-slot { transform: scale(0.92); transform-origin: top left; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="top-navbar">
+    <!-- v2.3.2.99: 移除「錯題資料庫」標題 (使用者名稱已在表頭) -->
+    <div class="nav-brand"></div>
+    <div class="nav-links">
+        <button class="btn-3d btn-import active-nav" id="nav-import" onclick="goToPage('import-page', this)">匯入錯題</button>
+        <button class="btn-3d btn-view" id="nav-view" onclick="goToPage('view-page', this)">查看錯題筆記</button>
+        <button class="btn-3d btn-data" id="nav-data" onclick="goToPage('data-page', this)">錯題數據分析</button>
+        <button class="btn-3d btn-practice" id="nav-practice" onclick="goToPage('practice-page', this)">錯題再練</button>
+    </div>
+    <!-- v2.3.2.99: 隱藏使用者名稱 (張裕章), 已在表頭 -->
+    <div class="nav-right" style="display:none;">
+        <div id="current-user-display" style="color:var(--theme-blue);font-weight:bold;font-size:14px;padding:6px 12px;"></div>
+    </div>
+</div>
+
+<div class="app-container">
+    
+    <!-- 匯入錯題頁面 -->
+    <div id="import-page" class="page active">
+        <!-- v2.3.2.72: 加 id='import-step1' 方便選擇檔案後隱藏 -->
+        <div class="step-container" id="import-step1">
+            <div class="step-title">Step 1：請選擇錯題來源</div>
+            
+            <div class="drop-zone" id="zone-photos" onclick="document.getElementById('source-image-photos').click()">
+                <p>📁 請選擇錯題來源 (支援拖曳或選取多張照片)</p>
+                <input type="file" id="source-image-photos" accept="image/*" multiple onchange="handleFilesForCrop(this.files)">
+            </div>
+
+            <div class="or-divider"><br>或<br><br></div>
+
+            <div class="drop-zone" id="zone-exams" onclick="document.getElementById('source-image-exam').click()">
+                <p>📄 請匯入考卷（支援jpeg或pdf檔）</p>
+                <input type="file" id="source-image-exam" accept="image/jpeg, image/png, application/pdf" multiple onchange="handleFilesForCrop(this.files)">
+            </div>
+        </div>
+
+        <div class="step-container" id="settings-container" style="display: none;">
+            <div class="step-title">Step 2 ~ Step 4：為每個檔案設定詳細資訊 (左右滑動)</div>
+            <div class="slider-container" id="cards-slider"></div>
+            <button class="generate-btn" onclick="generateNote()">生成錯題筆記</button>
+        </div>
+    </div>
+
+    <!-- 編輯生成筆記頁面 -->
+    <div id="note-page" class="page">
+        <div id="note-slots-container"></div>
+        <div class="save-btn-container">
+            <button class="btn-save" onclick="saveNotes()">💾 儲存筆記</button>
+        </div>
+    </div>
+
+    <!-- 查看錯題筆記頁面 -->
+    <div id="view-page" class="page">
+        <div class="filter-bar">
+            <!-- 恢復錯題資料庫 17 的精巧下拉選單配置，並換上您指定的圖示樣式 -->
+            <select class="filter-select" id="filter-time" onchange="renderViewPage()">
+                <option value="all">📁 全部筆記</option>
+                <option value="today" selected>☑️ 當日筆記</option>
+                <option value="week">📅 當週筆記</option>
+            </select>
+            <select class="filter-select" id="filter-subject" onchange="renderViewPage()"><option value="">依科目查看</option></select>
+            <select class="filter-select" id="filter-volume" onchange="renderViewPage()"><option value="">依冊次查看</option></select>
+            <select class="filter-select" id="filter-unit" onchange="renderViewPage()"><option value="">依單元查看</option></select>
+            
+            <button class="btn-print" onclick="window.print()">🖨️ 列印</button>
+        </div>
+        <div id="view-slots-container"></div>
+    </div>
+
+    <div id="data-page" class="page"><div class="placeholder-text">📊 錯題數據分析 - 功能建置中</div></div>
+    <div id="practice-page" class="page"><div class="placeholder-text">✏️ 錯題再練 - 功能建置中</div></div>
+</div>
+
+<!-- 考卷/相片 OCR 全螢幕框選視窗 -->
+<div id="crop-modal">
+    <div class="crop-header-wrapper">
+        <!-- v2.3.2.118: 刪除「手動框選」按鈕, 直接顯示「新增框線」+「Undo」+ 提示 -->
+        <div class="crop-header">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 15px;">
+                <button class="glass-btn-small" style="background:#BEE7E9;" onclick="startManualBox()">➕ 新增框線</button>
+                <button class="glass-btn-small" style="background:#E6CEAC;" onclick="undoManualBox()">↺ Undo</button>
+                <span style="font-size:14px; margin-left:10px; color:#555;" id="manual-tip">請點擊「新增框線」後，在考卷題號左上角點擊一下。</span>
+            </div>
+        </div>
+    </div>
+    <div class="crop-workspace" id="crop-workspace">
+        <!-- 畫面將自動產生於此 -->
+    </div>
+    
+    <!-- 底部置中操作按鍵群 -->
+    <div class="crop-modal-footer">
+        <button class="glass-btn glass-btn-cancel" onclick="cancelCropping()">取消選取</button>
+        <button class="glass-btn glass-btn-complete" onclick="finishCropping()">完成選取</button>
+    </div>
+</div>
+
+<script>
+    // v1.6.132: 從 master data 動態讀 (不再硬編碼)
+    // 1. window.WN_masterData (主專案注入) 2. localStorage StudyMap_Family_Data_V20 fallback
+    // 結構: { 國文: { 複習講義: { 麻辣: ["U1", "U2"] }, ... }, ... }
+    const DEFAULT_SYLLABUS_DB = {
+        "國文": { "其他": { "預設": ["字音", "字形", "字義", "詞語應用"] } }
+    };
+    
+    function getSyllabusDB() {
+        // 1. 先看 window.WN_masterData (主專案注入)
+        if (window.WN_masterData && window.WN_masterData.tree && Object.keys(window.WN_masterData.tree).length > 0) {
+            return window.WN_masterData.tree;
+        }
+        // 2. 自己讀 localStorage (附件與主專案同源)
+        try {
+            var raw = localStorage.getItem('StudyMap_Family_Data_V20');
+            if (raw) {
+                var multiData = JSON.parse(raw);
+                var uid = localStorage.getItem('StudyMap_CurrentUserId_V20');
+                var user = (uid && multiData[uid]) ? multiData[uid] : null;
+                if (!user) {
+                    Object.keys(multiData).forEach(function(k) {
+                        if (!user && multiData[k] && multiData[k].masters) user = multiData[k];
+                    });
+                }
+                if (!user) return DEFAULT_SYLLABUS_DB;
+                var masters = user.masters || {};
+                // v1.6.134: 處理真實 master 結構
+                // masters[cat][subj].materials[typeName].instances[].{name, units[], vols[]}
+                var flat = {};
+                var hasData = false;
+                Object.keys(masters).forEach(function(cat) {
+                    Object.keys(masters[cat] || {}).forEach(function(subj) {
+                        var subData = masters[cat][subj];
+                        if (!subData) return;
+                        if (!flat[subj]) flat[subj] = {};
+                        // v1.6.134: 新結構 — 有 .materials[typeName]
+                        if (subData.materials && typeof subData.materials === 'object') {
+                            Object.keys(subData.materials).forEach(function(typeName) {
+                                var typeObj = subData.materials[typeName];
+                                if (!typeObj || !typeObj.instances) return;
+                                if (!flat[subj][typeName]) flat[subj][typeName] = {};
+                                typeObj.instances.forEach(function(ins) {
+                                    if (!ins) return;
+                                    var instName = ins.name || '(未命名)';
+                                    // 收集 units: 直接 units[] + vols[vol][] 攤平
+                                    var units = [];
+                                    (ins.units || []).forEach(function(u) {
+                                        var label = typeof u === 'string' ? u : (u.name || u.id || '');
+                                        if (label) units.push(label);
+                                    });
+                                    Object.keys(ins.vols || {}).forEach(function(volName) {
+                                        (ins.vols[volName] || []).forEach(function(u) {
+                                            var label = typeof u === 'string' ? u : (u.name || u.id || '');
+                                            if (label) units.push(volName + ' / ' + label);
+                                        });
+                                    });
+                                    flat[subj][typeName][instName] = units;
+                                    hasData = true;
+                                });
+                            });
+                        } else {
+                            // 舊結構 (沒 .materials): 直接 masters[cat][subj][insId]
+                            Object.keys(subData).forEach(function(insId) {
+                                var inst = subData[insId];
+                                var typeName = inst.typeName || '其他';
+                                var instName = inst.instanceName || insId;
+                                if (!flat[subj][typeName]) flat[subj][typeName] = {};
+                                var units = (inst.units || []).map(function(u) {
+                                    return typeof u === 'string' ? u : (u.name || u.id || '');
+                                });
+                                flat[subj][typeName][instName] = units;
+                                hasData = true;
+                            });
+                        }
+                    });
+                });
+                if (hasData) return flat;
+            }
+        } catch(e) {
+            console.error('[v1.6.132 getSyllabusDB] localStorage 解析錯誤:', e);
+        }
+        // 3. fallback
+        console.warn('[v1.6.132 getSyllabusDB] 無 master data, 用 DEFAULT');
+        return DEFAULT_SYLLABUS_DB;
+    }
+    let syllabusDB = getSyllabusDB();
+
+    let currentFilesData = []; 
+    let hasUnsavedNotes = false;
+    let batchCounter = 0; 
+    let isManualAdding = false;
+    let manualBoxes = [];
+
+    // v1.6.135: 從 localStorage 讀當前使用者 (附件跟主專案共用 StudyMap_CurrentUserId_V20)
+    function getCurrentUser() {
+        try {
+            var uid = localStorage.getItem('StudyMap_CurrentUserId_V20');
+            var raw = localStorage.getItem('StudyMap_Family_Data_V20');
+            if (!uid || !raw) return { name: '未登入', emoji: '👤' };
+            var data = JSON.parse(raw);
+            var user = data[uid];
+            if (!user) return { name: '未登入', emoji: '👤' };
+            // v1.6.135.1: avatar 是 base64 image, 不是 emoji; 只在 avatar 不是 base64 時才用
+            var avatarStr = user.avatar || '';
+            var isBase64 = avatarStr.indexOf('data:image') === 0;
+            return {
+                name: user.name || uid,
+                emoji: isBase64 ? '👤' : (avatarStr || user.emoji || '👤')
+            };
+        } catch(e) {
+            console.error('[v1.6.135.1 getCurrentUser]', e);
+            return { name: '未登入', emoji: '👤' };
+        }
+    }
+
+    function refreshUserDisplay() {
+        var user = getCurrentUser();
+        var display = document.getElementById('current-user-display');
+        if (display) display.textContent = user.emoji + ' ' + user.name;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        refreshUserDisplay();
+        var fSubj = document.getElementById('filter-subject');
+        if (fSubj) Object.keys(syllabusDB).forEach(function(sub) {
+            var opt = document.createElement('option');
+            opt.value = sub; opt.textContent = sub;
+            fSubj.appendChild(opt);
+        });
+        setupDragAndDrop();
+    });
+
+    // v2.3.2.84: 徹底重寫 drag-drop — 移除 window 層級 preventDefaults (可能是 freeze 原因)
+    // 改用 document 層級 + drop zone 層級 雙重保護
+    function setupDragAndDrop() {
+        console.log('[v2.3.2.84] setupDragAndDrop 啟動');
+
+        // v2.3.2.85: document 層級 preventDefaults — 永遠 prevent (確保 drop 事件一定觸發)
+        // 原本 v2.3.2.84 只在 import-page active 時 prevent, 但切換中 dragover 會漏掉
+        function docPreventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(function(eventName) {
+            document.addEventListener(eventName, docPreventDefaults, false);
+        });
+
+        // 雙重保護: 在 body 層級也加 drop handler (即使 drop zone 沒接到, 也能 fallback)
+        document.body.addEventListener('drop', function(e) {
+            e.preventDefault();
+            var importPage = document.getElementById('import-page');
+            if (!importPage || !importPage.classList.contains('active')) return;
+            var files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+            if (files.length > 0) {
+                console.log('[body drop] 偵測到 ' + files.length + ' 個檔案');
+                handleFilesForCrop(files);
+            }
+        });
+
+        // drop zone 層級 handler
+        const dropZones = document.querySelectorAll('.drop-zone');
+        console.log('[v2.3.2.86] 找到 ' + dropZones.length + ' 個 drop-zone');
+        dropZones.forEach(function(zone) {
+            zone.addEventListener('dragover', function(e) {
+                try { e.preventDefault(); e.stopPropagation(); zone.classList.add('dragover'); } catch(err) { console.error('[dragover] 錯誤:', err); }
+            });
+            // v2.3.2.85: dragleave 加 relatedTarget 檢查 (避免拖到子元素時誤觸發 dragleave, 導致高亮消失)
+            zone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                if (e.relatedTarget && zone.contains(e.relatedTarget)) return; // 還在 zone 內
+                zone.classList.remove('dragover');
+            });
+            zone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                zone.classList.remove('dragover');
+                var files = e.dataTransfer ? Array.from(e.dataTransfer.files) : [];
+                console.log('[zone drop] 偵測到 ' + files.length + ' 個檔案, 第一個: ' + (files[0] ? files[0].name + ' (' + files[0].type + ', ' + (files[0].size/1024).toFixed(1) + 'KB)' : 'none'));
+                if (files.length > 0) {
+                    handleFilesForCrop(files);
+                } else {
+                    // v2.3.2.84: 顯示提示
+                    alert('⚠️ 沒有偵測到檔案, 請嘗試:\n1. 重新整理頁面 (F5)\n2. 確認瀏覽器版本 (建議 Chrome/Edge)');
+                }
+            });
+        });
+    }
+
+    function goToPage(pageId, navBtn) {
+        if (hasUnsavedNotes && pageId !== 'note-page') {
+            if (!confirm("⚠️ 您還有筆記尚未儲存！確定要離開編輯頁面嗎？（未儲存的內容將會遺失）")) return;
+            hasUnsavedNotes = false; 
+        }
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById(pageId).classList.add('active');
+        if(navBtn) {
+            document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
+            navBtn.classList.add('active-nav');
+        }
+        if(pageId === 'view-page') renderViewPage();
+        // v2.3.2.85: 切到 import-page 時重新 setupDragAndDrop (確保 drop zone listeners 都還在)
+        if(pageId === 'import-page') setupDragAndDrop();
+    }
+
+    // v2.3.2.82: 拖曳圖片到 Step 1 當掉修法 — 加 try-catch + 載入提示 + 同步開 modal
+    async function handleFilesForCrop(files) {
+        try {
+            if(!files || files.length === 0) {
+                console.warn('[handleFilesForCrop] 沒有檔案');
+                return;
+            }
+            
+            const workspace = document.getElementById('crop-workspace');
+            // v2.3.2.95: 不再顯示載入中訊息 (用戶多次要求移除)
+            workspace.innerHTML = ''; 
+            document.getElementById('crop-modal').style.display = 'flex';
+            const _mep = document.getElementById('manual-edit-pad');
+            if (_mep) _mep.style.display = 'none';
+            batchCounter++;
+            manualBoxes = []; 
+            // v2.3.2.72: 隱藏 Step 1, 顯示 settings-container
+            const step1 = document.getElementById('import-step1');
+            if (step1) step1.style.display = 'none';
+            document.getElementById('settings-container').style.display = 'block';
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                console.log('[handleFilesForCrop] 處理檔案:', file.name, file.type, (file.size/1024).toFixed(1) + 'KB');
+                // 跳過不支援的檔案類型
+                if (!file.type) {
+                    console.warn('[handleFilesForCrop] 跳過無類型檔案:', file.name);
+                    continue;
+                }
+                if (file.type === "application/pdf") {
+                    await renderPDF(file, workspace);
+                } else if (file.type.startsWith("image/")) {
+                    await renderImage(file, workspace);
+                } else {
+                    console.warn('[handleFilesForCrop] 跳過不支援類型:', file.type, file.name);
+                }
+            }
+            
+            // 載入完成, 移除載入提示
+            const loadingEl = workspace.querySelector('[data-loading-msg]');
+            if (loadingEl) loadingEl.remove();
+            
+            document.getElementById('source-image-photos').value = ''; 
+            document.getElementById('source-image-exam').value = ''; 
+        } catch(err) {
+            console.error('[handleFilesForCrop] 錯誤:', err);
+            // 確保 modal 開啟且顯示錯誤
+            document.getElementById('crop-modal').style.display = 'flex';
+            const workspace = document.getElementById('crop-workspace');
+            if (workspace) {
+                workspace.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#c00;font-size:16px;">❌ 載入失敗: ' + (err.message || err) + '<br><br>請嘗試其他檔案, 或重新整理頁面</div>';
+            }
+        }
+    }
+
+    // v2.3.2.82: renderPDF 加 try-catch, 單頁失敗跳過, 整本失敗 throw
+    async function renderPDF(file, workspace) {
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+            
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                try {
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({scale: 2.0}); 
+                    
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    canvas.style.width = '100%';
+                    canvas.style.maxWidth = '100%';
+                    canvas.style.height = 'auto';
+                    canvas.style.display = 'block';
+                    canvas.style.border = '4px solid #f0d8cc';
+                    canvas.style.boxSizing = 'border-box';
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    await page.render({canvasContext: ctx, viewport: viewport}).promise;
+                    createPageContainer(canvas, workspace);
+                } catch(pageErr) {
+                    console.warn('[renderPDF] 第 ' + pageNum + ' 頁失敗, 跳過:', pageErr);
+                }
+            }
+        } catch(err) {
+            throw new Error('PDF 載入失敗 (' + file.name + '): ' + err.message);
+        }
+    }
+
+    // v2.3.2.86: renderImage 加 yield + try-catch — 確保大圖/慢圖不卡
+    var _meImageBlobMap = {}; // imgId -> {blobUrl, file} — 儲存時用
+    function renderImage(file, workspace) {
+        return new Promise(function(resolve, reject) {
+            var settled = false;
+            var safeResolve = function() { if (!settled) { settled = true; resolve(); } };
+            var safeReject = function(e) { if (!settled) { settled = true; reject(new Error('圖片處理失敗: ' + (e.message || e))); } };
+            
+            // v2.3.2.86: 加 try-catch, 確保任何錯誤都被捕獲
+            try {
+                if (file.size > 50 * 1024 * 1024) {
+                    console.warn('[renderImage] 大檔警告: ' + file.name + ' (' + (file.size/(1024*1024)).toFixed(1) + 'MB)');
+                }
+                
+                setTimeout(function() {
+                    try {
+                        var timeout = setTimeout(function() { safeReject(new Error('圖片處理超時 (10s)')); }, 10000);
+                        var blobUrl = URL.createObjectURL(file);
+                        var img = document.createElement('img');
+                        img.style.width = '100%';
+                        img.style.display = 'block';
+                        img.onload = function() {
+                            clearTimeout(timeout);
+                            try {
+                                var imgId = '_img_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                                _meImageBlobMap[imgId] = { blobUrl: blobUrl, file: file };
+                                img.dataset.imgBlobId = imgId;
+                                createPageContainer(img, workspace);
+                                safeResolve();
+                            } catch(err) { safeReject(err); }
+                        };
+                        img.onerror = function() {
+                            clearTimeout(timeout);
+                            URL.revokeObjectURL(blobUrl);
+                            safeReject(new Error('圖片載入失敗 (可能是損壞的檔案)'));
+                        };
+                        img.src = blobUrl;
+                    } catch(err) { safeReject(err); }
+                }, 0);
+            } catch(err) { safeReject(err); }
+        });
+    }
+
+    function createPageContainer(mediaEl, workspace) {
+        const container = document.createElement('div');
+        container.className = 'page-container';
+        container.appendChild(mediaEl);
+        
+        container.addEventListener('mousedown', function(e) {
+            if (isManualAdding) {
+                if (e.target === container || e.target === mediaEl) {
+                    e.preventDefault();
+                    createNewManualBox(e.offsetX, e.offsetY, container);
+                    isManualAdding = false;
+                    const tip = document.getElementById('manual-tip');
+                    tip.style.color = '#555';
+                    tip.innerText = '✅ 已成功新增。您可點擊「新增框線」繼續，或直接調整藍色框。';
+                }
+            }
+        });
+        
+        workspace.appendChild(container);
+    }
+
+    function triggerAutoCrop() {
+        document.querySelectorAll('.page-container').forEach(container => {
+            container.querySelectorAll('.mock-crop-box').forEach(b => b.remove());
+            addMockOCRBoxes(container);
+        });
+        const _mep2 = document.getElementById('manual-edit-pad');
+        if (_mep2) _mep2.style.display = 'none';
+        isManualAdding = false;
+    }
+
+    function startManualBox() {
+        isManualAdding = true;
+        const tip = document.getElementById('manual-tip');
+        tip.style.color = '#e74c3c';
+        tip.innerText = '👉 現在請在考卷上的題號左上角「點擊」一下...';
+    }
+
+    function createNewManualBox(x, y, container) {
+        const box = document.createElement('div');
+        box.className = 'mock-crop-box';
+        
+        const rect = container.getBoundingClientRect();
+        const topPerc = (y / rect.height) * 100;
+        const leftPerc = (x / rect.width) * 100;
+        
+        box.style.top = `${topPerc}%`;
+        box.style.left = `${leftPerc}%`;
+        box.style.width = `45%`; 
+        box.style.height = `15%`; 
+        
+        const cropId = 'crop_' + Date.now() + Math.random().toString(36).substr(2, 5);
+        box.dataset.cropId = cropId;
+        
+        box.innerHTML = `
+            <div class="delete-box-btn" onclick="deleteBox(this)">✕</div>
+            <div class="resize-handle tl"></div>
+            <div class="resize-handle tr"></div>
+            <div class="resize-handle bl"></div>
+            <div class="resize-handle br"></div>
+            <div class="add-crop-btn" onclick="toggleCroppedQuestion(this, ${batchCounter})">+</div>
+        `;
+        
+        container.appendChild(box);
+        makeDraggableAndResizable(box);
+        manualBoxes.push(box);
+    }
+
+    function undoManualBox() {
+        if(manualBoxes.length > 0) {
+            const lastBox = manualBoxes.pop();
+            const btn = lastBox.querySelector('.add-crop-btn');
+            if(btn && btn.classList.contains('selected')) {
+                toggleCroppedQuestion(btn, batchCounter);
+            }
+            lastBox.remove();
+            document.getElementById('manual-tip').innerText = '↺ 已取消上一步新增。';
+        }
+    }
+
+    function addMockOCRBoxes(container) {
+        const boxes = [
+            { top: 4, left: 3, width: 45, height: 16 },
+            { top: 22, left: 3, width: 45, height: 16 },
+            { top: 40, left: 3, width: 45, height: 20 },
+            { top: 62, left: 3, width: 45, height: 16 },
+            { top: 80, left: 3, width: 45, height: 16 },
+            { top: 4, left: 51, width: 46, height: 22 },
+            { top: 28, left: 51, width: 46, height: 26 },
+            { top: 56, left: 51, width: 46, height: 22 },
+            { top: 80, left: 51, width: 46, height: 16 }
+        ];
+        
+        boxes.forEach((b) => {
+            const box = document.createElement('div');
+            box.className = 'mock-crop-box';
+            box.style.top = `${b.top}%`;
+            box.style.left = `${b.left}%`;
+            box.style.width = `${b.width}%`;
+            box.style.height = `${b.height}%`;
+            
+            const cropId = 'crop_' + Date.now() + Math.random().toString(36).substr(2, 5);
+            box.dataset.cropId = cropId;
+            
+            box.innerHTML = `
+                <div class="delete-box-btn" onclick="deleteBox(this)">✕</div>
+                <div class="resize-handle tl"></div>
+                <div class="resize-handle br"></div>
+                <div class="add-crop-btn" onclick="toggleCroppedQuestion(this, ${batchCounter})">+</div>
+            `;
+            container.appendChild(box);
+            makeDraggableAndResizable(box);
+        });
+    }
+
+    function makeDraggableAndResizable(box) {
+        let isDragging = false, isResizingTL = false, isResizingTR = false, isResizingBL = false, isResizingBR = false;
+        let startX, startY, startW, startH, startLeft, startTop;
+
+        box.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('add-crop-btn') || e.target.classList.contains('delete-box-btn')) return;
+            
+            startX = e.clientX; startY = e.clientY;
+            startLeft = box.offsetLeft; startTop = box.offsetTop;
+            startW = box.offsetWidth; startH = box.offsetHeight;
+            
+            if (e.target.classList.contains('tl')) {
+                isResizingTL = true;
+            } else if (e.target.classList.contains('tr')) {
+                isResizingTR = true;
+            } else if (e.target.classList.contains('bl')) {
+                isResizingBL = true;
+            } else if (e.target.classList.contains('br')) {
+                isResizingBR = true;
+            } else {
+                isDragging = true;
+            }
+            e.stopPropagation();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging && !isResizingTL && !isResizingBR) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+
+            if (isDragging) {
+                box.style.left = `${startLeft + dx}px`;
+                box.style.top = `${startTop + dy}px`;
+            } else if (isResizingBR) {
+                box.style.width = `${startW + dx}px`;
+                box.style.height = `${startH + dy}px`;
+            } else if (isResizingTL) {
+                box.style.left = `${startLeft + dx}px`;
+                box.style.top = `${startTop + dy}px`;
+                box.style.width = `${startW - dx}px`;
+                box.style.height = `${startH - dy}px`;
+            }
+        });
+
+        document.addEventListener('mouseup', () => { 
+            isDragging = false; isResizingTL = false; isResizingBR = false; 
+        });
+    }
+
+    function deleteBox(btn) {
+        const box = btn.parentElement;
+        const addBtn = box.querySelector('.add-crop-btn');
+        if (addBtn.classList.contains('selected')) {
+            toggleCroppedQuestion(addBtn, batchCounter); 
+        }
+        box.remove();
+    }
+
+    function toggleCroppedQuestion(btn, batchId) {
+        const box = btn.parentElement;
+        const cropId = box.dataset.cropId;
+
+        if (btn.classList.contains('selected')) {
+            btn.classList.remove('selected');
+            btn.innerText = '+';
+            
+            const slider = document.getElementById('cards-slider');
+            const card = slider.querySelector(`.file-card[data-crop-id="${cropId}"]`);
+            if (card) {
+                removeCard(card.querySelector('.delete-card-btn'));
+            }
+        } else {
+            btn.classList.add('selected');
+            btn.innerText = '✓';
+
+            const container = box.parentElement;
+            const mediaEl = container.querySelector('img, canvas');
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            let intrinsicWidth = mediaEl.tagName === 'IMG' ? mediaEl.naturalWidth : mediaEl.width;
+            let intrinsicHeight = mediaEl.tagName === 'IMG' ? mediaEl.naturalHeight : mediaEl.height;
+
+            const scaleX = intrinsicWidth / mediaEl.offsetWidth;
+            const scaleY = intrinsicHeight / mediaEl.offsetHeight;
+
+            const sx = box.offsetLeft * scaleX;
+            const sy = box.offsetTop * scaleY;
+            const sWidth = box.offsetWidth * scaleX;
+            const sHeight = box.offsetHeight * scaleY;
+
+            canvas.width = sWidth; canvas.height = sHeight;
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, sWidth, sHeight);
+            ctx.drawImage(mediaEl, sx, sy, sWidth, sHeight, 0, 0, sWidth, sHeight);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            const cardIndex = currentFilesData.length;
+            // v2.3.2.97: 同時存 blobId (如果原圖是 img 不是 canvas, 才有 blobId)
+            var blobId = (mediaEl.tagName === 'IMG') ? (mediaEl.dataset.imgBlobId || '') : '';
+            currentFilesData.push({ imgUrl: dataUrl, batchId: batchId, cropId: cropId, blobId: blobId });
+
+            const slider = document.getElementById('cards-slider');
+            document.getElementById('settings-container').style.display = 'block';
+            document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            const newCard = createSettingCard(dataUrl, cardIndex, batchId, cropId, blobId);
+            slider.appendChild(newCard);
+            
+            handleCardSubjectChange(newCard.querySelector('.subj-sel'), false);
+        }
+    }
+
+    function finishCropping() {
+        // v1.6.135: 檢查 cards-slider 內這 batch 是否有卡片
+        const batchCards = document.querySelectorAll('.file-card[data-batch-id="' + batchCounter + '"]');
+        if (batchCards.length === 0) {
+            alert('⚠️ 尚未完成錯題選擇!\n請按「+」按鈕將框選的題目加入清單。');
+            return;
+        }
+        document.getElementById('crop-modal').style.display = 'none';
+        if(document.getElementById('settings-container').style.display === 'block') {
+            document.getElementById('settings-container').scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    function cancelCropping() {
+        document.getElementById('crop-modal').style.display = 'none';
+        document.getElementById('crop-workspace').innerHTML = '';
+        
+        const slider = document.getElementById('cards-slider');
+        const cards = slider.querySelectorAll(`.file-card[data-batch-id="${batchCounter}"]`);
+        cards.forEach(card => card.remove());
+        
+        currentFilesData = currentFilesData.filter(item => item.batchId !== batchCounter);
+        
+        if (slider.children.length === 0) {
+            document.getElementById('settings-container').style.display = 'none';
+        }
+    }
+
+    function createSettingCard(imgUrl, index, batchId, cropId, blobId) {
+        const div = document.createElement('div');
+        div.className = 'file-card';
+        div.dataset.index = index;
+        div.dataset.batchId = batchId;
+        if(cropId) div.dataset.cropId = cropId;
+        // v2.3.2.97: 存 blobId 供 saveNotes 找原始 File
+        if(blobId) div.dataset.blobId = blobId;
+        
+        let subjOptions = '<option value="">請選擇科目</option>';
+        Object.keys(getSyllabusDB()).forEach(sub => subjOptions += `<option value="${sub}">${sub}</option>`);
+
+        div.innerHTML = `
+            <button class="delete-card-btn" onclick="removeCard(this)" title="移除此檔案">✕</button>
+            <img src="${imgUrl}" ${blobId ? 'data-imgid="' + blobId + '"' : ''}>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 1：錯題來源</div>
+            <select class="source-sel" onchange="toggleCardSource(this)">
+                <option value="">請選擇來源</option>
+                <option value="複習卷">📘 複習卷</option>
+                <option value="數字題本">🔢 數字題本</option>
+                <option value="模擬題本">📝 模擬題本</option>
+                <option value="歷屆模考">📚 歷屆模考</option>
+                <option value="115模考-一模">📊 115模考-一模</option>
+                <option value="115模考-二模">📊 115模考-二模</option>
+                <option value="115模考-三模">📊 115模考-三模</option>
+                <option value="115模考-四模">📊 115模考-四模</option>
+            </select>
+            <input type="text" class="custom-source" placeholder="或自填來源..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;display:none;">
+
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;margin-top:10px;">Step 2：科目</div>
+            <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
+
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：單元</div>
+            <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇科目</option></select>
+
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯誤原因 (可複選 + 其他自填)</div>
+            <div class="checkbox-group reasons-group">
+                <label><input type="checkbox" value="粗心"> 粗心</label>
+                <label><input type="checkbox" value="觀念不清"> 觀念不清</label>
+                <label><input type="checkbox" value="計算錯誤"> 計算錯誤</label>
+                <label><input type="checkbox" value="跨科/時事"> 跨科/時事</label>
+                <!-- v2.3.2.71: 勾選其他 顯示自填輸入框 -->
+                <label><input type="checkbox" value="其他" onchange="toggleCustomReason(this)"> 其他</label>
+            </div>
+            <input type="text" class="custom-reason" placeholder="或自填其他原因..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
+        `;
+        return div;
+    }
+
+    function removeCard(btn) {
+        const card = btn.closest('.file-card');
+        const cropId = card.dataset.cropId;
+        card.remove();
+        
+        const box = document.querySelector(`.mock-crop-box[data-crop-id="${cropId}"]`);
+        if (box) {
+            const addBtn = box.querySelector('.add-crop-btn');
+            if(addBtn) {
+                addBtn.classList.remove('selected');
+                addBtn.innerText = '+';
+            }
+        }
+
+        const slider = document.getElementById('cards-slider');
+        if (slider.children.length === 0) {
+            document.getElementById('settings-container').style.display = 'none';
+        }
+    }
+
+    // v2.3.2.67: 修 syllabus 結構 — getSyllabusDB() return {subj: {typeName: {instName: [units]}}}
+    //   直接從 data['複習講義'] 抓所有 instance 的所有 units
+    function handleCardSubjectChange(selectEl, isSync = false) {
+        const card = selectEl.closest('.file-card');
+        const subject = selectEl.value;
+        const unitSelect = card.querySelector('.unit-sel');
+        const data = getSyllabusDB()[subject];
+
+        unitSelect.innerHTML = '<option value="">請選擇單元</option>';
+        unitSelect.disabled = true;
+
+        if (data) {
+            // 收集 '複習講義' 下所有 instName 的所有 units
+                        const allUnits = new Set();
+            // v2.3.2.109: 保留 vol 前綴 (例: '第五冊 / 貨幣與勞動'), 同 vol 同名去重, 按冊次排序
+            Object.keys(data).forEach(function(typeName) {
+                if (typeName !== '複習講義') return;
+                const typeObj = data[typeName];
+                if (typeof typeObj !== 'object') return;
+                Object.keys(typeObj).forEach(function(instName) {
+                    const units = typeObj[instName];
+                    if (Array.isArray(units)) {
+                        units.forEach(function(u) {
+                            // u 可能是 '第五冊 / 貨幣與勞動' 或純 '貨幣與勞動'
+                            // 保留 vol 前綴, Set 去重 (同 vol 同名只留一個)
+                            const fullName = String(u).trim();
+                            if (fullName && !allUnits.has(fullName)) {
+                                allUnits.add(fullName);
+                            }
+                        });
+                    }
+                });
+            });
+            if (allUnits.size > 0) {
+                // v2.3.2.109: 排序: 冊次先後, 然後按字母
+                Array.from(allUnits).sort(function(a, b) {
+                    const volA = (a.match(/^第([一二三四五六七八九十]+)冊/) || [])[1] || '';
+                    const volB = (b.match(/^第([一二三四五六七八九十]+)冊/) || [])[1] || '';
+                    if (volA && volB) {
+                        const cnToNum = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
+                        const na = cnToNum[volA] || 99;
+                        const nb = cnToNum[volB] || 99;
+                        if (na !== nb) return na - nb;
+                    }
+                    return a.localeCompare(b);
+                }).forEach(function(name) {
+                    unitSelect.add(new Option(name, name));
+                });
+                unitSelect.disabled = false;
+            } else {
+                unitSelect.innerHTML = '<option value="">此科目無複習講義單元</option>';
+            }
+        } else {
+            unitSelect.innerHTML = '<option value="">請先選擇科目</option>';
+        }
+
+        if (isSync) {
+            const batchId = card.dataset.batchId;
+            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
+                if (otherCard !== card) {
+                    const otherSubjSel = otherCard.querySelector('.subj-sel');
+                    otherSubjSel.value = subject;
+                    handleCardSubjectChange(otherSubjSel, false);
+                }
+            });
+        }
+    }
+
+    function handleCardUnitChange(unitSelect, isSync = false) {
+        if (isSync) {
+            const card = unitSelect.closest('.file-card');
+            const unitVal = unitSelect.value;
+            const batchId = card.dataset.batchId;
+            document.querySelectorAll(`.file-card[data-batch-id="${batchId}"]`).forEach(otherCard => {
+                if (otherCard !== card) {
+                    otherCard.querySelector('.unit-sel').value = unitVal;
+                }
+            });
+        }
+    }
+
+    function toggleCardSource(selectEl) {
+        const input = selectEl.closest('.file-card').querySelector('.custom-source');
+        input.style.display = selectEl.value === '其他' ? 'block' : 'none';
+    }
+    // v2.3.2.71: 勾選「其他」checkbox 切換自填輸入框顯示
+    function toggleCustomReason(cb) {
+        const card = cb.closest('.file-card');
+        const customInput = card.querySelector('.custom-reason');
+        if (customInput) {
+            customInput.style.display = cb.checked ? 'block' : 'none';
+            if (cb.checked) setTimeout(() => customInput.focus(), 100);
+        }
+    }
+
+    function generateNote() {
+        const cards = document.querySelectorAll('.file-card');
+        if(cards.length === 0) return alert("請先選擇或匯入錯題！");
+
+        const container = document.getElementById('note-slots-container');
+        container.innerHTML = '';
+
+        // v2.3.2.71: 切換到 note-page (讓 Step 1 + 2 自動隱藏)
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('note-page').classList.add('active');
+        document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
+        const noteNav = document.querySelector('.top-navbar .btn-3d[onclick*="note-page"]');
+        if (noteNav) noteNav.classList.add('active-nav');
+
+        const today = new Date();
+        const dateStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
+
+        cards.forEach(card => {
+            const imgUrl = card.querySelector('img').src;
+            // v2.3.2.65: 跳過 教材類型 + 教材名稱
+            const subj = card.querySelector('.subj-sel').value || '未分類';
+            const unit = card.querySelector('.unit-sel').value || '';
+            // v2.3.2.109: 讀錯題來源 (Step 1 dropdown + custom-source)
+            let source = card.querySelector('.source-sel') ? card.querySelector('.source-sel').value : '';
+            const cs = card.querySelector('.custom-source');
+            if (cs && cs.style.display !== 'none' && cs.value) source = cs.value;
+            
+            const checkboxes = card.querySelectorAll('.reasons-group input:checked');
+            const reasons = Array.from(checkboxes).map(cb => cb.value);
+            // v2.3.2.71: 「其他」checkbox 不算進 reasons, 用自填輸入框內容
+            const otherIdx = reasons.indexOf('其他');
+            if (otherIdx >= 0) reasons.splice(otherIdx, 1);
+            const customReason = (card.querySelector('.custom-reason') || {}).value || '';
+            if (customReason) reasons.push(customReason);
+
+            const slot = document.createElement('div');
+            slot.className = 'note-slot editable-slot';
+            slot.dataset.date = dateStr;
+            slot.dataset.subject = subj;
+            // v2.3.2.72: 移除 typeName/instName (v2.3.2.65 跳過教材類型+教材名稱後, 這兩變數已不存在 → ReferenceError)
+            slot.dataset.unit = unit;
+            slot.dataset.source = source || '';   // v2.3.2.109: 寫入 source
+            slot.dataset.reasons = JSON.stringify(reasons);
+
+            let reasonHtml = ``;
+            // v2.3.2.72: 動態渲染所有勾選的 reasons
+            reasons.forEach(r => {
+                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" checked> ${r}</label>`;
+            });
+
+            slot.innerHTML = `
+                <div class="note-slot-header" style="background:var(--header-aqua-sky);">
+                    <span>📅 ${dateStr}</span>
+                    <span>📖 ${subj} / ${unit}</span>
+                </div>
+                <div class="note-slot-body">
+                    <div class="note-left">
+                        <h4>■ 錯誤原因分析</h4>
+                        ${reasonHtml}
+                        <div class="note-action-btns">
+                            <button class="action-btn-small btn-edit-note" onclick="enableDraftEdit(this)">✏️ 編輯</button>
+                            <button class="action-btn-small btn-save-note" style="display:none;" onclick="saveDraftEdit(this)">💾 儲存</button>
+                        </div>
+                    </div>
+                    <div class="note-right">
+                        <div class="note-img-area"><img src="${imgUrl}"></div>
+                        <div class="note-grid-area" contenteditable="false" placeholder="點擊編輯輸入筆記內容..."></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(slot);
+        });
+
+        hasUnsavedNotes = true;
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.getElementById('note-page').classList.add('active');
+        document.querySelectorAll('.top-navbar .btn-3d').forEach(b => b.classList.remove('active-nav'));
+    }
+
+    function enableDraftEdit(btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'true');
+        gridArea.focus();
+        
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        cbs.forEach(cb => cb.removeAttribute('disabled'));
+
+        btn.style.display = 'none';
+        btn.nextElementSibling.style.display = 'block';
+    }
+
+    function saveDraftEdit(btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'false');
+
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
+        cbs.forEach(cb => cb.setAttribute('disabled', 'true'));
+
+        const slot = btn.closest('.editable-slot');
+        slot.dataset.reasons = JSON.stringify(newReasons);
+
+        btn.style.display = 'none';
+        btn.previousElementSibling.style.display = 'block';
+    }
+
+    // v2.3.2.81: IndexedDB 存圖片 (一勞永逸解決 localStorage 5MB quota 問題)
+    var _wnImgDB = null;
+    function _wnOpenImgDB() {
+        if (_wnImgDB) return Promise.resolve(_wnImgDB);
+        return new Promise(function(resolve, reject) {
+            var req = indexedDB.open('wrongNoteImgDB', 1);
+            req.onupgradeneeded = function(e) {
+                var db = e.target.result;
+                if (!db.objectStoreNames.contains('images')) {
+                    var s = db.createObjectStore('images', { keyPath: 'id' });
+                    s.createIndex('createdAt', 'createdAt', { unique: false });
+                }
+            };
+            req.onsuccess = function(e) { _wnImgDB = e.target.result; resolve(_wnImgDB); };
+            req.onerror = function(e) { reject(e.target.error); };
+        });
+    }
+    // v2.3.2.83: 支援 Blob (從 File 或 fetch 得到) — IDB 存 Blob 比 base64 data URL 省 33% 空間
+    function _wnSaveImage(blobOrDataUrl) {
+        return _wnOpenImgDB().then(function(db) {
+            return new Promise(function(res, rej) {
+                var rec = { id: 'wnimg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6), data: blobOrDataUrl, createdAt: new Date().toISOString() };
+                var tx = db.transaction(['images'], 'readwrite');
+                tx.objectStore('images').put(rec);
+                tx.oncomplete = function() { res(rec.id); };
+                tx.onerror = function() { rej(); };
+            });
+        });
+    }
+    // v2.3.2.83: 從 IDB 讀 Blob, 回傳 object URL (比 data URL 省 33% 空間, 顯示也更快)
+    function _wnGetImage(imgId) {
+        if (!imgId) return Promise.resolve('');
+        return _wnOpenImgDB().then(function(db) {
+            return new Promise(function(res, rej) {
+                var tx = db.transaction(['images'], 'readonly');
+                var req = tx.objectStore('images').get(imgId);
+                req.onsuccess = function() {
+                    if (!req.result) { res(''); return; }
+                    var data = req.result.data;
+                    if (data instanceof Blob) {
+                        res(URL.createObjectURL(data));
+                    } else {
+                        // 向後相容: 如果是 data URL 字串, 直接回傳
+                        res(data);
+                    }
+                };
+                req.onerror = function() { rej(); };
+            });
+        });
+    }
+
+    // v2.3.2.81: 改用 IDB 存圖片, 不再受 localStorage 5MB 限制
+    function saveNotes() {
+        const slots = document.querySelectorAll('.editable-slot');
+        let savedNotes = [];
+        try { savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]'); }
+        catch(e) { console.error('[v2.3.2.81 saveNotes] parse 失敗:', e); savedNotes = []; }
+
+        // v2.3.2.98: 雙重查找 — 優先 blobId 找原始 File, fallback 用 data URL 轉 Blob
+        var imageUploadPromises = [];
+        slots.forEach(function(slot) {
+            var blobId = slot.dataset.blobId || '';
+            var imgEl = slot.querySelector('img');
+            var imgSrc = imgEl ? imgEl.src : '';
+            var blobInfo = blobId ? _meImageBlobMap[blobId] : null;
+            
+            if (blobInfo && blobInfo.file) {
+                // 優先路徑: v2.3.2.83 引入的 blob 儲存
+                imageUploadPromises.push(
+                    _wnSaveImage(blobInfo.file).then(function(imgId) {
+                        slot.dataset._uploadedImgId = imgId;
+                    }).catch(function(err) {
+                        console.error('[saveNotes] blob 上傳失敗, fallback data URL:', err);
+                        slot.dataset._uploadedImgId = '';
+                    })
+                );
+            } else if (imgSrc && imgSrc.startsWith('data:')) {
+                // v2.3.2.98: fallback 路徑 — img.src 是 data URL (e.g. PDF 截圖, 或 blobId 丟失)
+                // 把 data URL 轉成 Blob, 存到 IDB
+                try {
+                    var blobFromDataUrl;
+                    if (imgSrc.startsWith('data:')) {
+                        var byteString = atob(imgSrc.split(',')[1]);
+                        var mimeMatch = imgSrc.match(/data:([^;]+)/);
+                        var mimeStr = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+                        var ab = new ArrayBuffer(byteString.length);
+                        var ia = new Uint8Array(ab);
+                        for (var i = 0; i < byteString.length; i++) {
+                            ia[i] = byteString.charCodeAt(i);
+                        }
+                        blobFromDataUrl = new Blob([ab], { type: mimeStr });
+                        imageUploadPromises.push(
+                            _wnSaveImage(blobFromDataUrl).then(function(imgId) {
+                                slot.dataset._uploadedImgId = imgId;
+                            }).catch(function(err) {
+                                console.error('[saveNotes] data URL 上傳失敗:', err);
+                                slot.dataset._uploadedImgId = '';
+                            })
+                        );
+                    } else {
+                        slot.dataset._uploadedImgId = '';
+                    }
+                } catch(e) {
+                    console.error('[saveNotes] data URL 解析失敗:', e);
+                    slot.dataset._uploadedImgId = '';
+                }
+            } else {
+                slot.dataset._uploadedImgId = '';
+            }
+        });
+
+        Promise.all(imageUploadPromises).then(function() {
+            slots.forEach(function(slot) {
+                savedNotes.unshift({
+                    date: slot.dataset.date,
+                    timestamp: Date.now() + Math.random(),
+                    subject: slot.dataset.subject,
+                    typeName: slot.dataset.typeName,
+                    instanceName: slot.dataset.instanceName,
+                    unit: slot.dataset.unit,
+                    source: slot.dataset.source,
+                    reasons: JSON.parse(slot.dataset.reasons || '[]'),
+                    imageId: slot.dataset._uploadedImgId || '',
+                    content: slot.querySelector('.note-grid-area') ? slot.querySelector('.note-grid-area').innerHTML : ''
+                });
+            });
+
+            try {
+                localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
+                _onSaveSuccess();
+            } catch(e) {
+                if (e.name === 'QuotaExceededError' || /quota/i.test(e.message)) {
+                    var trimCount = Math.max(1, Math.floor(savedNotes.length / 3));
+                    var newNotesCount = slots.length;
+                    var keepCount = Math.max(newNotesCount, savedNotes.length - trimCount);
+                    savedNotes = savedNotes.slice(0, keepCount);
+                    try {
+                        localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
+                        alert('⚠️ localStorage 已滿, 已自動刪除 ' + (savedNotes.length === newNotesCount ? 0 : Math.max(0, keepCount - newNotesCount)) + ' 筆舊筆記 (保留 ' + newNotesCount + ' 筆新加)');
+                        _onSaveSuccess();
+                    } catch(e2) {
+                        alert('❌ 儲存失敗 (即使刪除舊的仍超過 quota): ' + e2.message);
+                    }
+                } else {
+                    alert('❌ 儲存失敗:' + e.message);
+                }
+            }
+        });
+    }
+
+    // v2.3.2.99: 刪除筆記 (依 timestamp)
+    function deleteNoteByTimestamp(timestamp) {
+        if (!confirm('確定要刪除這篇筆記嗎?')) return;
+        try {
+            var notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+            var imgIdToDelete = null;
+            var newNotes = notes.filter(function(n) {
+                if (String(n.timestamp) === String(timestamp)) {
+                    if (n.imageId) imgIdToDelete = n.imageId;
+                    return false; // 過濾掉
+                }
+                return true;
+            });
+            localStorage.setItem('myStudyNotes', JSON.stringify(newNotes));
+            // 同步刪除 IDB 圖片
+            if (imgIdToDelete) {
+                _wnOpenImgDB().then(function(db) {
+                    var tx = db.transaction(['images'], 'readwrite');
+                    tx.objectStore('images').delete(imgIdToDelete);
+                }).catch(function() {});
+            }
+            renderViewPage(); // 重 render
+        } catch(e) {
+            alert('❌ 刪除失敗: ' + e.message);
+        }
+    }
+
+    function _onSaveSuccess() {
+        hasUnsavedNotes = false;
+        alert('✅ 筆記已成功儲存!\n\n圖片已存到 IndexedDB, 不受 localStorage 5MB 限制');
+        try {
+            document.getElementById('cards-slider').innerHTML = '';
+            document.getElementById('settings-container').style.display = 'none';
+            currentFilesData = [];
+            goToPage('view-page', document.getElementById('nav-view'));
+        } catch(e) {
+            console.error('[v2.3.2.81 saveNotes] UI reset 失敗:', e);
+            if (confirm('筆記已儲存,但頁面跳轉失敗,要手動切到「查看錯題筆記」嗎?')) {
+                window.location.reload();
+            }
+        }
+    }
+
+    function renderViewPage() {
+        const container = document.getElementById('view-slots-container');
+        container.innerHTML = '';
+        
+        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        if (notes.length === 0) {
+            container.innerHTML = `<h3 class="placeholder-text">目前尚無儲存的錯題筆記喔！</h3>`;
+            return;
+        }
+
+        const timeFilter = document.getElementById('filter-time').value;
+        const subjFilter = document.getElementById('filter-subject').value;
+        const volFilter = document.getElementById('filter-volume').value;
+        const unitFilter = document.getElementById('filter-unit').value;
+
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}/${(today.getMonth()+1).toString().padStart(2,'0')}/${today.getDate().toString().padStart(2,'0')}`;
+        const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        let filteredNotes = notes.filter(n => {
+            const [year, month, day] = n.date.split('/').map(Number);
+            const nD = new Date(year, month - 1, day);
+            const diffTime = todayDate - nD;
+            const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+            
+            let timeMatch = true;
+            if (timeFilter === 'today') {
+                timeMatch = (n.date === todayStr);
+            } else if (timeFilter === 'week') {
+                timeMatch = (diffDays >= 0 && diffDays <= 7);
+            } else if (timeFilter === 'all') {
+                timeMatch = true;
+            }
+
+            const subjMatch = subjFilter ? n.subject === subjFilter : true;
+            const volMatch = volFilter ? n.volume === volFilter : true;
+            const unitMatch = unitFilter ? n.unit === unitFilter : true;
+
+            return timeMatch && subjMatch && volMatch && unitMatch;
+        });
+
+        if (subjFilter) {
+            const rawSubjNotes = notes.filter(n => n.subject === subjFilter);
+            populateFilterOptions('volume', rawSubjNotes.map(n=>n.volume));
+            if (volFilter) {
+                const rawVolNotes = rawSubjNotes.filter(n => n.volume === volFilter);
+                populateFilterOptions('unit', rawVolNotes.map(n=>n.unit));
+            } else {
+                populateFilterOptions('unit', rawSubjNotes.map(n=>n.unit));
+            }
+        }
+
+        if (filteredNotes.length === 0) {
+            container.innerHTML = `<h3 class="placeholder-text">查無符合條件的筆記。</h3>`;
+            return;
+        }
+
+        filteredNotes.forEach(note => {
+            const slot = document.createElement('div');
+            slot.className = 'note-slot';
+            
+            let reasonHtml = ``;
+            ['觀念模糊', '題目陷阱', '粗心'].forEach(r => {
+                const isChecked = note.reasons.includes(r) ? 'checked' : '';
+                reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" ${isChecked}> ${r}</label>`;
+            });
+
+            const volStr = note.volume ? `[${note.volume}]` : '';
+
+            slot.innerHTML = `
+                <div class="note-slot-header" style="background:var(--header-aqua-sky);">
+                    <span>📅 ${note.date}</span>
+                    <span>📖 ${note.subject} ${volStr} ${note.unit}</span>
+                    <span>🏷️ ${note.source || '未分類'}</span>
+                    <!-- v2.3.2.99: 右上角加刪除按鈕 -->
+                    <button class="btn-3d btn-delete-note" onclick="deleteNoteByTimestamp('${note.timestamp}')" style="margin-left:auto;background:#ff6b6b;color:#fff;font-size:15px;font-weight:bold;padding:10px 22px;">🗑️ 刪除</button>
+                </div>
+                <div class="note-slot-body">
+                    <div class="note-left">
+                        <h4>■ 錯誤原因分析</h4>
+                        ${reasonHtml}
+                        <div class="note-action-btns">
+                            <button class="action-btn-small btn-edit-note" onclick="enableViewEdit('${note.timestamp}', this)">✏️ 編輯</button>
+                            <button class="action-btn-small btn-save-note" style="display:none;" onclick="saveViewEdit('${note.timestamp}', this)">💾 儲存</button>
+                        </div>
+                    </div>
+                    <div class="note-right">
+                        <div class="note-img-area"><img src="" data-imgid="${note.imageId || ''}" onerror="this.style.display='none'"></div>
+                        <div class="note-grid-area" contenteditable="false">${note.content}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(slot);
+        });
+        // v2.3.2.93: 批次從 IDB 讀 imageId (含舊版 data URL 向後相容)
+        var imgSlots = container.querySelectorAll('img[data-imgid]');
+        imgSlots.forEach(function(imgEl) {
+            var imgId = imgEl.getAttribute('data-imgid');
+            if (imgId) {
+                _wnGetImage(imgId).then(function(dataUrl) {
+                    if (dataUrl) {
+                        imgEl.src = dataUrl;
+                        imgEl.onload = function() { imgEl.style.display = ''; };
+                    }
+                }).catch(function(err) {
+                    console.warn('[renderViewPage] imageId ' + imgId + ' 載入失敗:', err);
+                });
+            }
+        });
+    }
+
+    function populateFilterOptions(selectId, dataArray) {
+        const select = document.getElementById(`filter-${selectId}`);
+        const currentVal = select.value;
+        const uniqueValues = [...new Set(dataArray.filter(v => v))]; 
+        
+        select.innerHTML = `<option value="">依${selectId==='volume'?'冊次':'單元'}查看</option>`;
+        uniqueValues.forEach(v => select.add(new Option(v, v)));
+        if(uniqueValues.includes(currentVal)) select.value = currentVal;
+    }
+
+    function enableViewEdit(timestamp, btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'true');
+        gridArea.focus();
+        
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        cbs.forEach(cb => cb.removeAttribute('disabled'));
+
+        btn.style.display = 'none';
+        btn.nextElementSibling.style.display = 'block';
+    }
+
+    function saveViewEdit(timestamp, btn) {
+        const slotBody = btn.closest('.note-slot-body');
+        const gridArea = slotBody.querySelector('.note-grid-area');
+        gridArea.setAttribute('contenteditable', 'false');
+
+        const cbs = slotBody.querySelectorAll('.view-reason-cb');
+        const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
+        cbs.forEach(cb => cb.setAttribute('disabled', 'true'));
+
+        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        const noteIndex = notes.findIndex(n => String(n.timestamp) === String(timestamp));
+        if (noteIndex > -1) {
+            notes[noteIndex].content = gridArea.innerHTML;
+            notes[noteIndex].reasons = newReasons;
+            localStorage.setItem('myStudyNotes', JSON.stringify(notes));
+            alert("筆記更新成功！");
+        }
+
+        btn.style.display = 'none';
+        btn.previousElementSibling.style.display = 'block';
+    }
+
+</script>
+</body>
+</html>
