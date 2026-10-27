@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.141]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.142]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1794,6 +1794,11 @@
                         <div class="setting-controls" style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">
                             <button type="button" class="btn-danger" onclick="resetCurrentMaster()">🧹 清空「本學生」此分類的教材庫</button>
                             <span style="font-size:12px; color:#666; margin-left:8px;">（只影響目前學生；有計畫時會警告）</span>
+                        </div>
+                        <!-- v2.3.2.142: 最終手段 — 完整重置本學生 (教材庫 + 計畫 + 紀錄) -->
+                        <div class="setting-controls" style="margin-top:8px;">
+                            <button type="button" class="btn-danger" onclick="resetAllUserData(currentUserId)">💣 完整重置「本學生」所有資料</button>
+                            <span style="font-size:12px; color:#666; margin-left:8px;">（回到「剛建立新學生」的狀態；會二次確認）</span>
                         </div>
                     </div>
 
@@ -4975,6 +4980,10 @@ loadBoardHeader();
             // v2.3.2.139: ★ 用「唯一真實來源」同步取代手動重建
             //   (會再做一次擁有者檢查 + 從 appMaster 重建三層下拉)
             _v139SyncMasterUI('switchUser');
+
+            // v2.3.2.142: ★★ 完整重繪 (修「切換使用者要 refresh 才生效」)
+            //   switchUser() 從來沒有叫任何 render 函式 → 畫面一直是舊使用者的。
+            _v142RerenderAfterUserSwitch();
         }
 
         // v2.3.2.139: ★★ 教材庫「擁有者守門員」
@@ -6257,6 +6266,301 @@ loadBoardHeader();
         }
 
         // v2.3.2.141: 唯讀診斷 — 跨使用者共用 unit
+        // v2.3.2.142: ★★ 切換使用者後「完整重繪」
+        //   症狀: 切換使用者後, 月曆 / 統計 / 教材庫 都要按 F5 才會更新。
+        //   原因: switchUser() 只換了 appPlans / appLogs / appMissions / appMaster
+        //         這幾個「資料來源」, 從來沒有叫任何 render 函式重畫畫面。
+        //         updateFilters() 只重建篩選下拉, 畫面本身還是舊使用者的。
+        //   修法: 換完資料後把「所有會畫出使用者資料的畫面」重畫一次。
+        function _v142RerenderAfterUserSwitch() {
+            var list = [
+                ['updateFilters', 'function'],
+                ['renderCalendar', 'function'],
+                ['renderDashboard', 'function'],
+                ['renderTreeView', 'function'],
+                ['renderMonthlyAnalysis', 'function'],
+                ['renderMissionCheckboxes', 'function'],
+                ['renderHistoryTable', 'function'],
+                ['syncAllCatMisDropdowns', 'function'],
+                ['onMasterSetCatChange', 'function'],
+                ['_v136UpdateUserHints', 'function'],
+                ['_v139SyncMasterUI', 'function'],
+                ['invalidateSchedCache', 'function']
+            ];
+            var done = [], failed = [];
+            list.forEach(function (it) {
+                var fn = it[0];
+                try {
+                    if (typeof window[fn] === 'function') { window[fn](); done.push(fn); }
+                } catch (e) {
+                    failed.push(fn + ' (' + (e && e.message) + ')');
+                }
+            });
+            // 教材庫頁的 cat 下拉要對到新使用者真正的第一個分類
+            try {
+                var msc = el('master-set-cat');
+                if (msc) {
+                    var cats = Object.keys((multiData[currentUserId] || {}).masters || {});
+                    msc.innerHTML = cats.map(function (c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+                    msc.value = appCurrentCat || (cats[0] || '');
+                }
+            } catch (e) { failed.push('master-set-cat (' + (e && e.message) + ')'); }
+            console.log('v2.3.2.142: ✅ 切換使用者後已重繪: ' + (done.join(', ') || '(無)') +
+                (failed.length ? ' | ⚠️ 失敗: ' + failed.join(', ') : ''));
+        }
+
+        // v2.3.2.142: ★★ 「污染使用者」的完整判定 + 一次清乾淨
+        //
+        // v140 的判定: unit id 集合「完全等於」v1.5.3 備份某一科 → 需要「完全相同」
+        // v141 的判定: unit id「交集」非空 → 需要「沒有 plans 沒有 logs」
+        //
+        // 實際情況 (Denias 的張裕如):
+        //   master = 147 units, 全部來自 v1.5.3 備份 (8 科: 21+25+25+19+18+16+14+9 = 147 ✓)
+        //   plans  = 1 個, 156 個任務 → v140/v141 的安全條件 (沒 plans 沒 logs) 全部擋掉
+        //   logs   = 0
+        //
+        // → 她的計畫本身就是「用被注入的教材庫排出來的」→ 也是污染。
+        //   證據: 計畫裡的每個任務 unitId 都來自那 147 個注入的 unit。
+        //
+        // v142 判定一位使用者是「污染受害者」的條件 (三個都要成立):
+        //   1. master 的 unit id「全部」來自 v1.5.3 備份 (100%, 不是部分)
+        //   2. 沒有任何「自創」的 unit (ownUnitIds 為空)
+        //   3. 她的計畫任務 unitId「全部」也來自那些注入的 unit
+        //      (沒有計畫 = 也算成立)
+        //   4. 沒有 log (log 是使用者真正使用過的證據)
+
+        function _v142BackupAllUnitIds() {
+            var set = {};
+            var idx = _v140BackupUnitIndex();
+            Object.keys(idx).forEach(function (sub) {
+                idx[sub].forEach(function (id) { set[id] = true; });
+            });
+            return set;
+        }
+
+        // 收集一個大分類底下所有科目的 unit id
+        function _v142CatalogUnitIds(catSubjects) {
+            var set = {};
+            if (!catSubjects || typeof catSubjects !== 'object') return set;
+            Object.keys(catSubjects).forEach(function (sub) {
+                _v140SubjectUnitIds(catSubjects[sub]).forEach(function (id) { set[id] = true; });
+            });
+            return set;
+        }
+
+        // 收集一位使用者所有計畫任務的 unitId
+        function _v142PlanTaskUnitIds(user) {
+            var set = {}, count = 0;
+            (user.plans || []).forEach(function (p) {
+                if (!p || !p.grid) return;
+                Object.keys(p.grid).forEach(function (d) {
+                    (p.grid[d] || []).forEach(function (t) {
+                        if (!t) return;
+                        count++;
+                        if (t.unitId) set[t.unitId] = true;
+                    });
+                });
+            });
+            return { ids: set, taskCount: count };
+        }
+
+        // ★ 完整分析一位使用者
+        function _v142ClassifyUser(uid) {
+            var u = multiData[uid];
+            if (!u) return null;
+            var backup = _v142BackupAllUnitIds();
+            var ms = u.masters || {};
+
+            var masterIds = {}, injected = {}, own = {};
+            Object.keys(ms).forEach(function (cat) {
+                var ids = _v142CatalogUnitIds(ms[cat]);
+                Object.keys(ids).forEach(function (id) {
+                    masterIds[id] = true;
+                    if (backup[id]) injected[id] = true; else own[id] = true;
+                });
+            });
+
+            var pt = _v142PlanTaskUnitIds(u);
+            var planInjected = 0, planOwn = 0, planUnknown = 0;
+            Object.keys(pt.ids).forEach(function (id) {
+                if (injected[id]) planInjected++;
+                else if (own[id]) planOwn++;
+                else planUnknown++;   // 指向已經不存在的 unit
+            });
+
+            var masterIdList = Object.keys(masterIds);
+            var injectedList = Object.keys(injected);
+            var ownList = Object.keys(own);
+            var logCount = (u.logs || []).length;
+            var planCount = (u.plans || []).length;
+
+            var fullyInjectedMaster = masterIdList.length > 0 && ownList.length === 0;
+            var fullyInjectedPlan = pt.taskCount === 0 || (planOwn === 0 && planUnknown === 0);
+
+            return {
+                uid: uid, name: u.name || uid,
+                cats: Object.keys(ms),
+                masterIdCount: masterIdList.length,
+                injectedIdCount: injectedList.length,
+                ownIdCount: ownList.length,
+                injectedIds: injectedList,
+                ownIds: ownList,
+                planCount: planCount,
+                taskCount: pt.taskCount,
+                planTaskUnitCount: Object.keys(pt.ids).length,
+                planInjected: planInjected,
+                planOwn: planOwn,
+                planUnknown: planUnknown,
+                logCount: logCount,
+                fullyInjectedMaster: fullyInjectedMaster,
+                fullyInjectedPlan: fullyInjectedPlan,
+                // ★ 污染受害者: master 100% 注入 + 計畫也 100% 來自注入的 unit + 沒有 log
+                isPolluted: fullyInjectedMaster && fullyInjectedPlan && logCount === 0
+            };
+        }
+
+        // v2.3.2.142: 唯讀診斷 — 某位使用者的教材庫/計畫污染程度
+        window.diagnoseUserCatalog = function (uid) {
+            uid = uid || currentUserId;
+            var c = _v142ClassifyUser(uid);
+            console.log('%c=== 使用者資料污染診斷: ' + c.name + ' ===', 'color:#fff;background:#' + (c.isPolluted ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
+            console.table([{
+                '使用者': c.name, 'uid': c.uid,
+                '大分類': c.cats.join(', ') || '(無)',
+                'master units': c.masterIdCount,
+                '來自 v1.5.3 備份': c.injectedIdCount,
+                '★ 自創的 unit': c.ownIdCount,
+                '計畫數': c.planCount, '任務數': c.taskCount,
+                '任務指向注入 unit': c.planInjected,
+                '任務指向自創 unit': c.planOwn,
+                'log 數': c.logCount,
+                '★ 判定': c.isPolluted ? '⚠️ 整份都是污染 → 可完整清乾淨'
+                    : (c.ownIdCount > 0 ? '🔒 有自創 unit → 不是純污染' : '⚠️ 部分污染')
+            }]);
+            if (c.ownIds.length) {
+                console.log('自創的 unit id (前 30 個):', c.ownIds.slice(0, 30));
+            }
+            if (c.isPolluted) {
+                console.log('%c★ 執行 purgeInjectedUser(' + JSON.stringify(uid) + ', true) 可以一次清乾淨',
+                    'color:#e74c3c;font-weight:bold');
+            }
+            return c;
+        };
+
+        // v2.3.2.142: ★★ 一次清乾淨某位被污染的使用者
+        window.purgeInjectedUser = function (uid, apply) {
+            var c = _v142ClassifyUser(uid);
+            if (!c) { console.error('找不到使用者', uid); return 0; }
+            if (!c.isPolluted) {
+                console.log('%c⚠️ 「' + c.name + '」不符合「完全污染」條件 → 不動', 'color:#f39c12;font-weight:bold');
+                console.log('  master 自創 unit: ' + c.ownIdCount + ' / log: ' + c.logCount +
+                    ' / 任務指向自創 unit: ' + c.planOwn);
+                console.log('  若確定要強制清空, 請用 UI 的「🧹 完整重置本學生所有資料」按鈕');
+                return 0;
+            }
+            console.log('%c=== 準備清除「' + c.name + '」的污染資料 ===', 'color:#fff;background:#e74c3c;padding:2px 6px');
+            console.log('  大分類: ' + (c.cats.join(', ') || '(無)'));
+            console.log('  教材庫 unit: ' + c.masterIdCount + ' 個 (100% 來自 v1.5.3 備份)');
+            console.log('  計畫: ' + c.planCount + ' 個 / 任務: ' + c.taskCount + ' 個 (全部指向被注入的 unit)');
+            console.log('  log: ' + c.logCount + ' 筆');
+            if (apply !== true) {
+                console.log('%c這是預覽 (dry-run)。確認後執行 purgeInjectedUser(' + JSON.stringify(uid) + ', true)',
+                    'color:#f39c12;font-weight:bold');
+                return 0;
+            }
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushSafetyBackup('purge-injected-user'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+
+            var u = multiData[uid];
+            var removedSubjects = 0, removedCats = 0;
+            // ★ 就地清空 (保持 masters 物件參照不變)
+            Object.keys(u.masters || {}).forEach(function (cat) {
+                var cs = u.masters[cat];
+                if (!cs || typeof cs !== 'object') return;
+                Object.keys(cs).forEach(function (sub) { delete cs[sub]; removedSubjects++; });
+                if (!Object.keys(cs).length) { delete u.masters[cat]; removedCats++; }
+            });
+            var removedPlans = (u.plans || []).length;
+            u.plans = [];
+            u.logs = [];
+            u.missions = {};
+
+            saveToLocal();
+            _v139AssertMasterOwnership('purgeInjectedUser');
+            _v139SyncMasterUI('purgeInjectedUser');
+            _v142RerenderAfterUserSwitch();
+            console.log('%c✅ 已清乾淨「' + c.name + '」: ' + removedSubjects + ' 個科目 / ' + removedCats +
+                ' 個大分類 / ' + removedPlans + ' 個計畫', 'color:#27ae60;font-weight:bold');
+            console.log('→ 需要還原請按「↩️ 復原」按鈕 (有 undo 快照)');
+            return removedSubjects;
+        };
+
+        // v2.3.2.142: ★ 完整重置某位學生 (最終手段, 會問清楚)
+        window.resetAllUserData = function (uid) {
+            var u = multiData[uid];
+            if (!u) { alert('找不到使用者'); return; }
+            var nSub = 0, nCat = 0;
+            Object.keys(u.masters || {}).forEach(function (cat) {
+                nCat++;
+                nSub += Object.keys(u.masters[cat] || {}).length;
+            });
+            var nPlan = (u.plans || []).length, nLog = (u.logs || []).length;
+            var msg = '完整重置「' + (u.name || uid) + '」的所有資料？\n\n' +
+                '會清除：\n' +
+                '  • 教材庫: ' + nCat + ' 個大分類 / ' + nSub + ' 個科目\n' +
+                '  • 計畫: ' + nPlan + ' 個\n' +
+                '  • 學習紀錄: ' + nLog + ' 筆\n\n' +
+                '會存 undo 快照, 需要可以按「↩️ 復原」還原。\n\n確定要繼續嗎？';
+            if (!confirm(msg)) return;
+            var ok = confirm('⚠️ 最後確認：\n\n這會讓「' + (u.name || uid) + '」回到「剛建立新學生」的狀態。\n\n確定？');
+            if (!ok) return;
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            try { pushSafetyBackup('reset-all-user-data'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
+            u.masters = { '會考複習': {}, '段考複習': {} };
+            u.missions = { '會考複習': { '一模': [], '二模': [] }, '段考複習': {} };
+            u.plans = [];
+            u.logs = [];
+            saveToLocal();
+            if (uid === currentUserId) {
+                appCurrentCat = '會考複習';
+                appMaster = u.masters['會考複習'];
+                appPlans = u.plans; appLogs = u.logs; appMissions = u.missions;
+                _v139AssertMasterOwnership('resetAllUserData');
+                _v139SyncMasterUI('resetAllUserData');
+                _v142RerenderAfterUserSwitch();
+            }
+            alert('✅ 已完整重置「' + (u.name || uid) + '」');
+        };
+
+        // v2.3.2.142: ★ 刪除某位學生的某個大分類 (含底下的教材)
+        window.removeUserCategory = function (uid, cat, apply) {
+            var u = multiData[uid];
+            if (!u || !u.masters || !u.masters[cat]) {
+                console.log('找不到大分類', cat); return 0;
+            }
+            var nSub = Object.keys(u.masters[cat]).length;
+            if (apply !== true) {
+                console.log('%c預覽: 會刪除「' + (u.name || uid) + '」的大分類「' + cat + '」(' + nSub + ' 個科目)',
+                    'color:#f39c12;font-weight:bold');
+                return 0;
+            }
+            try { pushUndoSnapshot(); } catch (e) { console.warn('undo 快照失敗:', e && e.message); }
+            delete u.masters[cat];
+            if (u.missions) delete u.missions[cat];
+            u.logs = (u.logs || []).filter(function (l) { return l.category !== cat; });
+            saveToLocal();
+            if (uid === currentUserId) {
+                var cats = Object.keys(u.masters || {});
+                appCurrentCat = cats[0] || '';
+                appMaster = u.masters[appCurrentCat] || {};
+                _v139AssertMasterOwnership('removeUserCategory');
+                _v139SyncMasterUI('removeUserCategory');
+                _v142RerenderAfterUserSwitch();
+            }
+            console.log('%c✅ 已刪除大分類「' + cat + '」(' + nSub + ' 個科目)', 'color:#27ae60;font-weight:bold');
+            return 1;
+        };
+
         window.diagnoseSharedUnits = function () {
             var pairs = _v141FindSharedUnits();
             console.log('%c=== 跨使用者共用 unit 診斷 ===', 'color:#fff;background:#' + (pairs.length ? 'e74c3c' : '27ae60') + ';padding:2px 6px');
@@ -16957,6 +17261,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             syncAllCatMisDropdowns(null, null);
             if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange();
             updateFilters();
+            // v2.3.2.142: ★ 原本沒有存檔 → 重新整理後大分類又回來了
+            saveToLocal();
+            console.log('v2.3.2.142: ✅ 已刪除大分類「' + cat + '」並存檔');
         }
         
         function addMis() { 
