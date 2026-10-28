@@ -6,7 +6,30 @@ function requireNoteStudent() {
     return uid;
 }
 function currentStudentNotes() { return StudyRecords.list('notes', requireNoteStudent()); }
-function studentExamLabel(exam) { return exam.name + (exam.examDate ? '｜' + exam.examDate : '') + (exam.sessionOnly ? '（尚未輸入成績）' : ''); }
+function studentExamLabel(exam) { return exam.name; }
+var noteSourceNames = ['複習卷', '數字題本', '模擬題本', '歷屆模考'];
+function refreshNoteSourceOptions() {
+    var select = document.getElementById('filter-source');
+    if (!select) return;
+    var chosen = select.value;
+    select.innerHTML = ''; select.add(new Option('全部來源', ''));
+    noteSourceNames.forEach(function(name) { select.add(new Option(name, name)); });
+    select.add(new Option('115模考', 'mockExam'));
+    var legacy = new Set();
+    currentStudentNotes().forEach(function(note) {
+        if (note.sourceType !== 'mockExam' && note.source && !noteSourceNames.includes(note.source)) legacy.add(note.source);
+    });
+    legacy.forEach(function(name) { select.add(new Option(name, name)); });
+    select.add(new Option('未分類來源', '__unclassified'));
+    if (Array.from(select.options).some(function(option) { return option.value === chosen; })) select.value = chosen;
+}
+function syncNoteSourceFilter() {
+    var source = document.getElementById('filter-source');
+    var exam = document.getElementById('filter-exam');
+    var showExam = notePageOptions.get('mode') === 'mockExam' || source.value === 'mockExam';
+    exam.hidden = !showExam;
+    if (!showExam) exam.value = '';
+}
 function fillStudentExamSelect(select, chosen) {
     select.innerHTML = ''; select.add(new Option('請選擇模考場次', ''));
     StudyRecords.list('exams', requireNoteStudent()).forEach(function(exam) { select.add(new Option(studentExamLabel(exam), exam.id)); });
@@ -35,25 +58,28 @@ function addCardExamFields(card) {
 function updateNoteViewFilters() {
     var exam = document.getElementById('filter-exam');
     if (exam) { var chosen = exam.value; fillStudentExamSelect(exam, chosen); exam.options[0].text = '全部模考場次'; }
+    refreshNoteSourceOptions(); syncNoteSourceFilter();
     renderViewPage();
 }
 function noteMatchesSource(note) {
     var source = document.getElementById('filter-source').value;
     var exam = document.getElementById('filter-exam').value;
     if (notePageOptions.get('mode') === 'mockExam' || source === 'mockExam') {
-        if (note.sourceType !== 'mockExam') return false;
-    } else if (source === 'other' && note.sourceType === 'mockExam') return false;
-    return !exam || note.examId === exam;
+        return note.sourceType === 'mockExam' && (!exam || note.examId === exam);
+    }
+    if (source === '__unclassified') return note.sourceType !== 'mockExam' && !note.source;
+    if (source) return note.sourceType !== 'mockExam' && note.source === source;
+    return true;
 }
 function requestUnifiedImport() {
     var examId = document.getElementById('filter-exam').value;
     if (parent !== window) parent.postMessage({ type: 'studymap-import-notes', examId: examId }, location.origin);
-    else location.href = './?v=153&view=import' + (examId ? '&source=mockExam&examId=' + encodeURIComponent(examId) : '');
+    else location.href = './?v=154&view=import' + (examId ? '&source=mockExam&examId=' + encodeURIComponent(examId) : '');
 }
 function addSavedNoteAssociationControls(slot, note) {
     var box = document.createElement('div'); box.className = 'saved-note-fields'; box.hidden = true;
     var source = document.createElement('select'); source.className = 'saved-source';
-    source.add(new Option('其他來源／保留原來源', 'other')); source.add(new Option('模考', 'mockExam'));
+    source.add(new Option('其他來源／保留原來源', 'other')); source.add(new Option('115模考', 'mockExam'));
     source.value = note.sourceType === 'mockExam' ? 'mockExam' : 'other';
     var exam = document.createElement('select'); exam.className = 'saved-exam'; fillStudentExamSelect(exam, note.examId);
     exam.hidden = source.value !== 'mockExam'; source.onchange = function() { exam.hidden = source.value !== 'mockExam'; };
@@ -63,8 +89,8 @@ function addSavedNoteAssociationControls(slot, note) {
 document.addEventListener('DOMContentLoaded', function() {
     var bar = document.querySelector('.filter-bar');
     var source = document.createElement('select'); source.id = 'filter-source'; source.className = 'filter-select';
-    source.add(new Option('全部來源', '')); source.add(new Option('模考', 'mockExam')); source.add(new Option('其他來源（含歷屆模考練習）', 'other'));
-    source.onchange = renderViewPage; bar.prepend(source);
+    source.onchange = function() { syncNoteSourceFilter(); renderViewPage(); }; bar.prepend(source);
+    refreshNoteSourceOptions();
     var exam = document.createElement('select'); exam.id = 'filter-exam'; exam.className = 'filter-select';
     fillStudentExamSelect(exam); exam.options[0].text = '全部模考場次'; exam.onchange = renderViewPage; source.insertAdjacentElement('afterend', exam);
     document.getElementById('filter-time').value = 'all';
@@ -88,6 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var add = document.createElement('button'); add.textContent = '新增模考錯題'; add.onclick = requestUnifiedImport; bar.prepend(add);
         goToPage('view-page', null);
     } else if (notePageOptions.get('view') === 'import') goToPage('import-page', document.getElementById('nav-import'));
+    syncNoteSourceFilter();
 });
 window.addEventListener('storage', function(event) {
     if (event.key === 'StudyMap_CurrentUserId_V20' && localStorage.getItem(event.key) !== noteStudentId) location.reload();

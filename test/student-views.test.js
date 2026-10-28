@@ -159,3 +159,71 @@ test('新增同名的新場次使用新 ID，不能隱式覆蓋舊年度成績',
     assert.equal(own.find(e => e.id === 'a').examDate, '2026-10-01');
     assert.equal(w.StudyRecords.list('exams', 'B').length, 1);
 });
+
+test('反覆返回匯入頁後，同一次拖放仍只觸發一次匯入', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    let calls = 0; w.handleFilesForCrop = () => { calls++; };
+    for (let i = 0; i < 3; i++) w.goToPage('import-page', null);
+    const drop = new w.Event('drop', { bubbles: true, cancelable: true });
+    drop.dataTransfer = { files: [new w.File(['photo'], 'question.jpg', { type: 'image/jpeg' })] };
+    w.document.querySelector('.drop-zone').dispatchEvent(drop);
+    assert.equal(calls, 1);
+    const bodyDrop = new w.Event('drop', { bubbles: true, cancelable: true });
+    bodyDrop.dataTransfer = drop.dataTransfer; w.document.body.dispatchEvent(bodyDrop);
+    assert.equal(calls, 2, '頁面空白處拖放也只有一次');
+});
+test('同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    let count = 0, release; w.renderImage = () => { count++; return new Promise(resolve => { release = resolve; }); };
+    const file = new w.File(['photo'], 'question.jpg', { type: 'image/jpeg', lastModified: 1 });
+    const first = w.handleFilesForCrop([file, file, file]);
+    await w.handleFilesForCrop([file]); assert.equal(count, 1);
+    release(); await first;
+    w.renderImage = async () => { count++; }; await w.handleFilesForCrop([file]);
+    assert.equal(count, 2);
+});
+test('匯入失敗後解除防重入，仍能重試並處理不同照片', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    const file = new w.File(['a'], 'a.jpg', { type: 'image/jpeg' });
+    w.renderImage = async () => { throw new Error('failed'); }; await w.handleFilesForCrop([file]);
+    let count = 0; w.renderImage = async () => { count++; };
+    await w.handleFilesForCrop([file, new w.File(['bb'], 'b.jpg', { type: 'image/jpeg' })]);
+    assert.equal(count, 2);
+});
+test('來源選單無圖示，選取115模考提醒場次，場次僅顯示名稱', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    const card = w.createSettingCard('data:image/png;base64,YQ==', 0, 'batch', 'crop');
+    w.document.querySelector('#cards-slider').appendChild(card);
+    assert.deepEqual(Array.from(card.querySelector('.source-sel').options, o => o.textContent),
+        ['請選擇來源', '複習卷', '數字題本', '模擬題本', '歷屆模考', '115模考']);
+    const alerts = []; w.alert = text => alerts.push(text);
+    const source = card.querySelector('.source-sel'); source.value = 'mockExam'; w.toggleCardSource(source);
+    assert.deepEqual(alerts, ['請選擇模考場次']); assert.equal(card.querySelector('.mock-exam-fields').hidden, false);
+    assert.equal(card.querySelector('.exam-sel option[value="a"]').textContent, '第一次模考');
+    card.querySelector('.exam-sel').value = 'a'; w.toggleCardSource(source); assert.equal(alerts.length, 1);
+});
+test('查看頁各來源獨立篩選，切換非模考來源清除場次，保留舊自訂來源', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    for (const [i, source] of ['複習卷', '數字題本', '模擬題本', '歷屆模考', '舊自訂來源', ''].entries()) {
+        w.StudyRecords.appendNotes('A', [{ timestamp: 100+i, date: '2026/10/28', source, sourceType: 'other', content: '來源'+i, reasons: [] }]);
+    }
+    w.updateNoteViewFilters();
+    const source = w.document.querySelector('#filter-source'), exam = w.document.querySelector('#filter-exam');
+    for (const name of ['複習卷', '數字題本', '模擬題本', '歷屆模考', '舊自訂來源']) {
+        source.value = name; source.onchange(); assert.equal(w.document.querySelectorAll('#view-slots-container .note-slot').length, 1);
+    }
+    source.value = 'mockExam'; source.onchange(); exam.value = 'a';
+    assert.equal(exam.hidden, false);
+    assert.match(w.document.querySelector('#view-slots-container').textContent, /A專屬/);
+    source.value = '複習卷'; source.onchange(); assert.equal(exam.hidden, true); assert.equal(exam.value, '');
+    assert.equal(w.document.querySelectorAll('#view-slots-container .note-slot').length, 1);
+    source.value = '__unclassified'; source.onchange(); assert.equal(w.document.querySelectorAll('#view-slots-container .note-slot').length, 1);
+});
+test('單元仍以複習講義為標準，不混入以冊分類的題本', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    w.getSyllabusDB = () => ({ '數學': { '複習講義': { '翰將': ['第二冊 / 二次函數'] }, '題本': { '3800': ['第二冊'] } } });
+    const card = w.createSettingCard('data:image/png;base64,YQ==', 0, 'batch', 'crop');
+    w.document.querySelector('#cards-slider').appendChild(card);
+    card.querySelector('.subj-sel').value = '數學'; w.handleCardSubjectChange(card.querySelector('.subj-sel'));
+    assert.deepEqual(Array.from(card.querySelector('.unit-sel').options, o => o.value), ['', '第二冊 / 二次函數']);
+});

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <script src="../student-records.js?v=153"></script>
-    <script src="student-ui.js?v=153"></script>
+    <script src="../student-records.js?v=154"></script>
+    <script src="student-ui.js?v=154"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>錯題資料庫 [v2.3.2.153]</title>
+    <title>錯題資料庫 [v2.3.2.154]</title>
     <!-- 引入 PDF.js 以支援 PDF 解析 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>
@@ -631,7 +631,10 @@
 
     // v2.3.2.84: 徹底重寫 drag-drop — 移除 window 層級 preventDefaults (可能是 freeze 原因)
     // 改用 document 層級 + drop zone 層級 雙重保護
+    var _dropHandlersBound = false;
     function setupDragAndDrop() {
+        if (_dropHandlersBound) return;
+        _dropHandlersBound = true;
         console.log('[v2.3.2.84] setupDragAndDrop 啟動');
 
         // v2.3.2.85: document 層級 preventDefaults — 永遠 prevent (確保 drop 事件一定觸發)
@@ -697,13 +700,22 @@
             navBtn.classList.add('active-nav');
         }
         if(pageId === 'view-page') renderViewPage();
-        // v2.3.2.85: 切到 import-page 時重新 setupDragAndDrop (確保 drop zone listeners 都還在)
+        // 確保拖放已初始化；setupDragAndDrop 具備一次性綁定保護。
         if(pageId === 'import-page') setupDragAndDrop();
     }
 
     // v2.3.2.82: 拖曳圖片到 Step 1 當掉修法 — 加 try-catch + 載入提示 + 同步開 modal
+    var _cropImportBusy = false;
     async function handleFilesForCrop(files) {
+        if (_cropImportBusy || !files || !files.length) return;
+        _cropImportBusy = true;
         try {
+            const seenFiles = new Set();
+            files = Array.from(files).filter(file => {
+                const key = JSON.stringify([file.name, file.size, file.lastModified, file.type]);
+                if (seenFiles.has(key)) return false;
+                seenFiles.add(key); return true;
+            });
             if(!files || files.length === 0) {
                 console.warn('[handleFilesForCrop] 沒有檔案');
                 return;
@@ -753,6 +765,8 @@
             if (workspace) {
                 workspace.innerHTML = '<div style="text-align:center;padding:60px 20px;color:#c00;font-size:16px;">❌ 載入失敗: ' + (err.message || err) + '<br><br>請嘗試其他檔案, 或重新整理頁面</div>';
             }
+        } finally {
+            _cropImportBusy = false;
         }
     }
 
@@ -1108,11 +1122,11 @@
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 1：錯題來源</div>
             <select class="source-sel" onchange="toggleCardSource(this)">
                 <option value="">請選擇來源</option>
-                <option value="複習卷">📘 複習卷</option>
-                <option value="數字題本">🔢 數字題本</option>
-                <option value="模擬題本">📝 模擬題本</option>
-                <option value="歷屆模考">📚 歷屆模考</option>
-                <option value="mockExam">📊 模考（選擇場次）</option>
+                <option value="複習卷">複習卷</option>
+                <option value="數字題本">數字題本</option>
+                <option value="模擬題本">模擬題本</option>
+                <option value="歷屆模考">歷屆模考</option>
+                <option value="mockExam">115模考</option>
             </select>
             <input type="text" class="custom-source" placeholder="或自填來源..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;display:none;">
 
@@ -1243,6 +1257,10 @@
         const input = card.querySelector('.custom-source');
         const examFields = card.querySelector('.mock-exam-fields');
         if (examFields) examFields.hidden = selectEl.value !== 'mockExam';
+        if (selectEl.value === 'mockExam' && !card.querySelector('.exam-sel').value) {
+            alert('請選擇模考場次');
+            card.querySelector('.exam-sel').focus();
+        }
         input.style.display = selectEl.value === '其他' ? 'block' : 'none';
     }
     // v2.3.2.71: 勾選「其他」checkbox 切換自填輸入框顯示
@@ -1305,7 +1323,7 @@
             slot.dataset.examId = source === 'mockExam' ? card.querySelector('.exam-sel').value : '';
             if (source === 'mockExam') {
                 const exam = StudyRecords.list('exams', uid).find(e => e.id === slot.dataset.examId);
-                source = '模考｜' + studentExamLabel(exam);
+                source = '115模考｜' + studentExamLabel(exam);
             }
             slot.dataset.date = dateStr;
             slot.dataset.subject = subj;
@@ -1711,7 +1729,7 @@
             notes[noteIndex].content = gridArea.innerHTML;
             notes[noteIndex].reasons = newReasons;
             const exam = sourceType === 'mockExam' ? StudyRecords.list('exams', requireNoteStudent()).find(e => e.id === examId) : null;
-            const source = exam ? '模考｜' + studentExamLabel(exam) : (notes[noteIndex].sourceType === 'mockExam' ? '其他' : notes[noteIndex].source);
+            const source = exam ? '115模考｜' + studentExamLabel(exam) : (notes[noteIndex].sourceType === 'mockExam' ? '其他' : notes[noteIndex].source);
             StudyRecords.updateNote(requireNoteStudent(), timestamp, { content: gridArea.innerHTML, reasons: newReasons, sourceType, examId, source });
             alert("筆記更新成功！");
         }
