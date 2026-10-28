@@ -92,6 +92,7 @@ test('完整頁面初始化、切換學生、存檔與重新載入均保持教�
         const d = new JSDOM(html, { url: 'http://localhost/', runScripts: 'outside-only',
             pretendToBeVisual: true, virtualConsole: new VirtualConsole() });
         const w = d.window;
+        for (const file of ['tree-progress.js', 'board-layout.js']) w.eval(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'));
         w.alert = () => {}; w.confirm = () => false;
         w.HTMLCanvasElement.prototype.getContext = () => null;
         w.localStorage.setItem(key, JSON.stringify(data));
@@ -106,6 +107,7 @@ test('完整頁面初始化、切換學生、存檔與重新載入均保持教�
     let saved;
     try {
         const w = d.window;
+        for (const file of ['tree-progress.js', 'board-layout.js']) w.eval(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'));
         w.document.getElementById('user-selector').value = 'blank';
         w.switchUser(); w.saveToLocal();
         assert.ok(w.document.getElementById('master-current-user-hint').textContent.includes('新學生'));

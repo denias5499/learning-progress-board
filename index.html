@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.156]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.157]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1692,6 +1692,7 @@
             min-height: 50px !important;
         }
     </style>
+    <link rel="stylesheet" href="board-layout.css?v=157">
 </head>
 <body>
 
@@ -1962,43 +1963,36 @@
         <!-- 📅 月曆排程 -->
         <div id="page-planner" class="page-view" style="background:#d4f1f9;">
             <div class="page-card">
-                <div class="modal-header">
+                <div class="planner-heading">
                     <h2>📅 月計畫排程</h2>
-                    <!-- v2.3.2.5: 篩選移到 modal header 中間 -->
-                    <div style="display: flex; gap: 10px; align-items: center; margin: 0 auto;">
-                        <span style="font-weight: bold; color: var(--secondary); white-space: nowrap;">🔍 分類/任務篩選</span>
-                        <select id="planner-cat-filter" onchange="onPlannerCatChange()" style="min-width:140px; padding: 4px 8px; font-size: 1em;"></select>
-                        <span style="color: var(--secondary); font-weight: bold;">➡️</span>
-                        <select id="planner-mis-filter" onchange="renderCalendar()" style="min-width:140px; padding: 4px 8px; font-size: 1em;"></select>
+                    <div id="month-nav-row">
+                        <button type="button" class="btn-outline" onclick="changeMonth(-1)" aria-label="上個月">◀</button>
+                        <span id="current-month-display"></span>
+                        <button type="button" class="btn-outline" onclick="changeMonth(1)" aria-label="下個月">▶</button>
                     </div>
-                    <button type="button" class="close-btn" onclick="returnToHome()">&times;</button>
+                    <button type="button" class="close-btn" onclick="returnToHome()" aria-label="關閉月曆">&times;</button>
                 </div>
-                <div class="filter-bar" style="margin-bottom: 15px; border-left-color: var(--purple); display: flex; flex-direction: column; gap: 12px; align-items: stretch; background: transparent; padding: 0; box-shadow: none; border-left: none;">
-                    <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; align-items: center;">
-                        <div style="display: none;"><select id="planner-selector" onchange="renderCalendar()"></select></div>
-                        <!-- v2.3.2.4: Undo/備份還原併入月計畫排程同一排 (最右邊), 刪除「復原工具」獨立 row -->
-                        <div style="display: flex; flex-direction: column; gap: 8px; align-items: stretch;">
-                            <!-- v2.3.2.5: 篩選已搬到 modal header; 白框拉長只放 6 按鈕 (列印月曆最右) -->
-                            <div style="display: flex; gap: 8px; align-items: center; background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); flex-wrap: nowrap; justify-content: space-between;">
-                                <button class="planner-action-btn" data-color="#EAE4E9" data-color-fg="#3a2a35" style="background:#EAE4E9;color:#3a2a35;font-weight:900;" onclick="openDoubleCheck()">🔍 Double Check</button>
-                                <button class="planner-action-btn" data-color="#CAE9E0" data-color-fg="#1a4a3a" style="background:#CAE9E0;color:#1a4a3a;" onclick="openWizard()">🪄 建立智慧排程計畫</button>
-                                <button class="btn-danger" style="background:#FDE2E4;color:#5a1a2a;" onclick="showRevertWizardModal()" title="只刪最新一次智慧排程產生的任務, 保留手動加的">↩️ 撤回智慧排程</button>
-                                <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em;background:#DFE7FD;color:#2a2a5a;border-color:#b8c4e8;" onclick="performUndo()" title="回到上一步儲存前的狀態 (最近 5 步)">↶ Undo</button>
-                                <button class="btn-outline" style="padding: 5px 12px; font-size:0.85em; background:#F8F2DD;" onclick="showSafetyBackups()" title="查看 / 還原安全備份 (任何修改前自動建立)">🛡️ 備份還原</button>
-                                <button class="cal-sync-btn" style="background:#FEEA87;" onclick="openPrintModal()">🖨️ 列印月曆</button>
+                <div class="planner-toolbar">
+                    <div class="planner-filters">
+                        <label>分類<select id="planner-cat-filter" onchange="onPlannerCatChange()"></select></label>
+                        <label>任務<select id="planner-mis-filter" onchange="renderCalendar()"></select></label>
+                    </div>
+                    <select id="planner-selector" onchange="renderCalendar()" hidden></select>
+                    <div class="planner-actions">
+                        <button type="button" class="planner-create" onclick="openWizard()">智慧排程</button>
+                        <button type="button" class="btn-outline" onclick="openPrintModal()">列印</button>
+                        <details id="planner-more" class="planner-more">
+                            <summary>更多 ▾</summary>
+                            <div class="planner-more-menu">
+                                <button type="button" onclick="openDoubleCheck()">進度檢查（Double Check）</button>
+                                <button type="button" onclick="showRevertWizardModal()">撤回智慧排程</button>
+                                <button type="button" onclick="performUndo()">復原上一步（Undo）</button>
+                                <button type="button" onclick="showSafetyBackups()">備份還原</button>
                             </div>
-                        </div>
+                        </details>
                     </div>
                 </div>
-
-                <div id="month-nav-row" style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 15px;">
-                    <div id="calendar-highlight-banner" style="display: none;"></div>
-                    <div style="display: flex; gap: 10px; align-items: center;">
-                        <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(-1);">◀ 上個月</button>
-                        <span id="current-month-display" style="font-weight: bold; font-size: 1.3em; min-width: 140px; text-align: center; color: var(--primary);"></span>
-                        <button class="btn-outline" style="padding: 5px 15px;" onclick="changeMonth(1);">下個月 ▶</button>
-                    </div>
-                </div>
+                <div id="calendar-highlight-banner" style="display:none;"></div>
                 <div class="calendar-wrapper">
                     <div class="calendar-header">
                         <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
@@ -2110,12 +2104,6 @@
                         <select id="tree-type-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
                         <span class="tree-filter-label">📖 冊別 (單元):</span>
                         <select id="tree-vol-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
-                        <span id="tree-review-filters" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;">
-                        <span class="tree-filter-label" style="color:#1a4a3a;">📊 比較教材類型:</span>
-                        <select id="tree-review-type-filter" onchange="onTreeReviewTypeChange()" style="min-width:130px;"></select>
-                        <span class="tree-filter-label" style="color:#2a4a6a;">📊 教材名稱:</span>
-                        <select id="tree-review-inst-filter" onchange="renderTreeView()" style="min-width:130px;"></select>
-                        </span>
                         <button type="button" class="tree-collapse-btn" onclick="resetTreeFilter()">↻ 重設</button>
                         <span class="tree-filter-hint">(只顯示選到的範圍)</span>
                     </div>
@@ -2138,7 +2126,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=156" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=157" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -2625,9 +2613,10 @@
     <div id="print-area"></div>
 
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
-    <script src="student-records.js?v=156"></script>
-    <script src="tree-progress.js?v=156"></script>
-    <script src="exam-student-ui.js?v=156"></script>
+    <script src="student-records.js?v=157"></script>
+    <script src="tree-progress.js?v=157"></script>
+    <script src="board-layout.js?v=157"></script>
+    <script src="exam-student-ui.js?v=157"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -3125,175 +3114,8 @@
             return set;
         }
         // v2.3.2.6: 算指定 (typeName, instanceName=null) 的進度
-        function calcProgressForType(subj, typeName, instanceName) {
-            var done = 0, total = 0, hasType = false;
-            if (!subj || !subj.materials || !subj.materials[typeName]) return { done: 0, total: 0, hasType: false };
-            hasType = true;
-            var typeObj = subj.materials[typeName];
-            var doneSet = _collectDoneUnitIds();
-            // v2.3.2.61: 用 Set 去重 unit id (避免 multi-instance 重複計算, e.g. 英文 51 應為 26)
-            var seenUnitIds = new Set();
-            if (typeObj && Array.isArray(typeObj.instances)) {
-                typeObj.instances.forEach(function(inst) {
-                    if (instanceName && inst.name !== instanceName) return;
-                    if (inst.vols) {
-                        Object.keys(inst.vols).forEach(function(volName) {
-                            (inst.vols[volName] || []).forEach(function(u) {
-                                if (!u || !u.id) return;
-                                if (seenUnitIds.has(u.id)) return; // 去重
-                                seenUnitIds.add(u.id);
-                                total++;
-                                if (doneSet.has(u.id)) done++;
-                            });
-                        });
-                    }
-                    if (Array.isArray(inst.units)) {
-                        inst.units.forEach(function(u) {
-                            if (!u || !u.id) return;
-                            if (seenUnitIds.has(u.id)) return; // 去重
-                            seenUnitIds.add(u.id);
-                            total++;
-                            if (doneSet.has(u.id)) done++;
-                        });
-                    }
-                });
-            }
-            return { done: done, total: total, hasType: hasType };
-        }
-        function getTreeReviewFilter() {
-            var typeSel = el('tree-review-type-filter');
-            var instSel = el('tree-review-inst-filter');
-            return { typeName: typeSel ? typeSel.value : '', instanceName: instSel ? instSel.value : '' };
-        }
-        function collectAllReviewTypes() {
-            var user = multiData[currentUserId];
-            var typeSet = new Set();
-            if (user && user.masters) {
-                Object.keys(user.masters).forEach(function(c) {
-                    Object.keys(user.masters[c] || {}).forEach(function(sub) {
-                        var subj = user.masters[c][sub];
-                        if (subj && subj.materials) {
-                            Object.keys(subj.materials).forEach(function(t) {
-                                if (/複習卷|大滿貫|模擬題|模考|數字|考古/i.test(t)) typeSet.add(t);
-                            });
-                        }
-                    });
-                });
-            }
-            return Array.from(typeSet);
-        }
-        function collectInstancesForType(typeName) {
-            var user = multiData[currentUserId];
-            var instSet = new Set();
-            if (user && user.masters) {
-                Object.keys(user.masters).forEach(function(c) {
-                    Object.keys(user.masters[c] || {}).forEach(function(sub) {
-                        var subj = user.masters[c][sub];
-                        if (subj && subj.materials && subj.materials[typeName] && subj.materials[typeName].instances) {
-                            subj.materials[typeName].instances.forEach(function(inst) { instSet.add(inst.name); });
-                        }
-                    });
-                });
-            }
-            return Array.from(instSet);
-        }
-        function populateTreeReviewFilter() {
-            var typeSel = el('tree-review-type-filter');
-            var instSel = el('tree-review-inst-filter');
-            if (!typeSel || !instSel) return;
-            var prevType = typeSel.value;
-            var types = collectAllReviewTypes();
-            types.sort(function(a, b) {
-                if (/大滿貫甲/.test(a) && !/大滿貫甲/.test(b)) return -1;
-                if (!/大滿貫甲/.test(a) && /大滿貫甲/.test(b)) return 1;
-                if (a === '複習卷') return -1;
-                if (b === '複習卷') return 1;
-                return a.localeCompare(b, 'zh');
-            });
-            var html = '';
-            types.forEach(function(t) { html += '<option value="' + escapeHtml(t) + '">' + escapeHtml(t) + '</option>'; });
-            typeSel.innerHTML = html;
-            if (prevType && types.indexOf(prevType) >= 0) typeSel.value = prevType;
-            onTreeReviewTypeChange(true);
-        }
-        function onTreeReviewTypeChange(skipRender) {
-            var typeSel = el('tree-review-type-filter');
-            var instSel = el('tree-review-inst-filter');
-            if (!typeSel || !instSel) return;
-            var t = typeSel.value;
-            var prevInst = instSel.value;
-            var insts = collectInstancesForType(t);
-            insts.sort(function(a, b) {
-                if (a.indexOf('大滿貫甲') >= 0) return -1;
-                if (b.indexOf('大滿貫甲') >= 0) return 1;
-                return a.localeCompare(b, 'zh');
-            });
-            var html = '<option value="">全部教材</option>';
-            insts.forEach(function(n) { html += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; });
-            instSel.innerHTML = html;
-            if (prevInst && insts.indexOf(prevInst) >= 0) instSel.value = prevInst;
-            // v2.3.2.11: 預設改成空字串 (代表「全部 instance」), 跟複習講義一致
-            else instSel.value = '';
-            if (!skipRender) renderTreeView();
-        }
-        function buildProgressBarHtml(label, done, total, color, labelColor) {
-            var pct = total > 0 ? Math.round(done / total * 100) : 0;
-            var fillColor = pct >= 70 ? '#1a4a3a' : (pct >= 40 ? '#8a6d2a' : '#8a2a3a');
-            return '<div class="tree-summary-progress-row">' +
-                '<span class="tree-summary-progress-label" style="color:' + labelColor + ';">' + label + '</span>' +
-                '<div class="tree-summary-progress-track"><div class="tree-summary-progress-fill" style="width:' + pct + '%; background:' + color + ';"></div></div>' +
-                '<span class="tree-summary-progress-pct" style="color:' + fillColor + ';">' + pct + '%</span>' +
-                '<span class="tree-summary-progress-detail">(' + done + ' / ' + total + ' 單元)</span>' +
-                '</div>';
-        }
-
         function renderTreeSubjectSummary(root, treeSubjects) {
-            // v2.3.2.6: populate dropdowns + 算 2 條進度條
-            populateTreeReviewFilter();
-            var f = getTreeReviewFilter();
-            var html = '';
-            Object.keys(treeSubjects).forEach(function(key) {
-                var info = treeSubjects[key];
-                var unitCount = 0, volCount = 0, typeCount = 0;
-                if (info.subj && info.subj.materials) {
-                    typeCount = Object.keys(info.subj.materials).length;
-                    Object.values(info.subj.materials).forEach(function(t) {
-                        if (t && t.instances) {
-                            t.instances.forEach(function(inst) {
-                                if (inst.vols) {
-                                    Object.keys(inst.vols).forEach(function(v) {
-                                        volCount++;
-                                        unitCount += (inst.vols[v] || []).length;
-                                    });
-                                }
-                            });
-                        }
-                    });
-                }
-                var p1 = calcProgressForType(info.subj, '複習講義', null);
-                var p2 = { done: 0, total: 0, hasType: false };
-                if (f.typeName) p2 = calcProgressForType(info.subj, f.typeName, f.instanceName || null);
-                var bar1 = p1.hasType ? buildProgressBarHtml('📗 複習講義', p1.done, p1.total, '#99D8B9', '#1a4a3a') : '';
-                var instLabel = f.instanceName ? f.instanceName : '全部';
-                var bar2 = (p2.hasType && p2.total > 0) ? buildProgressBarHtml('📘 ' + f.typeName + (f.instanceName ? ' (' + instLabel + ')' : ''), p2.done, p2.total, '#99C9E9', '#2a4a6a') : '';
-                html += '<div class="tree-subject-summary">' +
-                    '<div class="tree-subject-summary-header" data-tree-subject="' + escapeHtml(key) + '" style="cursor:pointer;">' +
-                    '<span class="tree-subject-summary-name">📘 ' + escapeHtml(info.name) + '</span>' +
-                    // v2.3.2.12: 移除「X類別 X冊 X單元」stats 文字 (沒意義, 改用 progress bar 顯示) 
-                    '' +
-                    // v2.3.2.62: 展開按鈕 — 點擊切到該科目 tree view (透過 stats 頁)
-                    '<button type="button" style="color:var(--secondary);cursor:pointer;font-weight:bold;background:#f0f4f8;padding:2px 8px;border:0;border-radius:4px;">查看教材與單元</button>' +
-                    '</div>' +
-                    (bar1 || bar2 ? '<div class="tree-subject-summary-bars">' + bar1 + bar2 + '</div>' : '') +
-                    '</div>';
-            });
-            html += '<div style="text-align: center; padding: 15px; color: var(--secondary); font-size: 1.1em; font-weight: bold;">↑ 點擊科目或「查看教材與單元」，也可從上方科目選單選擇</div>';
-            root.innerHTML = html;
-            root.querySelectorAll('[data-tree-subject]').forEach(function(header) {
-                header.addEventListener('click', function() {
-                    _meExpandTreeSubject(header.dataset.treeSubject);
-                });
-            });
+            renderSubjectTypeOverview(root, treeSubjects);
         }
 
         // v1.5.175: 點擊科目 summary card → 設成 selected 並重 render
@@ -7545,13 +7367,8 @@ loadBoardHeader();
 
         function updatePlannerSelector() {
             var sel = el('planner-selector');
-            if(appPlans.length === 0) {
-                sel.value = '';
-                el('calendar-grid').innerHTML = '<div style="grid-column: 1 / -1; padding: 50px; text-align: center; color: #95a5a6;">請點擊上方「🪄 建立智慧排程計畫」開始！</div>';
-                return;
-            }
             sel.innerHTML = appPlans.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-            sel.value = appPlans[appPlans.length - 1].id;
+            sel.value = appPlans.length ? appPlans[appPlans.length - 1].id : '';
             
             var catFilter = el('planner-cat-filter');
             if(catFilter) {
@@ -7724,6 +7541,7 @@ loadBoardHeader();
         };
 
         function renderCalendar() {
+            el('current-month-display').innerText = currentViewDate.getFullYear() + '年 ' + (currentViewDate.getMonth() + 1) + '月';
             autoMigrateLogsToCalendar();
             var pid = el('planner-selector').value;
             console.log('[renderCalendar] pid=' + JSON.stringify(pid) + ', appPlans.length=' + (appPlans ? appPlans.length : 'NULL'));
@@ -7734,7 +7552,7 @@ loadBoardHeader();
                 pid = lastPlan.id;
                 console.log('[renderCalendar] fallback to last plan: ' + pid);
             }
-            if(!pid) { console.log('[renderCalendar] pid 空, return'); el('calendar-grid').innerHTML = ''; return; }
+            if(!pid) { el('calendar-grid').innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;">尚無排程，請點選上方「智慧排程」建立計畫。</div>'; return; }
             var plan = appPlans.find(p => p.id === pid); 
             console.log('[renderCalendar] plan=' + (plan ? plan.name : 'NULL'));
             if(!plan) return;
@@ -18478,13 +18296,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var root = el('starmap-root');
             if (!root) return;
             root.innerHTML = '';
-            var comparisonFilters = el('tree-review-filters');
-            if (comparisonFilters) comparisonFilters.style.display = 'none';
-            // v2.3.2.6: 首次進入時 populate dropdowns
-            if (el('tree-review-type-filter') && el('tree-review-type-filter').options.length === 0) {
-                populateTreeReviewFilter();
-            }
-
             // v1.5.176: 拿掉 tree-cat-filter (跟看板篩選重複), 只剩 科目/教材類別/冊別 dropdowns
             var user = multiData[currentUserId];
             // 收集所有 subjects (不限 cat — 用戶已從看板選好 cat)
@@ -18582,7 +18393,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // - 沒選科目 (ALL): 顯示科目 summary cards (default 收起)
             // - 選了科目: 只渲染該科目的樹, 教材類別/冊別進一步 filter
             if (treeSubjectKey === 'ALL') {
-                if (comparisonFilters) comparisonFilters.style.display = 'inline-flex';
                 renderTreeSubjectSummary(root, treeSubjects);
                 return;
             }
@@ -18690,13 +18500,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 var visibleUnits = _collectSubjectUnits(s);
                 var pageProgress = TreePageProgress.create(originalSubject, _collectSubjectUnits(originalSubject), appPlans,
                     { subject: sub, category: entry.cat });
-                var totals = pageProgress.summary(visibleUnits);
-                var progressParts = [];
-                if (totals.pages || (!totals.units && !totals.missing)) progressParts.push(totals.donePages + ' / ' + totals.pages + ' 頁');
-                if (totals.units) progressParts.push(totals.doneUnits + ' / ' + totals.units + ' 單元');
-                if (totals.missing) progressParts.push(totals.missing + ' 單元未設定頁碼');
+                var typeStats = getTreeTypeStats(s, {subject:sub, category:entry.cat}, originalSubject);
                 html += '<div class="tree-subject">';
-                html += '<h2>' + escapeHtml(sub) + catLabel + '<span class="tree-progress">' + progressParts.join(' · ') + '</span></h2>';
+                html += '<h2>' + escapeHtml(sub) + catLabel + '</h2>';
+                if (!s.materials) Object.keys(typeStats).forEach(function(type) { html += renderTreeTypeCard(typeStats[type], false); });
 
                 if (s.type === 'custom' && Array.isArray(s.units)) {
                     // v1.5.192: legacy 自訂範圍結構, 用 instance header 包起來 (跟教材庫一致)
@@ -18834,7 +18641,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             var accFilled = Math.round(accPct / 10);
                             var accEmpty = 10 - accFilled;
                             var accStr = '█'.repeat(accFilled) + '░'.repeat(accEmpty);
-                            accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + accStr + ' ' + accPct + '%</span>';
+                            accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + treeMeter(accPct, accPct + '%') + '</span>';
                         }
                         // v1.5.212: grid 5 欄對齊 header
                         var rowHtml = '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')"  style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;">';
@@ -18845,7 +18652,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         rowHtml += '<span class="tree-unit-range" style="font-family:monospace; font-size:0.85em; color:var(--secondary);">' + escapeHtml(range || '-') + '</span>';
                         rowHtml += '<span style="font-size:0.85em;">' + accuracyBarHtml + '</span>';
                         var progressTxt = isDoneForTree ? (coveredPages + '/' + totalPages + ' (' + pct + '%)') : '—';
-                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">' + barStr + ' ' + progressTxt + '</span>';
+                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">' + treeMeter(pct, progressTxt) + '</span>';
                         rowHtml += '<span style="font-size:0.85em;">';
                         if (scheduledDays > 0) {
                             rowHtml += '<span class="tree-unit-clock" onclick="event.stopPropagation(); jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="cursor:pointer; font-size:0.85em; white-space:nowrap;" title="已排 ' + scheduledDays + ' 天, 點擊跳到月曆">📅 ' + scheduledDays + '天</span>';
@@ -18854,7 +18661,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         rowHtml += '</li>';
                         return rowHtml;
                     }
-                    Object.keys(byInstance).forEach(function(ik) {
+                    Object.keys(typeStats).forEach(function(typeName) {
+                        html += '<section class="tree-type-section">' + renderTreeTypeCard(typeStats[typeName], true) + '<div class="tree-type-details">';
+                        Object.keys(byInstance).filter(function(ik) { return byInstance[ik].typeName === typeName; }).forEach(function(ik) {
                         var inst = byInstance[ik];
                         var volKeys = Object.keys(inst.vols);
                         if (volKeys.length === 0) return;
@@ -18899,6 +18708,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         if (hasNoVol) html += '</ul></ul>';
                         html += '</ul>';
                     });
+                        html += '</div></section>';
+                    });
                 }
 
                 html += '</div>';
@@ -18915,6 +18726,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             html += '</div>';
 
             root.innerHTML = html;
+            bindTreeTypeToggles(root);
         }
 
         // === v1.4.0: 月份分析 (月→週 bar chart) ===

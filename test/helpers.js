@@ -43,6 +43,7 @@ function loadIndex() {
     });
 
     const win = dom.window;
+    win.eval(fs.readFileSync(require('node:path').join(__dirname, '..', 'board-layout.js'), 'utf8'));
     win.eval(fs.readFileSync(require('node:path').join(__dirname, '..', 'tree-progress.js'), 'utf8'));
     // ★ 依序 eval 所有 block；某個 block 的 init 在 jsdom 下 throw 不影響後續 block
     for (const code of blocks) {

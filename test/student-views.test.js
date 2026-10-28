@@ -24,6 +24,7 @@ async function page(t, file, url) {
     w.localStorage.setItem('myStudyNotes', JSON.stringify(notes));
     w.eval(text('student-records.js'));
     w.eval(text('tree-progress.js'));
+    w.eval(text('board-layout.js'));
     w.eval(text(file === 'index.html' ? 'exam-student-ui.js' : 'wrong-notes/student-ui.js'));
     const errors = [];
     for (const m of text(file).matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) {
@@ -265,17 +266,15 @@ function seedTree(w) {
     w.multiData.A.masters = { '會考': master }; w.appMaster = master;
     w.openStats(); w.document.querySelector('#tree-subject-filter').value = 'ALL'; w.renderTreeView();
 }
-test('科目卡片按鈕實際點擊可進入該科目單元，重設後比較選單恢復', async t => {
+test('科目卡片按鈕可進入該科目單元，重設後仍不出現比較選單', async t => {
     const w = await page(t, 'index.html', 'http://localhost/'); seedTree(w);
-    const group = w.document.querySelector('#tree-review-filters');
-    assert.equal(group.style.display, 'inline-flex');
-    assert.match(group.textContent, /比較教材類型/); assert.match(group.textContent, /教材名稱/);
+    assert.equal(w.document.querySelector('#tree-review-filters'), null);
     const button = w.document.querySelector('.tree-subject-summary-header button');
     assert.equal(button.textContent, '查看教材與單元'); button.click();
     assert.equal(w.document.querySelector('#tree-subject-filter').value, '數學|||會考');
-    assert.equal(group.style.display, 'none');
+    assert.equal(w.document.querySelector('#tree-review-filters'), null);
     assert.match(w.document.querySelector('#starmap-root').textContent, /數與數線/);
-    w.resetTreeFilter(); assert.equal(group.style.display, 'inline-flex');
+    w.resetTreeFilter(); assert.equal(w.document.querySelector('#tree-review-filters'), null);
     w.document.querySelector('.tree-subject-summary-name').click();
     assert.equal(w.document.querySelector('#tree-subject-filter').value, '數學|||會考');
 });
@@ -290,7 +289,7 @@ test('科目名稱含引號時仍透過資料屬性傳入完整代碼，不拼�
 });
 test('沒有教材時隱藏無作用的比較選單', async t => {
     const w = await page(t, 'index.html', 'http://localhost/'); w.openStats();
-    assert.equal(w.document.querySelector('#tree-review-filters').style.display, 'none');
+    assert.equal(w.document.querySelector('#tree-review-filters'), null);
 });
 
 test('冊次篩選解析教材名稱及冊名，只顯示所選冊的單元及頁數', async t => {
@@ -310,16 +309,70 @@ test('冊次篩選解析教材名稱及冊名，只顯示所選冊的單元及�
  w.document.querySelector('#tree-vol-filter').value='麻辣|||第四冊';w.renderTreeView();
  const root=w.document.querySelector('#starmap-root');assert.match(root.textContent,/第四冊文法/);
  assert.doesNotMatch(root.textContent,/第三冊文法|其他教材第四冊|其他冊鏡像/);
- assert.equal(root.querySelector('.tree-progress').textContent,'7 / 10 頁');
+ assert.match(root.querySelector('.tree-type-count').textContent,/已完成 0／1 單元/);
+ assert.match(root.querySelector('.tree-type-state').textContent,/進行中 1/);
  assert.match(root.querySelector('.tree-unit-progress').textContent,/7\/10 \(70%\)/);
  assert.equal(master['英文'].materials['複習講義'].instances[0].volOrder.length,2,'不修改教材資料');
  w.document.querySelector('#tree-vol-filter').value='其他|||第四冊';w.renderTreeView();
- assert.match(root.textContent,/其他教材第四冊/);assert.equal(root.querySelector('.tree-progress').textContent,'0 / 30 頁');
+ assert.match(root.textContent,/其他教材第四冊/);assert.match(root.querySelector('.tree-type-count').textContent,/已完成 0／1 單元/);
 });
-test('右上角頁數採部分完成頁數加總，單元型教材獨立標示',async t=>{
+test('各教材類型分別統計完整完成單元，部分頁數不當作已完成',async t=>{
  const w=await page(t,'index.html','http://localhost/');seedTree(w);
  w.appMaster['數學'].materials['複習卷'].unitBased=true;
  w.appPlans=[{grid:{'2026-10-28':[{unitId:'u-math',cat:'會考',isDone:true,startPage:1,endPage:1},{unitId:'u-review',cat:'會考',isDone:true}]}}];
  w._meExpandTreeSubject('數學|||會考');
- assert.equal(w.document.querySelector('.tree-progress').textContent,'1 / 2 頁 · 1 / 1 單元');
+ const cards=Array.from(w.document.querySelectorAll('.tree-type-card'));
+ assert.equal(cards.length,2);
+ assert.match(cards[0].textContent,/已完成 0／1 單元/);assert.match(cards[0].textContent,/進行中 1/);
+ assert.match(cards[1].textContent,/已完成 1／1 單元/);assert.equal(w.document.querySelector('.tree-progress'),null);
+});
+
+test('教材類型可收合明細，單元保留五欄、答對率與完成度數字及排程天數',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ w.appPlans=[{grid:{'2026-10-28':[{unitId:'u-math',cat:'會考',isDone:true,startPage:1,endPage:2}]}}];
+ w.getUnitAccuracyRate=()=>0.98;w.getUnitScheduledDays=()=>4;
+ w._meExpandTreeSubject('數學|||會考');
+ const section=w.document.querySelector('.tree-type-section');
+ assert.deepEqual(Array.from(section.querySelector('.tree-units-header').children,x=>x.textContent),['單元名稱','頁碼','答對率','完成度','排程天數']);
+ assert.match(section.querySelector('.tree-unit-accuracy').textContent,/98%/);
+ assert.match(section.querySelector('.tree-unit-progress').textContent,/2\/2 \(100%\)/);
+ assert.match(section.querySelector('.tree-unit-clock').textContent,/4天/);
+ assert.equal(section.querySelectorAll('.tree-meter').length,2);
+ const button=section.querySelector('.tree-type-toggle'),details=section.querySelector('.tree-type-details');
+ button.click();assert.equal(details.hidden,true);assert.equal(button.getAttribute('aria-expanded'),'false');
+ button.click();assert.equal(details.hidden,false);
+ assert.match(w.document.querySelector('link[href^="board-layout.css"]').href,/v=157/);
+});
+test('月曆兩列保留月份切換、篩選與原工具，更多可關閉並以Escape返回焦點',async t=>{
+ const w=await page(t,'index.html','http://localhost/');const d=w.document;
+ assert.ok(d.querySelector('.planner-heading #month-nav-row'));
+ assert.ok(d.querySelector('.planner-toolbar #planner-cat-filter'));
+ assert.ok(d.querySelector('.planner-toolbar #planner-mis-filter'));
+ for(const name of ['planner-cat-filter','planner-mis-filter','planner-selector','current-month-display','calendar-highlight-banner'])assert.equal(d.querySelectorAll('#'+name).length,1);
+ const menu=d.querySelector('#planner-more');menu.open=true;
+ d.dispatchEvent(new w.KeyboardEvent('keydown',{key:'Escape',bubbles:true}));assert.equal(menu.open,false);assert.equal(d.activeElement,menu.querySelector('summary'));
+ for(const fn of ['openDoubleCheck','showRevertWizardModal','performUndo','showSafetyBackups']){
+  let calls=0;w[fn]=()=>calls++;
+  const button=menu.querySelector('button[onclick="'+fn+'()"]');button.onclick=w.Function(button.getAttribute('onclick'));
+  menu.open=true;button.click();assert.equal(calls,1);assert.equal(menu.open,false);
+ }
+ menu.open=true;d.body.click();assert.equal(menu.open,false);
+});
+test('同一單元重複任務只計一次完成，教材型別的未開始與缺頁碼各自列出',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ const subj=w.appMaster['數學'];subj.materials['複習講義'].instances[0].vols['第一冊'].push({id:'unknown',name:'待設定頁碼'});
+ w._collectSubjectUnitsCache=new w.WeakMap();
+ w.appPlans=[{grid:{'2026-10-28':[{unitId:'u-math',cat:'會考',isDone:true,startPage:1,endPage:2},{unitId:'u-math',cat:'會考',isDone:true,startPage:1,endPage:2}]}}];
+ const stats=w.getTreeTypeStats(subj,{subject:'數學',category:'會考'});
+ assert.equal(stats['複習講義'].done,1);assert.equal(stats['複習講義'].total,2);assert.equal(stats['複習講義'].missing,1);
+ assert.equal(stats['複習卷'].todo,1);
+});
+test('尚未建立排程也顯示月份及篩選，切換月份仍會更新標題',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.openPlanner();
+ assert.match(w.document.querySelector('#current-month-display').innerText,/\d{4}年 \d+月/);
+ assert.equal(w.document.querySelector('#planner-cat-filter').value,'ALL');
+ assert.equal(w.document.querySelector('#planner-mis-filter').value,'ALL');
+ const previous=w.document.querySelector('#current-month-display').innerText;w.changeMonth(1);
+ assert.notEqual(w.document.querySelector('#current-month-display').innerText,previous);
+ assert.match(w.document.querySelector('#calendar-grid').textContent,/尚無排程/);
 });
