@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.157]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.158]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1692,7 +1692,7 @@
             min-height: 50px !important;
         }
     </style>
-    <link rel="stylesheet" href="board-layout.css?v=157">
+    <link rel="stylesheet" href="board-layout.css?v=158">
 </head>
 <body>
 
@@ -2126,7 +2126,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=157" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=158" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -2613,10 +2613,10 @@
     <div id="print-area"></div>
 
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
-    <script src="student-records.js?v=157"></script>
-    <script src="tree-progress.js?v=157"></script>
-    <script src="board-layout.js?v=157"></script>
-    <script src="exam-student-ui.js?v=157"></script>
+    <script src="student-records.js?v=158"></script>
+    <script src="tree-progress.js?v=158"></script>
+    <script src="board-layout.js?v=158"></script>
+    <script src="exam-student-ui.js?v=158"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -18612,6 +18612,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         return '📖 ' + escapeHtml(volName);
                     }
                     function renderUnitRow(u, optCtx) {
+                        if (optCtx) optCtx.sub = sub;
                         // v1.5.228: optCtx = {sub, typeName, instanceName} 由 caller 傳入，避免 cross-instance 汙染
                         var t = totalOf(u);
                         var st = getStatus(u.id, t);
@@ -18641,8 +18642,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             var accFilled = Math.round(accPct / 10);
                             var accEmpty = 10 - accFilled;
                             var accStr = '█'.repeat(accFilled) + '░'.repeat(accEmpty);
-                            accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + treeMeter(accPct, accPct + '%') + '</span>';
+                            accuracyBarHtml = '<span class="tree-unit-accuracy" onclick="event.stopPropagation(); jumpToAccuracyForUnitHighlight(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27)" style="cursor:pointer; font-family:monospace; font-size:0.75em; color:' + accColor + '; white-space:nowrap;" title="點擊跳到答對率記錄並高亮此單元">' + treeAccuracyMeter(accPct) + '</span>';
                         }
+                        if (accuracyRate === null) accuracyBarHtml = '<span class="tree-accuracy-empty" aria-label="沒有作答紀錄">-</span>';
                         // v1.5.212: grid 5 欄對齊 header
                         var rowHtml = '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')"  style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:4px 24px; cursor:pointer; border-bottom:1px dashed #e2e8f0;">';
                         rowHtml += '<span class="tree-unit-name" onclick="event.stopPropagation(); jumpToAccuracyForUnit(\x27' + u.id + '\x27, \x27' + escapeHtml(u.name) + '\x27);" style="cursor:pointer; color:var(--accent); text-decoration:underline;" title="點擊跳到答對率記錄">';
@@ -18650,9 +18652,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         rowHtml += escapeHtml(u.name);
                         rowHtml += '</span>';
                         rowHtml += '<span class="tree-unit-range" style="font-family:monospace; font-size:0.85em; color:var(--secondary);">' + escapeHtml(range || '-') + '</span>';
-                        rowHtml += '<span style="font-size:0.85em;">' + accuracyBarHtml + '</span>';
+                        rowHtml += '<span class="tree-accuracy-cell">' + accuracyBarHtml + '</span>';
                         var progressTxt = isDoneForTree ? (coveredPages + '/' + totalPages + ' (' + pct + '%)') : '—';
-                        rowHtml += '<span class="tree-unit-progress" onclick="jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">' + treeMeter(pct, progressTxt) + '</span>';
+                        rowHtml += '<span class="tree-unit-progress" onclick="event.stopPropagation(); jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="font-family:monospace; font-size:0.75em; color:' + barColor + '; white-space:nowrap; cursor:pointer;" title="點擊跳到月曆檢視">' + treeMeter(pct, progressTxt) + '</span>';
                         rowHtml += '<span style="font-size:0.85em;">';
                         if (scheduledDays > 0) {
                             rowHtml += '<span class="tree-unit-clock" onclick="event.stopPropagation(); jumpToUnitCalendar(\x27' + u.id + '\x27, \x27' + escapeHtml(cat4jump) + '\x27, \x27' + escapeHtml(mis4jump) + '\x27)" style="cursor:pointer; font-size:0.85em; white-space:nowrap;" title="已排 ' + scheduledDays + ' 天, 點擊跳到月曆">📅 ' + scheduledDays + '天</span>';
@@ -18661,53 +18663,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         rowHtml += '</li>';
                         return rowHtml;
                     }
+                    html += '<div class="tree-compact-controls"><button type="button" data-tree-expand="true">全部展開</button><button type="button" data-tree-expand="false">全部收合</button></div>';
                     Object.keys(typeStats).forEach(function(typeName) {
                         html += '<section class="tree-type-section">' + renderTreeTypeCard(typeStats[typeName], true) + '<div class="tree-type-details">';
-                        Object.keys(byInstance).filter(function(ik) { return byInstance[ik].typeName === typeName; }).forEach(function(ik) {
-                        var inst = byInstance[ik];
-                        var volKeys = Object.keys(inst.vols);
-                        if (volKeys.length === 0) return;
-                        // v1.5.191: 永遠輸出 instance header (讓教材名稱清楚顯示)
-                        var hasNoVol = volKeys.length === 1 && volKeys[0] === '__no_vol__';
-                        var instLabel = makeInstanceLabel(inst.typeName, inst.instanceName);
-                        html += '<ul class="tree-instance"><li class="tree-instance-label" style="font-weight:bold; color:var(--primary); margin-top:8px;">📖 ' + instLabel + '</li>';
-                        // v1.5.191: 沒 vol 時, units 直接列在 instance 內 (不縮排 vol)
-                        if (hasNoVol) {
-                            // v1.5.222: 沒 vol 也加 tree-units-header (統一每個 instance 都有 header)
-                            html += '<ul class="tree-units-header-wrapper" style="list-style:none; padding:0;"><li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; list-style:none;">';
-                            html += '<span>單元名稱</span>';
-                            html += '<span style="text-align:center;">頁碼</span>';
-                            html += '<span style="text-align:center;">答對率</span>';
-                            html += '<span style="text-align:center;">完成度</span>';
-                            html += '<span style="text-align:center;">排程天數</span>';
-                            html += '</li>';
-                            html += '<ul class="tree-units">';
-                        }
-                        volKeys.forEach(function(vk) {
-                            var vol = inst.vols[vk];
-                            if (vol.units.length === 0) return;
-                            var volLabel = makeVolLabel(vol.volName);
-                            if (volLabel) {
-                                html += '<ul class="tree-vol"><li class="tree-vol-label">' + volLabel + '</li>';
-                                // v1.5.207: sticky 標題列 (用 display:flex 而非 grid, sticky 更穩)
-                                html += '<li class="tree-units-header" style="display:grid; grid-template-columns: 1fr 100px 110px 150px 90px; gap:24px; align-items:center; padding:6px 24px; color:var(--primary); font-size:0.85em; font-weight:bold; position:sticky; top:0; z-index:20; list-style:none;">';
-                                html += '<span>單元名稱</span>';
-                                html += '<span style="text-align:center;">頁碼</span>';
-                                html += '<span style="text-align:center;">答對率</span>';
-                                html += '<span style="text-align:center;">完成度</span>';
-                                html += '<span style="text-align:center;">排程天數</span>';
-                                html += '</li>';
-                                html += '<ul class="tree-units">';
-                            }
-                            vol.units.forEach(function(u) {
-                                // v1.6.162: 加 vol.volName 給 renderUnitRow 用於雙軌制過濾
-                                html += renderUnitRow(u, { sub: sub, typeName: inst.typeName, instanceName: inst.instanceName, vol: vol.volName });
-                            });
-                            if (volLabel) html += '</ul></ul>';
-                        });
-                        if (hasNoVol) html += '</ul></ul>';
-                        html += '</ul>';
-                    });
+                        html += renderCompactTreeBooks(byInstance, typeName, pageProgress, renderUnitRow);
                         html += '</div></section>';
                     });
                 }
@@ -18727,6 +18686,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
             root.innerHTML = html;
             bindTreeTypeToggles(root);
+            bindCompactTreeControls(root);
         }
 
         // === v1.4.0: 月份分析 (月→週 bar chart) ===

@@ -270,7 +270,7 @@ test('科目卡片按鈕可進入該科目單元，重設後仍不出現比較�
     const w = await page(t, 'index.html', 'http://localhost/'); seedTree(w);
     assert.equal(w.document.querySelector('#tree-review-filters'), null);
     const button = w.document.querySelector('.tree-subject-summary-header button');
-    assert.equal(button.textContent, '查看教材與單元'); button.click();
+    assert.equal(button.textContent, '▸ 展開'); button.click();
     assert.equal(w.document.querySelector('#tree-subject-filter').value, '數學|||會考');
     assert.equal(w.document.querySelector('#tree-review-filters'), null);
     assert.match(w.document.querySelector('#starmap-root').textContent, /數與數線/);
@@ -341,7 +341,7 @@ test('教材類型可收合明細，單元保留五欄、答對率與完成度�
  const button=section.querySelector('.tree-type-toggle'),details=section.querySelector('.tree-type-details');
  button.click();assert.equal(details.hidden,true);assert.equal(button.getAttribute('aria-expanded'),'false');
  button.click();assert.equal(details.hidden,false);
- assert.match(w.document.querySelector('link[href^="board-layout.css"]').href,/v=157/);
+ assert.match(w.document.querySelector('link[href^="board-layout.css"]').href,/v=158/);
 });
 test('月曆兩列保留月份切換、篩選與原工具，更多可關閉並以Escape返回焦點',async t=>{
  const w=await page(t,'index.html','http://localhost/');const d=w.document;
@@ -375,4 +375,50 @@ test('尚未建立排程也顯示月份及篩選，切換月份仍會更新標�
  const previous=w.document.querySelector('#current-month-display').innerText;w.changeMonth(1);
  assert.notEqual(w.document.querySelector('#current-month-display').innerText,previous);
  assert.match(w.document.querySelector('#calendar-grid').textContent,/尚無排程/);
+});
+
+test('每本教材只設一組表頭，教材、冊次及全部展開收合均正常',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ const instance=w.appMaster['數學'].materials['複習講義'].instances[0];
+ instance.vols['第二冊']=[{id:'math2',name:'第二冊單元',start:3,end:4}];
+ w._collectSubjectUnitsCache=new w.WeakMap();w._meExpandTreeSubject('數學|||會考');
+ const books=w.document.querySelectorAll('.tree-book');assert.equal(books.length,2);
+ const book=books[0];assert.equal(book.querySelectorAll('.tree-units-header').length,1);
+ assert.equal(book.querySelectorAll('.tree-volume-toggle').length,2);
+ const volume=book.querySelector('.tree-volume-toggle'),units=volume.parentElement.querySelector('.tree-units');
+ volume.click();assert.equal(units.hidden,true);volume.click();assert.equal(units.hidden,false);
+ const bookButton=book.querySelector('.tree-book-toggle');bookButton.click();assert.equal(book.querySelector('.tree-book-details').hidden,true);
+ w.document.querySelector('[data-tree-expand="true"]').click();assert.equal(book.querySelector('.tree-book-details').hidden,false);
+ w.document.querySelector('[data-tree-expand="false"]').click();
+ assert.ok(Array.from(w.document.querySelectorAll('.tree-book-details')).every(n=>n.hidden));
+ assert.ok(Array.from(w.document.querySelectorAll('.tree-volume-toggle')).every(n=>n.getAttribute('aria-expanded')==='false'));
+ w.document.querySelector('[data-tree-expand="true"]').click();assert.ok(Array.from(w.document.querySelectorAll('.tree-book-details')).every(n=>!n.hidden));
+});
+test('答對率沿用三段門檻，100%無斜線，缺少紀錄顯示置中短橫且不顯示bar',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ const style=w.document.createElement('style');style.textContent=text('board-layout.css');w.document.head.appendChild(style);
+ for(const [rate,color,hasRemainder] of [[0,'#ef4444',true],[0.89,'#ef4444',true],[0.90,'#f59e0b',true],[0.95,'#f59e0b',true],[0.96,'#27ae60',true],[1,'#27ae60',false]]){
+  w.getUnitAccuracyRate=()=>rate;w._meExpandTreeSubject('數學|||會考');
+  const meter=w.document.querySelector('.tree-accuracy-meter');
+  assert.equal(meter.classList.contains('has-remainder'),hasRemainder);
+  assert.equal(meter.firstElementChild.style.width,Math.round(rate*100)+'%');
+  const swatch=w.document.createElement('span');swatch.style.background=color;assert.equal(meter.firstElementChild.style.background,swatch.style.background);
+  assert.equal(w.getComputedStyle(meter).width,'72px');
+  assert.match(meter.parentElement.textContent,new RegExp(Math.round(rate*100)+'%'));
+ }
+ w.getUnitAccuracyRate=()=>null;w._meExpandTreeSubject('數學|||會考');
+ const empty=w.document.querySelector('.tree-accuracy-empty');assert.equal(empty.textContent,'-');
+ assert.equal(w.getComputedStyle(empty).textAlign,'center');assert.equal(empty.parentElement.querySelector('.tree-meter'),null);
+ assert.equal(w.document.querySelector('.tree-book .tree-units-header').children.length,5);
+});
+test('進度列點擊不重複跳轉，原有答對率與排程天數入口仍存在',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ w.appPlans=[{grid:{'2026-10-29':[{unitId:'u-math',cat:'會考',isDone:true,startPage:1,endPage:1}]}}];w.getUnitAccuracyRate=()=>0.95;w.getUnitScheduledDays=()=>2;
+ w._meExpandTreeSubject('數學|||會考');let calendarCalls=0,accuracyCalls=0;
+ w.jumpToUnitCalendar=()=>calendarCalls++;w.jumpToAccuracyForUnitHighlight=()=>accuracyCalls++;
+ const row=w.document.querySelector('.tree-unit[style*="display:grid"]');
+ for(const node of [row,...row.querySelectorAll('[onclick]')])node.onclick=w.Function('event',node.getAttribute('onclick'));
+ row.querySelector('.tree-unit-progress').click();assert.equal(calendarCalls,1);
+ row.querySelector('.tree-unit-clock').click();assert.equal(calendarCalls,2);
+ row.querySelector('.tree-unit-accuracy').click();assert.equal(accuracyCalls,1);assert.equal(calendarCalls,2);
 });
