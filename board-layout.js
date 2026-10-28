@@ -18,7 +18,9 @@ function getTreeTypeStats(subject, context, originalSubject) {
 }
 function treeMeter(percent, label) {
     percent = Math.max(0,Math.min(100,percent || 0));
-    return '<span class="tree-meter" aria-hidden="true"><span style="width:'+percent+'%"></span></span><span class="tree-meter-label">'+escapeHtml(label)+'</span>';
+    var match=/^(\d+)\/(\d+) \((\d+)%\)$/.exec(label || '');
+    var text=match ? '<span class="tree-progress-label"><span class="tree-progress-number">'+match[1]+'</span><span>/</span><span class="tree-progress-number">'+match[2]+'</span><span class="tree-progress-percent"> ('+match[3]+'%)</span></span>' : '<span class="tree-meter-label">'+escapeHtml(label)+'</span>';
+    return '<span class="tree-meter" aria-hidden="true"><span style="width:'+percent+'%"></span></span>'+text;
 }
 function renderTreeTypeCard(group, expandable) {
     var pct = group.total ? Math.round(group.done/group.total*100) : 0;
@@ -33,7 +35,7 @@ function renderTreeTypeCard(group, expandable) {
 function renderSubjectTypeOverview(root, subjects) {
     var html = '';
     Object.keys(subjects).forEach(function(key) {
-        var entry = subjects[key], groups = getTreeTypeStats(entry.subj, {subject:entry.name,category:entry.cat});
+        var entry = subjects[key], groups = getTreeTypeStats(entry.subj, treeScopeContext(entry), entry.originalSubj);
         html += '<section class="tree-subject-summary"><div class="tree-subject-summary-header" data-tree-subject="'+escapeHtml(key)+'">'+
             '<span class="tree-subject-summary-name">'+escapeHtml(entry.name)+'</span><button type="button" class="tree-type-toggle">▸ 展開</button></div>';
         Object.keys(groups).forEach(function(type) { html += renderTreeTypeCard(groups[type], false); });
@@ -45,13 +47,13 @@ function renderSubjectTypeOverview(root, subjects) {
     });
 }
 function bindTreeTypeToggles(root) {
+    var state=treeExpansionState(),select=document.getElementById('tree-type-filter'),selected=select&&select.value||'ALL';
     root.querySelectorAll('.tree-type-toggle[aria-expanded]').forEach(function(button) {
-        button.addEventListener('click',function() {
-            var details = button.closest('.tree-type-section').querySelector('.tree-type-details');
-            details.hidden = !details.hidden;
-            button.setAttribute('aria-expanded',String(!details.hidden));
-            button.textContent = details.hidden ? '查看單元' : '收合單元';
-        });
+        var section=button.closest('.tree-type-section'),type=section.querySelector('[data-type-name]').dataset.typeName,details=section.querySelector('.tree-type-details');
+        if(selected===type)state[type]=true;
+        if(!(type in state))state[type]=type==='複習講義';
+        function apply(){details.hidden=!state[type];button.setAttribute('aria-expanded',String(state[type]));button.textContent=state[type]?'收合單元':'查看單元';}
+        apply();button.addEventListener('click',function(){state[type]=!state[type];apply();});
     });
 }
 document.addEventListener('click',function(event) {
@@ -109,12 +111,47 @@ function bindCompactTreeControls(root) {
         control.addEventListener('click',function() {
             var expanded=control.dataset.treeExpand==='true';
             var subject=control.closest('.tree-subject');
-            subject.querySelectorAll('.tree-type-details').forEach(function(pane) { pane.hidden=false; });
-            subject.querySelectorAll('.tree-type-toggle[aria-expanded]').forEach(function(button) { button.setAttribute('aria-expanded','true');button.textContent='收合單元'; });
+            subject.querySelectorAll('.tree-type-details').forEach(function(pane) { pane.hidden=!expanded; });
+            var states=treeExpansionState();subject.querySelectorAll('[data-type-name]').forEach(function(card){states[card.dataset.typeName]=expanded;});
+            subject.querySelectorAll('.tree-type-toggle[aria-expanded]').forEach(function(button) { button.setAttribute('aria-expanded',String(expanded));button.textContent=expanded?'收合單元':'查看單元'; });
             subject.querySelectorAll('.tree-book-toggle,.tree-volume-toggle').forEach(function(button) {
                 var content=button.classList.contains('tree-book-toggle')?button.parentElement.querySelector('.tree-book-details'):button.parentElement.querySelector('.tree-units');
                 setState(button,content,expanded);
             });
         });
     });
+}
+
+/* v159 scope selectors are UI state only; never rewrite student data. */
+var _treeScopeOwner=null;
+var _treeExpansionKey='';
+var _treeExpandedTypes={};
+function syncTreeScopeFilters(user){
+ var cat=document.getElementById('tree-category-filter'),mis=document.getElementById('tree-mission-filter');
+ if(!cat||!mis)return {category:'ALL',mission:'ALL'};
+ var changed=_treeScopeOwner!==currentUserId,chosen=changed?'ALL':cat.value,mission=changed?'ALL':mis.value;
+ _treeScopeOwner=currentUserId;
+ var categories=Array.from(new Set(Object.keys(user&&user.masters||{}).concat(Object.keys(user&&user.missions||{}))));
+ cat.innerHTML='';cat.add(new Option('全部進度分類','ALL'));categories.forEach(function(name){cat.add(new Option(name,name));});cat.value=categories.includes(chosen)?chosen:'ALL';
+ mis.innerHTML='';mis.add(new Option('全部任務','ALL'));var names=cat.value==='ALL'?[]:Object.keys(user&&user.missions&&user.missions[cat.value]||{});
+ names.forEach(function(name){mis.add(new Option(name,name));});mis.value=names.includes(mission)?mission:'ALL';mis.disabled=cat.value==='ALL';
+ var scope={category:cat.value,mission:mis.value};
+ var label=document.getElementById('tree-scope-description');if(label)label.textContent='統計範圍：'+(scope.category==='ALL'?'全部進度分類':scope.category)+' ／ '+(scope.mission==='ALL'?'全部任務':scope.mission)+'。完成度與排程天數依此範圍；答對率為單元累計。';
+ return scope;
+}
+function getTreeScope(){
+ var cat=document.getElementById('tree-category-filter'),mis=document.getElementById('tree-mission-filter');
+ return {category:cat&&cat.value||'ALL',mission:mis&&mis.value||'ALL'};
+}
+function treeScopeContext(entry){var scope=getTreeScope();return {subject:entry.name,category:entry.cat,mission:scope.mission==='ALL'?null:scope.mission};}
+function onTreeScopeChange(categoryChanged){
+ if(categoryChanged)document.getElementById('tree-mission-filter').value='ALL';
+ ['tree-subject-filter','tree-type-filter','tree-vol-filter'].forEach(function(id){var input=document.getElementById(id);if(input)input.value='ALL';});
+ resetTreeExpansion();renderTreeView();
+}
+function resetTreeExpansion(){_treeExpansionKey='';_treeExpandedTypes={};}
+function treeExpansionState(){
+ var scope=getTreeScope(),subject=document.getElementById('tree-subject-filter');var key=JSON.stringify([typeof currentUserId==='undefined'?'':currentUserId,scope.category,scope.mission,subject&&subject.value]);
+ if(key!==_treeExpansionKey){_treeExpansionKey=key;_treeExpandedTypes={};}
+ return _treeExpandedTypes;
 }

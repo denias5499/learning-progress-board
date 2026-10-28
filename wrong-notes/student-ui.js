@@ -74,7 +74,7 @@ function noteMatchesSource(note) {
 function requestUnifiedImport() {
     var examId = document.getElementById('filter-exam').value;
     if (parent !== window) parent.postMessage({ type: 'studymap-import-notes', examId: examId }, location.origin);
-    else location.href = './?v=158&view=import' + (examId ? '&source=mockExam&examId=' + encodeURIComponent(examId) : '');
+    else location.href = './?v=159&view=import' + (examId ? '&source=mockExam&examId=' + encodeURIComponent(examId) : '');
 }
 function addSavedNoteAssociationControls(slot, note) {
     var box = document.createElement('div'); box.className = 'saved-note-fields'; box.hidden = true;

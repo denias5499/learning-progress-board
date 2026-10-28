@@ -30,6 +30,7 @@
             Object.keys(plan.grid || {}).forEach(function(day) {
                 (plan.grid[day] || []).forEach(function(t) {
                     if (!t || !t.isDone || !t.unitId) return;
+                    if (context.mission && context.mission !== 'ALL' && (t.mis !== context.mission || t.cat !== context.category)) return;
                     if (t.subject && context.subject && t.subject !== context.subject) return;
                     if (t.cat && context.category && t.cat !== context.category) return;
                     var candidates = allUnits.filter(function(u) {

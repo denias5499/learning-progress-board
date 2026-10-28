@@ -25,7 +25,7 @@ function resetStudentExamContext() {
 function renderMockExamNotes(content) {
     content.innerHTML = '<p>目前學生：' + escapeHtml(multiData[currentUserId].name) +
         '。以下只顯示本學生的模考錯題；新增錯題將前往統一匯入頁。</p>' +
-        '<iframe title="模考錯題" src="wrong-notes/?v=158&mode=mockExam" style="width:100%;height:75vh;min-height:600px;border:0;"></iframe>';
+        '<iframe title="模考錯題" src="wrong-notes/?v=159&mode=mockExam" style="width:100%;height:75vh;min-height:600px;border:0;"></iframe>';
 }
 function appendPendingExamNotice(content) {
     var pending = StudyRecords.pending('exams').length;
@@ -41,7 +41,7 @@ function openUnifiedWrongNoteImport(examId) {
     if (examId) StudyRecords.validateExam(currentUserId, examId);
     showPage('page-wrongnotes');
     var frame = document.querySelector('#page-wrongnotes iframe');
-    frame.src = 'wrong-notes/?v=158&view=import&source=mockExam' + (examId ? '&examId=' + encodeURIComponent(examId) : '');
+    frame.src = 'wrong-notes/?v=159&view=import&source=mockExam' + (examId ? '&examId=' + encodeURIComponent(examId) : '');
 }
 
 // Legacy records remain intact until the owner is explicitly chosen and confirmed.

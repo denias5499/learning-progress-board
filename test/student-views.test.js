@@ -24,6 +24,7 @@ async function page(t, file, url) {
     w.localStorage.setItem('myStudyNotes', JSON.stringify(notes));
     w.eval(text('student-records.js'));
     w.eval(text('tree-progress.js'));
+    w.eval(text('tree-scope.js'));
     w.eval(text('board-layout.js'));
     w.eval(text(file === 'index.html' ? 'exam-student-ui.js' : 'wrong-notes/student-ui.js'));
     const errors = [];
@@ -341,7 +342,7 @@ test('教材類型可收合明細，單元保留五欄、答對率與完成度�
  const button=section.querySelector('.tree-type-toggle'),details=section.querySelector('.tree-type-details');
  button.click();assert.equal(details.hidden,true);assert.equal(button.getAttribute('aria-expanded'),'false');
  button.click();assert.equal(details.hidden,false);
- assert.match(w.document.querySelector('link[href^="board-layout.css"]').href,/v=158/);
+ assert.match(w.document.querySelector('link[href^="board-layout.css"]').href,/v=159/);
 });
 test('月曆兩列保留月份切換、篩選與原工具，更多可關閉並以Escape返回焦點',async t=>{
  const w=await page(t,'index.html','http://localhost/');const d=w.document;
@@ -403,7 +404,7 @@ test('答對率沿用三段門檻，100%無斜線，缺少紀錄顯示置中短�
   assert.equal(meter.classList.contains('has-remainder'),hasRemainder);
   assert.equal(meter.firstElementChild.style.width,Math.round(rate*100)+'%');
   const swatch=w.document.createElement('span');swatch.style.background=color;assert.equal(meter.firstElementChild.style.background,swatch.style.background);
-  assert.equal(w.getComputedStyle(meter).width,'72px');
+  assert.ok(w.getComputedStyle(meter).width.includes('56px'),'窄欄採56px，寬欄由container query設為72px');
   assert.match(meter.parentElement.textContent,new RegExp(Math.round(rate*100)+'%'));
  }
  w.getUnitAccuracyRate=()=>null;w._meExpandTreeSubject('數學|||會考');
@@ -421,4 +422,43 @@ test('進度列點擊不重複跳轉，原有答對率與排程天數入口仍�
  row.querySelector('.tree-unit-progress').click();assert.equal(calendarCalls,1);
  row.querySelector('.tree-unit-clock').click();assert.equal(calendarCalls,2);
  row.querySelector('.tree-unit-accuracy').click();assert.equal(accuracyCalls,1);assert.equal(calendarCalls,2);
+});
+
+test('分類任務篩選連動單元分母、完成度及排程天數，空任務不退回全部教材',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ const subject=w.appMaster['數學'];subject.materials['複習講義'].instances[0].vols['第一冊']=[{id:'a',name:'甲單元',start:1,end:10},{id:'b',name:'乙單元',start:11,end:20}];
+ w.multiData.A.missions={'會考':{'一模':['a'],'二模':['a','b'],'空任務':[]}};w.appMissions=w.multiData.A.missions;
+ w.appPlans=[{grid:{'2026-10-01':[{unitId:'a',cat:'會考',mis:'一模',isDone:true,startPage:1,endPage:10}],
+ '2026-10-02':[{unitId:'a',cat:'會考',mis:'二模',isDone:true,startPage:1,endPage:4}],
+ '2026-10-03':[{unitId:'a',cat:'會考',mis:'二模',isDone:false,startPage:5,endPage:10},{unitId:'b',cat:'會考',mis:'二模',isDone:true,startPage:11,endPage:20}]}}];
+ w._collectSubjectUnitsCache=new w.WeakMap();w.renderTreeView();
+ const category=w.document.querySelector('#tree-category-filter'),mission=w.document.querySelector('#tree-mission-filter');category.value='會考';w.onTreeScopeChange(true);
+ mission.value='二模';w.onTreeScopeChange(false);w._meExpandTreeSubject('數學|||會考');
+ let root=w.document.querySelector('#starmap-root');assert.match(root.querySelector('.tree-type-count').textContent,/已完成 1／2 單元/);
+ assert.match(root.querySelector('.tree-unit-progress').textContent,/4\/10 \(40%\)/);assert.match(root.querySelector('.tree-unit-clock').textContent,/2天/);
+ assert.match(w.document.querySelector('#tree-scope-description').textContent,/二模/);
+ mission.value='一模';w.onTreeScopeChange(false);w._meExpandTreeSubject('數學|||會考');
+ assert.match(root.querySelector('.tree-type-count').textContent,/已完成 1／1 單元/);assert.doesNotMatch(root.textContent,/乙單元/);
+ assert.match(root.querySelector('.tree-unit-progress').textContent,/10\/10 \(100%\)/);
+ mission.value='空任務';w.onTreeScopeChange(false);assert.match(root.textContent,/此範圍沒有教材單元/);assert.equal(root.querySelector('.tree-type-card'),null);
+ assert.equal(w.document.querySelector('#tree-subject-filter').options.length,1);
+});
+test('單科預設只展開複習講義，手動類型與全部展開收合尊重操作',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);w._meExpandTreeSubject('數學|||會考');
+ function details(name){return Array.from(w.document.querySelectorAll('.tree-type-section')).find(s=>s.querySelector('[data-type-name]').dataset.typeName===name).querySelector('.tree-type-details');}
+ assert.equal(details('複習講義').hidden,false);assert.equal(details('複習卷').hidden,true);
+ w.document.querySelector('#tree-type-filter').value='複習卷';w.renderTreeView();assert.equal(details('複習卷').hidden,false);
+ w._meExpandTreeSubject('數學|||會考');assert.equal(details('複習卷').hidden,true);
+ w.document.querySelector('[data-tree-expand="true"]').click();assert.equal(details('複習卷').hidden,false);
+ w.document.querySelector('[data-tree-expand="false"]').click();assert.equal(details('複習講義').hidden,true);assert.equal(details('複習卷').hidden,true);
+ assert.equal(w.document.querySelector('button[onclick="resetTreeFilter()"]'),null);
+});
+test('切換學生清除舊分類任務選取；完成度使用固定數字槽位',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ w.multiData.A.missions={'會考':{'甲任務':['u-math']}};w.renderTreeView();w.document.querySelector('#tree-category-filter').value='會考';w.onTreeScopeChange(true);w.document.querySelector('#tree-mission-filter').value='甲任務';w.onTreeScopeChange(false);
+ w.document.querySelector('#user-selector').value='B';w.switchUser();w.openStats();
+ assert.equal(w.document.querySelector('#tree-category-filter').value,'ALL');assert.equal(w.document.querySelector('#tree-mission-filter').value,'ALL');
+ assert.doesNotMatch(w.document.querySelector('#tree-mission-filter').textContent,/甲任務/);
+ const meter=w.document.createElement('div');meter.innerHTML=w.treeMeter(100,'4/18 (22%)');
+ assert.deepEqual(Array.from(meter.querySelectorAll('.tree-progress-number'),n=>n.textContent),['4','18']);assert.equal(meter.querySelector('.tree-progress-percent').textContent,' (22%)');
 });

@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.158]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.159]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1692,7 +1692,7 @@
             min-height: 50px !important;
         }
     </style>
-    <link rel="stylesheet" href="board-layout.css?v=158">
+    <link rel="stylesheet" href="board-layout.css?v=159">
 </head>
 <body>
 
@@ -2097,6 +2097,10 @@
                 </div>
                 <div id="stats-tree" class="stats-view active">
                     <!-- v1.5.176: 樹狀圖 dropdowns (科目/教材類別/冊別) - 教材分類已刪除 (跟看板篩選重複) -->
+                    <div class="tree-scope-filter-bar">
+                        <label>進度分類 <select id="tree-category-filter" onchange="onTreeScopeChange(true)"></select></label>
+                        <label>任務 <select id="tree-mission-filter" onchange="onTreeScopeChange(false)"></select></label>
+                    </div>
                     <div class="tree-filter-bar">
                         <span class="tree-filter-label">📘 科目:</span>
                         <select id="tree-subject-filter" onchange="renderTreeView()"></select>
@@ -2104,9 +2108,9 @@
                         <select id="tree-type-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
                         <span class="tree-filter-label">📖 冊別 (單元):</span>
                         <select id="tree-vol-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
-                        <button type="button" class="tree-collapse-btn" onclick="resetTreeFilter()">↻ 重設</button>
                         <span class="tree-filter-hint">(只顯示選到的範圍)</span>
                     </div>
+                    <p id="tree-scope-description" class="tree-scope-description"></p>
                     <div id="starmap-root"></div>
                 </div>
                 <div id="stats-monthly" class="stats-view">
@@ -2126,7 +2130,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=158" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=159" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -2613,10 +2617,11 @@
     <div id="print-area"></div>
 
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
-    <script src="student-records.js?v=158"></script>
-    <script src="tree-progress.js?v=158"></script>
-    <script src="board-layout.js?v=158"></script>
-    <script src="exam-student-ui.js?v=158"></script>
+    <script src="student-records.js?v=159"></script>
+    <script src="tree-progress.js?v=159"></script>
+    <script src="tree-scope.js?v=159"></script>
+    <script src="board-layout.js?v=159"></script>
+    <script src="exam-student-ui.js?v=159"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -3138,6 +3143,7 @@
             ['tree-type-filter', 'tree-vol-filter'].forEach(function(id) {
                 var filter = el(id); if (filter) filter.value = 'ALL';
             });
+            resetTreeExpansion();
             renderTreeView();
             if (root && root.scrollIntoView) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
@@ -15564,14 +15570,17 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         }
 
         // v1.5.206: 計算某 unit 的排程天數 (從 plan.grid 找此 unit 的不同日期數)
-        function getUnitScheduledDays(unitId) {
+        function getUnitScheduledDays(unitId, context) {
             if (!unitId || !Array.isArray(appPlans)) return 0;
             var days = new Set();
             appPlans.forEach(function(plan) {
                 if (!plan.grid) return;
                 Object.keys(plan.grid).forEach(function(dStr) {
                     (plan.grid[dStr] || []).forEach(function(t) {
-                        if (t && t.unitId === unitId) days.add(dStr);
+                        if (!t || t.unitId !== unitId) return;
+                        if (context && context.category && t.cat && t.cat !== context.category) return;
+                        if (context && context.mission && (t.mis !== context.mission || t.cat !== context.category)) return;
+                        days.add(dStr);
                     });
                 });
             });
@@ -18295,15 +18304,23 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         function renderTreeView() {
             var root = el('starmap-root');
             if (!root) return;
+            if(el('page-stats') && el('page-stats').style.display === 'block' && el('stats-tree').classList.contains('active') && el('global-filter-bar'))el('global-filter-bar').style.display='none';
             root.innerHTML = '';
             // v1.5.176: 拿掉 tree-cat-filter (跟看板篩選重複), 只剩 科目/教材類別/冊別 dropdowns
             var user = multiData[currentUserId];
+            var treeScope=syncTreeScopeFilters(user);
             // 收集所有 subjects (不限 cat — 用戶已從看板選好 cat)
             var treeSubjects = {};
             if (user && user.masters) {
                 Object.keys(user.masters).forEach(function(c) {
+                    if(treeScope.category !== 'ALL' && treeScope.category !== c)return;
+                    var selectedIds=user.missions&&user.missions[c]&&user.missions[c][treeScope.mission];
+                    var allowed=treeScope.mission==='ALL'?null:new Set(Array.isArray(selectedIds)?selectedIds:[]);
                     Object.keys(user.masters[c] || {}).forEach(function(sub) {
-                        treeSubjects[sub + '|||' + c] = { name: sub, cat: c, subj: user.masters[c][sub] };
+                        var original=user.masters[c][sub];
+                        var visible=TreeScope.filterSubject(original,allowed);
+                        if(allowed&&!_collectSubjectUnits(visible).length)return;
+                        treeSubjects[sub + '|||' + c] = { name: sub, cat: c, subj: visible, originalSubj:original };
                     });
                 });
             }
@@ -18315,7 +18332,10 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
             // treeSubjects 已在 init 時收集 (不限 cat)
             if (Object.keys(treeSubjects).length === 0) {
-                root.innerHTML = '<div class="tree-empty">🌳 尚未建立教材庫<br><br><span style="font-size:0.85em;">先去「教材庫與備份」建立科目與單元,樹狀圖就會長出來 ✨</span></div>';
+                if(treeSubjectSel){treeSubjectSel.innerHTML='<option value="ALL">全部科目 (0)</option>';treeSubjectSel.value='ALL';}
+                if(treeTypeSel)treeTypeSel.disabled=true;
+                if(treeVolSel)treeVolSel.disabled=true;
+                root.innerHTML = '<div class="tree-empty">此範圍沒有教材單元<br><br><span style="font-size:0.85em;">請確認所選分類、任務是否已勾選教材單元，或到「教材庫與備份」建立教材。</span></div>';
                 if (treeTypeSel) treeTypeSel.innerHTML = '<option value="ALL">全部</option>';
                 if (treeVolSel) treeVolSel.innerHTML = '<option value="ALL">全部</option>';
                 return;
@@ -18327,7 +18347,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 var subjectOpts = '<option value="ALL">全部科目 (' + Object.keys(treeSubjects).length + ')</option>';
                 Object.keys(treeSubjects).forEach(function(key) {
                     var subjName = treeSubjects[key].name;
-                    subjectOpts += '<option value="' + key + '">' + subjName + '</option>';
+                    subjectOpts += '<option value="' + escapeHtml(key) + '">' + escapeHtml(subjName) + '</option>';
                 });
                 treeSubjectSel.innerHTML = subjectOpts;
                 if (prevSubj && treeSubjects[prevSubj]) {
@@ -18399,7 +18419,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // 選了科目 → 把 treeSubjects 縮成單一科目 (後續 render 邏輯只 render 這個)
             var singleSubject = {};
             var singleEntry = Object.assign({}, treeSubjects[treeSubjectKey]);
-            var originalSubject = singleEntry.subj;
+            var originalSubject = singleEntry.originalSubj || singleEntry.subj;
             singleSubject[treeSubjectKey] = singleEntry;
             treeSubjects = singleSubject;
 
@@ -18429,33 +18449,6 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     // 選了 type 但該科目沒有 — 顯示空
                     singleEntry.subj = Object.assign({}, singleEntry.subj, { materials: {} });
                 }
-            }
-
-            // v1.4.8: 套用看板篩選 — 不論 cat 是否 ALL, 只要 mis 不是 ALL 就用 mis 的 unitIds
-            var filterCat = el('filter-category') ? el('filter-category').value : 'ALL';
-            var filterMis = el('filter-mission') ? el('filter-mission').value : 'ALL';
-            var allowedUnitIds = null;  // null = 全部, Set = 過濾
-            if (filterMis !== 'ALL') {
-                // 找 mis 實際所在的 cat (用搜尋方式, 因為 mis 在 onFilterCategoryChange 會被清掉)
-                var foundCat = null;
-                if (filterCat !== 'ALL' && appMissions[filterCat] && appMissions[filterCat][filterMis]) {
-                    foundCat = filterCat;
-                } else {
-                    Object.keys(appMissions).forEach(function(c) {
-                        if (appMissions[c] && appMissions[c][filterMis]) foundCat = c;
-                    });
-                }
-                if (foundCat && appMissions[foundCat][filterMis]) {
-                    allowedUnitIds = new Set(appMissions[foundCat][filterMis]);
-                }
-            } else if (filterCat !== 'ALL' && appMissions[filterCat]) {
-                // 只選 category, 收集底下所有 mis 的 unitIds
-                allowedUnitIds = new Set();
-                Object.keys(appMissions[filterCat]).forEach(function(m) {
-                    (appMissions[filterCat][m] || []).forEach(function(uid) {
-                        allowedUnitIds.add(uid);
-                    });
-                });
             }
 
             // 計算每個 unit 的完成度
@@ -18499,8 +18492,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
                 var visibleUnits = _collectSubjectUnits(s);
                 var pageProgress = TreePageProgress.create(originalSubject, _collectSubjectUnits(originalSubject), appPlans,
-                    { subject: sub, category: entry.cat });
-                var typeStats = getTreeTypeStats(s, {subject:sub, category:entry.cat}, originalSubject);
+                    treeScopeContext(entry));
+                var typeStats = getTreeTypeStats(s, treeScopeContext(entry), originalSubject);
                 html += '<div class="tree-subject">';
                 html += '<h2>' + escapeHtml(sub) + catLabel + '</h2>';
                 if (!s.materials) Object.keys(typeStats).forEach(function(type) { html += renderTreeTypeCard(typeStats[type], false); });
@@ -18560,7 +18553,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
                             var suInfo = window._treeScheduledUnits[u.id];
                             var cat4jump = suInfo ? suInfo.firstCat : '';
-                            var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
+                            var mis4jump = treeScope.mission !== 'ALL' ? treeScope.mission : (suInfo ? suInfo.firstMis : '');
+                            if(treeScope.mission !== 'ALL')cat4jump=entry.cat;
                             html += '<li class="tree-unit" onclick="jumpToUnitCalendar(\'' + u.id + '\', \'' + escapeHtml(cat4jump) + '\', \'' + escapeHtml(mis4jump) + '\')" style="cursor:pointer;" title="點擊跳到月曆檢視">';
                             html += '<span class="tree-dot ' + dotClass + '" title="' + escapeHtml(sub) + ' / ' + escapeHtml(u.name) + '"></span>';
                             html += '<span class="tree-unit-name">' + escapeHtml(u.name) + '</span>';
@@ -18630,8 +18624,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         var barEmpty = 10 - barFilled;
                         var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
                         var cat4jump = suInfo ? suInfo.firstCat : '';
-                        var mis4jump = suInfo ? suInfo.firstMis : (entry.cat || '');
-                        var scheduledDays = getUnitScheduledDays(u.id);
+                        var mis4jump = treeScope.mission !== 'ALL' ? treeScope.mission : (suInfo ? suInfo.firstMis : '');
+                        if(treeScope.mission !== 'ALL')cat4jump=entry.cat;
+                        var scheduledDays = getUnitScheduledDays(u.id, treeScopeContext(entry));
                         // v1.5.228: 傳入當前 unit 的 sub/typeName/instanceName 給 getUnitAccuracyRate filter
                         // v1.6.162: 加第 5 參數 vol — 雙軌制, 避免跨 vol 污染
                         var accuracyRate = getUnitAccuracyRate(u.name, optCtx && optCtx.sub, optCtx && optCtx.typeName, optCtx && optCtx.instanceName, optCtx && optCtx.vol);
