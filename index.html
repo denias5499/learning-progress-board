@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.155]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.156]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2138,7 +2138,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=155" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=156" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -2625,8 +2625,9 @@
     <div id="print-area"></div>
 
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
-    <script src="student-records.js?v=155"></script>
-    <script src="exam-student-ui.js?v=155"></script>
+    <script src="student-records.js?v=156"></script>
+    <script src="tree-progress.js?v=156"></script>
+    <script src="exam-student-ui.js?v=156"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -18588,6 +18589,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // 選了科目 → 把 treeSubjects 縮成單一科目 (後續 render 邏輯只 render 這個)
             var singleSubject = {};
             var singleEntry = Object.assign({}, treeSubjects[treeSubjectKey]);
+            var originalSubject = singleEntry.subj;
             singleSubject[treeSubjectKey] = singleEntry;
             treeSubjects = singleSubject;
 
@@ -18598,16 +18600,16 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     var typeObjOrig = singleEntry.subj.materials[treeType];
                     if (treeVol !== 'ALL') {
                         // 冊別也選了 — 只留該 instance 的該冊
-                        var filteredInstances = (typeObjOrig.instances || []).map(function(inst) {
-                            if (inst.vols && inst.vols[treeVol]) {
-                                return Object.assign({}, inst, { vols: (function() {
-                                    var v = {};
-                                    v[treeVol] = inst.vols[treeVol];
-                                    return v;
-                                })() });
-                            }
-                            return null;
-                        }).filter(Boolean);
+                        var volumeSeparator = treeVol.lastIndexOf('|||');
+                        var selectedInstance = treeVol.slice(0, volumeSeparator);
+                        var selectedVolume = treeVol.slice(volumeSeparator + 3);
+                        var filteredInstances = (typeObjOrig.instances || []).filter(function(inst) {
+                            return inst.name === selectedInstance && inst.vols && Array.isArray(inst.vols[selectedVolume]);
+                        }).map(function(inst) {
+                            var vols = {}; vols[selectedVolume] = inst.vols[selectedVolume];
+                            // Keep the collector from reintroducing units from the unfiltered mirror array.
+                            return Object.assign({}, inst, { vols: vols, volOrder: [selectedVolume], units: [] });
+                        });
                         filteredMaterials[treeType] = Object.assign({}, typeObjOrig, { instances: filteredInstances });
                     } else {
                         filteredMaterials[treeType] = typeObjOrig;
@@ -18685,38 +18687,16 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 var s = entry.subj;
                 if (!s) return;
 
-                var doneCount = 0, totalCount = 0;
-                var isUnitBasedTree = false;  // v1.5.146: subject 為 unit-based
-
-                // v2.3.2.60: 修正 — 複習講義 (非 unit-based) 也按 1 unit 算 total, 跟 calcProgressForType 一致
-                function countUnits(arr) {
-                    arr.forEach(u => {
-                        var ctx = findUnitContext(u.id);
-                        var typeObj = ctx ? ctx.typeObj : null;
-                        // total 永遠 1 per unit (跟 calcProgressForType 一致)
-                        var total = 1;
-                        var done = getUnitDoneCount(u, typeObj, null, null);
-                        totalCount += total;
-                        // done 也要 clip 到 1 (避免 page-based 算多頁)
-                        if (!isUnitBasedType(typeObj) && done > 1) done = 1;
-                        doneCount += done;
-                        if (typeObj && isUnitBasedType(typeObj)) isUnitBasedTree = true;
-                    });
-                }
-                var overlapDone = getUnitDonePagesByOverlap();
-                if (s.type === 'custom' && Array.isArray(s.units)) {
-                    countUnits(s.units);
-                } else if (s.vols) {
-                    Object.keys(s.vols).forEach(v => {
-                        if (Array.isArray(s.vols[v])) countUnits(s.vols[v]);
-                    });
-                } else if (s.materials) {
-                    // v1.5.5 fix: 讀新架構
-                    countUnits(_collectSubjectUnits(s));
-                }
-
+                var visibleUnits = _collectSubjectUnits(s);
+                var pageProgress = TreePageProgress.create(originalSubject, _collectSubjectUnits(originalSubject), appPlans,
+                    { subject: sub, category: entry.cat });
+                var totals = pageProgress.summary(visibleUnits);
+                var progressParts = [];
+                if (totals.pages || (!totals.units && !totals.missing)) progressParts.push(totals.donePages + ' / ' + totals.pages + ' 頁');
+                if (totals.units) progressParts.push(totals.doneUnits + ' / ' + totals.units + ' 單元');
+                if (totals.missing) progressParts.push(totals.missing + ' 單元未設定頁碼');
                 html += '<div class="tree-subject">';
-                html += '<h2>' + escapeHtml(sub) + catLabel + '<span class="tree-progress">' + doneCount + ' / ' + totalCount + (isUnitBasedTree ? ' units' : ' 頁') + '</span></h2>';
+                html += '<h2>' + escapeHtml(sub) + catLabel + '<span class="tree-progress">' + progressParts.join(' · ') + '</span></h2>';
 
                 if (s.type === 'custom' && Array.isArray(s.units)) {
                     // v1.5.192: legacy 自訂範圍結構, 用 instance header 包起來 (跟教材庫一致)
@@ -18762,11 +18742,12 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             var ctx = findUnitContext(u.id);
                             var typeObj = ctx ? ctx.typeObj : null;
                             var isUnitBased = isUnitBasedType(typeObj);
-                            var totalU = getUnitTotalCount(u, typeObj);
-                            var doneU = getUnitDoneCount(u, typeObj, null, null);
+                            var legacyProgress = pageProgress.unit(u);
+                            var totalU = legacyProgress.total;
+                            var doneU = legacyProgress.done;
                             var pct = totalU > 0 ? Math.min(100, Math.round(doneU / totalU * 100)) : 0;
                             var unitLabel2 = isUnitBased ? 'units' : '頁';
-                            var barColor = isDoneForTree ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
+                            var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
                             var barFilled = Math.round(pct / 10);
                             var barEmpty = 10 - barFilled;
                             var barStr = '█'.repeat(barFilled) + '░'.repeat(barEmpty);
@@ -18829,12 +18810,13 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         var st = getStatus(u.id, t);
                         var dotClass = 'dot-' + st;
                         var range = (u.start && u.end) ? 'P.' + u.start + (u.start !== u.end ? '~' + u.end : '') : '';
-                        var totalPages = u.end - u.start + 1;
+                        var measured = pageProgress.unit(u);
+                        var totalPages = measured.total;
                         var suInfo = window._treeScheduledUnits[u.id];
-                        // v1.6.55: use totalDonePages (unfiltered ALL missions) for display
-                        var coveredPages = suInfo ? (suInfo.totalDonePages || suInfo.donePages) : 0;
-                        var isDoneForTree = getUnitLastDoneDate(u.id) !== null;
-                        var pct = (!isDoneForTree || totalPages === 0) ? 0 : Math.min(100, Math.round(coveredPages / totalPages * 100));
+                        var coveredPages = measured.done;
+                        var isDoneForTree = coveredPages > 0;
+                        var pct = totalPages > 0 ? Math.min(100, Math.round(coveredPages / totalPages * 100)) : 0;
+                        st = pct === 100 ? 'done' : (pct > 0 ? 'progress' : 'todo');
                         var barColor = pct === 100 ? '#27ae60' : (pct >= 50 ? '#f39c12' : (pct > 0 ? '#e67e22' : '#95a5a6'));
                         var barFilled = Math.round(pct / 10);
                         var barEmpty = 10 - barFilled;

@@ -23,6 +23,7 @@ async function page(t, file, url) {
     w.localStorage.setItem('StudyMap_MockExams', JSON.stringify(exams));
     w.localStorage.setItem('myStudyNotes', JSON.stringify(notes));
     w.eval(text('student-records.js'));
+    w.eval(text('tree-progress.js'));
     w.eval(text(file === 'index.html' ? 'exam-student-ui.js' : 'wrong-notes/student-ui.js'));
     const errors = [];
     for (const m of text(file).matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) {
@@ -290,4 +291,35 @@ test('科目名稱含引號時仍透過資料屬性傳入完整代碼，不拼�
 test('沒有教材時隱藏無作用的比較選單', async t => {
     const w = await page(t, 'index.html', 'http://localhost/'); w.openStats();
     assert.equal(w.document.querySelector('#tree-review-filters').style.display, 'none');
+});
+
+test('冊次篩選解析教材名稱及冊名，只顯示所選冊的單元及頁數', async t => {
+ const w=await page(t,'index.html','http://localhost/');
+ const units=[{id:'en4',name:'第四冊文法',start:1,end:10}];
+ const master={'英文':{materials:{'複習講義':{instances:[
+  {name:'麻辣',type:'volume',volOrder:['第三冊','第四冊'],vols:{'第三冊':[{id:'en3',name:'第三冊文法',start:1,end:20}],'第四冊':units},units:[{id:'mirror',name:'其他冊鏡像',start:1,end:99}]},
+  {name:'其他',type:'volume',vols:{'第四冊':[{id:'other4',name:'其他教材第四冊',start:1,end:30}]}}
+ ]}}}};
+ w.multiData.A.masters={'會考':master};w.appMaster=master;w.appPlans=[{grid:{'2026-10-28':[
+  {unitId:'en4',cat:'會考',subject:'英文',isDone:true,startPage:1,endPage:4},
+  {unitId:'en4',cat:'會考',subject:'英文',isDone:true,startPage:3,endPage:7},
+  {unitId:'en3',cat:'會考',subject:'英文',isDone:true,startPage:1,endPage:20}
+ ]}}];
+ w.openStats();w.document.querySelector('#tree-subject-filter').value='英文|||會考';w.renderTreeView();
+ w.document.querySelector('#tree-type-filter').value='複習講義';w.renderTreeView();
+ w.document.querySelector('#tree-vol-filter').value='麻辣|||第四冊';w.renderTreeView();
+ const root=w.document.querySelector('#starmap-root');assert.match(root.textContent,/第四冊文法/);
+ assert.doesNotMatch(root.textContent,/第三冊文法|其他教材第四冊|其他冊鏡像/);
+ assert.equal(root.querySelector('.tree-progress').textContent,'7 / 10 頁');
+ assert.match(root.querySelector('.tree-unit-progress').textContent,/7\/10 \(70%\)/);
+ assert.equal(master['英文'].materials['複習講義'].instances[0].volOrder.length,2,'不修改教材資料');
+ w.document.querySelector('#tree-vol-filter').value='其他|||第四冊';w.renderTreeView();
+ assert.match(root.textContent,/其他教材第四冊/);assert.equal(root.querySelector('.tree-progress').textContent,'0 / 30 頁');
+});
+test('右上角頁數採部分完成頁數加總，單元型教材獨立標示',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ w.appMaster['數學'].materials['複習卷'].unitBased=true;
+ w.appPlans=[{grid:{'2026-10-28':[{unitId:'u-math',cat:'會考',isDone:true,startPage:1,endPage:1},{unitId:'u-review',cat:'會考',isDone:true}]}}];
+ w._meExpandTreeSubject('數學|||會考');
+ assert.equal(w.document.querySelector('.tree-progress').textContent,'1 / 2 頁 · 1 / 1 單元');
 });
