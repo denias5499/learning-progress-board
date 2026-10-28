@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.154]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.155]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2110,10 +2110,12 @@
                         <select id="tree-type-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
                         <span class="tree-filter-label">📖 冊別 (單元):</span>
                         <select id="tree-vol-filter" onchange="renderTreeView()" disabled><option value="ALL">全部</option></select>
-                        <span class="tree-filter-label" style="color:#1a4a3a;">📊 複習卷 type:</span>
+                        <span id="tree-review-filters" style="display:none;align-items:center;gap:6px;flex-wrap:wrap;">
+                        <span class="tree-filter-label" style="color:#1a4a3a;">📊 比較教材類型:</span>
                         <select id="tree-review-type-filter" onchange="onTreeReviewTypeChange()" style="min-width:130px;"></select>
-                        <span class="tree-filter-label" style="color:#2a4a6a;">📊 instance:</span>
+                        <span class="tree-filter-label" style="color:#2a4a6a;">📊 教材名稱:</span>
                         <select id="tree-review-inst-filter" onchange="renderTreeView()" style="min-width:130px;"></select>
+                        </span>
                         <button type="button" class="tree-collapse-btn" onclick="resetTreeFilter()">↻ 重設</button>
                         <span class="tree-filter-hint">(只顯示選到的範圍)</span>
                     </div>
@@ -2136,7 +2138,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=154" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=155" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -2623,8 +2625,8 @@
     <div id="print-area"></div>
 
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
-    <script src="student-records.js?v=154"></script>
-    <script src="exam-student-ui.js?v=154"></script>
+    <script src="student-records.js?v=155"></script>
+    <script src="exam-student-ui.js?v=155"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -3225,7 +3227,7 @@
                 if (b.indexOf('大滿貫甲') >= 0) return 1;
                 return a.localeCompare(b, 'zh');
             });
-            var html = '<option value="">(全部 instance)</option>';
+            var html = '<option value="">全部教材</option>';
             insts.forEach(function(n) { html += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>'; });
             instSel.innerHTML = html;
             if (prevInst && insts.indexOf(prevInst) >= 0) instSel.value = prevInst;
@@ -3274,18 +3276,23 @@
                 var instLabel = f.instanceName ? f.instanceName : '全部';
                 var bar2 = (p2.hasType && p2.total > 0) ? buildProgressBarHtml('📘 ' + f.typeName + (f.instanceName ? ' (' + instLabel + ')' : ''), p2.done, p2.total, '#99C9E9', '#2a4a6a') : '';
                 html += '<div class="tree-subject-summary">' +
-                    '<div class="tree-subject-summary-header" onclick="_meExpandTreeSubject(\' + key + \')" style="cursor:pointer;">' +
+                    '<div class="tree-subject-summary-header" data-tree-subject="' + escapeHtml(key) + '" style="cursor:pointer;">' +
                     '<span class="tree-subject-summary-name">📘 ' + escapeHtml(info.name) + '</span>' +
                     // v2.3.2.12: 移除「X類別 X冊 X單元」stats 文字 (沒意義, 改用 progress bar 顯示) 
                     '' +
                     // v2.3.2.62: 展開按鈕 — 點擊切到該科目 tree view (透過 stats 頁)
-                    '<span style="color: var(--secondary); cursor:pointer; font-weight:bold;background:#f0f4f8;padding:2px 8px;border-radius:4px;" onclick="event.stopPropagation(); _meExpandTreeSubject(\' + key + \')">▶ 展開</span>' +
+                    '<button type="button" style="color:var(--secondary);cursor:pointer;font-weight:bold;background:#f0f4f8;padding:2px 8px;border:0;border-radius:4px;">查看教材與單元</button>' +
                     '</div>' +
                     (bar1 || bar2 ? '<div class="tree-subject-summary-bars">' + bar1 + bar2 + '</div>' : '') +
                     '</div>';
             });
-            html += '<div style="text-align: center; padding: 15px; color: var(--secondary); font-size: 1.1em; font-weight: bold;">↑ 點擊科目展開詳細樹狀圖，或從上方 dropdowns 選擇</div>';
+            html += '<div style="text-align: center; padding: 15px; color: var(--secondary); font-size: 1.1em; font-weight: bold;">↑ 點擊科目或「查看教材與單元」，也可從上方科目選單選擇</div>';
             root.innerHTML = html;
+            root.querySelectorAll('[data-tree-subject]').forEach(function(header) {
+                header.addEventListener('click', function() {
+                    _meExpandTreeSubject(header.dataset.treeSubject);
+                });
+            });
         }
 
         // v1.5.175: 點擊科目 summary card → 設成 selected 並重 render
@@ -3296,26 +3303,20 @@
                 renderTreeView();
             }
         }
-        // v2.3.2.62: 點擊展開 → 切到 stats tab, 設 tree-subject filter, 自動展開該科目
+        // 科目總覽的標題與按鈕共用同一個入口，直接傳遞科目代碼。
         function _meExpandTreeSubject(key) {
-            // 切到 stats (tree view) tab
-            var statsTab = document.querySelector('[data-view="stats"]') || document.querySelector('.dash-tab[data-view="stats"]');
-            if (statsTab) {
-                statsTab.click();
-            } else {
-                // fallback: 呼叫 openStats()
-                if (typeof openStats === 'function') openStats();
-            }
-            setTimeout(function() {
-                var sel = el('tree-subject-filter');
-                if (sel) {
-                    sel.value = key;
-                    renderTreeView();
-                    // 滾動到 tree view
-                    var treeRoot = el('tree-root');
-                    if (treeRoot) treeRoot.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            }, 100);
+            showPage('page-stats');
+            var root = el('starmap-root');
+            if (root) root.style.display = '';
+            switchStatsView('tree');
+            var sel = el('tree-subject-filter');
+            if (!sel || !Array.from(sel.options).some(function(option) { return option.value === key; })) return;
+            sel.value = key;
+            ['tree-type-filter', 'tree-vol-filter'].forEach(function(id) {
+                var filter = el(id); if (filter) filter.value = 'ALL';
+            });
+            renderTreeView();
+            if (root && root.scrollIntoView) root.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         // v1.5.175: 重設所有樹狀圖 filter
@@ -18476,6 +18477,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var root = el('starmap-root');
             if (!root) return;
             root.innerHTML = '';
+            var comparisonFilters = el('tree-review-filters');
+            if (comparisonFilters) comparisonFilters.style.display = 'none';
             // v2.3.2.6: 首次進入時 populate dropdowns
             if (el('tree-review-type-filter') && el('tree-review-type-filter').options.length === 0) {
                 populateTreeReviewFilter();
@@ -18578,6 +18581,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // - 沒選科目 (ALL): 顯示科目 summary cards (default 收起)
             // - 選了科目: 只渲染該科目的樹, 教材類別/冊別進一步 filter
             if (treeSubjectKey === 'ALL') {
+                if (comparisonFilters) comparisonFilters.style.display = 'inline-flex';
                 renderTreeSubjectSummary(root, treeSubjects);
                 return;
             }

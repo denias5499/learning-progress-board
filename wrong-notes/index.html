@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <script src="../student-records.js?v=154"></script>
-    <script src="student-ui.js?v=154"></script>
+    <script src="../student-records.js?v=155"></script>
+    <script src="student-ui.js?v=155"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>錯題資料庫 [v2.3.2.154]</title>
+    <title>錯題資料庫 [v2.3.2.155]</title>
     <!-- 引入 PDF.js 以支援 PDF 解析 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>
@@ -688,6 +688,12 @@
         });
     }
 
+    function syncImportView() {
+        const hasCards = document.querySelectorAll('#cards-slider .file-card').length > 0;
+        document.getElementById('import-step1').style.display = hasCards ? 'none' : 'block';
+        document.getElementById('settings-container').style.display = hasCards ? 'block' : 'none';
+    }
+
     function goToPage(pageId, navBtn) {
         if (hasUnsavedNotes && pageId !== 'note-page') {
             if (!confirm("⚠️ 您還有筆記尚未儲存！確定要離開編輯頁面嗎？（未儲存的內容將會遺失）")) return;
@@ -701,7 +707,7 @@
         }
         if(pageId === 'view-page') renderViewPage();
         // 確保拖放已初始化；setupDragAndDrop 具備一次性綁定保護。
-        if(pageId === 'import-page') setupDragAndDrop();
+        if(pageId === 'import-page') { syncImportView(); setupDragAndDrop(); }
     }
 
     // v2.3.2.82: 拖曳圖片到 Step 1 當掉修法 — 加 try-catch + 載入提示 + 同步開 modal
@@ -1099,9 +1105,7 @@
         
         currentFilesData = currentFilesData.filter(item => item.batchId !== batchCounter);
         
-        if (slider.children.length === 0) {
-            document.getElementById('settings-container').style.display = 'none';
-        }
+        syncImportView();
     }
 
     function createSettingCard(imgUrl, index, batchId, cropId, blobId) {
@@ -1166,9 +1170,7 @@
         }
 
         const slider = document.getElementById('cards-slider');
-        if (slider.children.length === 0) {
-            document.getElementById('settings-container').style.display = 'none';
-        }
+        syncImportView();
     }
 
     // v2.3.2.67: 修 syllabus 結構 — getSyllabusDB() return {subj: {typeName: {instName: [units]}}}
@@ -1562,6 +1564,7 @@
             document.getElementById('cards-slider').innerHTML = '';
             document.getElementById('settings-container').style.display = 'none';
             currentFilesData = [];
+            syncImportView();
             goToPage('view-page', document.getElementById('nav-view'));
         } catch(e) {
             console.error('[v2.3.2.81 saveNotes] UI reset 失敗:', e);

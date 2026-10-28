@@ -227,3 +227,67 @@ test('單元仍以複習講義為標準，不混入以冊分類的題本', async
     card.querySelector('.subj-sel').value = '數學'; w.handleCardSubjectChange(card.querySelector('.subj-sel'));
     assert.deepEqual(Array.from(card.querySelector('.unit-sel').options, o => o.value), ['', '第二冊 / 二次函數']);
 });
+
+test('儲存完成後從查看切回匯入會恢復選檔區', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    const card = w.createSettingCard('data:image/png;base64,YQ==', 0, 'batch', 'crop');
+    w.document.querySelector('#cards-slider').appendChild(card); w.syncImportView();
+    w._onSaveSuccess(); w.goToPage('import-page', null);
+    assert.equal(w.document.querySelector('#import-step1').style.display, 'block');
+    assert.equal(w.document.querySelector('#settings-container').style.display, 'none');
+});
+test('取消裁切或移除最後一張設定卡片後恢復選檔區', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    w.renderImage = async () => {};
+    await w.handleFilesForCrop([new w.File(['a'], 'a.jpg', { type: 'image/jpeg' })]);
+    w.cancelCropping();
+    assert.equal(w.document.querySelector('#import-step1').style.display, 'block');
+    const card = w.createSettingCard('data:image/png;base64,YQ==', 0, 'batch', 'crop');
+    w.document.querySelector('#cards-slider').appendChild(card); w.syncImportView();
+    w.removeCard(card.querySelector('.delete-card-btn'));
+    assert.equal(w.document.querySelector('#import-step1').style.display, 'block');
+});
+test('切換查看及匯入頁保留既有設定卡片與來源', async t => {
+    const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
+    const card = w.createSettingCard('data:image/png;base64,YQ==', 0, 'batch', 'crop');
+    w.document.querySelector('#cards-slider').appendChild(card); card.querySelector('.source-sel').value = '複習卷';
+    w.goToPage('view-page', null); w.goToPage('import-page', null);
+    assert.equal(w.document.querySelector('#settings-container').style.display, 'block');
+    assert.equal(w.document.querySelector('#import-step1').style.display, 'none');
+    assert.equal(w.document.querySelector('.source-sel').value, '複習卷');
+});
+function seedTree(w) {
+    const master = { '數學': { materials: {
+        '複習講義': { instances: [{ name: '翰將', type: 'volume', vols: { '第一冊': [{ id: 'u-math', name: '數與數線', start: 1, end: 2 }] } }] },
+        '複習卷': { instances: [{ name: '複習一', type: 'custom', units: [{ id: 'u-review', name: '練習一', start: 1, end: 1 }] }] }
+    } } };
+    w.multiData.A.masters = { '會考': master }; w.appMaster = master;
+    w.openStats(); w.document.querySelector('#tree-subject-filter').value = 'ALL'; w.renderTreeView();
+}
+test('科目卡片按鈕實際點擊可進入該科目單元，重設後比較選單恢復', async t => {
+    const w = await page(t, 'index.html', 'http://localhost/'); seedTree(w);
+    const group = w.document.querySelector('#tree-review-filters');
+    assert.equal(group.style.display, 'inline-flex');
+    assert.match(group.textContent, /比較教材類型/); assert.match(group.textContent, /教材名稱/);
+    const button = w.document.querySelector('.tree-subject-summary-header button');
+    assert.equal(button.textContent, '查看教材與單元'); button.click();
+    assert.equal(w.document.querySelector('#tree-subject-filter').value, '數學|||會考');
+    assert.equal(group.style.display, 'none');
+    assert.match(w.document.querySelector('#starmap-root').textContent, /數與數線/);
+    w.resetTreeFilter(); assert.equal(group.style.display, 'inline-flex');
+    w.document.querySelector('.tree-subject-summary-name').click();
+    assert.equal(w.document.querySelector('#tree-subject-filter').value, '數學|||會考');
+});
+test('科目名稱含引號時仍透過資料屬性傳入完整代碼，不拼接點擊程式', async t => {
+    const w = await page(t, 'index.html', 'http://localhost/'); seedTree(w);
+    const root = w.document.querySelector('#starmap-root'), key = '數學\'"&|||會考';
+    let clicked; w._meExpandTreeSubject = value => { clicked = value; };
+    w.renderTreeSubjectSummary(root, { [key]: { name: '數學', subj: w.appMaster['數學'] } });
+    root.querySelector('.tree-subject-summary-header button').click();
+    assert.equal(clicked, key);
+    assert.equal(root.querySelector('.tree-subject-summary-header').getAttribute('onclick'), null);
+});
+test('沒有教材時隱藏無作用的比較選單', async t => {
+    const w = await page(t, 'index.html', 'http://localhost/'); w.openStats();
+    assert.equal(w.document.querySelector('#tree-review-filters').style.display, 'none');
+});
