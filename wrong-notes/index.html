@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
+    <script src="../student-records.js?v=153"></script>
+    <script src="student-ui.js?v=153"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>錯題資料庫 [v2.3.2.108]</title>
+    <title>錯題資料庫 [v2.3.2.153]</title>
     <!-- 引入 PDF.js 以支援 PDF 解析 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>
@@ -519,12 +521,7 @@
                 var multiData = JSON.parse(raw);
                 var uid = localStorage.getItem('StudyMap_CurrentUserId_V20');
                 var user = (uid && multiData[uid]) ? multiData[uid] : null;
-                if (!user) {
-                    Object.keys(multiData).forEach(function(k) {
-                        if (!user && multiData[k] && multiData[k].masters) user = multiData[k];
-                    });
-                }
-                if (!user) return DEFAULT_SYLLABUS_DB;
+                if (!user) return {};
                 var masters = user.masters || {};
                 // v1.6.134: 處理真實 master 結構
                 // masters[cat][subj].materials[typeName].instances[].{name, units[], vols[]}
@@ -1115,10 +1112,7 @@
                 <option value="數字題本">🔢 數字題本</option>
                 <option value="模擬題本">📝 模擬題本</option>
                 <option value="歷屆模考">📚 歷屆模考</option>
-                <option value="115模考-一模">📊 115模考-一模</option>
-                <option value="115模考-二模">📊 115模考-二模</option>
-                <option value="115模考-三模">📊 115模考-三模</option>
-                <option value="115模考-四模">📊 115模考-四模</option>
+                <option value="mockExam">📊 模考（選擇場次）</option>
             </select>
             <input type="text" class="custom-source" placeholder="或自填來源..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;display:none;">
 
@@ -1139,6 +1133,7 @@
             </div>
             <input type="text" class="custom-reason" placeholder="或自填其他原因..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
         `;
+        addCardExamFields(div);
         return div;
     }
 
@@ -1244,7 +1239,10 @@
     }
 
     function toggleCardSource(selectEl) {
-        const input = selectEl.closest('.file-card').querySelector('.custom-source');
+        const card = selectEl.closest('.file-card');
+        const input = card.querySelector('.custom-source');
+        const examFields = card.querySelector('.mock-exam-fields');
+        if (examFields) examFields.hidden = selectEl.value !== 'mockExam';
         input.style.display = selectEl.value === '其他' ? 'block' : 'none';
     }
     // v2.3.2.71: 勾選「其他」checkbox 切換自填輸入框顯示
@@ -1261,6 +1259,14 @@
         const cards = document.querySelectorAll('.file-card');
         if(cards.length === 0) return alert("請先選擇或匯入錯題！");
 
+        const uid = requireNoteStudent();
+        for (const card of cards) {
+            if (card.dataset.userId !== uid) return alert('學生已切換，請重新匯入');
+            if (card.querySelector('.source-sel').value === 'mockExam') {
+                const examId = card.querySelector('.exam-sel').value;
+                try { StudyRecords.validateExam(uid, examId); } catch(e) { return alert('請選擇本學生的模考場次'); }
+            }
+        }
         const container = document.getElementById('note-slots-container');
         container.innerHTML = '';
 
@@ -1294,6 +1300,13 @@
 
             const slot = document.createElement('div');
             slot.className = 'note-slot editable-slot';
+            slot.dataset.userId = uid;
+            slot.dataset.sourceType = source === 'mockExam' ? 'mockExam' : 'other';
+            slot.dataset.examId = source === 'mockExam' ? card.querySelector('.exam-sel').value : '';
+            if (source === 'mockExam') {
+                const exam = StudyRecords.list('exams', uid).find(e => e.id === slot.dataset.examId);
+                source = '模考｜' + studentExamLabel(exam);
+            }
             slot.dataset.date = dateStr;
             slot.dataset.subject = subj;
             // v2.3.2.72: 移除 typeName/instName (v2.3.2.65 跳過教材類型+教材名稱後, 這兩變數已不存在 → ReferenceError)
@@ -1384,9 +1397,11 @@
     }
     // v2.3.2.83: 支援 Blob (從 File 或 fetch 得到) — IDB 存 Blob 比 base64 data URL 省 33% 空間
     function _wnSaveImage(blobOrDataUrl) {
+        var imageOwner = requireNoteStudent();
         return _wnOpenImgDB().then(function(db) {
+            if (requireNoteStudent() !== imageOwner) throw new Error('學生已切換');
             return new Promise(function(res, rej) {
-                var rec = { id: 'wnimg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6), data: blobOrDataUrl, createdAt: new Date().toISOString() };
+                var rec = { id: 'wnimg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6), userId: imageOwner, data: blobOrDataUrl, createdAt: new Date().toISOString() };
                 var tx = db.transaction(['images'], 'readwrite');
                 tx.objectStore('images').put(rec);
                 tx.oncomplete = function() { res(rec.id); };
@@ -1397,6 +1412,7 @@
     // v2.3.2.83: 從 IDB 讀 Blob, 回傳 object URL (比 data URL 省 33% 空間, 顯示也更快)
     function _wnGetImage(imgId) {
         if (!imgId) return Promise.resolve('');
+        if (!currentStudentNotes().some(function(note) { return note.imageId === imgId; })) return Promise.resolve('');
         return _wnOpenImgDB().then(function(db) {
             return new Promise(function(res, rej) {
                 var tx = db.transaction(['images'], 'readonly');
@@ -1418,11 +1434,10 @@
 
     // v2.3.2.81: 改用 IDB 存圖片, 不再受 localStorage 5MB 限制
     function saveNotes() {
+        const uid = requireNoteStudent();
         const slots = document.querySelectorAll('.editable-slot');
-        let savedNotes = [];
-        try { savedNotes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]'); }
-        catch(e) { console.error('[v2.3.2.81 saveNotes] parse 失敗:', e); savedNotes = []; }
-
+        if (!slots.length) return alert('沒有待儲存的筆記');
+        if (Array.from(slots).some(slot => slot.dataset.userId !== uid)) return alert('學生已切換，請重新匯入');
         // v2.3.2.98: 雙重查找 — 優先 blobId 找原始 File, fallback 用 data URL 轉 Blob
         var imageUploadPromises = [];
         slots.forEach(function(slot) {
@@ -1438,7 +1453,7 @@
                         slot.dataset._uploadedImgId = imgId;
                     }).catch(function(err) {
                         console.error('[saveNotes] blob 上傳失敗, fallback data URL:', err);
-                        slot.dataset._uploadedImgId = '';
+                        throw err;
                     })
                 );
             } else if (imgSrc && imgSrc.startsWith('data:')) {
@@ -1461,7 +1476,7 @@
                                 slot.dataset._uploadedImgId = imgId;
                             }).catch(function(err) {
                                 console.error('[saveNotes] data URL 上傳失敗:', err);
-                                slot.dataset._uploadedImgId = '';
+                                throw err;
                             })
                         );
                     } else {
@@ -1469,16 +1484,22 @@
                     }
                 } catch(e) {
                     console.error('[saveNotes] data URL 解析失敗:', e);
-                    slot.dataset._uploadedImgId = '';
+                    imageUploadPromises.push(Promise.reject(e));
                 }
             } else {
                 slot.dataset._uploadedImgId = '';
+                if (imgSrc) imageUploadPromises.push(Promise.reject(new Error('圖片來源無法讀取，請重新匯入圖片')));
             }
         });
 
-        Promise.all(imageUploadPromises).then(function() {
+        return Promise.all(imageUploadPromises).then(function() {
+            if (requireNoteStudent() !== uid) throw new Error('學生已切換');
+            const newNotes = [];
             slots.forEach(function(slot) {
-                savedNotes.unshift({
+                newNotes.push({
+                    userId: uid,
+                    sourceType: slot.dataset.sourceType || 'other',
+                    examId: slot.dataset.examId || '',
                     date: slot.dataset.date,
                     timestamp: Date.now() + Math.random(),
                     subject: slot.dataset.subject,
@@ -1492,45 +1513,19 @@
                 });
             });
 
-            try {
-                localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
-                _onSaveSuccess();
-            } catch(e) {
-                if (e.name === 'QuotaExceededError' || /quota/i.test(e.message)) {
-                    var trimCount = Math.max(1, Math.floor(savedNotes.length / 3));
-                    var newNotesCount = slots.length;
-                    var keepCount = Math.max(newNotesCount, savedNotes.length - trimCount);
-                    savedNotes = savedNotes.slice(0, keepCount);
-                    try {
-                        localStorage.setItem('myStudyNotes', JSON.stringify(savedNotes));
-                        alert('⚠️ localStorage 已滿, 已自動刪除 ' + (savedNotes.length === newNotesCount ? 0 : Math.max(0, keepCount - newNotesCount)) + ' 筆舊筆記 (保留 ' + newNotesCount + ' 筆新加)');
-                        _onSaveSuccess();
-                    } catch(e2) {
-                        alert('❌ 儲存失敗 (即使刪除舊的仍超過 quota): ' + e2.message);
-                    }
-                } else {
-                    alert('❌ 儲存失敗:' + e.message);
-                }
-            }
-        });
+            StudyRecords.appendNotes(uid, newNotes);
+            _onSaveSuccess();
+        }).catch(function(e) { alert('❌ 儲存失敗：' + e.message + '。筆記仍保留在編輯頁，請重試。'); });
     }
 
     // v2.3.2.99: 刪除筆記 (依 timestamp)
     function deleteNoteByTimestamp(timestamp) {
         if (!confirm('確定要刪除這篇筆記嗎?')) return;
         try {
-            var notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
-            var imgIdToDelete = null;
-            var newNotes = notes.filter(function(n) {
-                if (String(n.timestamp) === String(timestamp)) {
-                    if (n.imageId) imgIdToDelete = n.imageId;
-                    return false; // 過濾掉
-                }
-                return true;
-            });
-            localStorage.setItem('myStudyNotes', JSON.stringify(newNotes));
+            var note = StudyRecords.deleteNote(requireNoteStudent(), timestamp);
+            var imgIdToDelete = note.imageId;
             // 同步刪除 IDB 圖片
-            if (imgIdToDelete) {
+            if (imgIdToDelete && !StudyRecords.hasImageReference(imgIdToDelete)) {
                 _wnOpenImgDB().then(function(db) {
                     var tx = db.transaction(['images'], 'readwrite');
                     tx.objectStore('images').delete(imgIdToDelete);
@@ -1562,7 +1557,7 @@
         const container = document.getElementById('view-slots-container');
         container.innerHTML = '';
         
-        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        let notes = currentStudentNotes();
         if (notes.length === 0) {
             container.innerHTML = `<h3 class="placeholder-text">目前尚無儲存的錯題筆記喔！</h3>`;
             return;
@@ -1583,6 +1578,7 @@
             const diffTime = todayDate - nD;
             const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
             
+            if (!noteMatchesSource(n)) return false;
             let timeMatch = true;
             if (timeFilter === 'today') {
                 timeMatch = (n.date === todayStr);
@@ -1621,7 +1617,7 @@
             
             let reasonHtml = ``;
             ['觀念模糊', '題目陷阱', '粗心'].forEach(r => {
-                const isChecked = note.reasons.includes(r) ? 'checked' : '';
+                const isChecked = (note.reasons || []).includes(r) ? 'checked' : '';
                 reasonHtml += `<label><input type="checkbox" disabled class="view-reason-cb" value="${r}" ${isChecked}> ${r}</label>`;
             });
 
@@ -1630,7 +1626,7 @@
             slot.innerHTML = `
                 <div class="note-slot-header" style="background:var(--header-aqua-sky);">
                     <span>📅 ${note.date}</span>
-                    <span>📖 ${note.subject} ${volStr} ${note.unit}</span>
+                    <span>📖 ${note.subject || ''} ${volStr} ${note.unit || ''}</span>
                     <span>🏷️ ${note.source || '未分類'}</span>
                     <!-- v2.3.2.99: 右上角加刪除按鈕 -->
                     <button class="btn-3d btn-delete-note" onclick="deleteNoteByTimestamp('${note.timestamp}')" style="margin-left:auto;background:#ff6b6b;color:#fff;font-size:15px;font-weight:bold;padding:10px 22px;">🗑️ 刪除</button>
@@ -1650,6 +1646,7 @@
                     </div>
                 </div>
             `;
+            addSavedNoteAssociationControls(slot, note);
             container.appendChild(slot);
         });
         // v2.3.2.93: 批次從 IDB 讀 imageId (含舊版 data URL 向後相容)
@@ -1681,6 +1678,7 @@
 
     function enableViewEdit(timestamp, btn) {
         const slotBody = btn.closest('.note-slot-body');
+        slotBody.querySelector('.saved-note-fields').hidden = false;
         const gridArea = slotBody.querySelector('.note-grid-area');
         gridArea.setAttribute('contenteditable', 'true');
         gridArea.focus();
@@ -1694,6 +1692,12 @@
 
     function saveViewEdit(timestamp, btn) {
         const slotBody = btn.closest('.note-slot-body');
+        const sourceType = slotBody.querySelector('.saved-source').value;
+        const examId = sourceType === 'mockExam' ? slotBody.querySelector('.saved-exam').value : '';
+        if (sourceType === 'mockExam') {
+            try { StudyRecords.validateExam(requireNoteStudent(), examId); }
+            catch(e) { return alert('請選擇本學生的模考場次'); }
+        }
         const gridArea = slotBody.querySelector('.note-grid-area');
         gridArea.setAttribute('contenteditable', 'false');
 
@@ -1701,17 +1705,20 @@
         const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
         cbs.forEach(cb => cb.setAttribute('disabled', 'true'));
 
-        let notes = JSON.parse(localStorage.getItem('myStudyNotes') || '[]');
+        let notes = currentStudentNotes();
         const noteIndex = notes.findIndex(n => String(n.timestamp) === String(timestamp));
         if (noteIndex > -1) {
             notes[noteIndex].content = gridArea.innerHTML;
             notes[noteIndex].reasons = newReasons;
-            localStorage.setItem('myStudyNotes', JSON.stringify(notes));
+            const exam = sourceType === 'mockExam' ? StudyRecords.list('exams', requireNoteStudent()).find(e => e.id === examId) : null;
+            const source = exam ? '模考｜' + studentExamLabel(exam) : (notes[noteIndex].sourceType === 'mockExam' ? '其他' : notes[noteIndex].source);
+            StudyRecords.updateNote(requireNoteStudent(), timestamp, { content: gridArea.innerHTML, reasons: newReasons, sourceType, examId, source });
             alert("筆記更新成功！");
         }
 
         btn.style.display = 'none';
         btn.previousElementSibling.style.display = 'block';
+        renderViewPage();
     }
 
 </script>

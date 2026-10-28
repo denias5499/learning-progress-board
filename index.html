@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.152]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.153]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1795,16 +1795,7 @@
                             <button type="button" class="btn-warning" onclick="renameMasterSubject()">✏️ 編輯科目名稱</button>
                             <button type="button" class="btn-danger" onclick="deleteMasterSubject()">🗑️ 刪除科目</button>
                         </div>
-                        <!-- v2.3.2.141: 跨使用者污染的最終手段 — 明確清空本學生此分類的教材庫 -->
-                        <div class="setting-controls" style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border);">
-                            <button type="button" class="btn-danger" onclick="resetCurrentMaster()">🧹 清空「本學生」此分類的教材庫</button>
-                            <span style="font-size:12px; color:#666; margin-left:8px;">（只影響目前學生；有計畫時會警告）</span>
-                        </div>
-                        <!-- v2.3.2.142: 最終手段 — 完整重置本學生 (教材庫 + 計畫 + 紀錄) -->
-                        <div class="setting-controls" style="margin-top:8px;">
-                            <button type="button" class="btn-danger" onclick="resetAllUserData(currentUserId)">💣 完整重置「本學生」所有資料</button>
-                            <span style="font-size:12px; color:#666; margin-left:8px;">（回到「剛建立新學生」的狀態；會二次確認）</span>
-                        </div>
+
                     </div>
 
                     <!-- v1.5.2: 教材類型 dropdown (複習講義 / 複習卷 / 數字題本 / 模擬題本 / 考古題) + Instance dropdown -->
@@ -1824,7 +1815,6 @@
                             <button type="button" class="btn-warning" onclick="editInstance()">✏️ 編輯名稱/簡稱</button>
                             <button type="button" class="btn-danger" onclick="deleteInstance()">🗑️ 刪除教材</button>
                         </div>
-                        <small style="color:#7f8c8d; display:block; margin-top:8px;">* Instance 是同類型的不同教材 (斅將/3800/114 年考古題等)</small>
                     </div>
 
                     <hr style="border: 0; border-top: 2px solid var(--border); margin: 20px 0;">
@@ -1946,6 +1936,7 @@
 
                 <hr class="history-hr">
                 
+                <section id="legacy-ownership" hidden style="padding:16px;border:1px solid #d4b478;border-radius:8px;margin-bottom:16px;"></section>
                 <div class="backup-row" id="backup-section">
                     <div class="backup-col">
                         <label class="backup-label">⚠️ 全機資料備份與還原</label>
@@ -2145,7 +2136,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=v2.3.2.118" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=153" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -2157,7 +2148,7 @@
                 <button data-metab="overview" class="me-tab active">📊 成績總覽</button>
                 <button data-metab="input" class="me-tab">✏️ 成績輸入</button>
                 <button data-metab="analysis" class="me-tab">📈 成績分析</button>
-                <button data-metab="import" class="me-tab">📥 錯題匯入</button>
+                <button data-metab="notes" class="me-tab">📚 模考錯題</button>
                 <button data-metab="review" class="me-tab">📝 檢討</button>
             </div>
             <div id="mockexam-content" class="me-content"></div>
@@ -2632,6 +2623,8 @@
     <div id="print-area"></div>
 
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
+    <script src="student-records.js?v=153"></script>
+    <script src="exam-student-ui.js?v=153"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -4770,6 +4763,7 @@ loadBoardHeader();
             window._skipLoadUnits = false;
             currentUserId = newUid;
             localStorage.setItem(STORAGE_KEY_CURRENT_USER, currentUserId);
+            if (typeof resetStudentExamContext === 'function') resetStudentExamContext();
             var user = targetUser;
             // v1.5.8: masters 是 per-category 教材庫, 預設載入第一個 cat
             appMissions = user.missions || {};
@@ -12159,6 +12153,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // v1.6.70: 錯題資料庫獨立 page
         function openMockExam() {
+            loadStudentMockExams();
             // v2.3.2.13: 模考成績入口
             showPage('page-mockexam');
             // 第一次進入時綁定 tab 點擊
@@ -12172,13 +12167,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
             // 初始化 appMockExams 全域變數
             if (typeof appMockExams === 'undefined') {
-                try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); }
+                try { loadStudentMockExams(); }
                 catch(e) { appMockExams = []; }
             }
             switchMockExamView('overview');
         }
 
         function switchMockExamView(tab) {
+            loadStudentMockExams();
             document.querySelectorAll('[data-metab]').forEach(function(t) {
                 t.classList.toggle('active', t.getAttribute('data-metab') === tab);
             });
@@ -12187,18 +12183,20 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (tab === 'overview') renderMockExamOverview(content);
             else if (tab === 'input') renderMockExamInput(content);
             else if (tab === 'analysis') renderMockExamAnalysis(content);
-            else if (tab === 'import') renderMockExamImport(content);
+            else if (tab === 'notes' || tab === 'import') renderMockExamNotes(content);
             else if (tab === 'review') renderMockExamReview(content);
+            appendPendingExamNotice(content);
         }
 
         function renderMockExamOverview(c) {
+            var overviewEpoch = _meStudentEpoch;
             // v2.3.2.25: 雷達圖 + 5科表 + 作文表
             if (typeof appMockExams === 'undefined') {
-                try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); }
+                try { loadStudentMockExams(); }
                 catch(e) { appMockExams = []; }
             }
             // 最新在前 (radar 顯示); 表格用舊→新排序
-            var examsDesc = (appMockExams || []).slice().sort(function(a, b) {
+            var examsDesc = (appMockExams || []).filter(function(e) { return !e.sessionOnly; }).slice().sort(function(a, b) {
                 var da = a.examDate || a.createdAt || '';
                 var db = b.examDate || b.createdAt || '';
                 return db.localeCompare(da);
@@ -12290,6 +12288,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 載入最新一筆的級距圖
             if (withImg) {
                 loadMockExamImage(withImg.levelChartImageId).then(function(dataUrl) {
+                    if (overviewEpoch !== _meStudentEpoch) return;
                     var slot = document.getElementById('me-overview-level-img');
                     if (slot && dataUrl) {
                         slot.innerHTML = '<img src="' + dataUrl + '" alt="級距圖" onclick="window.open(this.src, \'_blank\')">';
@@ -12297,6 +12296,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         slot.innerHTML = '<div style="padding:20px;color:#c00;">❌ 級距圖載入失敗</div>';
                     }
                 }).catch(function() {
+                    if (overviewEpoch !== _meStudentEpoch) return;
                     var slot = document.getElementById('me-overview-level-img');
                     if (slot) slot.innerHTML = '<div style="padding:20px;color:#c00;">❌ 級距圖載入失敗</div>';
                 });
@@ -12434,9 +12434,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
                             var w = wNon !== null ? wNon : wAud;
                             html += '<td rowspan="' + subNames.length + '" style="text-align:center;' + mono + 'font-weight:bold;font-size:1.2em;">' + (w !== null && w !== undefined ? w : '—') + '</td>';
                             // 能力等級 (整科)
-                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.2em;">' + (s.ability ? s.ability : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#c4e0f9;color:#1e40af;font-weight:900;font-size:1.2em;">' + (s && s.ability ? s.ability : '—') + '</td>';
                             // 積分 (整科)
-                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#FFF3B0;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
+                            html += '<td rowspan="' + subNames.length + '" style="text-align:center;background:#FFF3B0;color:#1e3a8a;font-weight:900;font-size:1.2em;">' + (s && s.score ? s.score.got + '/' + s.score.max : '—') + '</td>';
                         }
                         html += '</tr>';
                     });
@@ -12526,7 +12526,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 '<label class="me-radio-label active" onclick="onMeRadioClick(this, \'new\')">' +
                 '<input type="radio" name="me-mode" value="new" checked onchange="onMeModeChange()"> ✨ 輸入新成績</label>' +
                 '<label class="me-radio-label" onclick="onMeRadioClick(this, \'edit\')">' +
-                '<input type="radio" name="me-mode" value="edit" onchange="onMeModeChange()"> ✏️ 更改已輸入成績</label>' +
+                '<input type="radio" name="me-mode" value="edit" onchange="onMeModeChange()"> ✏️ 選擇既有場次／更改成績</label>' +
                 '<select id="me-edit-select" style="display:none;" onchange="onMeEditSelectChange()">' +
                 '<option value="">-- 選擇模考 --</option>' +
                 '</select>' +
@@ -12625,13 +12625,16 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // v2.3.2.28: 「前往上傳」一鍵: 切 input + 切 edit 模式 + 選最新 exam + 載入表單
         function _meGotoLastExamForEdit() {
+            var editEpoch = _meStudentEpoch;
             switchMockExamView('input');
             setTimeout(function() {
+                if (editEpoch !== _meStudentEpoch) return;
                 var r = document.querySelector('input[name="me-mode"][value="edit"]');
                 if (r) {
                     r.checked = true;
                     onMeModeChange();
                     setTimeout(function() {
+                        if (editEpoch !== _meStudentEpoch) return;
                         var es = document.getElementById('me-edit-select');
                         if (es && appMockExams && appMockExams.length > 0) {
                             // 選最新一筆 (或 levelChartImageId 為空的)
@@ -12836,13 +12839,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         function onMeExamNameChange() {
             var name = document.getElementById('me-exam-name').value;
-            var existing = (appMockExams || []).find(function(e) { return e.name === name; });
-            if (existing) {
-                loadExamToForm(existing);
-            } else {
-                clearMockExamForm();
-                document.getElementById('me-exam-name').value = name;
-            }
+            // 新場次不能用名稱查找後直接覆蓋；編輯必須由場次 ID 選取。
+            clearMockExamForm();
+            document.getElementById('me-exam-name').value = name;
         }
 
         function onMeImageDrop(e) {
@@ -12865,8 +12864,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (file.size > 2 * 1024 * 1024) {
                 if (!confirm('圖片 ' + (file.size/1024/1024).toFixed(1) + 'MB 較大, 繼續?')) return;
             }
+            var imageEpoch = _meStudentEpoch;
             var reader = new FileReader();
             reader.onload = function(e) {
+                if (imageEpoch !== _meStudentEpoch) return;
                 _meLevelImageData = e.target.result;
                 var preview = document.getElementById('me-level-preview');
                 if (preview) preview.innerHTML = '<img src="' + e.target.result + '" alt="級距預覽">';
@@ -12899,6 +12900,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function loadExamToForm(exam) {
+            if (!exam || exam.userId !== currentUserId) return;
+            var formEpoch = _meStudentEpoch;
             // v2.3.2.28: 先把 edit-select 設好, 然後 clearMockExamForm 才不會清掉
             var editSel0 = document.getElementById('me-edit-select');
             if (editSel0) editSel0.value = exam.id;
@@ -12972,7 +12975,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // 載入級距圖 (從 IDB 抓)
             if (exam.levelChartImageId) {
                 loadMockExamImage(exam.levelChartImageId).then(function(dataUrl) {
-                    if (dataUrl) {
+                    if (formEpoch === _meStudentEpoch && dataUrl) {
                         _meLevelImageData = dataUrl;
                         var preview = document.getElementById('me-level-preview');
                         if (preview) preview.innerHTML = '<img src="' + dataUrl + '" alt="級距預覽">';
@@ -12994,12 +12997,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var name = document.getElementById('me-exam-name').value;
             if (!name) { alert('請選擇考試名稱'); return; }
             // 收集資料
+            if (_meCurrentExam && _meCurrentExam.userId !== currentUserId) return alert('學生已切換，請重新選擇模考');
             var exam = _meCurrentExam ? JSON.parse(JSON.stringify(_meCurrentExam)) : {
                 id: 'exam_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
                 createdAt: new Date().toISOString()
             };
             exam.userId = (typeof currentUserId !== 'undefined') ? currentUserId : 'default';
             exam.name = name;
+            exam.sessionOnly = false;
             exam.examDate = _meGetDateString();
             exam.updatedAt = new Date().toISOString();
             // 收集 5 科
@@ -13053,7 +13058,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             };
             // 儲存
             if (!appMockExams) appMockExams = [];
-            var idx = appMockExams.findIndex(function(e) { return e.name === exam.name; });
+            var idx = appMockExams.findIndex(function(e) { return e.id === exam.id && e.userId === currentUserId; });
             if (idx >= 0) {
                 exam.id = appMockExams[idx].id; // 保留原本 id
                 exam.createdAt = appMockExams[idx].createdAt;
@@ -13061,9 +13066,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } else {
                 appMockExams.push(exam);
             }
-            localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
+            saveStudentMockExams();
             // 存級距圖到 IDB
             var _afterSave = function(warnMsg) {
+                if (currentUserId !== exam.userId) return;
                 renderMockExamList();
                 // 如果目前在 overview 分頁, 立即重整 (讓級距圖即時顯示)
                 var overviewTab = document.querySelector('[data-metab="overview"]');
@@ -13082,7 +13088,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 saveMockExamImage(exam.id, _meLevelImageData).then(function(imgId) {
                     if (imgId) {
                         exam.levelChartImageId = imgId;
-                        localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
+                        StudyRecords.saveExam(exam.userId, exam);
+                        if (currentUserId === exam.userId) loadStudentMockExams();
                         console.log('[模考儲存] 級距圖已存 IDB:', imgId, 'exam.levelChartImageId =', imgId);
                         _afterSave();
                     } else {
@@ -13095,7 +13102,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             } else {
                 // 沒新圖: 保留舊的 levelChartImageId (如果有)
-                localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
+                saveStudentMockExams();
                 _afterSave();
             }
             _meCurrentExam = exam;
@@ -13113,6 +13120,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // ===== 列表渲染 =====
         function renderMockExamList() {
+            var listEpoch = _meStudentEpoch;
             var container = document.getElementById('me-list-cards');
             if (!container) return;
             var filterEl = document.getElementById('me-list-filter');
@@ -13213,7 +13221,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             exams.forEach(function(exam) {
                 if (exam.levelChartImageId) {
                     loadMockExamImage(exam.levelChartImageId).then(function(dataUrl) {
-                        if (dataUrl) {
+                        if (listEpoch === _meStudentEpoch && dataUrl) {
                             var imgEl = document.getElementById('me-card-img-' + exam.id);
                             if (imgEl) imgEl.innerHTML = '<img class="me-card-img" src="' + dataUrl + '" alt="級距">';
                         }
@@ -13227,7 +13235,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!exam) return;
             // 切到 input 分頁
             switchMockExamView('input');
-            setTimeout(function() { loadExamToForm(exam); }, 50);
+            setTimeout(function() {
+                if (editEpoch !== _meStudentEpoch) return; loadExamToForm(exam); }, 50);
         }
 
         // ===== IDB 圖片存取 (v2.3.2.40 終極版: 自己直接 open IndexedDB, 不依賴 diskDB.setup() 流程) =====
@@ -13327,11 +13336,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
         function renderMockExamAnalysis(c) {
             // v2.3.2.26 (Commit 4): 統計卡 + 5 科折線圖 + 跨科總圖
             if (typeof appMockExams === 'undefined') {
-                try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); }
+                try { loadStudentMockExams(); }
                 catch(e) { appMockExams = []; }
             }
             // 舊→新 (時間軸)
-            var examsAsc = (appMockExams || []).slice().sort(function(a, b) {
+            var examsAsc = (appMockExams || []).filter(function(e) { return !e.sessionOnly; }).slice().sort(function(a, b) {
                 var da = a.examDate || a.createdAt || '';
                 var db = b.examDate || b.createdAt || '';
                 return da.localeCompare(db);
@@ -13922,10 +13931,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
 
         // v2.3.2.62: 錯題匯入 — 嵌入 wrong-notes/ iframe (跟 頂層錯題資料庫 同一應用)
         function renderMockExamImport(c) {
-            c.innerHTML = '<div style="background:#fff;border:2px solid #e8d5e8;border-radius:12px;padding:8px;height:calc(100vh - 240px);min-height:600px;">' +
-                '<iframe allow="drag-drop" src="wrong-notes/?v=v2.3.2.118" style="width:100%;height:100%;border:none;border-radius:8px;background:#fff;" title="錯題資料庫"></iframe>' +
-                '</div>' +
-                '<div style="margin-top:8px;font-size:0.85em;color:#666;text-align:right;">💡 完整功能請參考頂層「📚 錯題資料庫」分頁</div>';
+            return renderMockExamNotes(c);
         }
         // v2.3.2.43: 檢討分頁 — 覆盤再前行 (4 卡片, 支援文字 + 照片)
         //  資料結構: appMockExams[].review = { text: '...', images: [{id, dataUrl, name}] }
@@ -13948,6 +13954,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             });
         }
         function _meSaveReviewImage(examId, slot, dataUrl, name) {
+            StudyRecords.validateExam(currentUserId, examId);
             return _meOpenReviewDB().then(function(db) {
                 return new Promise(function(res, rej) {
                     var rec = {
@@ -13963,6 +13970,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             });
         }
         function _meGetReviewImages(examId, slot) {
+            StudyRecords.validateExam(currentUserId, examId);
             return _meOpenReviewDB().then(function(db) {
                 return new Promise(function(res, rej) {
                     var idx = db.transaction(['mockExamReviewImages'], 'readonly').objectStore('mockExamReviewImages').index('slot');
@@ -13986,6 +13994,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
         // 取得第 N 場 (examsAsc) 對應的 exam object (slot 0=一模, 1=二模, 2=三模, 3=四模)
         function _meGetReviewExam(slot) {
+            loadStudentMockExams();
             var exams = (typeof appMockExams !== 'undefined' ? appMockExams : []);
             if (!exams.length) return null;
             // 排序: examDate || createdAt asc (舊→新), slot = idx 對應 (0=第一場, 1=第二場)
@@ -14048,8 +14057,9 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function renderMockExamReview(c) {
+            var reviewEpoch = _meStudentEpoch;
             // v2.3.2.44: 檢討分頁 — 覆盤再前行 (4 卡片, 已輸入完成顯示宋體-繁卡片 + 編輯)
-            try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); } catch(e) { appMockExams = []; }
+            try { loadStudentMockExams(); } catch(e) { appMockExams = []; }
             var html = '<h3 style="margin:14px 0 10px;color:#1e40af;font-size:1.5em;font-weight:900;letter-spacing:2px;">📝 覆盤再前行</h3>';
             html += '<div style="font-size:0.85em;color:#666;margin-bottom:14px;">覆盤方向: 想對自己說的一句加油打氣的話, 我要維持的強科及方法, 我要補強的弱科及方法, 下次模考自己設立的小目標</div>';
             html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px;">';
@@ -14082,7 +14092,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 if (exam) {
                     _meGetReviewImages(exam.id, slot).then(function(imgs) {
                         var slotEl = document.getElementById('me-review-images-' + slot);
-                        if (!slotEl) return;
+                        if (reviewEpoch !== _meStudentEpoch || !slotEl) return;
                         (imgs || []).forEach(function(img) {
                             var wrap = document.createElement('div');
                             wrap.style.cssText = 'position:relative;width:80px;height:80px;border:1px solid #d4b478;border-radius:4px;overflow:hidden;';
@@ -14112,15 +14122,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         });
                         var slot2 = slot;
                         Promise.all(promises).then(function(results) {
+                            if (reviewEpoch !== _meStudentEpoch) return;
                             var chain = Promise.resolve();
                             results.forEach(function(r) {
-                                chain = chain.then(function() { return _meSaveReviewImage(exam.id, slot2, r.data, r.name); });
+                                chain = chain.then(function() {
+                                    if (reviewEpoch !== _meStudentEpoch) return;
+                                    return _meSaveReviewImage(exam.id, slot2, r.data, r.name);
+                                });
                             });
                             chain.then(function() {
+                                if (reviewEpoch !== _meStudentEpoch) return;
                                 var slotEl = document.getElementById('me-review-images-' + slot2);
                                 if (slotEl) slotEl.innerHTML = '';
                                 return _meGetReviewImages(exam.id, slot2);
                             }).then(function(imgs) {
+                                if (reviewEpoch !== _meStudentEpoch) return;
                                 var slotEl = document.getElementById('me-review-images-' + slot2);
                                 if (!slotEl) return;
                                 (imgs || []).forEach(function(img) {
@@ -14144,13 +14160,14 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!ex) return;
             var textEl = document.getElementById('me-review-text-' + slot);
             if (!textEl) return;
+            if (textEl.dataset.exam !== ex.id) return alert('學生或場次已切換，請重新開啟檢討');
             var text = textEl.value || '';
-            try { appMockExams = JSON.parse(localStorage.getItem('StudyMap_MockExams') || '[]'); } catch(e) { appMockExams = []; }
+            try { loadStudentMockExams(); } catch(e) { appMockExams = []; }
             var target = (appMockExams || []).find(function(e) { return e.id === ex.id; });
             if (target) {
                 if (!target.review) target.review = { text: '', images: [] };
                 target.review.text = text;
-                localStorage.setItem('StudyMap_MockExams', JSON.stringify(appMockExams));
+                saveStudentMockExams();
                 // 離開編輯模式 (回到顯示卡片)
                 _meReviewEditMode[slot] = false;
                 var content = el('mockexam-content');
@@ -14160,31 +14177,21 @@ function renderWizardUnitRowHtml(ws, i, u) {
             }
         }
 
-        // v2.3.2.44: 刪除覆盤圖片
+        // 刪除目前學生的覆盤圖片，忽略切換學生前的延遲回應。
         function _meDelReviewImg(imgId, slot) {
-            _meDelReviewImage(imgId).then(function() {
-                var ex = _meGetReviewExam(slot);
-                if (!ex) return;
-                _meGetReviewImages(ex.id, slot).then(function(imgs) {
-                    var slotEl = document.getElementById('me-review-images-' + slot);
-                    if (!slotEl) return;
-                    slotEl.innerHTML = '';
-                    (imgs || []).forEach(function(img) {
-                        var wrap = document.createElement('div');
-                        wrap.style.cssText = 'position:relative;width:80px;height:80px;border:1px solid #d4b478;border-radius:4px;overflow:hidden;';
-                        wrap.innerHTML = '<img src="' + img.data + '" style="width:100%;height:100%;object-fit:cover;cursor:zoom-in;" onclick="window.open(this.src,&quot;_blank&quot;)">' +
-                            '<button style="position:absolute;top:0;right:0;background:rgba(0,0,0,0.6);color:#fff;border:none;width:18px;height:18px;cursor:pointer;font-size:11px;line-height:1;" onclick="_meDelReviewImg(\'' + img.id + '\',' + slot + ')">×</button>';
-                        slotEl.appendChild(wrap);
-                    });
-                });
-            });
-        }
-        function _meDelReviewImg(imgId, slot) {
-            _meDelReviewImage(imgId).then(function() {
+            var deleteEpoch = _meStudentEpoch;
+            var ownedExam = _meGetReviewExam(slot);
+            if (!ownedExam) return;
+            _meGetReviewImages(ownedExam.id, slot).then(function(images) {
+                if (deleteEpoch !== _meStudentEpoch || !images.some(function(image) { return image.id === imgId; })) return;
+                return _meDelReviewImage(imgId);
+            }).then(function() {
+                if (deleteEpoch !== _meStudentEpoch) return;
                 // 重 render 該 slot 圖片
                 var ex = _meGetReviewExam(slot);
                 if (!ex) return;
                 _meGetReviewImages(ex.id, slot).then(function(imgs) {
+                    if (deleteEpoch !== _meStudentEpoch) return;
                     var slotEl = document.getElementById('me-review-images-' + slot);
                     if (!slotEl) return;
                     slotEl.innerHTML = '';
@@ -16595,6 +16602,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         function openSettings() {
             showPage('page-settings');
+            if (typeof renderLegacyOwnership === 'function') renderLegacyOwnership();
             // v2.3.2.139: ★ 進設定頁時一律從 appMaster 重建教材庫畫面
             _v139SyncMasterUI('openSettings');
             // v2.3.2.144: ★ 更新教材庫健康狀態列
