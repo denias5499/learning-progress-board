@@ -591,11 +591,11 @@ test('分類對話框也以數學為首選，缺少數學時不建立假科目',
  w.addCatWithSubject();assert.equal(w.document.querySelector('#add-cat-subject').value,'數學');assert.equal(JSON.stringify(w.appMaster),before);
  w.appMaster={'英文':{materials:{}}};w.addCatWithSubject();assert.equal(w.document.querySelector('#add-cat-subject').value,'英文');assert.equal(Object.hasOwn(w.appMaster,'數學'),false);assert.equal(Object.hasOwn(w.appMaster,'新科目'),false);
 });
-test('首頁沒有排程仍顯示任務已勾選的教材零進度，未勾選才沒有卡片',async t=>{
+test('首頁沒有排程顯示任務教材零進度，未勾選時顯示同風格教材總覽',async t=>{
  const w=await page(t,'index.html','http://localhost/');seedTree(w);
  w.multiData.A.missions={'會考':{'一模':['u-math']}};w.appMissions=w.multiData.A.missions;w.multiData.A.plans=[];w.appPlans=w.multiData.A.plans;w.multiData.A.logs=[];w.appLogs=w.multiData.A.logs;
  w.updateFilters();w.renderDashboard();const root=w.document.querySelector('#dashboard-root');assert.match(root.textContent,/數學/);assert.match(root.textContent,/0\/2/);assert.doesNotMatch(root.textContent,/目前篩選的範圍內沒有內容/);
- w.appMissions['會考']['一模']=[];w.renderDashboard();assert.match(root.textContent,/目前篩選的範圍內沒有內容/);assert.equal(w.appPlans.length,0);
+ w.appMissions['會考']['一模']=[];w.renderDashboard();assert.match(root.textContent,/教材總覽/);assert.equal(root.querySelector('.dashboard-subject-card').dataset.completion,'0');assert.equal(w.appPlans.length,0);
 });
 test('實際開啟教材庫與重建畫面皆數學排第一，手動改選其他科目仍保留',async t=>{
  const w=await page(t,'index.html','http://localhost/');const master={'新科目':{materials:{}},'英文':{materials:{}},'數學':{materials:{}}};
@@ -603,4 +603,30 @@ test('實際開啟教材庫與重建畫面皆數學排第一，手動改選其�
  w.openSettings();const select=w.document.querySelector('#master-subject');assert.equal(select.options[0].value,'數學');assert.equal(select.value,'數學');
  select.value='英文';w.handleMasterSubjectChange();w._v139SyncMasterUI('switchTab');assert.equal(select.options[0].value,'數學');assert.equal(select.value,'英文');
  assert.deepEqual(Object.keys(master),['新科目','英文','數學'],'僅調整顯示，不刪除或重排教材資料');
+});
+
+test('未勾任務又未排程時各科顯示相同卡片與零進度，空科目也顯示，不產生資料',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ w.multiData.A.masters['會考']['英文']={materials:{}};w.multiData.A.masters['會考']['新科目']={materials:{}};w.multiData.A.missions={'會考':{'一模':[]}};w.appMissions=w.multiData.A.missions;
+ const before=JSON.stringify(w.multiData);w.updateFilters();w.renderDashboard();const root=w.document.querySelector('#dashboard-root');
+ const cards=Array.from(root.querySelectorAll('.dashboard-subject-card'));assert.deepEqual(cards.map(c=>c.dataset.subject),['數學','英文']);assert.ok(cards.every(c=>c.dataset.completion==='0'));assert.match(root.textContent,/0\/3 頁/);assert.match(root.textContent,/0\/0 單元/);assert.doesNotMatch(root.textContent,/新科目/);
+ assert.equal(JSON.stringify(w.multiData),before);const key=Object.keys(w._dashDataStore)[0];assert.equal(w._dashDataStore[key].todo.length,2);w.showDashDetail(null,'todo','數學',key);assert.match(w.document.querySelector('#modal-dash-detail').textContent,/數與數線/);
+});
+test('未排程教材總覽遵守分類及學生切換，不顯示別人的教材',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);w.multiData.A.missions={};w.appMissions=w.multiData.A.missions;
+ w.multiData.A.masters['段考']={'地理':{materials:{}}};w.document.querySelector('#filter-category').innerHTML='<option value="段考">段考</option>';w.renderDashboard();
+ let root=w.document.querySelector('#dashboard-root');assert.match(root.textContent,/地理/);assert.doesNotMatch(root.textContent,/數學/);
+ w.document.querySelector('#user-selector').value='B';w.switchUser();w.renderDashboard();assert.equal(root.querySelectorAll('.dashboard-subject-card').length,0);assert.doesNotMatch(root.textContent,/數學|地理/);
+});
+test('既有排程任務維持原統計及卡片，未安排任務不以假零進度覆蓋既有排程',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);w.multiData.A.missions={'會考':{'一模':['u-math']}};w.appMissions=w.multiData.A.missions;
+ w.multiData.A.plans=[{id:'existing',grid:{'2026-10-29':[{id:'t',unitId:'u-math',subject:'數學',cat:'會考',mis:'一模',isDone:true,startPage:1,endPage:2}]}}];w.appPlans=w.multiData.A.plans;
+ w.updateFilters();w.renderDashboard();const root=w.document.querySelector('#dashboard-root');assert.equal(root.querySelector('.dashboard-subject-card').dataset.completion,'100');assert.equal(root.querySelector('.dashboard-library-overview'),null);
+ const before=JSON.stringify(w.multiData);w.renderDashboard();assert.equal(JSON.stringify(w.multiData),before);
+ w.appMissions['會考']['一模']=[];w.renderDashboard();assert.equal(root.querySelector('.dashboard-library-overview'),null,'有既有排程時不可憑空顯示零進度');
+});
+test('未排程而只選部分科目任務時，首頁仍補齊其他科目的空進度條且不重複已顯示科目',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);w.multiData.A.masters['會考']['英文']={materials:{}};
+ w.multiData.A.missions={'會考':{'一模':['u-math']}};w.appMissions=w.multiData.A.missions;const before=JSON.stringify(w.multiData);w.updateFilters();w.renderDashboard();
+ const cards=Array.from(w.document.querySelectorAll('#dashboard-root .dashboard-subject-card'));assert.deepEqual(cards.map(c=>c.dataset.subject),['數學','英文']);assert.ok(cards.every(c=>c.dataset.completion==='0'));assert.equal(JSON.stringify(w.multiData),before);
 });

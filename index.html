@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.165]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.166]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -19147,6 +19147,51 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // switchStatsView('tree') - 在 openStats 裡已處理
         }
         
+        // The same subject card is used for mission progress and the initial library overview.
+        function dashboardSubjectCard(sub, donePages, totalPages, unitLabelText, dataKey) {
+            var pct = totalPages > 0 ? Math.max(0, Math.min(100, Math.round(donePages / totalPages * 100))) : 0;
+            var pctRemain = 100 - pct;
+            var subjectArg = escapeHtml(JSON.stringify(sub));
+            var restLabel = totalPages === 0 ? '尚無單元' : (pct === 0 ? '尚未開始（0%）' : (pctRemain > 8 ? pctRemain + '%' : ''));
+            return `<div class="card dashboard-subject-card" data-subject="${escapeHtml(sub)}" data-completion="${pct}" style="padding: 15px;">
+                <div class="subject-name" style="margin-bottom: 10px; border:none; padding:0;">📌 ${escapeHtml(sub)} <span style="font-size:0.8em; color:#7f8c8d; font-weight:normal;">(${donePages}/${totalPages} ${unitLabelText})</span></div>
+                <div style="display: flex; height: 35px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);" aria-label="${escapeHtml(sub)} 完成度 ${pct}%">
+                    <div style="width: ${pct}%; background: repeating-linear-gradient(45deg, #a7f3d0, #a7f3d0 10px, #34d399 10px, #34d399 20px); display: flex; align-items: center; justify-content: center; color: #064e3b; font-weight: bold; cursor: pointer; font-size: 1.1em; text-shadow: 0 0 3px rgba(255,255,255,0.8);" title="點擊查看已完成詳細資訊" onclick="showDashDetail(event, 'done', ${subjectArg}, '${dataKey}')">${pct > 4 ? pct + '%' : ''}</div>
+                    <div style="width: ${pctRemain}%; background: #fff; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: bold; cursor: pointer;" title="未完成: ${pctRemain}%。點擊查看待完成詳細資訊" onclick="showDashDetail(event, 'todo', ${subjectArg}, '${dataKey}')">${restLabel}</div>
+                </div>
+            </div>`;
+        }
+
+        function renderUnscheduledLibraryOverview(filterCat, shownSubjects) {
+            var user = multiData[currentUserId] || {};
+            var hasSchedule = (user.plans || []).some(p => Object.values(p.grid || {}).some(tasks => Array.isArray(tasks) && tasks.length));
+            if (hasSchedule) return '';
+            var order = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
+            var html = '';
+            Object.entries(user.masters || {}).forEach(function([cat, subjects]) {
+                if (filterCat !== 'ALL' && filterCat !== cat) return;
+                var cards = '';
+                Object.keys(subjects || {}).sort(function(a,b) { return (order.includes(a)?order.indexOf(a):999) - (order.includes(b)?order.indexOf(b):999); }).forEach(function(sub) {
+                    if (shownSubjects && shownSubjects.has(JSON.stringify([cat, sub]))) return;
+                    var subject = subjects[sub], units = _collectSubjectUnits(subject);
+                    if (sub === '新科目' && !units.length && !Object.keys(subject.materials || {}).length) return;
+                    var total = 0, allUnitBased = units.length > 0;
+                    var todo = units.map(function(u) {
+                        var typeObj = subject.materials && subject.materials[u._typeName];
+                        var unitBased = isUnitBasedType(typeObj);
+                        if (!unitBased) allUnitBased = false;
+                        var count = getUnitTotalCount(u, typeObj); total += count;
+                        return { id:u.id, name:u.name, unitName:u.name, cat:cat, mis:'', typeName:u._typeName || '', instanceName:u._instanceName || '', vol:u.vol || '無', pagesLeft:count, totalPages:count, range:unitBased?u.name:('P.'+u.start+'~'+u.end), expected:null, openTaskCount:0 };
+                    });
+                    var key = 'key_' + genId();
+                    window._dashDataStore[key] = {done:[], todo:todo};
+                    cards += dashboardSubjectCard(sub, 0, total, !units.length || allUnitBased ? '單元' : '頁', key);
+                });
+                if (cards) html += '<div class="category-title">'+escapeHtml(cat)+'</div><div class="mission-section dashboard-library-overview"><div class="mission-title">教材總覽 · 尚未排程</div><div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px;">'+cards+'</div></div>';
+            });
+            return html;
+        }
+
         function renderDashboard() { try {
             // v1.6.67: 強制 sync appPlans 跟清 cache
             if (multiData && multiData[currentUserId]) {
@@ -19167,7 +19212,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var filterCat = el('filter-category') ? el('filter-category').value : 'ALL'; 
             var filterMis = el('filter-mission') ? el('filter-mission').value : 'ALL'; 
             
-            var totalRendered = 0; 
+            var totalRendered = 0;
+            var dashboardShownSubjects = new Set();
             window._dashDataStore = {}; 
             
             // v1.5.163: 簡單對應算法 (task.unitId 對應 unit), 不用 overlap 跨單元分布
@@ -19213,7 +19259,8 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                         return idxA - idxB;
                     });
 
-                    subjectsInMission.forEach(sub => { 
+                    subjectsInMission.forEach(sub => {
+                        dashboardShownSubjects.add(JSON.stringify([cat, sub]));
                         var sTree = mTree[sub]; 
                         
                         var totalPages = 0;
@@ -19348,19 +19395,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                         window._dashDataStore[dataKey] = { done: doneUnits, todo: todoUnits };
 
                         // v2.3.1.1: bar 維持原貌 (不顯示 inline grid), 點擊 bar 跳 dialog 才顯示 6 欄 grid
-                        var barHtml = `
-                            <div class="card" style="padding: 15px;">
-                                <div class="subject-name" style="margin-bottom: 10px; border:none; padding:0;">📌 ${sub} <span style="font-size:0.8em; color:#7f8c8d; font-weight:normal;">(${donePages}/${totalPages} ${unitLabelText})</span></div>
-                                <div style="display: flex; height: 35px; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);">
-                                    <div style="width: ${pct}%; background: repeating-linear-gradient(45deg, #a7f3d0, #a7f3d0 10px, #34d399 10px, #34d399 20px); display: flex; align-items: center; justify-content: center; color: #064e3b; font-weight: bold; cursor: pointer; font-size: 1.1em; text-shadow: 0 0 3px rgba(255,255,255,0.8);" title="點擊查看已完成詳細資訊" onclick="showDashDetail(event, 'done', '${sub}', '${dataKey}')">
-                                        ${pct > 4 ? pct + '%' : ''}
-                                    </div>
-                                    <div style="width: ${pctRemain}%; background: #fff; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-weight: bold; cursor: pointer;" title="未完成: ${pctRemain}%。點擊查看待完成詳細資訊" onclick="showDashDetail(event, 'todo', '${sub}', '${dataKey}')">
-                                        ${pctRemain > 8 ? pctRemain + '%' : ''}
-                                    </div>
-                                </div>
-                            </div>
-                        `;
+                        var barHtml = dashboardSubjectCard(sub, donePages, totalPages, unitLabelText, dataKey);
                         misHtml += barHtml;
                     }); 
                     misHtml += `</div></div>`; 
@@ -19370,7 +19405,9 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 }); 
                 if (catHasContent) root.innerHTML += catHtml; 
             }); 
-            if (totalRendered === 0) root.innerHTML = '<div style="text-align:center; color:#94a3b8; margin-top: 50px; font-size: 1.2em;"><h3>📭 目前篩選的範圍內沒有內容</h3></div>'; 
+            var libraryOverview = renderUnscheduledLibraryOverview(filterCat, dashboardShownSubjects);
+            if (totalRendered > 0 && libraryOverview) root.innerHTML += libraryOverview;
+            if (totalRendered === 0) root.innerHTML = libraryOverview || '<div style="text-align:center; color:#94a3b8; margin-top: 50px; font-size: 1.2em;"><h3>📭 目前篩選的範圍內沒有內容</h3></div>';
             } catch (e) {
                 console.error('[renderDashboard] 錯誤:', e);
                 var _rdRoot = el('dashboard-root');
