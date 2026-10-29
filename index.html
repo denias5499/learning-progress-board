@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.164]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.165]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -4831,6 +4831,7 @@ loadBoardHeader();
 
                 // 重建第 1 層: 科目
                 var subs = Object.keys(appMaster || {});
+                subs = subs.filter(name => name === '數學').concat(subs.filter(name => name !== '數學'));
                 var sel = el('master-subject');
                 var prevSub = sel ? sel.value : '';
                 var keep = (prevSub && subs.indexOf(prevSub) >= 0) ? prevSub : (subs[0] || '');
@@ -5268,6 +5269,10 @@ loadBoardHeader();
         function openModal(id) { el(id).style.display = 'flex'; }
         function closeModal(id) { var e = el(id); if (e) e.style.display = 'none'; }
         function populateSelect(elId, options, selected) {
+            // Mathematics is the initial subject; explicit user selections still take precedence.
+            if (elId === 'master-subject' || elId === 'add-cat-subject') {
+                options = options.filter(name => name === '數學').concat(options.filter(name => name !== '數學'));
+            }
             var sel = el(elId);
             if(!sel) return;
             if(options.length === 0) sel.innerHTML = '<option value="">(無)</option>';
@@ -17236,13 +17241,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // populate subject dropdown with existing subjects
             var sel = el('add-cat-subject');
             var subjects = Object.keys(appMaster || {});
-            if (subjects.length === 0) {
-                // 沒有任何科目, 自動加一個預設 (v1.5.2 materials 架構)
-                appMaster = appMaster || {};
-                appMaster['新科目'] = { materials: {} };
-                subjects = ['新科目'];
-            }
-            sel.innerHTML = subjects.map(s => `<option value="${s}">${s}</option>`).join('');
+            // Opening a category dialog must not create a placeholder subject.
+            populateSelect('add-cat-subject', subjects);
+            if (!subjects.length) sel.options[0].textContent = '尚無科目，請先新增科目';
             el('add-cat-name').value = '';
             // focus 到名稱輸入框
             setTimeout(() => el('add-cat-name').focus(), 100);
