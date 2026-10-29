@@ -331,13 +331,13 @@ test('各教材類型分別統計完整完成單元，部分頁數不當作已�
 test('教材類型可收合明細，單元保留五欄、答對率與完成度數字及排程天數',async t=>{
  const w=await page(t,'index.html','http://localhost/');seedTree(w);
  w.appPlans=[{grid:{'2026-10-28':[{unitId:'u-math',cat:'會考',isDone:true,startPage:1,endPage:2}]}}];
- w.getUnitAccuracyRate=()=>0.98;w.getUnitScheduledDays=()=>4;
+ w.getUnitAccuracyRate=()=>0.98;
  w._meExpandTreeSubject('數學|||會考');
  const section=w.document.querySelector('.tree-type-section');
  assert.deepEqual(Array.from(section.querySelector('.tree-units-header').children,x=>x.textContent),['單元名稱','頁碼','答對率','完成度','排程天數']);
  assert.match(section.querySelector('.tree-unit-accuracy').textContent,/98%/);
  assert.match(section.querySelector('.tree-unit-progress').textContent,/2\/2 \(100%\)/);
- assert.match(section.querySelector('.tree-unit-clock').textContent,/4天/);
+ assert.match(section.querySelector('.tree-unit-clock').textContent,/1天/);
  assert.equal(section.querySelectorAll('.tree-meter').length,2);
  const button=section.querySelector('.tree-type-toggle'),details=section.querySelector('.tree-type-details');
  button.click();assert.equal(details.hidden,true);assert.equal(button.getAttribute('aria-expanded'),'false');
@@ -461,4 +461,24 @@ test('切換學生清除舊分類任務選取；完成度使用固定數字槽�
  assert.doesNotMatch(w.document.querySelector('#tree-mission-filter').textContent,/甲任務/);
  const meter=w.document.createElement('div');meter.innerHTML=w.treeMeter(100,'4/18 (22%)');
  assert.deepEqual(Array.from(meter.querySelectorAll('.tree-progress-number'),n=>n.textContent),['4','18']);assert.equal(meter.querySelector('.tree-progress-percent').textContent,' (22%)');
+});
+
+test('生物複習卷同冊P.1只完成指定回次，明細、教材與總覽統計一致且不改寫資料',async t=>{
+ const w=await page(t,'index.html','http://localhost/');
+ const units=[{id:'bio-a',name:'第1回',start:1,end:1},{id:'bio-b',name:'第2回',start:1,end:1},{id:'bio-c',name:'第3回',start:1,end:1}];
+ const subject={materials:{'複習卷':{unitBased:false,instances:[{name:'麻辣甲',vols:{'第一冊':units}}]}}};
+ w.multiData.A.masters={'會考':{'生物':subject}};w.appMaster=w.multiData.A.masters['會考'];
+ w.appPlans=[{grid:{'2026-10-29':[{unitId:'bio-a',subject:'生物',cat:'會考',isDone:true,startPage:1,endPage:1},{unitId:'bio-c',subject:'生物',cat:'會考',isDone:false,startPage:1,endPage:1}]}}];
+ const before=JSON.stringify({master:w.multiData.A.masters,plans:w.appPlans});
+ w.openStats();w._meExpandTreeSubject('生物|||會考');w.document.querySelector('#tree-type-filter').value='複習卷';w.renderTreeView();
+ const rows=Array.from(w.document.querySelectorAll('.tree-unit'));
+ assert.equal(rows.length,3);assert.match(rows[0].querySelector('.tree-unit-progress').textContent,/1\/1 \(100%\)/);
+ assert.match(rows[0].querySelector('.tree-unit-clock').textContent,/1天/);
+ for(const row of rows.slice(1))assert.equal(row.querySelector('.tree-unit-progress').textContent,'—');
+ assert.equal(rows[1].querySelector('.tree-unit-clock'),null);assert.match(rows[2].querySelector('.tree-unit-clock').textContent,/1天/);
+ assert.match(w.document.querySelector('.tree-type-count').textContent,/已完成 1／3 單元/);
+ assert.match(w.document.querySelector('.tree-book-count').textContent,/已完成 1／3 單元/);
+ w.document.querySelector('#tree-subject-filter').value='ALL';w.renderTreeView();
+ assert.match(w.document.querySelector('.tree-type-count').textContent,/已完成 1／3 單元/);
+ assert.equal(JSON.stringify({master:w.multiData.A.masters,plans:w.appPlans}),before);
 });

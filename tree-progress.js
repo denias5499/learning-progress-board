@@ -25,11 +25,11 @@
         }
         function book(u) { var m = meta(u); return JSON.stringify([m.type,m.instance,m.vol]); }
         function key(u) { return JSON.stringify([book(u),u.id]); }
-        var tasks = [];
+        var scheduled = [];
         (plans || []).forEach(function(plan) {
             Object.keys(plan.grid || {}).forEach(function(day) {
                 (plan.grid[day] || []).forEach(function(t) {
-                    if (!t || !t.isDone || !t.unitId) return;
+                    if (!t || !t.unitId) return;
                     if (context.mission && context.mission !== 'ALL' && (t.mis !== context.mission || t.cat !== context.category)) return;
                     if (t.subject && context.subject && t.subject !== context.subject) return;
                     if (t.cat && context.category && t.cat !== context.category) return;
@@ -42,10 +42,18 @@
                     });
                     var books = new Set(candidates.map(book));
                     if (books.size !== 1) return; // Unknown/ambiguous ownership must not credit another book.
-                    tasks.push({ task: t, book: book(candidates[0]) });
+                    scheduled.push({ task: t, book: book(candidates[0]), unit: candidates[0], day: day });
                 });
             });
         });
+        var tasks = scheduled.filter(function(r) { return r.task.isDone; });
+        var daysByUnit = new Map();
+        scheduled.forEach(function(r) {
+            var k = key(r.unit);
+            if (!daysByUnit.has(k)) daysByUnit.set(k,new Set());
+            daysByUnit.get(k).add(r.day);
+        });
+        function scheduledDays(u) { var days = daysByUnit.get(key(u)); return days ? days.size : 0; }
         function unit(u) {
             if (!u._typeName && !u.vol) {
                 var matching = allUnits.filter(function(other) { return other.id === u.id; });
@@ -57,6 +65,12 @@
             var intervals = [];
             tasks.forEach(function(r) {
                 if (r.book !== book(u)) return;
+                if (r.task.unitId !== u.id) {
+                    // Cross-unit page credit is only safe for scheduled, distinct physical ranges.
+                    // Repeated P.1 (or overlapping unit bounds) is not evidence of shared work.
+                    var source = range(r.unit.start,r.unit.end);
+                    if (!scheduledDays(u) || !source || (source[0] <= bounds[1] && bounds[0] <= source[1])) return;
+                }
                 var done = range(r.task.startPage,r.task.endPage);
                 if (!done) return;
                 var start = Math.max(bounds[0],done[0]), end = Math.min(bounds[1],done[1]);
@@ -75,7 +89,7 @@
             });
             return result;
         }
-        return { unit:unit, summary:summary };
+        return { unit:unit, summary:summary, scheduledDays:scheduledDays };
     }
     var api = { create:create };
     if (typeof module !== 'undefined' && module.exports) module.exports = api;
