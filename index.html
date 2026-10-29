@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.163]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.164]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -7555,16 +7555,15 @@ loadBoardHeader();
             var pid = el('planner-selector').value;
             console.log('[renderCalendar] pid=' + JSON.stringify(pid) + ', appPlans.length=' + (appPlans ? appPlans.length : 'NULL'));
             // v1.5.168: planner-selector 空時 fallback 用 last plan (避免從其他頁面跳入月曆後 changeMonth 看起來沒動作)
-            if (!pid && appPlans && appPlans.length > 0) {
+            if ((!pid || !appPlans.some(p => p.id === pid)) && appPlans && appPlans.length > 0) {
                 var lastPlan = appPlans[appPlans.length - 1];
                 el('planner-selector').value = lastPlan.id;
                 pid = lastPlan.id;
                 console.log('[renderCalendar] fallback to last plan: ' + pid);
             }
-            if(!pid) { el('calendar-grid').innerHTML = '<div style="grid-column:1/-1;padding:40px;text-align:center;">尚無排程，請點選上方「智慧排程」建立計畫。</div>'; return; }
-            var plan = appPlans.find(p => p.id === pid); 
-            console.log('[renderCalendar] plan=' + (plan ? plan.name : 'NULL'));
-            if(!plan) return;
+            // Empty calendars are a view only; create a real plan only after a valid manual save.
+            var plan = appPlans.find(p => p.id === pid) || { grid: {}, events: [] };
+            console.log('[renderCalendar] plan=' + (plan.name || 'empty calendar'));
             
             let fCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
             let fMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
@@ -10708,7 +10707,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
             // v1.5.52: 明確寫入 page-add-event，徹底不用 modal
             var aeC = document.getElementById('page-add-event');
             aeC.querySelector('#ae-date').value = dateStr;
-            aeC.querySelector('#ae-date').dataset.pid = planId;
+            aeC.querySelector('#ae-date').dataset.pid = planId || '';
+            aeC.querySelector('#ae-date').dataset.userId = currentUserId;
             aeC.querySelector('#ae-date-display').innerText = dateStr;
 
             var currentCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
@@ -11055,7 +11055,22 @@ function renderWizardUnitRowHtml(ws, i, u) {
             let cat = aeC.querySelector('#ae-cat').value || '';
             let mis = aeC.querySelector('#ae-mis').value || '';
 
+            if (!aeDateEl || aeDateEl.dataset.userId !== currentUserId) return alert('學生已切換，請重新從目前學生的月曆新增');
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || getLocalDateString(new Date(dateStr + 'T00:00:00')) !== dateStr) return alert('請選擇有效日期');
+            var hasSelectedUnits = window.aeSelectedItems && window.aeSelectedItems.length > 0;
+            if (!hasSelectedUnits && !aeC.querySelector('#ae-subject').value.trim()) return alert('請輸入標題或科目名稱！');
             let plan = appPlans.find(p => p.id === pid);
+            if (pid && !plan) return alert('原計畫已移除，請重新從月曆新增');
+            if (!plan) {
+                if (appPlans.length) return alert('已有新計畫，請重新開啟月曆選擇日期');
+                plan = { id: genId(), name: '手動排程', start: dateStr, end: dateStr, grid: {}, manualCreated: true };
+                appPlans.push(plan);
+                pid = plan.id;
+                aeDateEl.dataset.pid = pid;
+                var selector = el('planner-selector');
+                selector.add(new Option(plan.name, pid)); selector.value = pid;
+            }
+            if (!plan.grid) plan.grid = {};
             if(!plan.grid[dateStr]) plan.grid[dateStr] = [];
 
             if (window.aeSelectedItems && window.aeSelectedItems.length > 0) {
@@ -11156,6 +11171,10 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             }
 
+            if (plan.manualCreated) {
+                var scheduledDates = Object.keys(plan.grid).filter(d => plan.grid[d].length).sort();
+                plan.start = scheduledDates[0]; plan.end = scheduledDates[scheduledDates.length - 1];
+            }
             saveToLocal();
             closeModal('modal-add-event');
             closeAddEventPage();

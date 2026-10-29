@@ -386,7 +386,9 @@ test('尚未建立排程也顯示月份及篩選，切換月份仍會更新標�
  assert.equal(w.document.querySelector('#planner-mis-filter').value,'ALL');
  const previous=w.document.querySelector('#current-month-display').innerText;w.changeMonth(1);
  assert.notEqual(w.document.querySelector('#current-month-display').innerText,previous);
- assert.match(w.document.querySelector('#calendar-grid').textContent,/尚無排程/);
+ assert.equal(w.document.querySelectorAll('#calendar-grid .calendar-day').length,42);
+ assert.equal(w.document.querySelectorAll('#calendar-grid .add-event-btn').length,42);
+ assert.equal(w.appPlans.length,0);
 });
 
 test('每本教材只設一組表頭，教材、冊次及全部展開收合均正常',async t=>{
@@ -544,4 +546,29 @@ test('正式匯出與還原流程保存錯題關聯登錄、原筆記與回收�
  const input=restored.document.querySelector('#import-file');Object.defineProperty(input,'files',{value:[{}]});input.dispatchEvent(new restored.Event('change'));await new Promise(r=>setTimeout(r,80));
  const n=restored.StudyRecords.list('notes','A').find(n=>n.timestamp===900);
  assert.equal(restored.NoteLinks.validate('A',n).task.missionId,mission.missionId);assert.equal(restored.StudyRecords.noteTrash().length,1);
+});
+
+test('張裕如空月曆可切月及取消手動新增，始終不建立空計畫或改動另一學生',async t=>{
+ const w=await page(t,'index.html','http://localhost/');
+ w.multiData.A.plans=[{id:'A-plan',name:'A既有排程',grid:{'2026-10-29':[{id:'A-task',subject:'數學',text:'A',isDone:true}]}}];w.appPlans=w.multiData.A.plans;const before=JSON.stringify(w.multiData.A);
+ w.document.querySelector('#user-selector').value='B';w.switchUser();w.openPlanner();
+ assert.equal(w.document.querySelectorAll('.calendar-day').length,42);assert.equal(w.document.querySelectorAll('.add-event-btn').length,42);
+ w.changeMonth(1);const date=w.getLocalDateString(w.currentViewDate);w.openAddEventModal(date,'');w.closeAddEventPage();
+ assert.equal(w.appPlans.length,0);assert.equal(w.multiData.B.plans.length,0);assert.equal(JSON.stringify(w.multiData.A),before);
+});
+test('空月曆首次手動儲存才建立目前學生計畫，後續新增沿用同一計畫且可重讀',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.document.querySelector('#user-selector').value='B';w.switchUser();w.openPlanner();
+ const date='2026-10-29';w.openAddEventModal(date,'');w.saveNewEvent();assert.equal(w.appPlans.length,0,'空白表單不建立計畫');
+ w.document.querySelector('#ae-subject').value='數學';w.document.querySelector('#ae-text').value='閱讀講義';w.saveNewEvent();
+ assert.equal(w.appPlans.length,1);const plan=w.appPlans[0];assert.equal(plan.grid[date][0].subject,'數學');assert.equal(w.document.querySelector('#planner-selector').value,plan.id);
+ assert.equal(w.multiData.A.plans.length,0);assert.equal(JSON.parse(w.localStorage.getItem('StudyMap_Family_Data_V20')).B.plans[0].id,plan.id);
+ w.openAddEventModal('2026-11-01',plan.id);w.document.querySelector('#ae-subject').value='英文';w.saveNewEvent();
+ assert.equal(w.appPlans.length,1);assert.equal(plan.end,'2026-11-01');assert.equal(plan.grid['2026-11-01'][0].subject,'英文');
+ w.document.querySelector('#user-selector').value='A';w.switchUser();w.document.querySelector('#user-selector').value='B';w.switchUser();w.openPlanner();
+ assert.equal(w.appPlans.length,1);assert.equal(w.appPlans[0].grid[date].length,1);
+});
+test('空月曆草稿切換學生後不可儲存，已刪除計畫也不自動重建',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.openPlanner();w.openAddEventModal('2026-10-29','');w.document.querySelector('#ae-subject').value='A的草稿';
+ w.document.querySelector('#user-selector').value='B';w.switchUser();w.saveNewEvent();assert.equal(w.multiData.A.plans.length,0);assert.equal(w.multiData.B.plans.length,0);
+ w.openAddEventModal('2026-10-29','removed-plan');w.document.querySelector('#ae-subject').value='不可重建';w.saveNewEvent();assert.equal(w.appPlans.length,0);
 });
