@@ -136,14 +136,14 @@ function syncTreeScopeFilters(user){
  mis.innerHTML='';mis.add(new Option('全部任務','ALL'));var names=cat.value==='ALL'?[]:Object.keys(user&&user.missions&&user.missions[cat.value]||{});
  names.forEach(function(name){mis.add(new Option(name,name));});mis.value=names.includes(mission)?mission:'ALL';mis.disabled=cat.value==='ALL';
  var scope={category:cat.value,mission:mis.value};
- var label=document.getElementById('tree-scope-description');if(label)label.textContent='統計範圍：'+(scope.category==='ALL'?'全部進度分類':scope.category)+' ／ '+(scope.mission==='ALL'?'全部任務':scope.mission)+'。完成度與排程天數依此範圍；答對率為單元累計。';
+ var label=document.getElementById('tree-scope-description');if(label)label.textContent='統計範圍：'+(scope.category==='ALL'?'全部進度分類':scope.category)+' ／ '+(scope.mission==='ALL'?'全部任務':scope.mission)+'。任務僅篩選顯示單元；完成度、排程天數累計同分類下所有任務，答對率為單元累計。';
  return scope;
 }
 function getTreeScope(){
  var cat=document.getElementById('tree-category-filter'),mis=document.getElementById('tree-mission-filter');
  return {category:cat&&cat.value||'ALL',mission:mis&&mis.value||'ALL'};
 }
-function treeScopeContext(entry){var scope=getTreeScope();return {subject:entry.name,category:entry.cat,mission:scope.mission==='ALL'?null:scope.mission};}
+function treeScopeContext(entry){return {subject:entry.name,category:entry.cat,mission:null};}
 function onTreeScopeChange(categoryChanged){
  if(categoryChanged)document.getElementById('tree-mission-filter').value='ALL';
  ['tree-subject-filter','tree-type-filter','tree-vol-filter'].forEach(function(id){var input=document.getElementById(id);if(input)input.value='ALL';});

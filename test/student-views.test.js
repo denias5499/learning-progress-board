@@ -424,7 +424,7 @@ test('進度列點擊不重複跳轉，原有答對率與排程天數入口仍�
  row.querySelector('.tree-unit-accuracy').click();assert.equal(accuracyCalls,1);assert.equal(calendarCalls,2);
 });
 
-test('分類任務篩選連動單元分母、完成度及排程天數，空任務不退回全部教材',async t=>{
+test('任務只篩選顯示單元，完成度與排程天數累計同分類所有任務，空任務不退回全部教材',async t=>{
  const w=await page(t,'index.html','http://localhost/');seedTree(w);
  const subject=w.appMaster['數學'];subject.materials['複習講義'].instances[0].vols['第一冊']=[{id:'a',name:'甲單元',start:1,end:10},{id:'b',name:'乙單元',start:11,end:20}];
  w.multiData.A.missions={'會考':{'一模':['a'],'二模':['a','b'],'空任務':[]}};w.appMissions=w.multiData.A.missions;
@@ -434,8 +434,8 @@ test('分類任務篩選連動單元分母、完成度及排程天數，空任�
  w._collectSubjectUnitsCache=new w.WeakMap();w.renderTreeView();
  const category=w.document.querySelector('#tree-category-filter'),mission=w.document.querySelector('#tree-mission-filter');category.value='會考';w.onTreeScopeChange(true);
  mission.value='二模';w.onTreeScopeChange(false);w._meExpandTreeSubject('數學|||會考');
- let root=w.document.querySelector('#starmap-root');assert.match(root.querySelector('.tree-type-count').textContent,/已完成 1／2 單元/);
- assert.match(root.querySelector('.tree-unit-progress').textContent,/4\/10 \(40%\)/);assert.match(root.querySelector('.tree-unit-clock').textContent,/2天/);
+ let root=w.document.querySelector('#starmap-root');assert.match(root.querySelector('.tree-type-count').textContent,/已完成 2／2 單元/);
+ assert.match(root.querySelector('.tree-unit-progress').textContent,/10\/10 \(100%\)/);assert.match(root.querySelector('.tree-unit-clock').textContent,/3天/);
  assert.match(w.document.querySelector('#tree-scope-description').textContent,/二模/);
  mission.value='一模';w.onTreeScopeChange(false);w._meExpandTreeSubject('數學|||會考');
  assert.match(root.querySelector('.tree-type-count').textContent,/已完成 1／1 單元/);assert.doesNotMatch(root.textContent,/乙單元/);
