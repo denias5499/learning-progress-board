@@ -5,7 +5,7 @@ const path = require('node:path');
 const { JSDOM, VirtualConsole } = require('jsdom');
 const root = path.join(__dirname, '..');
 const text = file => fs.readFileSync(path.join(root, file), 'utf8');
-const family = { A: { name: '張裕宣', masters: {}, missions: {}, plans: [], logs: [], _v144Empty: true },
+const family = { A: { name: '張裕宣', masters: { '會考': { '數學': {materials:{'複習講義':{instances:[{id:'bookA',name:'講義A',vols:{'第一冊':[{id:'unitA',name:'知識單元',start:1,end:2}]}}]}}}} }, missions: {'會考':{'一模':['unitA']}}, plans: [], logs: [], _v144Empty: true },
     B: { name: '張裕如', masters: {}, missions: {}, plans: [], logs: [], _v144Empty: true } };
 const exams = [{ id: 'a', userId: 'A', name: '第一次模考', examDate: '2026-10-01', subjects: {} },
     { id: 'b', userId: 'B', name: '第一次模考', examDate: '2026-10-02', subjects: {} },
@@ -24,7 +24,9 @@ async function page(t, file, url) {
     w.localStorage.setItem('myStudyNotes', JSON.stringify(notes));
     w.eval(text('accuracy-duplicates.js'));
     w.eval(text('accuracy-duplicates-ui.js'));
+    w.eval(text('note-links.js'));
     w.eval(text('student-records.js'));
+    if(file !== 'index.html') w.eval(text('wrong-notes/note-links-ui.js'));
     w.eval(text('tree-progress.js'));
     w.eval(text('tree-scope.js'));
     w.eval(text('board-layout.js'));
@@ -78,6 +80,8 @@ test('統一匯入頁可預填模考場次，儲存後使用學生與場次 ID',
     w.document.querySelector('#cards-slider').appendChild(card);
     assert.equal(card.querySelector('.source-sel').value, 'mockExam');
     assert.equal(card.querySelector('.exam-sel').value, 'a');
+    card.querySelector('.subj-sel').value='數學';w.handleCardSubjectChange(card.querySelector('.subj-sel'));
+    card.querySelector('.unit-sel').selectedIndex=1;card.querySelector('.note-task').selectedIndex=1;
     w._wnSaveImage = async () => 'saved-img';
     w.generateNote(); await w.saveNotes();
     const saved = w.StudyRecords.list('notes', 'A')[0];
@@ -134,6 +138,8 @@ test('錯題圖片上傳途中切換學生，不把待儲存筆記歸到新學�
     const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/?source=mockExam&examId=a');
     const card = w.createSettingCard('data:image/png;base64,YWJj', 0, 'batch', 'crop');
     w.document.querySelector('#cards-slider').appendChild(card);
+    card.querySelector('.subj-sel').value='數學';w.handleCardSubjectChange(card.querySelector('.subj-sel'));
+    card.querySelector('.unit-sel').selectedIndex=1;card.querySelector('.note-task').selectedIndex=1;
     let finish; w._wnSaveImage = () => new Promise(resolve => { finish = resolve; });
     w.generateNote(); const saving = w.saveNotes();
     w.localStorage.setItem('StudyMap_CurrentUserId_V20', 'B');
@@ -149,6 +155,7 @@ test('已確認歸屬的舊錯題可後補模考場次，兩個檢視讀取同�
     w.enableViewEdit(1, slot.querySelector('.btn-edit-note'));
     slot.querySelector('.saved-source').value = 'mockExam';
     slot.querySelector('.saved-exam').value = 'a';
+    slot.querySelector('.saved-note-link-fields .unit-sel').selectedIndex=1;slot.querySelector('.saved-note-link-fields .note-task').selectedIndex=1;
     w.saveViewEdit(1, slot.querySelector('.btn-save-note'));
     assert.equal(w.StudyRecords.list('notes', 'A').length, 1);
     assert.equal(w.StudyRecords.list('notes', 'A')[0].examId, 'a');
@@ -210,7 +217,7 @@ test('來源選單無圖示，選取115模考提醒場次，場次僅顯示名�
 test('查看頁各來源獨立篩選，切換非模考來源清除場次，保留舊自訂來源', async t => {
     const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
     for (const [i, source] of ['複習卷', '數字題本', '模擬題本', '歷屆模考', '舊自訂來源', ''].entries()) {
-        w.StudyRecords.appendNotes('A', [{ timestamp: 100+i, date: '2026/10/28', source, sourceType: 'other', content: '來源'+i, reasons: [] }]);
+        w.StudyRecords.appendNotes('A', [{ noteLinkVersion:1,syllabus:w.NoteLinks.catalog('A')[0],task:w.NoteLinks.tasks('A',w.NoteLinks.catalog('A')[0].categoryId)[0],timestamp: 100+i, date: '2026/10/28', source, sourceType: 'other', content: '來源'+i, reasons: [] }]);
     }
     w.updateNoteViewFilters();
     const source = w.document.querySelector('#filter-source'), exam = w.document.querySelector('#filter-exam');
@@ -226,11 +233,13 @@ test('查看頁各來源獨立篩選，切換非模考來源清除場次，保�
 });
 test('單元仍以複習講義為標準，不混入以冊分類的題本', async t => {
     const w = await page(t, 'wrong-notes/index.html', 'http://localhost/wrong-notes/');
-    w.getSyllabusDB = () => ({ '數學': { '複習講義': { '翰將': ['第二冊 / 二次函數'] }, '題本': { '3800': ['第二冊'] } } });
+    const f=JSON.parse(w.localStorage.getItem('StudyMap_Family_Data_V20'));
+    f.A.masters['會考']['數學'].materials={'複習講義':{instances:[{id:'han',name:'翰將',vols:{'第二冊':[{id:'quad',name:'二次函數'}]}}]},'題本':{instances:[{id:'3800',name:'3800',units:[{id:'v2',name:'第二冊'}]}]}};
+    w.localStorage.setItem('StudyMap_Family_Data_V20',JSON.stringify(f));
     const card = w.createSettingCard('data:image/png;base64,YQ==', 0, 'batch', 'crop');
     w.document.querySelector('#cards-slider').appendChild(card);
     card.querySelector('.subj-sel').value = '數學'; w.handleCardSubjectChange(card.querySelector('.subj-sel'));
-    assert.deepEqual(Array.from(card.querySelector('.unit-sel').options, o => o.value), ['', '第二冊 / 二次函數']);
+    assert.deepEqual(Array.from(card.querySelector('.unit-sel').options, o => o.textContent), ['請選擇知識單元', '第二冊 / 二次函數']);
 });
 
 test('儲存完成後從查看切回匯入會恢復選檔區', async t => {
@@ -495,4 +504,44 @@ test('已確認重複修正檔只歸檔指定紀錄，總表排除、原文保�
  let saved=w.loadAccuracyRecords();assert.equal(saved.length,2);assert.equal(saved[0]._duplicateOf,keep.id);assert.equal(saved[0].wrongUnits[0],'第3回');assert.match(w.document.querySelector('#accuracy-root').textContent,/共 1 筆/);
  assert.ok(Object.keys(w.localStorage).some(k=>k.startsWith('StudyMap_AccuracyDedupBackup_A_')));
  w.AccuracyDuplicatesUI.review();const restore=w.document.querySelector('[data-restore]');restore.click();restore.click();await new Promise(r=>setTimeout(r,20));saved=w.loadAccuracyRecords();assert.equal(saved.filter(r=>r._duplicateOf).length,0);assert.match(w.document.querySelector('#accuracy-root').textContent,/共 2 筆/);
+});
+
+test('正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名',async t=>{
+ const w=await page(t,'wrong-notes/index.html','http://localhost/wrong-notes/');const alerts=[];w.alert=m=>alerts.push(m);
+ const card=w.createSettingCard('data:image/png;base64,YWJj',0,'new','crop');w.document.querySelector('#cards-slider').appendChild(card);
+ card.querySelector('.subj-sel').value='數學';w.handleCardSubjectChange(card.querySelector('.subj-sel'));
+ w.generateNote();assert.equal(w.document.querySelectorAll('.editable-slot').length,0);assert.match(alerts.pop(),/知識單元/);
+ card.querySelector('.unit-sel').selectedIndex=1;w.generateNote();assert.match(alerts.pop(),/任務/);
+ card.querySelector('.note-task').selectedIndex=1;w.generateNote();w._wnSaveImage=async()=> 'formal-image';await w.saveNotes();
+ const note=w.StudyRecords.list('notes','A')[0];assert.equal(note.syllabus.unitId,'unitA');assert.ok(note.task.missionId);
+ const cat=w.document.querySelector('#filter-note-category');cat.value=note.syllabus.categoryId;cat.onchange();
+ const mission=w.document.querySelector('#filter-note-task');mission.value=note.task.missionId;mission.onchange();assert.equal(w.document.querySelectorAll('#view-slots-container .note-slot').length,1);
+ const f=JSON.parse(w.localStorage.getItem('StudyMap_Family_Data_V20'));f.A.masters['會考']['數學'].materials['複習講義'].instances[0].vols['第一冊'][0].name='改名後的單元';w.localStorage.setItem('StudyMap_Family_Data_V20',JSON.stringify(f));w.renderViewPage();
+ assert.match(w.document.querySelector('#view-slots-container').textContent,/改名後的單元/);assert.equal(w.StudyRecords.list('notes','A')[0].syllabus.unitId,'unitA');
+});
+test('草稿產生後單元被刪除時阻止存檔，不上傳圖片也不影響其他筆記',async t=>{
+ const w=await page(t,'wrong-notes/index.html','http://localhost/wrong-notes/');const card=w.createSettingCard('data:image/png;base64,YWJj',0,'new','crop');w.document.querySelector('#cards-slider').appendChild(card);
+ card.querySelector('.subj-sel').value='數學';w.handleCardSubjectChange(card.querySelector('.subj-sel'));card.querySelector('.unit-sel').selectedIndex=1;card.querySelector('.note-task').selectedIndex=1;w.generateNote();
+ const f=JSON.parse(w.localStorage.getItem('StudyMap_Family_Data_V20'));f.A.masters['會考']['數學'].materials['複習講義'].instances=[];w.localStorage.setItem('StudyMap_Family_Data_V20',JSON.stringify(f));
+ let uploaded=false;w._wnSaveImage=async()=>{uploaded=true;};const before=w.localStorage.getItem('myStudyNotes');await w.saveNotes();assert.equal(uploaded,false);assert.equal(w.localStorage.getItem('myStudyNotes'),before);assert.equal(w.document.querySelectorAll('.editable-slot').length,1);
+});
+test('測試錯題從歸屬頁移至回收區後清單消失，仍可透過正常畫面還原',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.openSettings();w.document.querySelector('#legacy-trash-test-notes').click();
+ assert.equal(w.StudyRecords.pending('notes').length,0);assert.equal(w.StudyRecords.pending('exams').length,1);assert.equal(w.StudyRecords.noteTrash().length,1);
+ w.document.querySelector('#note-trash-panel button').click();assert.equal(w.StudyRecords.pending('notes').length,1);assert.equal(w.document.querySelector('#legacy-ownership').hidden,false);assert.equal(w.StudyRecords.noteTrash().length,0);
+});
+test('正式匯出與還原流程保存錯題關聯登錄、原筆記與回收區，不靠重新配對名稱',async t=>{
+ const w=await page(t,'index.html','http://localhost/');
+ const s=w.NoteLinks.catalog('A')[0],mission=w.NoteLinks.tasks('A',s.categoryId)[0];
+ w.StudyRecords.appendNotes('A',[{noteLinkVersion:1,syllabus:s,task:mission,timestamp:900,date:'2026/10/29',content:'正式'}]);
+ w.StudyRecords.trashPendingNotes(w.StudyRecords.pending('notes').map(n=>n.token));
+ let serialized='';w._v147ExportIdbSource=async()=>[];w._v146ExportWrongNoteImages=async()=>[];
+ w.showSaveFilePicker=async()=>({createWritable:async()=>({write:async data=>serialized=data,close:async()=>{}})});
+ await w.exportDataToFile();const snapshot=JSON.parse(serialized);
+ assert.ok(snapshot.keys.StudyMap_NoteLinkRegistry_V1);assert.equal(snapshot.keys.StudyMap_WrongNotesTrash_V1.length,1);
+ const restored=await page(t,'index.html','http://restored.local/');
+ restored.FileReader=class{readAsText(){this.onload({target:{result:serialized}});}};
+ const input=restored.document.querySelector('#import-file');Object.defineProperty(input,'files',{value:[{}]});input.dispatchEvent(new restored.Event('change'));await new Promise(r=>setTimeout(r,80));
+ const n=restored.StudyRecords.list('notes','A').find(n=>n.timestamp===900);
+ assert.equal(restored.NoteLinks.validate('A',n).task.missionId,mission.missionId);assert.equal(restored.StudyRecords.noteTrash().length,1);
 });

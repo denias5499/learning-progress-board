@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.162]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.163]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2130,7 +2130,7 @@
             <div class="page-wrongnotes-container" style="max-width:1200px;margin:0 auto;width:100%;">
             <!-- v1.6.113: 大 iframe 嵌入附件 (完整 standalone app) + 寬度匹配 dashboard
                      附件自己管: 標題 + 4 tabs + drop zones + crop + dropdowns + 儲存 -->
-            <iframe allow="drag-drop" src="wrong-notes/?v=159" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
+            <iframe allow="drag-drop" src="wrong-notes/?v=163" style="width:100%;max-width:1200px;height:calc(100vh - 100px);border:none;border-radius:12px;background:#fff;box-shadow:0 4px 15px rgba(0,0,0,0.1);display:block;" title="錯題資料庫"></iframe>
         </div>
     </div>
 
@@ -2619,11 +2619,12 @@
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
     <script src="accuracy-duplicates.js?v=162"></script>
     <script src="accuracy-duplicates-ui.js?v=162"></script>
-    <script src="student-records.js?v=159"></script>
+    <script src="note-links.js?v=163"></script>
+    <script src="student-records.js?v=163"></script>
     <script src="tree-progress.js?v=160"></script>
     <script src="tree-scope.js?v=159"></script>
     <script src="board-layout.js?v=161"></script>
-    <script src="exam-student-ui.js?v=159"></script>
+    <script src="exam-student-ui.js?v=163"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -17302,6 +17303,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             openInputModal('✏️ 編輯大分類', cat, function(newName) {
                 if(newName === cat) return;
                 if(appMissions[newName]) return alert('已存在！');
+                try { NoteLinks.rename(currentUserId, 'category', cat, cat, newName); } catch(e) { alert(e.message); return; }
                 appMissions[newName] = appMissions[cat];
                 delete appMissions[cat];
                 // v1.5.8: 同步 rename masters[cat]
@@ -17329,6 +17331,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var msg = '刪除分類「' + cat + '」？';
             if (subjCount > 0) msg += '\n底下有 ' + subjCount + ' 個 subject 教材也會被刪掉。';
             if(!confirm(msg)) return;
+            try { NoteLinks.retire(currentUserId, 'category', cat); } catch(e) { alert(e.message); return; }
             delete appMissions[cat];
             filterAppLogs(l => l.category !== cat);
             // v1.5.8: 同步刪 masters[cat]
@@ -17372,6 +17375,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             openInputModal('✏️ 編輯任務', mis, function(newName) { 
                 if(newName === mis) return; 
                 if(appMissions[cat][newName]) return alert('已存在！'); 
+                try { NoteLinks.rename(currentUserId, 'mission', cat, mis, newName); } catch(e) { alert(e.message); return; }
                 appMissions[cat][newName] = appMissions[cat][mis]; 
                 delete appMissions[cat][mis]; 
                 appLogs.forEach(l => { if(l.category === cat && l.mission === mis) l.mission = newName; }); 
@@ -17388,6 +17392,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var mis = el(activeMisId).value; 
             if(!cat || !mis) return; 
             if(confirm('刪除？')) { 
+                try { NoteLinks.retire(currentUserId, 'mission', cat, mis); } catch(e) { alert(e.message); return; }
                 delete appMissions[cat][mis]; 
                 filterAppLogs(l => !(l.category === cat && l.mission === mis));
                 syncAllCatMisDropdowns(cat, null);

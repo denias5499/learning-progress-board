@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <script src="../student-records.js?v=159"></script>
-    <script src="student-ui.js?v=159"></script>
+    <link rel="stylesheet" href="note-links.css?v=163">
+    <script src="../note-links.js?v=163"></script>
+    <script src="../student-records.js?v=163"></script>
+    <script src="note-links-ui.js?v=163"></script>
+    <script src="student-ui.js?v=163"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>錯題資料庫 [v2.3.2.159]</title>
+    <title>錯題資料庫 [v2.3.2.163]</title>
     <!-- 引入 PDF.js 以支援 PDF 解析 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script>
@@ -1137,7 +1140,7 @@
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;margin-top:10px;">Step 2：科目</div>
             <select class="subj-sel" onchange="handleCardSubjectChange(this, true)">${subjOptions}</select>
 
-            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：單元</div>
+            <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 3：進度／任務與知識單元（必填）</div>
             <select class="unit-sel" onchange="handleCardUnitChange(this, true)" disabled><option value="">請先選擇科目</option></select>
 
             <div style="font-weight:bold; color:var(--theme-blue); margin-bottom:5px;">Step 4：錯誤原因 (可複選 + 其他自填)</div>
@@ -1152,6 +1155,7 @@
             <input type="text" class="custom-reason" placeholder="或自填其他原因..." style="margin-top:8px;width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:15px;box-sizing:border-box;">
         `;
         addCardExamFields(div);
+        initNoteLinkFields(div);
         return div;
     }
 
@@ -1179,55 +1183,7 @@
         const card = selectEl.closest('.file-card');
         const subject = selectEl.value;
         const unitSelect = card.querySelector('.unit-sel');
-        const data = getSyllabusDB()[subject];
-
-        unitSelect.innerHTML = '<option value="">請選擇單元</option>';
-        unitSelect.disabled = true;
-
-        if (data) {
-            // 收集 '複習講義' 下所有 instName 的所有 units
-                        const allUnits = new Set();
-            // v2.3.2.109: 保留 vol 前綴 (例: '第五冊 / 貨幣與勞動'), 同 vol 同名去重, 按冊次排序
-            Object.keys(data).forEach(function(typeName) {
-                if (typeName !== '複習講義') return;
-                const typeObj = data[typeName];
-                if (typeof typeObj !== 'object') return;
-                Object.keys(typeObj).forEach(function(instName) {
-                    const units = typeObj[instName];
-                    if (Array.isArray(units)) {
-                        units.forEach(function(u) {
-                            // u 可能是 '第五冊 / 貨幣與勞動' 或純 '貨幣與勞動'
-                            // 保留 vol 前綴, Set 去重 (同 vol 同名只留一個)
-                            const fullName = String(u).trim();
-                            if (fullName && !allUnits.has(fullName)) {
-                                allUnits.add(fullName);
-                            }
-                        });
-                    }
-                });
-            });
-            if (allUnits.size > 0) {
-                // v2.3.2.109: 排序: 冊次先後, 然後按字母
-                Array.from(allUnits).sort(function(a, b) {
-                    const volA = (a.match(/^第([一二三四五六七八九十]+)冊/) || [])[1] || '';
-                    const volB = (b.match(/^第([一二三四五六七八九十]+)冊/) || [])[1] || '';
-                    if (volA && volB) {
-                        const cnToNum = { '一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '七': 7, '八': 8, '九': 9, '十': 10 };
-                        const na = cnToNum[volA] || 99;
-                        const nb = cnToNum[volB] || 99;
-                        if (na !== nb) return na - nb;
-                    }
-                    return a.localeCompare(b);
-                }).forEach(function(name) {
-                    unitSelect.add(new Option(name, name));
-                });
-                unitSelect.disabled = false;
-            } else {
-                unitSelect.innerHTML = '<option value="">此科目無複習講義單元</option>';
-            }
-        } else {
-            unitSelect.innerHTML = '<option value="">請先選擇科目</option>';
-        }
+        initNoteLinkFields(card);
 
         if (isSync) {
             const batchId = card.dataset.batchId;
@@ -1280,7 +1236,9 @@
         if(cards.length === 0) return alert("請先選擇或匯入錯題！");
 
         const uid = requireNoteStudent();
+        const associations = new Map();
         for (const card of cards) {
+            try { associations.set(card, readNoteLinkFields(card)); } catch(e) { return alert(e.message); }
             if (card.dataset.userId !== uid) return alert('學生已切換，請重新匯入');
             if (card.querySelector('.source-sel').value === 'mockExam') {
                 const examId = card.querySelector('.exam-sel').value;
@@ -1304,7 +1262,8 @@
             const imgUrl = card.querySelector('img').src;
             // v2.3.2.65: 跳過 教材類型 + 教材名稱
             const subj = card.querySelector('.subj-sel').value || '未分類';
-            const unit = card.querySelector('.unit-sel').value || '';
+            const a = associations.get(card);
+            const unit = (a.volume ? a.volume + ' / ' : '') + a.unit;
             // v2.3.2.109: 讀錯題來源 (Step 1 dropdown + custom-source)
             let source = card.querySelector('.source-sel') ? card.querySelector('.source-sel').value : '';
             const cs = card.querySelector('.custom-source');
@@ -1320,6 +1279,7 @@
 
             const slot = document.createElement('div');
             slot.className = 'note-slot editable-slot';
+            slot.dataset.noteLink = JSON.stringify(associations.get(card));
             slot.dataset.userId = uid;
             slot.dataset.sourceType = source === 'mockExam' ? 'mockExam' : 'other';
             slot.dataset.examId = source === 'mockExam' ? card.querySelector('.exam-sel').value : '';
@@ -1330,7 +1290,7 @@
             slot.dataset.date = dateStr;
             slot.dataset.subject = subj;
             // v2.3.2.72: 移除 typeName/instName (v2.3.2.65 跳過教材類型+教材名稱後, 這兩變數已不存在 → ReferenceError)
-            slot.dataset.unit = unit;
+            slot.dataset.unit = a.unit;
             slot.dataset.source = source || '';   // v2.3.2.109: 寫入 source
             slot.dataset.reasons = JSON.stringify(reasons);
 
@@ -1360,6 +1320,9 @@
                     </div>
                 </div>
             `;
+            var summary = document.createElement('p'); summary.className = 'note-link-summary';
+            summary.textContent = a.syllabus.category + ' / ' + a.task.missionName + '｜' + a.syllabus.instanceName;
+            slot.querySelector('.note-slot-header').appendChild(summary);
             container.appendChild(slot);
         });
 
@@ -1384,8 +1347,10 @@
 
     function saveDraftEdit(btn) {
         const slotBody = btn.closest('.note-slot-body');
+        let association;
+        try { association = readNoteLinkFields(slotBody.querySelector('.saved-note-link-fields')); }
+        catch(e) { return alert(e.message); }
         const gridArea = slotBody.querySelector('.note-grid-area');
-        gridArea.setAttribute('contenteditable', 'false');
 
         const cbs = slotBody.querySelectorAll('.view-reason-cb');
         const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
@@ -1453,12 +1418,17 @@
     }
 
     // v2.3.2.81: 改用 IDB 存圖片, 不再受 localStorage 5MB 限制
+    var _noteSaveInProgress = false;
     function saveNotes() {
+        if (_noteSaveInProgress) return Promise.resolve();
+        try { document.querySelectorAll('#note-slots-container .note-slot').forEach(slot => NoteLinks.validate(requireNoteStudent(), JSON.parse(slot.dataset.noteLink))); }
+        catch(e) { alert(e.message); return Promise.resolve(); }
         const uid = requireNoteStudent();
         const slots = document.querySelectorAll('.editable-slot');
         if (!slots.length) return alert('沒有待儲存的筆記');
         if (Array.from(slots).some(slot => slot.dataset.userId !== uid)) return alert('學生已切換，請重新匯入');
         // v2.3.2.98: 雙重查找 — 優先 blobId 找原始 File, fallback 用 data URL 轉 Blob
+        _noteSaveInProgress = true;
         var imageUploadPromises = [];
         slots.forEach(function(slot) {
             var blobId = slot.dataset.blobId || '';
@@ -1517,6 +1487,7 @@
             const newNotes = [];
             slots.forEach(function(slot) {
                 newNotes.push({
+                    ...JSON.parse(slot.dataset.noteLink),
                     userId: uid,
                     sourceType: slot.dataset.sourceType || 'other',
                     examId: slot.dataset.examId || '',
@@ -1535,7 +1506,7 @@
 
             StudyRecords.appendNotes(uid, newNotes);
             _onSaveSuccess();
-        }).catch(function(e) { alert('❌ 儲存失敗：' + e.message + '。筆記仍保留在編輯頁，請重試。'); });
+        }).catch(function(e) { alert('❌ 儲存失敗：' + e.message + '。筆記仍保留在編輯頁，請重試。'); }).finally(function() { _noteSaveInProgress = false; });
     }
 
     // v2.3.2.99: 刪除筆記 (依 timestamp)
@@ -1599,7 +1570,7 @@
             const diffTime = todayDate - nD;
             const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
             
-            if (!noteMatchesSource(n)) return false;
+            if (!noteMatchesSource(n) || !noteMatchesTask(n)) return false;
             let timeMatch = true;
             if (timeFilter === 'today') {
                 timeMatch = (n.date === todayStr);
@@ -1719,8 +1690,10 @@
             try { StudyRecords.validateExam(requireNoteStudent(), examId); }
             catch(e) { return alert('請選擇本學生的模考場次'); }
         }
+        let association;
+        try { association = readNoteLinkFields(slotBody.querySelector('.saved-note-link-fields')); }
+        catch(e) { return alert(e.message); }
         const gridArea = slotBody.querySelector('.note-grid-area');
-        gridArea.setAttribute('contenteditable', 'false');
 
         const cbs = slotBody.querySelectorAll('.view-reason-cb');
         const newReasons = Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
@@ -1733,7 +1706,8 @@
             notes[noteIndex].reasons = newReasons;
             const exam = sourceType === 'mockExam' ? StudyRecords.list('exams', requireNoteStudent()).find(e => e.id === examId) : null;
             const source = exam ? '115模考｜' + studentExamLabel(exam) : (notes[noteIndex].sourceType === 'mockExam' ? '其他' : notes[noteIndex].source);
-            StudyRecords.updateNote(requireNoteStudent(), timestamp, { content: gridArea.innerHTML, reasons: newReasons, sourceType, examId, source });
+            try { StudyRecords.updateNote(requireNoteStudent(), timestamp, { ...association, content: gridArea.innerHTML, reasons: newReasons, sourceType, examId, source }); }
+            catch(e) { return alert('儲存失敗：' + e.message); }
             alert("筆記更新成功！");
         }
 

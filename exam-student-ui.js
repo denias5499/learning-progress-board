@@ -25,7 +25,7 @@ function resetStudentExamContext() {
 function renderMockExamNotes(content) {
     content.innerHTML = '<p>目前學生：' + escapeHtml(multiData[currentUserId].name) +
         '。以下只顯示本學生的模考錯題；新增錯題將前往統一匯入頁。</p>' +
-        '<iframe title="模考錯題" src="wrong-notes/?v=159&mode=mockExam" style="width:100%;height:75vh;min-height:600px;border:0;"></iframe>';
+        '<iframe title="模考錯題" src="wrong-notes/?v=163&mode=mockExam" style="width:100%;height:75vh;min-height:600px;border:0;"></iframe>';
 }
 function appendPendingExamNotice(content) {
     var pending = StudyRecords.pending('exams').length;
@@ -41,7 +41,7 @@ function openUnifiedWrongNoteImport(examId) {
     if (examId) StudyRecords.validateExam(currentUserId, examId);
     showPage('page-wrongnotes');
     var frame = document.querySelector('#page-wrongnotes iframe');
-    frame.src = 'wrong-notes/?v=159&view=import&source=mockExam' + (examId ? '&examId=' + encodeURIComponent(examId) : '');
+    frame.src = 'wrong-notes/?v=163&view=import&source=mockExam' + (examId ? '&examId=' + encodeURIComponent(examId) : '');
 }
 
 // Legacy records remain intact until the owner is explicitly chosen and confirmed.
@@ -49,6 +49,7 @@ var _pendingOwnership = { exams: [], notes: [] };
 function renderLegacyOwnership() {
     var root = document.getElementById('legacy-ownership');
     if (!root) return;
+    renderNoteTrash(root);
     var previous = document.getElementById('legacy-owner');
     var owner = previous ? previous.value : '';
     _pendingOwnership = { exams: StudyRecords.pending('exams'), notes: StudyRecords.pending('notes') };
@@ -89,7 +90,19 @@ function renderLegacyOwnership() {
                 alert('已確認歸屬，原始內容與圖片保留。');
             } catch (e) { alert('歸屬確認失敗：' + e.message); }
         };
-        box.appendChild(button); root.appendChild(box);
+        box.appendChild(button);
+        if (kind === 'notes') {
+            var clean = document.createElement('button'); clean.id = 'legacy-trash-test-notes';
+            clean.textContent = '將未歸屬測試錯題移至回收區（' + _pendingOwnership.notes.length + ' 筆）';
+            clean.onclick = function() {
+                var pending = StudyRecords.pending('notes');
+                if (!pending.length || !confirm('確認這 ' + pending.length + ' 筆未歸屬錯題都是測試資料，並移至回收區？圖片保留，可還原。')) return;
+                try { var count = StudyRecords.trashPendingNotes(pending.map(function(e) { return e.token; })); renderLegacyOwnership(); alert('已將 ' + count + ' 筆測試錯題移至回收區，圖片仍保留。'); }
+                catch(e) { alert('移除失敗：' + e.message); }
+            };
+            box.appendChild(clean);
+        }
+        root.appendChild(box);
     });
 }
 window.addEventListener('message', function(event) {
@@ -102,3 +115,17 @@ window.addEventListener('message', function(event) {
 window.addEventListener('storage', function(event) {
     if (event.key === 'StudyMap_MockExams' && typeof currentUserId !== 'undefined') resetStudentExamContext();
 });
+
+function renderNoteTrash(legacyRoot) {
+    var root = document.getElementById('note-trash-panel');
+    if (!root) { root = document.createElement('div'); root.id = 'note-trash-panel'; legacyRoot.insertAdjacentElement('afterend', root); }
+    var trash = StudyRecords.noteTrash(); root.replaceChildren(); root.hidden = !trash.length;
+    if (!trash.length) return;
+    var title = document.createElement('h3'); title.textContent = '測試錯題回收區（' + trash.length + ' 筆）'; root.appendChild(title);
+    trash.forEach(function(entry) {
+        var row = document.createElement('p'); row.textContent = (entry.record.subject || '') + ' ' + (entry.record.date || '') + ' ' + (entry.record.unit || '');
+        var restore = document.createElement('button'); restore.textContent = '還原';
+        restore.onclick = function() { if (!confirm('還原這筆測試錯題至原本的歸屬狀態？')) return; try { StudyRecords.restoreTrashedNote(entry.id); renderLegacyOwnership(); } catch(e) { alert(e.message); } };
+        row.appendChild(restore); root.appendChild(row);
+    });
+}

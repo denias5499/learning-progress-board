@@ -4,7 +4,11 @@ const { create } = require('../student-records');
 function fixture() {
     const values = new Map();
     const storage = { getItem: k => values.get(k) || null, setItem: (k, v) => values.set(k, v) };
+    storage.setItem('StudyMap_Family_Data_V20', JSON.stringify(Object.fromEntries(['A','B'].map(uid=>[uid,{masters:{'會考':{'數學':{materials:{'複習講義':{instances:[{id:'book'+uid,name:'講義',units:[{id:'unit'+uid,name:'單元'}]}]}}}}},missions:{'會考':{'一模':[]}}}]))));
+    const links = require('../note-links').create(storage);
     const records = create(storage);
+    const append = records.appendNotes;
+    records.appendNotes = (uid, notes) => append(uid, notes.map(n=>({...n,noteLinkVersion:1,syllabus:links.catalog(uid)[0],task:links.tasks(uid,links.catalog(uid)[0].categoryId)[0]})));
     storage.setItem('StudyMap_MockExams', JSON.stringify([
         { id: 'a', userId: 'A', name: '第一次模考', subjects: { 數學: { score: { got: 5 } } } },
         { id: 'b', userId: 'B', name: '第一次模考' },
