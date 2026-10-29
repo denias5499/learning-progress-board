@@ -22,6 +22,8 @@ async function page(t, file, url) {
     w.localStorage.setItem('StudyMap_Family_Data_V20', JSON.stringify(family));
     w.localStorage.setItem('StudyMap_MockExams', JSON.stringify(exams));
     w.localStorage.setItem('myStudyNotes', JSON.stringify(notes));
+    w.eval(text('accuracy-duplicates.js'));
+    w.eval(text('accuracy-duplicates-ui.js'));
     w.eval(text('student-records.js'));
     w.eval(text('tree-progress.js'));
     w.eval(text('tree-scope.js'));
@@ -481,4 +483,16 @@ test('生物複習卷同冊P.1只完成指定回次，明細、教材與總覽�
  w.document.querySelector('#tree-subject-filter').value='ALL';w.renderTreeView();
  assert.match(w.document.querySelector('.tree-type-count').textContent,/已完成 1／3 單元/);
  assert.equal(JSON.stringify({master:w.multiData.A.masters,plans:w.appPlans}),before);
+});
+
+test('已確認重複修正檔只歸檔指定紀錄，總表排除、原文保留且可還原',async t=>{
+ const w=await page(t,'index.html','http://localhost/');seedTree(w);
+ w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
+ const old={id:'old-attempt',date:'2026-07-14',subject:'數學',typeName:'複習卷',instanceId:'book',instanceName:'麻辣甲',correct:24,total:24,wrongUnits:['第3回'],extraExams:[]};const keep={...old,id:'canonical-attempt',wrongUnits:['第一冊|一元一次方程式']};
+ w.saveAccuracyRecords([old,keep]);const before=w.loadAccuracyRecords(),plan={app:'StudyMap',schema:1,kind:'accuracy-dedup-plan',userId:'A',groups:[{keepId:keep.id,archiveIds:[old.id],expected:Object.fromEntries(before.map(r=>[r.id,w.AccuracyDuplicates.signature(r)]))}]};
+ w.switchStatsView('accuracy');await w.AccuracyDuplicatesUI.readPlan({files:[{text:async()=>JSON.stringify(plan)}],value:'test'});
+ assert.equal(w.loadAccuracyRecords().filter(r=>r._duplicateOf).length,0);w.document.querySelector('#accuracy-dedup-apply').click();await new Promise(r=>setTimeout(r,20));
+ let saved=w.loadAccuracyRecords();assert.equal(saved.length,2);assert.equal(saved[0]._duplicateOf,keep.id);assert.equal(saved[0].wrongUnits[0],'第3回');assert.match(w.document.querySelector('#accuracy-root').textContent,/共 1 筆/);
+ assert.ok(Object.keys(w.localStorage).some(k=>k.startsWith('StudyMap_AccuracyDedupBackup_A_')));
+ w.AccuracyDuplicatesUI.review();const restore=w.document.querySelector('[data-restore]');restore.click();restore.click();await new Promise(r=>setTimeout(r,20));saved=w.loadAccuracyRecords();assert.equal(saved.filter(r=>r._duplicateOf).length,0);assert.match(w.document.querySelector('#accuracy-root').textContent,/共 2 筆/);
 });

@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.161]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.162]</title>
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2617,6 +2617,8 @@
     <div id="print-area"></div>
 
     <!-- v2.2.0: Disk Database — IndexedDB + Hybrid Sync (Chrome/Edge auto + Safari/FF manual download) -->
+    <script src="accuracy-duplicates.js?v=162"></script>
+    <script src="accuracy-duplicates-ui.js?v=162"></script>
     <script src="student-records.js?v=159"></script>
     <script src="tree-progress.js?v=160"></script>
     <script src="tree-scope.js?v=159"></script>
@@ -15505,6 +15507,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         //   vol 不明 (null) → 跟舊邏輯一樣, 全部 match
         function getUnitAccuracyRate(unitName, sub, typeName, instanceName, vol) {
             var records = loadAccuracyRecords();
+            if(typeof window!=='undefined'&&window.AccuracyDuplicates)records=AccuracyDuplicates.active(records);
             var rates = [];
             function looseMatch(a, b) {
                 if (!a || !b) return false;
@@ -15631,6 +15634,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var subjects = getAccuracySubjects();
 
             var html = '';
+            if(window.AccuracyDuplicatesUI)html+=AccuracyDuplicatesUI.controls();
             // ===== 輸入表單 =====
             // v1.5.198: Row 1 + Row 2 (樹狀圖跳轉區) 加 #CAE9E0 底色
             html += '<div class="accuracy-form">';
@@ -15709,6 +15713,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var fType = window._accFilters.typeName;
             var fUnit = window._accFilters.unit;
             var filtered = records.filter(function(r) {
+                if(window.AccuracyDuplicates&&r._duplicateOf)return false;
                 if (fSub !== '__ALL__' && r.subject !== fSub) return false;
                 if (fType !== '__ALL__' && r.typeName !== fType) return false;
                 if (fUnit !== '__ALL__') {
@@ -15980,7 +15985,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             }).join('');
         }
 
-        function accSaveRecord() {
+        async function accSaveRecord() {
+            var savingUserId=currentUserId;
             var sub = el('acc-subject').value;
             var typeName = el('acc-type').value;
             var instSel = el('acc-instance');
@@ -16032,6 +16038,8 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 };
                 records.push(record);
             }
+            if(window.AccuracyDuplicatesUI&&!(await AccuracyDuplicatesUI.confirmNew(record,records)))return;
+            if(currentUserId!==savingUserId)return;
             saveAccuracyRecords(records);
             // 重置編輯狀態
             window._editingRecordId = null;
