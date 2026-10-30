@@ -6,7 +6,8 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.166]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.167]</title>
+    <link rel="stylesheet" href="settings-layout.css?v=167">
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1937,26 +1938,35 @@
 
                 <hr class="history-hr">
                 
+                <section class="settings-save-panel" aria-labelledby="settings-save-title">
+                    <div><h3 id="settings-save-title">教材庫變更</h3><p>完成編輯後，儲存目前的教材庫內容。</p></div>
+                    <button id="settings-save-master" type="button" class="btn-success btn-save-settings" onclick="saveSettingsAndAlert()">💾 儲存教材庫變更</button>
+                </section>
                 <section id="legacy-ownership" hidden style="padding:16px;border:1px solid #d4b478;border-radius:8px;margin-bottom:16px;"></section>
-                <div class="backup-row" id="backup-section">
-                    <div class="backup-col">
-                        <label class="backup-label">⚠️ 全機資料備份與還原</label>
-                        <div class="backup-buttons">
-                            <button type="button" class="btn-success" onclick="backupEverything()" title="一次備份所有資料: JSON (教材庫+計畫+紀錄+錯題本+模考圖片) + 資料夾同步">💾 備份所有資料</button>
-                            <button type="button" class="btn-primary" onclick="exportDataToFile()">📥 匯出 JSON 備份</button>
-                            <button type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
-
-                            <input type="file" id="import-file" class="file-input-hidden" accept=".json">
-                        </div>
-                        <div style="font-size:0.85em;color:#7f8c8d;margin-top:6px;line-height:1.6;">
-                            💾「備份所有資料」= 一鍵打包 <b>教材庫 / 計畫 / 紀錄 / 答對率 / 看板 / 錯題本(含圖片) / 模考卷與複盤照片</b><br>
-                            📥 只匯出 JSON（相同內容，不含資料夾同步）　📤 從 JSON 還原
-                        </div>
+                <section id="backup-section" class="settings-backup-panel" aria-labelledby="settings-backup-title">
+                    <h3 id="settings-backup-title">資料備份與還原</h3>
+                    <p>完整備份包含所有學生的教材、計畫、紀錄、答對率、錯題、圖片及回收區。</p>
+                    <div class="settings-backup-actions">
+                        <button id="settings-backup-all" type="button" class="btn-success" onclick="backupEverything()">💾 備份所有資料</button>
+                        <button id="settings-restore-json" type="button" class="btn-danger" onclick="document.getElementById('import-file').click()">📤 匯入 JSON 還原</button>
                     </div>
-                    <button type="button" class="btn-info" onclick="dedupTraceAndShow()" style="margin-right:8px;">🔍 診斷教材庫</button>
-                    <button type="button" class="btn-warning" onclick="dedupeAndSave()" style="margin-right:8px;">🧹 清理重複教材</button>
-                    <button type="button" class="btn-success btn-save-settings" onclick="saveSettingsAndAlert()">💾 儲存教材庫變更</button>
-                </div>
+                    <p class="settings-action-hint">備份所有資料會下載完整 JSON，並在可用時同步資料夾；還原會使用備份檔覆蓋資料，執行前會再次確認。</p>
+                    <details class="settings-extra-backup">
+                        <summary>其他備份方式</summary>
+                        <div class="settings-extra-content">
+                            <button id="settings-export-json" type="button" class="btn-primary" onclick="exportDataToFile()">📥 只匯出 JSON 備份</button>
+                            <p>JSON 內容與「備份所有資料」相同，僅略過資料夾同步。</p>
+                        </div>
+                    </details>
+                    <input type="file" id="import-file" class="file-input-hidden" accept=".json">
+                </section>
+                <details id="settings-library-tools" class="settings-tools-panel">
+                    <summary>教材庫進階工具</summary>
+                    <div class="settings-tools-grid">
+                        <div><button id="settings-diagnose-master" type="button" class="btn-info" onclick="dedupTraceAndShow()">🔍 診斷教材庫</button><p>檢查目前學生的教材結構與重複單元，不修改資料。</p></div>
+                        <div><button id="settings-dedupe-master" type="button" class="btn-warning" onclick="dedupeAndSave()">🧹 清理重複教材</button><p>會處理所有學生的重複教材，儲存後重新整理；建議先完成備份。</p></div>
+                    </div>
+                </details>
             </div>
         </div>
 
@@ -2624,7 +2634,7 @@
     <script src="tree-progress.js?v=160"></script>
     <script src="tree-scope.js?v=159"></script>
     <script src="board-layout.js?v=161"></script>
-    <script src="exam-student-ui.js?v=163"></script>
+    <script src="exam-student-ui.js?v=167"></script>
     <script src="disk-db.js"></script>
 
     <script>

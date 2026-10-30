@@ -630,3 +630,23 @@ test('未排程而只選部分科目任務時，首頁仍補齊其他科目的�
  w.multiData.A.missions={'會考':{'一模':['u-math']}};w.appMissions=w.multiData.A.missions;const before=JSON.stringify(w.multiData);w.updateFilters();w.renderDashboard();
  const cards=Array.from(w.document.querySelectorAll('#dashboard-root .dashboard-subject-card'));assert.deepEqual(cards.map(c=>c.dataset.subject),['數學','英文']);assert.ok(cards.every(c=>c.dataset.completion==='0'));assert.equal(JSON.stringify(w.multiData),before);
 });
+
+test('設定頁依用途分組六個動作，保存入口與備份分離，各按鈕仍呼叫原功能',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.openSettings();const d=w.document;
+ assert.equal(d.querySelector('.settings-save-panel #settings-save-master').textContent.trim(),'💾 儲存教材庫變更');
+ assert.equal(d.querySelector('#backup-section #settings-save-master'),null);assert.equal(d.querySelector('#backup-section #settings-diagnose-master'),null);
+ assert.equal(d.querySelector('.settings-extra-backup').open,false);assert.equal(d.querySelector('#settings-library-tools').open,false);assert.match(d.querySelector('#settings-library-tools').textContent,/所有學生/);
+ assert.equal(d.querySelectorAll('#import-file').length,1);const calls=[];
+ const routes=[['settings-save-master','saveSettingsAndAlert'],['settings-backup-all','backupEverything'],['settings-export-json','exportDataToFile'],['settings-diagnose-master','dedupTraceAndShow'],['settings-dedupe-master','dedupeAndSave']];
+ routes.forEach(([id,fn])=>{w[fn]=()=>calls.push(fn);const b=d.getElementById(id);assert.equal(d.querySelectorAll('#'+id).length,1);w.Function('event',b.getAttribute('onclick')).call(b,new w.Event('click'));});
+ d.querySelector('#import-file').click=()=>calls.push('restore');const b=d.querySelector('#settings-restore-json');w.Function('event',b.getAttribute('onclick')).call(b,new w.Event('click'));
+ assert.deepEqual(calls,[...routes.map(r=>r[1]),'restore']);
+});
+test('回收區預設收合，13筆資料分欄對齊；展開及重新繪製不變更資料，取消還原不動資料',async t=>{
+ const w=await page(t,'index.html','http://localhost/');const notes=Array.from({length:13},(_,i)=>({timestamp:300+i,subject:'國文',date:'2026/09/12',unit:'非常長的教材單元名稱'+i,imageId:'shared-test-image',content:'保留內容'+i}));
+ w.localStorage.setItem('myStudyNotes',JSON.stringify(notes));w.StudyRecords.trashPendingNotes(w.StudyRecords.pending('notes').map(n=>n.token));const before=w.localStorage.getItem('StudyMap_WrongNotesTrash_V1');
+ w.openSettings();let panel=w.document.querySelector('#note-trash-panel');assert.equal(panel.tagName,'DETAILS');assert.equal(panel.open,false);assert.match(panel.querySelector('summary').textContent,/13 筆/);assert.equal(panel.querySelectorAll('.note-trash-row').length,13);
+ assert.equal(panel.querySelectorAll('.note-trash-row span').length,39);assert.match(panel.textContent,/原內容與圖片保留/);assert.equal(w.localStorage.getItem('StudyMap_WrongNotesTrash_V1'),before);
+ panel.open=true;w.renderLegacyOwnership();assert.equal(panel.open,true);w.confirm=()=>false;panel.querySelector('button').click();assert.equal(w.localStorage.getItem('StudyMap_WrongNotesTrash_V1'),before);
+ w.confirm=()=>true;panel.querySelector('button').click();assert.equal(w.StudyRecords.pending('notes').length,1);assert.equal(w.StudyRecords.noteTrash().length,12);assert.equal(panel.open,true);assert.equal(w.StudyRecords.pending('notes')[0].record.content,'保留內容0');assert.equal(w.StudyRecords.hasImageReference('shared-test-image'),true);
+});

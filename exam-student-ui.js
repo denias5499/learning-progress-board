@@ -118,13 +118,22 @@ window.addEventListener('storage', function(event) {
 
 function renderNoteTrash(legacyRoot) {
     var root = document.getElementById('note-trash-panel');
-    if (!root) { root = document.createElement('div'); root.id = 'note-trash-panel'; legacyRoot.insertAdjacentElement('afterend', root); }
-    var trash = StudyRecords.noteTrash(); root.replaceChildren(); root.hidden = !trash.length;
+    if (!root) { root = document.createElement('details'); root.id = 'note-trash-panel'; legacyRoot.insertAdjacentElement('afterend', root); }
+    var wasOpen = root.open;
+    var trash = StudyRecords.noteTrash(); root.replaceChildren(); root.hidden = !trash.length; root.open = wasOpen;
     if (!trash.length) return;
-    var title = document.createElement('h3'); title.textContent = '測試錯題回收區（' + trash.length + ' 筆）'; root.appendChild(title);
+    var title = document.createElement('summary'); title.textContent = '測試錯題回收區（' + trash.length + ' 筆）'; root.appendChild(title);
+    var description = document.createElement('p'); description.className = 'note-trash-description';
+    description.textContent = '這些測試錯題已移出使用中的清單，原內容與圖片保留，也會納入完整備份。「還原」會回到原本的歸屬狀態。'; root.appendChild(description);
+    var header = document.createElement('div'); header.className = 'note-trash-header'; header.setAttribute('aria-hidden', 'true');
+    ['科目', '日期', '單元', '操作'].forEach(function(text) { var cell = document.createElement('span'); cell.textContent = text; header.appendChild(cell); }); root.appendChild(header);
     trash.forEach(function(entry) {
-        var row = document.createElement('p'); row.textContent = (entry.record.subject || '') + ' ' + (entry.record.date || '') + ' ' + (entry.record.unit || '');
-        var restore = document.createElement('button'); restore.textContent = '還原';
+        var row = document.createElement('div'); row.className = 'note-trash-row';
+        [entry.record.subject || '未分類', entry.record.date || '未記錄日期', entry.record.unit || '未指定單元'].forEach(function(text,index) {
+            var cell = document.createElement('span'); cell.textContent = text; if (index === 2) cell.className = 'note-trash-unit'; row.appendChild(cell);
+        });
+        var restore = document.createElement('button'); restore.textContent = '還原'; restore.type = 'button';
+        restore.setAttribute('aria-label', '還原 ' + (entry.record.subject || '') + ' ' + (entry.record.date || '') + ' ' + (entry.record.unit || ''));
         restore.onclick = function() { if (!confirm('還原這筆測試錯題至原本的歸屬狀態？')) return; try { StudyRecords.restoreTrashedNote(entry.id); renderLegacyOwnership(); } catch(e) { alert(e.message); } };
         row.appendChild(restore); root.appendChild(row);
     });

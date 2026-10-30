@@ -1,0 +1,38 @@
+/* Settings actions are grouped by intent; layout has no persistence side effects. */
+.settings-save-panel,.settings-backup-panel,.settings-tools-panel,#note-trash-panel{box-sizing:border-box;margin:16px 0;padding:18px;border:1px solid #cadbe2;border-radius:10px}
+.settings-save-panel{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#f1f8fb}
+.settings-save-panel h3,.settings-backup-panel h3{margin:0 0 7px;font-size:17px}
+.settings-save-panel p,.settings-backup-panel p,.settings-tools-grid p,.settings-extra-content p{margin:0;color:#526472;font-size:14px;line-height:1.65}
+.settings-save-panel .btn-save-settings{flex-shrink:0;font-size:16px;padding:11px 20px;margin:0}
+.settings-backup-panel{background:#fff6ed;border-color:#ead8c4}
+.settings-backup-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:14px}
+.settings-backup-actions button{min-width:170px;margin:0}
+.settings-backup-panel .settings-action-hint{margin:10px 0 14px}
+.settings-extra-backup{border-top:1px solid #ead8c4;padding-top:12px}
+.settings-extra-backup summary,.settings-tools-panel summary,#note-trash-panel summary{cursor:pointer;font-weight:700;line-height:1.6;font-size:16px;color:#344f63}
+.settings-extra-content{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px}
+.settings-extra-content button{margin:0}
+.settings-tools-panel{background:#f7f9fb}
+.settings-tools-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;margin-top:16px}
+.settings-tools-grid button{margin:0 0 8px}
+#note-trash-panel{background:#f8fbfc}
+.note-trash-description{font-size:14px;line-height:1.65;color:#526472;margin:12px 0}
+.note-trash-header,.note-trash-row{display:grid;grid-template-columns:70px 110px minmax(0,1fr) 64px;gap:12px;align-items:center;padding:9px 4px}
+.note-trash-header{font-size:13px;color:#526472;border-bottom:1px solid #cadbe2;font-weight:700}
+.note-trash-row{font-size:14px;border-bottom:1px solid #e0e9ed;line-height:1.5}
+.note-trash-row:last-child{border-bottom:0}
+.note-trash-unit{overflow-wrap:anywhere}
+.note-trash-row button{margin:0;padding:7px 10px;font-size:14px}
+@media(max-width:640px){
+ .settings-save-panel{align-items:stretch;flex-direction:column}
+ .settings-save-panel .btn-save-settings{width:100%}
+ .settings-backup-actions{flex-direction:column;gap:8px}
+ .settings-backup-actions button{width:100%;min-width:0}
+ .settings-tools-grid{grid-template-columns:1fr;gap:14px}
+ .settings-extra-content{align-items:stretch;flex-direction:column}
+ .settings-save-panel,.settings-backup-panel,.settings-tools-panel,#note-trash-panel{padding:14px}
+ .note-trash-header{display:none}
+ .note-trash-row{grid-template-columns:70px minmax(0,1fr) 64px;gap:5px 10px;padding:10px 0}
+ .note-trash-unit{grid-column:1 / -1;grid-row:2}
+ .note-trash-row button{grid-column:3;grid-row:1}
+}
