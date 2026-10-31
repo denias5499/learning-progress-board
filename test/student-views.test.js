@@ -729,4 +729,37 @@ test('列印標題可選首頁／每頁／不列印；單元頁碼固定顯示�
 test('跨頁U1紀錄補齊U2後視為完整，不再顯示最後完成頁警告',async t=>{
  const w=await page(t,'index.html','http://localhost/');const catalog={會考:{英文:{materials:{複習講義:{instances:[{id:'eng',name:'麻辣',vols:{第一冊:[{id:'u1',name:'U1',start:6,end:27},{id:'u2',name:'U2',start:28,end:49}]}}]}}}}};w.multiData.A.masters=catalog;w.appPlans=[{grid:{d:[{unitId:'u1',startPage:24,endPage:28,isDone:true},{unitId:'u2',startPage:29,endPage:49,isDone:true}]}}];const html=w.renderUnitRowHtml({id:'u2',name:'U2',start:28,end:49,typeName:'複習講義',instanceName:'麻辣'},{showQuickRead:false});assert.doesNotMatch(html,/最後完成頁|尚無完成紀錄/);assert.match(html,/scheduled/);
 });
-test('獨立列印版先提供明確列印按鈕，準備時不自動呼叫原生列印',async t=>{const w=await page(t,'index.html','http://localhost/'),doc=w.document.implementation.createHTMLDocument('學習進度計畫表'),area=doc.createElement('div');area.id='print-area';area.innerHTML='<section class="cp-page"><h1>學習進度計畫表</h1><div class="cp-task">U4 P.49~51</div></section>';doc.body.appendChild(area);let printed=0,focused=0;const output={document:doc,print:()=>printed++,focus:()=>focused++,close:()=>{}};await w.CalendarPrint.attachPrintControls(output,area);assert.equal(printed,0);assert.equal(focused,1);const buttons=doc.querySelectorAll('#cp-print-actions button');assert.equal(buttons[0].textContent,'列印');buttons[0].click();assert.equal(printed,1);assert.match(doc.querySelector('#cp-print-actions').textContent,/1 筆進度/);});
+test('五種教材類型採用預設簡稱，既有自訂與明確清空保留，開啟編輯不改寫教材',async t=>{
+ const w=await page(t,'index.html','http://localhost/');
+ const expected={'複習講義':'複講','複習卷':'複卷','模擬題本':'模本','數字題本':'數本','模考歷屆':'歷屆'};
+ for(const [type,alias] of Object.entries(expected)){
+  assert.equal(w.CalendarPrint.typeAlias(type,{}),alias);
+  assert.equal(w.CalendarPrint.taskInfo({subject:'數學',typeName:type}).type,alias);
+ }
+ assert.equal(w.CalendarPrint.typeAlias('複習講義',{alias:'講義自訂'}),'講義自訂');
+ assert.equal(w.CalendarPrint.typeAlias('複習講義',{alias:''}),'複習講義');
+ assert.equal(w.CalendarPrint.typeAlias('其他教材',{}),'其他教材');
+ w.openSettings();w.populateMasterTypeDropdown();w.document.querySelector('#master-type').value='複習講義';
+ const obj=w.appMaster['數學'].materials['複習講義'],before=JSON.stringify(obj);
+ w.CalendarPrint.editType();assert.equal(w.document.querySelector('#type-alias-value').value,'複講');
+ w.document.querySelector('#type-alias-cancel').click();assert.equal(JSON.stringify(obj),before);
+ w.CalendarPrint.editType();w.document.querySelector('#type-alias-value').value='新簡稱';w.document.querySelector('#type-alias-save').click();
+ assert.equal(w.CalendarPrint.typeAlias('複習講義',obj),'新簡稱');
+ w.CalendarPrint.editType();assert.equal(w.document.querySelector('#type-alias-value').value,'新簡稱');
+});
+
+test('列印按一次傳送獨立PDF工作，拒絕其他來源，PDF完成後才列印且可重試失敗',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.currentViewDate=new w.Date(2026,7,1);w.appPlans=w.multiData.A.plans=[{id:'p',grid:{'2026-08-01':[{subject:'數學',typeName:'複習講義',unitName:'甲',startPage:1,endPage:2,isDone:true}]}}];w.openPrintModal();
+ w.document.documentElement.getBoundingClientRect=()=>({width:900});let opens=0,prints=0,sent;
+ const child={closed:false,postMessage:job=>sent=job,focus:()=>{},close(){this.closed=true;},document:{contentType:'application/pdf',readyState:'complete'},location:{replace(url){this.url=url;}},print(){prints++;}};
+ w.open=url=>{opens++;assert.match(url,/calendar-print-view.html/);return child;};
+ const receive=(data,source=child,origin='http://localhost')=>w.dispatchEvent(new w.MessageEvent('message',{data,source,origin}));
+ const button=w.document.querySelector('#modal-print-settings button[onclick="executePrint()"]');
+ await w.executePrint();await w.executePrint();assert.equal(opens,1);assert.equal(button.disabled,true);
+ receive({kind:'lpb-print-ready'},child,'https://invalid.test');assert.equal(sent,undefined);
+ receive({kind:'lpb-print-ready'});assert.equal(sent.kind,'lpb-print-job');assert.equal(sent.model.grid['2026-08-01'][0].type,'複講');assert.equal(sent.model.grid['2026-08-01'][0].done,true);assert.equal(sent.family,undefined);
+ receive({kind:'lpb-print-pdf',url:'blob:http://localhost/test-pdf'});await new Promise(resolve=>setTimeout(resolve,320));
+ assert.equal(prints,1);assert.equal(button.disabled,false);assert.equal(w.multiData.A.printPreferences.unit,true);
+ w.openPrintModal();let error='';w.alert=s=>error=s;await w.executePrint();receive({kind:'lpb-print-failed',message:'字型逾時'});assert.match(error,/字型逾時/);assert.equal(button.disabled,false);assert.equal(prints,1);
+ await w.executePrint();receive({kind:'lpb-print-ready'});w.currentUserId='B';receive({kind:'lpb-print-pdf',url:'blob:http://localhost/test-pdf'});assert.equal(child.closed,true);assert.equal(prints,1);assert.equal(button.disabled,false);
+});

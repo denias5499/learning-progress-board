@@ -30,6 +30,12 @@ function scope(cat,mis) {
  }
  return {ids,subjects};
 }
+const defaultTypeAliases=Object.freeze({'複習講義':'複講','複習卷':'複卷','模擬題本':'模本','數字題本':'數本','模考歷屆':'歷屆'});
+function typeAlias(type,obj){
+ // An explicitly saved empty alias means the user chose the full name.
+ if(obj && typeof obj.alias==='string')return obj.alias.trim() || type;
+ return defaultTypeAliases[type] || type;
+}
 function taskInfo(t) {
  let ctx=null;
  try {ctx=t.unitId ? findUnitContext(t.unitId) : null;}catch(_){}
@@ -52,9 +58,9 @@ function taskInfo(t) {
  const a=t.startPage,b=t.endPage;
  const pages=a!=null ? 'P.'+a+(b!=null && b!==a ? '~'+b : '') : '';
  const fallback=String(t.text || '').replace(/^\[[^\]]*\]\s*/, '');
- return {subject:t.subject || '其他',type:typeObj && typeObj.alias || type,book:instance && instance.alias || name,unit:unit || fallback,pages:ranges.length?'':pages,vol:t.vol || (ctx && ctx.vol) || '',done:!!t.isDone};
+ return {subject:t.subject || '其他',type:typeAlias(type,typeObj),book:instance && instance.alias || name,unit:unit || fallback,pages:ranges.length?'':pages,vol:t.vol || (ctx && ctx.vol) || '',done:!!t.isDone};
 }
-let draft=null, preparingWindow=null;
+let draft=null;
 function prefs() {
  const u=multiData[currentUserId] || {};
  return Object.assign({layout:u.name==='張裕如'?'matrix':'calendar',period:'week',status:true,title:true,firstOnly:true},u.printPreferences || {},{unit:true,pages:true});
@@ -62,7 +68,7 @@ function prefs() {
 function addControls() {
  if(document.getElementById('print-layout'))return;
  const box=document.createElement('div');box.className='print-options';
- box.innerHTML='<label>列印版型<select id="print-layout"><option value="calendar">月曆表（依日期排列）</option><option value="matrix">科目／教材 × 日期</option></select></label><label>每頁範圍<select id="print-period"><option value="week">一週（建議）</option><option value="fortnight">兩週（內容多時接續分頁）</option></select></label><fieldset><legend>列印內容</legend><label><input type="checkbox" id="print-show-title">標題</label><label class="print-title-child"><input type="checkbox" id="print-title-first">僅首頁列印</label><label><input type="checkbox" id="print-show-status">完成核取方塊</label></fieldset><p>設定會依學生分開記住；內容過多時接續分頁，不省略排程。</p>';
+ box.innerHTML='<label>列印版型<select id="print-layout"><option value="calendar">月曆表（依日期排列）</option><option value="matrix">科目／教材 × 日期</option></select></label><label>每頁範圍<select id="print-period"><option value="week">一週（建議）</option><option value="fortnight">最多兩週</option><option value="three">最多三週</option><option value="auto">自動安排完整週</option></select></label><fieldset><legend>列印內容</legend><label><input type="checkbox" id="print-show-title">標題</label><label class="print-title-child"><input type="checkbox" id="print-title-first">僅首頁列印</label><label><input type="checkbox" id="print-show-status">完成核取方塊</label></fieldset><p>設定會依學生分開記住；每週完整列印，放不下就整週換頁。</p>';
  const range=document.getElementById('print-range-display');range.after(box);
  document.getElementById('print-show-title').addEventListener('change',syncTitleControl);
  document.getElementById('print-modal-cat-filter').addEventListener('change',syncRange);
@@ -121,97 +127,59 @@ function render(snapshot, options, name, cat, mis) {
  }
  return html;
 }
+let pendingPrint=null;
+function finishPrint(error){
+ if(!pendingPrint)return;const pending=pendingPrint;pendingPrint=null;clearTimeout(pending.timer);root.removeEventListener('message',pending.listener);
+ if(pending.button){pending.button.disabled=false;pending.button.textContent='🖨️ 列印';}
+ if(error)alert('無法開啟列印：'+error);
+}
 async function execute() {
+ if(pendingPrint)return;
  if(!draft || draft.userId!==currentUserId)return alert('學生已切換，請重新開啟列印設定。');
  if(!printSelStart || !printSelEnd || printSelEnd<printSelStart)return alert('請選擇正確的開始與結束日期。');
  if((printSelEnd-printSelStart)/86400000>366)return alert('每次列印範圍請勿超過一年。');
  const cat=document.getElementById('print-modal-cat-filter').value,mis=document.getElementById('print-modal-mis-filter').value;
  const snapshot=getSnapshot(cat,mis,printSelStart,printSelEnd);
- const options={layout:document.getElementById('print-layout').value,period:document.getElementById('print-period').value};
- options.unit=true;options.pages=true;options.status=document.getElementById('print-show-status').checked;options.title=document.getElementById('print-show-title').checked;options.firstOnly=document.getElementById('print-title-first').checked;
+ const options={layout:document.getElementById('print-layout').value,period:document.getElementById('print-period').value,unit:true,pages:true,status:document.getElementById('print-show-status').checked,title:document.getElementById('print-show-title').checked,firstOnly:document.getElementById('print-title-first').checked};
  if(!snapshot.dates.some(d=>snapshot.grid[d].length || snapshot.events[d].length))return alert('選取範圍及篩選條件沒有排程，請先確認日期、分類與任務。');
- const area=document.getElementById('print-area');
- // The legacy HTML nests this area inside .container; lift it out before hiding screen UI.
- document.body.appendChild(area);
- area.innerHTML=render(snapshot,options,draft.name,cat,mis);
- const uid=draft.userId;
+ const markup=render(snapshot,{...options,period:'week'},draft.name,cat,mis);
+ const model={dates:snapshot.dates,events:snapshot.events,grid:Object.fromEntries(snapshot.dates.map(date=>[date,snapshot.grid[date].map(taskInfo)]))};
+ // DOM-only tests have no physical page geometry; native browser uses the isolated document below.
+ if(!document.documentElement.getBoundingClientRect().width){const area=document.getElementById('print-area');document.body.appendChild(area);area.innerHTML=markup;multiData[currentUserId].printPreferences=options;saveToLocal();closeModal('modal-print-settings');root.print();return;}
  const button=document.querySelector('#modal-print-settings button[onclick="executePrint()"]');
- if(button && button.disabled)return;
- if(button){button.disabled=true;button.textContent='檢查列印版面…';}
- let fitted=null,printed=false,printWindow=null;
- // Open synchronously from the click so Safari permits an isolated top-level print page.
- if(document.documentElement.getBoundingClientRect().width){
-  printWindow=root.open('','_blank');
-  if(!printWindow){if(button){button.disabled=false;button.textContent='✅ 確認列印';}return alert('Safari 未開啟列印視窗，請允許此網站的彈出式視窗後再試。');}
-  preparingWindow=printWindow;printWindow.focus();printWindow.document.title='準備學習進度計畫表';printWindow.document.body.textContent='正在準備列印版面…';
- }
- try {
-  fitted=await fitPages(area,options,true);const overflow=fitted.overflow;
-  if(uid!==currentUserId){area.innerHTML='';return alert('學生已切換，已取消列印。');}
-  if(overflow && !confirm('有 '+overflow+' 週的內容在 8pt 字級下仍超過一頁。繼續列印會保留全部內容並接續分頁；可取消後縮短教材簡稱或減少列印項目。是否繼續？'))return;
-  multiData[currentUserId].printPreferences=options;saveToLocal();closeModal('modal-print-settings');
-  // Safari can print an iframe using the parent's page geometry. Use a top-level document.
-  if(printWindow){
-   if(printWindow.closed)throw new Error('列印視窗已關閉。');
-   const css=fitted.frame.contentDocument.querySelector('style').textContent;
-   printWindow.document.open();printWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><title>學習進度計畫表</title><style>'+css+'</style></head><body>'+area.outerHTML+'</body></html>');printWindow.document.close();
-   printWindow.document.body.style.fontFamily=getComputedStyle(document.body).fontFamily;
-   await attachPrintControls(printWindow,area);printed=true;
-  }else {window.print();printed=true;}
- } catch(e) {alert('無法開啟列印：'+e.message);}
- finally {if(fitted && fitted.frame)fitted.frame.remove();if(!printed && printWindow && !printWindow.closed)printWindow.close();preparingWindow=null;if(button){button.disabled=false;button.textContent='✅ 確認列印';}}
-
-}
-
-// Use the same fully laid-out document for measurement and Safari's first preview.
-async function attachPrintControls(printWindow,area){
- const doc=printWindow.document,bar=doc.createElement('div');bar.id='cp-print-actions';
-   const note=doc.createElement('span');note.textContent='列印版已準備完成 · '+area.querySelectorAll('.cp-task').length+' 筆進度 · '+area.querySelectorAll('.cp-page').length+' 頁';
-   const go=doc.createElement('button');go.type='button';go.textContent='列印';go.onclick=()=>printWindow.print();
-   const close=doc.createElement('button');close.type='button';close.textContent='關閉';close.onclick=()=>printWindow.close();bar.append(note,go,close);doc.body.prepend(bar);
-   const screen=doc.createElement('style');screen.textContent='@media screen{body>#cp-print-actions{display:flex!important;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:10;background:#e8f1f6;color:#203846;padding:12px;font:14px system-ui}#cp-print-actions button{font:inherit;padding:7px 16px;border:1px solid #8ba9b9;border-radius:5px;background:white;color:#203846}}';doc.head.appendChild(screen);
-   await settled(printWindow,doc);printWindow.focus();
-}
-function titlePages(area,options){
- Array.from(area.querySelectorAll('.cp-page')).forEach((page,i)=>{
-  page.querySelectorAll('h1').forEach(h=>h.remove());
-  if(options.title!==false && (i===0 || options.firstOnly===false)){const h=page.ownerDocument.createElement('h1');h.textContent='學習進度計畫表';page.prepend(h);}
- });
-}
-async function settled(win,doc){
- if(doc.fonts && doc.fonts.ready)await doc.fonts.ready;
- const clock=preparingWindow && !preparingWindow.closed ? preparingWindow : root;
- await new Promise(resolve=>{const timer=setTimeout(resolve,250);clock.requestAnimationFrame(()=>clock.requestAnimationFrame(()=>{clearTimeout(timer);resolve();}));});
- doc.documentElement.getBoundingClientRect();
-}
-async function fitPages(area,options,keep){
- options=options || {title:true,firstOnly:true};
- if(!document.documentElement.getBoundingClientRect().width)return keep?{overflow:0,frame:null}:0;
- const sheet=Array.from(document.styleSheets).find(s=>s.href && s.href.includes('calendar-print.css'));
- if(!sheet)throw new Error('列印樣式未載入，請重新整理後再試。');
- const css=Array.from(sheet.cssRules).map(r=>r.cssText).join('\n').replace(/@media print/g,'@media all');
- const frame=document.createElement('iframe');frame.className='calendar-print-document';
- frame.setAttribute('aria-hidden','true');frame.title='學習進度計畫表';frame.style.cssText='position:absolute;left:-20000px;top:0;width:291mm;height:204mm;border:0;pointer-events:none';
- let retained=false;
+ const uid=draft.userId,pending={button,uid,markup,options,child:null,timer:null,listener:null};pendingPrint=pending;
+ if(button){button.disabled=true;button.textContent='正在準備列印…';}
+ pending.listener=event=>{
+  if(pendingPrint!==pending||event.origin!==root.location.origin||event.source!==pending.child||!event.data)return;
+  if(uid!==currentUserId){finishPrint('學生已切換，已取消列印。');if(pending.child&&!pending.child.closed)pending.child.close();return;}
+  if(event.data.kind==='lpb-print-ready'){pending.child.postMessage({kind:'lpb-print-job',markup,model,options},root.location.origin);}
+  else if(event.data.kind==='lpb-print-pdf'){
+   const url=event.data.url;if(typeof url!=='string'||!url.startsWith('blob:'+root.location.origin+'/'))return finishPrint('PDF 文件來源不符。');
+   clearTimeout(pending.timer);pending.child.location.replace(url);
+   const started=Date.now();
+   function printPDF(){
+    if(pendingPrint!==pending)return;
+    if(uid!==currentUserId)return finishPrint('學生已切換，已取消列印。');
+    try{
+     if(pending.child.closed)return finishPrint('列印視窗已關閉。');
+     const doc=pending.child.document;
+     if(doc.contentType==='application/pdf'&&doc.readyState==='complete'){
+      multiData[uid].printPreferences=options;saveToLocal();closeModal('modal-print-settings');finishPrint();pending.child.focus();pending.child.print();return;
+     }
+    }catch(_){}
+    if(Date.now()-started>15000)return finishPrint('PDF 已產生，但瀏覽器未能自動開啟列印；請在 PDF 頁使用列印功能。');
+    pending.timer=setTimeout(printPDF,250);
+   }
+   pending.timer=setTimeout(printPDF,250);
+  }
+  else if(event.data.kind==='lpb-print-failed')finishPrint(event.data.message);
+ };
+ root.addEventListener('message',pending.listener);
  try{
-  const loaded=new Promise(resolve=>{frame.onload=resolve;});frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><title>學習進度計畫表</title></head><body></body></html>';
-  document.body.appendChild(frame);await loaded;
-  const doc=frame.contentDocument,style=doc.createElement('style');style.textContent=css+'html,body{margin:0!important;padding:0!important;width:291mm!important;background:white!important}#print-area{width:291mm!important;visibility:visible!important}';doc.head.appendChild(style);doc.body.style.fontFamily=getComputedStyle(document.body).fontFamily;
-  const clone=area.cloneNode(true);doc.body.appendChild(clone);titlePages(clone,options);await settled(frame.contentWindow,doc);
-  const limit=200*96/25.4;
-  Array.from(clone.querySelectorAll('.cp-page')).forEach(page=>{
-   const weeks=Array.from(page.querySelectorAll('.cp-week'));
-   if(weeks.length>1 && page.getBoundingClientRect().height>limit){weeks.forEach(week=>{const single=doc.createElement('section');single.className='cp-page';single.appendChild(week);page.before(single);});page.remove();}
-  });
-  titlePages(clone,options);await settled(frame.contentWindow,doc);
-  let overflow=0;clone.querySelectorAll('.cp-page').forEach(page=>{
-   if(page.getBoundingClientRect().height>limit)page.classList.add('cp-dense');
-   if(page.getBoundingClientRect().height>limit)page.classList.add('cp-denser');
-   if(page.getBoundingClientRect().height>limit){page.classList.add('cp-overflow');overflow++;}
-  });
-  await settled(frame.contentWindow,doc);area.innerHTML=clone.innerHTML;
-  if(keep){retained=true;return {overflow,frame};}return overflow;
- }finally{if(!retained)frame.remove();}
+  pending.child=root.open(new URL('calendar-print-view.html?v=172',document.baseURI).href,'_blank');
+  if(!pending.child){finishPrint('瀏覽器未開啟列印視窗，請確認彈出式視窗提示。');return;}
+  pending.timer=setTimeout(()=>finishPrint('準備列印逾時，請關閉列印頁後重試。'),20000);pending.child.focus();
+ }catch(e){finishPrint(e.message);}
 }
 
 function editType() {
@@ -221,11 +189,11 @@ function editType() {
  let modal=document.getElementById('modal-type-alias');
  if(!modal){modal=document.createElement('div');modal.id='modal-type-alias';modal.className='modal-bg';modal.innerHTML='<div class="modal-content" style="max-width:460px"><h2>教材類型簡稱</h2><p id="type-alias-name"></p><label for="type-alias-value">簡稱（用於月曆及列印，留空使用完整名稱）</label><input id="type-alias-value" maxlength="30"><div class="setting-controls"><button type="button" class="btn-outline" id="type-alias-cancel">取消</button><button type="button" class="btn-primary" id="type-alias-save">儲存</button></div></div>';document.body.appendChild(modal);}
  document.getElementById('type-alias-name').textContent='完整名稱：'+type;
- document.getElementById('type-alias-value').value=obj.alias || '';
+ document.getElementById('type-alias-value').value=typeAlias(type,obj);
  const uid=currentUserId;
  document.getElementById('type-alias-cancel').onclick=()=>closeModal('modal-type-alias');
  document.getElementById('type-alias-save').onclick=()=>{if(uid!==currentUserId || !appMaster[sub] || appMaster[sub].materials[type]!==obj)return alert('學生或教材已變更，請重新開啟。');obj.alias=document.getElementById('type-alias-value').value.trim();saveToLocal();closeModal('modal-type-alias');};
  openModal('modal-type-alias');
 }
-root.CalendarPrint={resolvePlan,filterTasks,project,taskInfo,render,open,execute,syncRange,fitPages,titlePages,attachPrintControls,editType};
+root.CalendarPrint={resolvePlan,filterTasks,project,taskInfo,render,open,execute,syncRange,typeAlias,editType};
 })(typeof window!=='undefined'?window:globalThis);
