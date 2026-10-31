@@ -6,8 +6,9 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.167]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.168]</title>
     <link rel="stylesheet" href="settings-layout.css?v=167">
+    <link rel="stylesheet" href="calendar-print.css?v=168">
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -1807,6 +1808,7 @@
                         <div class="setting-controls" style="margin-top:8px;">
                             <button type="button" class="btn-outline" style="border-color:var(--purple); color:var(--purple);" onclick="addMaterialType()">➕ 新增類型</button>
                             <button type="button" class="btn-warning" onclick="renameMaterialType()">✏️ 編輯類型</button>
+                            <button type="button" class="btn-outline" onclick="CalendarPrint.editType()">編輯類型簡稱</button>
                             <button type="button" class="btn-danger" onclick="deleteMaterialType()">🗑️ 刪除類型</button>
                         </div>
 
@@ -1963,7 +1965,6 @@
                 <details id="settings-library-tools" class="settings-tools-panel">
                     <summary>教材庫進階工具</summary>
                     <div class="settings-tools-grid">
-                        <div><button id="settings-diagnose-master" type="button" class="btn-info" onclick="dedupTraceAndShow()">🔍 診斷教材庫</button><p>檢查目前學生的教材結構與重複單元，不修改資料。</p></div>
                         <div><button id="settings-dedupe-master" type="button" class="btn-warning" onclick="dedupeAndSave()">🧹 清理重複教材</button><p>會處理所有學生的重複教材，儲存後重新整理；建議先完成備份。</p></div>
                     </div>
                 </details>
@@ -2583,7 +2584,7 @@
                 <button type="button" class="close-btn" onclick="closeModal('modal-print-settings')">&times;</button>
             </div>
             <div class="form-group" style="background:#f0f8ff; border:1px solid #b3d7ff; padding:10px; border-radius:6px;">
-                <p style="margin-top:0; font-size:0.95em; color:var(--secondary);">點選 2 個日期設定列印範圍。系統以「每 2 週 1 頁」 A4 橫式版面列印。</p>
+                <p style="margin-top:0; font-size:0.95em; color:var(--secondary);">預設目前顯示月份，可點選 2 個日期調整範圍。以 A4 橫式列印，內容過多時接續分頁。</p>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
                     <button type="button" class="btn-outline" style="padding:4px 10px;" onclick="changePrintMonth(-1)">← 上月</button>
                     <strong id="print-cal-month-label">2026 年 7 月</strong>
@@ -2635,6 +2636,7 @@
     <script src="tree-scope.js?v=159"></script>
     <script src="board-layout.js?v=161"></script>
     <script src="exam-student-ui.js?v=167"></script>
+    <script src="calendar-print.js?v=168"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -7577,7 +7579,7 @@ loadBoardHeader();
                 console.log('[renderCalendar] fallback to last plan: ' + pid);
             }
             // Empty calendars are a view only; create a real plan only after a valid manual save.
-            var plan = appPlans.find(p => p.id === pid) || { grid: {}, events: [] };
+            var plan = CalendarPrint.resolvePlan(appPlans, pid);
             console.log('[renderCalendar] plan=' + (plan.name || 'empty calendar'));
             
             let fCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
@@ -7653,22 +7655,7 @@ loadBoardHeader();
                 var tasksHtml = '';
                 var tasks = Array.isArray(plan.grid[dStr]) ? plan.grid[dStr] : [];
                 
-                let filteredTasks = [...tasks];
-                if (fCat !== 'ALL') {
-                    filteredTasks = filteredTasks.filter(t => {
-                        if (t.unitId) {
-                            return allowedUnitIds.has(t.unitId);
-                        }
-                        if (t.cat) {
-                            if (t.cat !== fCat) return false;
-                            if (fMis !== 'ALL' && t.mis !== fMis) return false;
-                            return true;
-                        }
-                        if (!appMaster[t.subject]) return true; 
-                        if (allowedSubjects && !allowedSubjects.has(t.subject)) return false;
-                        return true;
-                    });
-                }
+                let filteredTasks = CalendarPrint.filterTasks(tasks, fCat, fMis, allowedUnitIds, allowedSubjects, appMaster);
 
                 var targetOrder = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
                 filteredTasks.sort((a, b) => {
@@ -7740,7 +7727,9 @@ loadBoardHeader();
                             }
                         }
 
-                        var displayText = cleanText;
+                        var compactInfo = CalendarPrint.taskInfo(task);
+                        var compactPath = [compactInfo.type, compactInfo.book].filter(Boolean).join(" / ");
+                        var displayText = compactPath ? "["+compactInfo.subject+"] "+compactPath+" · "+cleanText.replace(/^\[[^\]]*\]\s*/, "") : cleanText;
                         if (isReminder) displayText = '🔔 ' + displayText;
                         // v1.5.106: 跨單元任務用多色文字取代原本 P.XX~YY
                         if (crossUnitHtml) {
@@ -11202,39 +11191,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         var printSelEnd = null;  // Date or null
         var printSelMonth = null;  // Date (當前顯示月)
         
-        function openPrintModal() {
-            // v1.5.143: 初始化列印設定 (月曆點選)
-            var today = new Date();
-            printSelMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            printSelStart = null;
-            printSelEnd = null;
-            
-            // 複製當前分類/任務篩選到 modal
-            var currentCat = el('planner-cat-filter') ? el('planner-cat-filter').value : 'ALL';
-            var currentMis = el('planner-mis-filter') ? el('planner-mis-filter').value : 'ALL';
-            
-            // populate modal cat filter
-            var modalCat = el('print-modal-cat-filter');
-            if (modalCat && appMissions) {
-                modalCat.innerHTML = '<option value="ALL">全部</option>';
-                Object.keys(appMissions).forEach(function(cat) {
-                    var opt = document.createElement('option');
-                    opt.value = cat;
-                    opt.textContent = cat;
-                    modalCat.appendChild(opt);
-                });
-                modalCat.value = currentCat;
-            }
-            
-            // populate modal mis filter
-            onPrintModalCatChange();
-            var modalMis = el('print-modal-mis-filter');
-            if (modalMis) modalMis.value = currentMis;
-            
-            renderPrintCalendar();
-            openModal('modal-print-settings');
-        }
-        
+        function openPrintModal() { CalendarPrint.open(); }
+
         function onPrintModalCatChange() {
             var modalCat = el('print-modal-cat-filter');
             var modalMis = el('print-modal-mis-filter');
@@ -11365,226 +11323,12 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var days = Math.round((printSelEnd - printSelStart) / (1000 * 60 * 60 * 24)) + 1;
                 display.innerHTML = '範圍: ' + (printSelStart.getMonth() + 1) + '/' + printSelStart.getDate() + ' ~ ' + (printSelEnd.getMonth() + 1) + '/' + printSelEnd.getDate() + ' (' + days + ' 天)';
                 display.style.background = '#c8e6c9';
+                CalendarPrint.syncRange();
             }
         }
 
         // v1.5.143: 改為每 14 天一頁, 接收使用者選的日期範圍
-        function executePrint() {
-            if (!printSelStart || !printSelEnd) {
-                return alert('請在月曆上點選 2 個日期設定列印範圍！');
-            }
-            if (printSelEnd < printSelStart) {
-                return alert('結束日期不能早於開始日期！');
-            }
-            
-            var startDate = new Date(printSelStart);
-            var endDate = new Date(printSelEnd);
-            
-            var pid = el('planner-selector').value;
-            var plan = null;
-            if(pid) {
-                plan = appPlans.find(p => p.id === pid);
-            }
-            
-            var printArea = el('print-area');
-            var html = '';
-            
-            // v1.5.143: 從 modal 的 select 讀分類/任務
-            let fCat = el('print-modal-cat-filter') ? el('print-modal-cat-filter').value : 'ALL';
-            let fMis = el('print-modal-mis-filter') ? el('print-modal-mis-filter').value : 'ALL';
-            let allowedUnitIds = new Set();
-            let allowedSubjects = new Set();
-            
-            if (fCat && fCat !== 'ALL') {
-                if (fMis && fMis !== 'ALL') {
-                    (appMissions[fCat][fMis] || []).forEach(id => allowedUnitIds.add(id));
-                    let mTree = buildMissionTree(fCat, fMis);
-                    Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
-                } else {
-                    Object.keys(appMissions[fCat] || {}).forEach(ms => {
-                        (appMissions[fCat][ms] || []).forEach(id => allowedUnitIds.add(id));
-                        let mTree = buildMissionTree(fCat, ms);
-                        Object.keys(mTree).forEach(sub => allowedSubjects.add(sub));
-                    });
-                }
-            }
-            
-            var targetOrder = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化', '生物'];
-            
-            // 從 startDate 開始, 每 14 天 (兩週) 一頁
-            var currStart = new Date(startDate);
-            while (currStart <= endDate) {
-                var pageEnd = new Date(currStart);
-                pageEnd.setDate(pageEnd.getDate() + 13);  // +13 天 = 兩週 (含起始)
-                if (pageEnd > endDate) pageEnd = new Date(endDate);
-                
-                // 標題: 跨月顯示 "X月Y日 - Z月W日", 同月顯示 "X月Y-W日"
-                // v1.5.131: 標題格式改為 MM/DD~MM/DD (自動根據範圍調整)
-                var titleText;
-                var sy = currStart.getFullYear();
-                var sm = currStart.getMonth() + 1;
-                var sd = currStart.getDate();
-                var ey = pageEnd.getFullYear();
-                var em = pageEnd.getMonth() + 1;
-                var ed = pageEnd.getDate();
-                var endPart;
-                if (ey !== sy) {
-                    endPart = ey + '/' + em + '/' + ed;
-                } else if (em !== sm) {
-                    endPart = em + '/' + ed;
-                } else {
-                    endPart = ed.toString();
-                }
-                titleText = sm + '/' + sd + '~' + endPart;
-                
-                html += '<div class="print-page">';
-                html += '<div class="print-title">' + titleText + ' 學習進度計畫表</div>';
-                // v1.5.136: 改用 div + flex 取代 table (row 高由內容決定, 分頁在 row 間的框線)
-                html += '<div class="print-week">';
-                // v1.5.136: header row (科目 / 週日~週六)
-                html += '<div class="print-row">';
-                html += '<div class="print-cell col-subj header">科目</div>';
-                html += '<div class="print-cell col-day header">週日</div>';
-                html += '<div class="print-cell col-day header">週一</div>';
-                html += '<div class="print-cell col-day header">週二</div>';
-                html += '<div class="print-cell col-day header">週三</div>';
-                html += '<div class="print-cell col-day header">週四</div>';
-                html += '<div class="print-cell col-day header">週五</div>';
-                html += '<div class="print-cell col-day header">週六</div>';
-                html += '</div>';
-                
-                // 兩週: 每週一行
-                var weekStart = new Date(currStart);
-                while (weekStart <= pageEnd) {
-                    var weekEndDate = new Date(weekStart);
-                    weekEndDate.setDate(weekEndDate.getDate() + 6);
-                    if (weekEndDate > pageEnd) weekEndDate = new Date(pageEnd);
-                    
-                    var weekDates = [];
-                    var d = new Date(weekStart);
-                    while (d <= weekEndDate) {
-                        weekDates.push(new Date(d));
-                        d.setDate(d.getDate() + 1);
-                    }
-
-                    var weekTasks = {};
-                    var hasTasks = false;
-
-                    if (plan && plan.grid) {
-                        weekDates.forEach(function(cellDate) {
-                            var dateStr = getLocalDateString(cellDate);
-                            var tasks = plan.grid[dateStr] || [];
-
-                            var filteredTasks = tasks.filter(function(t) {
-                                if (!fCat || fCat === 'ALL') return true;
-                                if (t.unitId) return allowedUnitIds.has(t.unitId);
-                                if (t.cat) {
-                                    if (t.cat !== fCat) return false;
-                                    if (fMis && fMis !== 'ALL' && t.mis !== fMis) return false;
-                                    return true;
-                                }
-                                if (!appMaster[t.subject]) return true;
-                                if (allowedSubjects && allowedSubjects.size > 0 && !allowedSubjects.has(t.subject)) return false;
-                                return true;
-                            });
-
-                            filteredTasks.forEach(function(t) {
-                                var subj = t.subject || '其他';
-                                if (!weekTasks[subj]) weekTasks[subj] = [];
-                                var colIdx = weekDates.indexOf(cellDate);
-                                if (!weekTasks[subj][colIdx]) weekTasks[subj][colIdx] = [];
-                                weekTasks[subj][colIdx].push(t);
-                                hasTasks = true;
-                            });
-                        });
-                    }
-
-                    // v1.5.129: 撤掉 v1.5.128 的 weekRowHeight + inline height (Denias 要的是 row 高由 task 數決定, 不是整週統一)
-
-                    html += '<div class="print-row">';
-                    html += '<div class="print-cell col-subj week-date">日期</div>';
-                    weekDates.forEach(function(cellDate) {
-                        html += '<div class="print-cell col-day week-date">' + cellDate.getDate() + '</div>';
-                    });
-                    html += '</div>';
-
-                    if (hasTasks) {
-                        // v1.5.137: 固定 8 subject rows (即使 weekTasks 沒有, 也生成空 row, 避免第二週 row 數不對)
-                        var fixedSubjects = ['國文', '數學', '英文', '歷史', '地理', '公民', '理化']; // v1.5.143: 移除 '生物' (Denias 不要)
-                        // 取 weekTasks 內有的 + fixedSubjects 內有的
-                        var subjectsSet = {};
-                        fixedSubjects.forEach(function(s) { subjectsSet[s] = true; });
-                        Object.keys(weekTasks).forEach(function(s) { subjectsSet[s] = true; });
-                        var subjects = Object.keys(subjectsSet);
-                        subjects.sort(function(a, b) {
-                            var idxA = targetOrder.indexOf(a); if (idxA === -1) idxA = 999;
-                            var idxB = targetOrder.indexOf(b); if (idxB === -1) idxB = 999;
-                            if (idxA !== idxB) return idxA - idxB;
-                            return a.localeCompare(b);
-                        });
-
-                        subjects.forEach(function(subj) {
-                            // v1.5.128: row 高 = 該週 max task row 高 (統一)
-                            html += '<div class="print-row">';
-                            html += '<div class="print-cell col-subj">' + subj + '</div>';
-                            weekDates.forEach(function(_, idx) {
-                                html += '<div class="print-cell col-day task">';
-                                var tasks = (weekTasks[subj] && weekTasks[subj][idx]) || [];
-                                tasks.forEach(function(t) {
-                                    var pageText = '';
-                                    var ctx = t.unitId ? findUnitContext(t.unitId) : null;
-                                    if (ctx && isUnitBasedType(ctx.typeObj)) {
-                                        // v1.5.144: Unit-based - 簡稱 + unit 名
-                                        pageText = getInstanceAlias(ctx.instance) + ctx.unit.name;
-                                    } else if (t.startPage && t.endPage) {
-                                        pageText = t.startPage === t.endPage ? 'P.' + t.startPage : 'P.' + t.startPage + '~' + t.endPage;
-                                    } else if (t.startPage) {
-                                        pageText = 'P.' + t.startPage;
-                                    } else {
-                                        var match = t.text.match(/P\.\d+(?:~\d+)?/);
-                                        if (match) pageText = match[0];
-                                        else pageText = '✔️';
-                                    }
-                                    var box = t.isDone ? '☑ ' : '☐ ';
-                                    var doneClass = t.isDone ? 'done' : '';
-                                    html += '<div class="print-task ' + doneClass + '">' + box + pageText + '</div>';
-                                });
-                                html += '</div>';
-                            });
-                            html += '</div>';
-                        });
-                    } else {
-                        html += '<div class="print-row">';
-                        html += '<div class="print-cell col-subj" style="color:#cbd5e1;">(無排程)</div>';
-                        for (var k = 0; k < weekDates.length; k++) html += '<div class="print-cell col-day"></div>';
-                        html += '</div>';
-                    }
-                    html += '</div>';
-                    
-                    // 下週從 weekEndDate + 1 開始
-                    weekStart = new Date(weekEndDate);
-                    weekStart.setDate(weekStart.getDate() + 1);
-                }
-                
-                html += '</div></div>';
-                
-                // 下兩週從 pageEnd + 1 開始
-                currStart = new Date(pageEnd);
-                currStart.setDate(currStart.getDate() + 1);
-            }
-            
-            printArea.innerHTML = html;
-            closeModal('modal-print-settings');
-
-            // v1.5.138: 加 try/catch, 確保 window.print() 被呼叫 + 錯誤可見
-            setTimeout(function() {
-                try {
-                    window.print();
-                } catch(e) {
-                    alert('列印失敗: ' + e.message + '\n請手動截圖報告');
-                }
-            }, 300);
-        }
+        function executePrint() { CalendarPrint.execute(); }
 
         // v1.5.129: 撤掉 autoShrinkPrintCSS (Denias 說字變小, 改用預設 7pt + row 高自然)
 
