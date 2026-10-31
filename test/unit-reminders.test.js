@@ -1,0 +1,11 @@
+const test=require('node:test'),assert=require('node:assert/strict');
+const {state}=require('../unit-reminders.js');
+const u={id:'u',sub:'國文',cat:'會考',typeName:'複習講義',instanceName:'勝經',start:187,end:204};
+const task=(a,b,done=false,extra={})=>({unitId:'u',subject:'國文',cat:'會考',typeName:'複習講義',instanceName:'勝經',startPage:a,endPage:b,isDone:done,...extra});
+const plans=ts=>[{grid:{'2026-10-27':ts}}];
+test('部分排程與完成頁碼獨立，保留P190並從191續排',()=>{const ps=plans([task(187,190,true)]),before=JSON.stringify(ps);let s=state(u,ps);assert.equal(s.state,'partial');assert.equal(s.completedEnd,190);assert.equal(s.nextStart,191);ps[0].grid['2026-10-27'].push(task(191,195));s=state(u,ps);assert.equal(s.maxEnd,195);assert.equal(s.completedEnd,190);assert.equal(s.nextStart,196);assert.equal(JSON.stringify(plans([task(187,190,true)])),before);});
+test('已排至末頁但中間缺頁仍是partial，回到第一個缺頁而非跳至205',()=>{const s=state(u,plans([task(187,190,true),task(200,204)]));assert.equal(s.state,'partial');assert.equal(s.maxEnd,204);assert.equal(s.nextStart,191);assert.equal(s.completedEnd,190);});
+test('全部排完不等於全部完成，未完成頁碼不顯示成完成紀錄',()=>{let s=state(u,plans([task(187,204)]));assert.equal(s.state,'full');assert.equal(s.completedEnd,0);assert.equal(s.completedFull,false);s=state(u,plans([task(187,190,true),task(191,204)]));assert.equal(s.state,'full');assert.equal(s.completedEnd,190);assert.equal(s.completedFull,false);});
+test('學生資料以傳入plans隔離；其他教材、類型、科目、分類及僅同名紀錄不算',()=>{const ps=plans([task(187,204,true,{instanceName:'別本'}),task(187,204,true,{subject:'數學'}),task(187,204,true,{cat:'段考'}),task(187,204,true,{typeName:'複習卷'}),task(187,204,true,{unitId:'other'})]);assert.equal(state(u,ps).state,'none');assert.equal(state(u,[]).completedEnd,0);});
+test('重疊範圍合併且裁切單元邊界，沒有改動來源',()=>{const ps=plans([task(1,189,true),task(188,204),task(200,999,true)]),before=JSON.stringify(ps),s=state(u,ps);assert.equal(s.state,'full');assert.equal(s.completedEnd,204);assert.deepEqual(s.ranges,[[187,204]]);assert.equal(JSON.stringify(ps),before);});
+test('教材名稱修改後，能唯一確認的固定單元ID仍保留完成關聯',()=>{const catalog={cat:{國文:{materials:{改名類型:{instances:[{name:'改名教材',units:[{id:'u',name:'改名單元',start:187,end:204}]}]}}}}};const newer={...u,typeName:'改名類型',instanceName:'改名教材'};const s=state(newer,plans([task(187,190,true)]),catalog);assert.equal(s.completedEnd,190);assert.equal(s.nextStart,191);});

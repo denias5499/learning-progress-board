@@ -31,6 +31,7 @@ async function page(t, file, url) {
     w.eval(text('tree-scope.js'));
     w.eval(text('board-layout.js'));
     w.eval(text('calendar-print.js'));
+    w.eval(text('unit-reminders.js'));
     w.eval(text(file === 'index.html' ? 'exam-student-ui.js' : 'wrong-notes/student-ui.js'));
     const errors = [];
     for (const m of text(file).matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) {
@@ -696,4 +697,13 @@ test('列印主標題不含學生與日期範圍，保留每天日期；每週�
  const w=await page(t,'index.html','http://localhost/');const days=Array.from({length:14},(_,i)=>w.getLocalDateString(new w.Date(2026,6,26+i)));const s={dates:days,grid:{},events:{}};days.forEach(d=>{s.grid[d]=[];s.events[d]=[];});
  const root=w.document.createElement('div');root.innerHTML=w.CalendarPrint.render(s,{layout:'calendar',period:'fortnight',unit:true,pages:true,status:true},'張裕宣','會考','二模');assert.equal(root.querySelector('h1').textContent,'學習進度計畫表');assert.equal(root.querySelectorAll('.cp-subtitle').length,0);assert.equal(root.querySelectorAll('.cp-week').length,2);assert.match(root.textContent,/07\/26 日/);assert.doesNotMatch(root.textContent,/張裕宣|會考|二模/);
  const css=text('calendar-print.css');assert.match(css,/@page\{size:A4 landscape;margin:3mm\}/);assert.match(css,/h1\{font-size:15pt;text-align:center/);assert.match(css,/cp-denser .cp-table\{font-size:8pt/);
+});
+
+test('未排完列維持深黃色，尾端只顯示真正已勾完成的頁碼，缺頁續排起點正確',async t=>{
+ const w=await page(t,'index.html','http://localhost/');const x={sub:'國文',u:{id:'reading',name:'國學常識',start:187,end:204},vol:'',typeName:'複習講義',instanceName:'勝經'};
+ const task=(a,b,isDone)=>({id:'t'+a,unitId:'reading',subject:'國文',cat:'會考',typeName:'複習講義',instanceName:'勝經',startPage:a,endPage:b,isDone});w.appPlans=[{id:'readingPlan',grid:{'2026-10-27':[task(187,190,true),task(200,204,false)]}}];
+ const host=w.document.createElement('div');host.innerHTML=w.renderAeUnitCheckboxHtml(x,'會考','二模','D');w.document.body.appendChild(host);const row=host.querySelector('.wz-unit-row');assert.ok(row.classList.contains('partial'));assert.match(row.textContent,/最後完成頁 P.190/);assert.doesNotMatch(row.querySelector('.wz-partial-mark').textContent,/204/);
+ const plain=w.document.createElement('div');plain.className='wz-unit-row';w.document.body.appendChild(plain);assert.equal(w.getComputedStyle(row).backgroundColor,w.getComputedStyle(plain).backgroundColor);
+ const cb=host.querySelector('.unit-cb');cb.checked=true;w.updateAeSelectedDisplay=()=>{};w.Function('event',cb.getAttribute('onchange')).call(cb,new w.Event('change'));assert.equal(w.aeSelectedItems[0].start,'191');assert.equal(w.aeSelectedItems[0].end,'204');
+ w.appPlans[0].grid['2026-10-27']=[task(187,195,false)];host.innerHTML=w.renderAeUnitCheckboxHtml(x,'會考','二模','D');assert.match(host.textContent,/尚無完成紀錄/);assert.doesNotMatch(host.querySelector('.wz-partial-mark').textContent,/195/);
 });
