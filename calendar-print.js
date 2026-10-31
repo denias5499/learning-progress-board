@@ -101,11 +101,11 @@ function render(snapshot, options, name, cat, mis) {
  const per=options.period==='fortnight'?14:7;let html='';
  for(let offset=0;offset<snapshot.dates.length;offset+=per){
   const period=snapshot.dates.slice(offset,offset+per);
-  html+='<section class="cp-page"><h1>'+esc(name)+' · 學習進度計畫表</h1><p class="cp-subtitle">'+esc(period[0])+' ~ '+esc(period[period.length-1])+' · '+esc(cat==='ALL'?'全部分類':cat)+' / '+esc(mis==='ALL'?'全部任務':mis)+'</p>';
+  html+='<section class="cp-page"><h1>學習進度計畫表</h1>';
   for(let wi=0;wi<period.length;wi+=7){
    const dates=period.slice(wi,wi+7);
    const head=dates.map(d=>'<th scope="col">'+esc(d.slice(5).replace('-','/'))+' '+['日','一','二','三','四','五','六'][new Date(d+'T12:00:00').getDay()]+'</th>').join('');
-   html+='<table class="cp-table '+(options.layout==='matrix'?'cp-matrix':'cp-calendar')+'"><thead><tr>'+(options.layout==='matrix'?'<th scope="col" class="cp-subject">科目</th><th scope="col" class="cp-book">教材</th>':'')+head+'</tr></thead><tbody>';
+   html+='<div class="cp-week"><table class="cp-table '+(options.layout==='matrix'?'cp-matrix':'cp-calendar')+'"><thead><tr>'+(options.layout==='matrix'?'<th scope="col" class="cp-subject">科目</th><th scope="col" class="cp-book">教材</th>':'')+head+'</tr></thead><tbody>';
    if(options.layout==='matrix') {
     const subjects=new Map();
     dates.forEach(d=>snapshot.grid[d].forEach(t=>{const i=taskInfo(t);if(!subjects.has(i.subject))subjects.set(i.subject,new Map());const books=subjects.get(i.subject);const k=JSON.stringify([t.typeName || i.type,t.instanceName || i.book]);if(!books.has(k))books.set(k,{info:i,days:{}});const b=books.get(k);(b.days[d] || (b.days[d]=[])).push(i);}));
@@ -113,13 +113,13 @@ function render(snapshot, options, name, cat, mis) {
     if(!subjects.size)html+='<tr><td colspan="'+(dates.length+2)+'">此週無排程</td></tr>';
     if(dates.some(d=>snapshot.events[d].length))html+='<tr><th colspan="2">事件</th>'+dates.map(d=>'<td>'+snapshot.events[d].map(e=>esc(e.name)).join('<br>')+'</td>').join('')+'</tr>';
    } else html+='<tr>'+dates.map(d=>'<td>'+snapshot.events[d].map(e=>'<div class="cp-event">'+esc(e.name)+'</div>').join('')+snapshot.grid[d].map(t=>content(taskInfo(t),options,true)).join('')+'</td>').join('')+'</tr>';
-   html+='</tbody></table>';
+   html+='</tbody></table></div>';
   }
   html+='</section>';
  }
  return html;
 }
-function execute() {
+async function execute() {
  if(!draft || draft.userId!==currentUserId)return alert('學生已切換，請重新開啟列印設定。');
  if(!printSelStart || !printSelEnd || printSelEnd<printSelStart)return alert('請選擇正確的開始與結束日期。');
  if((printSelEnd-printSelStart)/86400000>366)return alert('每次列印範圍請勿超過一年。');
@@ -133,10 +133,55 @@ function execute() {
  // The legacy HTML nests this area inside .container; lift it out before hiding screen UI.
  document.body.appendChild(area);
  area.innerHTML=render(snapshot,options,draft.name,cat,mis);
- multiData[currentUserId].printPreferences=options;saveToLocal();closeModal('modal-print-settings');
  const uid=draft.userId;
- setTimeout(()=>{if(uid!==currentUserId){document.getElementById('print-area').innerHTML='';return alert('學生已切換，已取消列印。');}try{window.print();}catch(e){alert('無法開啟列印：'+e.message);}},100);
+ const button=document.querySelector('#modal-print-settings button[onclick="executePrint()"]');
+ if(button && button.disabled)return;
+ if(button){button.disabled=true;button.textContent='檢查列印版面…';}
+ try {
+  const overflow=await fitPages(area);
+  if(uid!==currentUserId){area.innerHTML='';return alert('學生已切換，已取消列印。');}
+  if(overflow && !confirm('有 '+overflow+' 週的內容在 8pt 字級下仍超過一頁。繼續列印會保留全部內容並接續分頁；可取消後縮短教材簡稱或減少列印項目。是否繼續？'))return;
+  multiData[currentUserId].printPreferences=options;saveToLocal();closeModal('modal-print-settings');
+  window.print();
+ } catch(e) {alert('無法開啟列印：'+e.message);}
+ finally {if(button){button.disabled=false;button.textContent='✅ 確認列印';}}
+
 }
+
+// Measure with the actual print stylesheet at A4 landscape width, not the screen viewport.
+async function fitPages(area) {
+ if(!document.documentElement.getBoundingClientRect().width)return 0;
+ const sheet=Array.from(document.styleSheets).find(s=>s.href && s.href.includes('calendar-print.css'));
+ if(!sheet)throw new Error('列印樣式未載入，請重新整理後再試。');
+ const css=Array.from(sheet.cssRules).map(r=>r.cssText).join('\n').replace(/@media print/g,'@media all');
+ const frame=document.createElement('iframe');
+ frame.setAttribute('aria-hidden','true');frame.style.cssText='position:absolute;left:-20000px;top:0;width:291mm;height:204mm;visibility:hidden;border:0;pointer-events:none';
+ try {
+  const loaded=new Promise(resolve=>{frame.onload=resolve;});
+  frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"></head><body></body></html>';
+  document.body.appendChild(frame);await loaded;
+  const doc=frame.contentDocument;const style=doc.createElement('style');style.textContent=css+'body{margin:0!important}#print-area{width:291mm!important}';doc.head.appendChild(style);
+  doc.body.style.fontFamily=getComputedStyle(document.body).fontFamily;
+  const clone=area.cloneNode(true);doc.body.appendChild(clone);
+  if(doc.fonts && doc.fonts.ready)await doc.fonts.ready;
+  const limit=202*96/25.4;
+  // A two-week block that is too tall becomes two independent weekly pages.
+  Array.from(clone.querySelectorAll('.cp-page')).forEach(page=>{
+   const weeks=Array.from(page.querySelectorAll('.cp-week'));
+   if(weeks.length>1 && page.getBoundingClientRect().height>limit){
+    weeks.forEach(week=>{const single=doc.createElement('section');single.className='cp-page';single.innerHTML='<h1>學習進度計畫表</h1>';single.appendChild(week);page.before(single);});page.remove();
+   }
+  });
+  let overflow=0;
+  clone.querySelectorAll('.cp-page').forEach(page=>{
+   if(page.getBoundingClientRect().height>limit)page.classList.add('cp-dense');
+   if(page.getBoundingClientRect().height>limit)page.classList.add('cp-denser');
+   if(page.getBoundingClientRect().height>limit){page.classList.add('cp-overflow');overflow++;}
+  });
+  area.innerHTML=clone.innerHTML;return overflow;
+ } finally {frame.remove();}
+}
+
 function editType() {
  const sub=document.getElementById('master-subject').value,type=document.getElementById('master-type').value;
  const obj=appMaster[sub] && appMaster[sub].materials && appMaster[sub].materials[type];
@@ -150,5 +195,5 @@ function editType() {
  document.getElementById('type-alias-save').onclick=()=>{if(uid!==currentUserId || !appMaster[sub] || appMaster[sub].materials[type]!==obj)return alert('學生或教材已變更，請重新開啟。');obj.alias=document.getElementById('type-alias-value').value.trim();saveToLocal();closeModal('modal-type-alias');};
  openModal('modal-type-alias');
 }
-root.CalendarPrint={resolvePlan,filterTasks,project,taskInfo,render,open,execute,syncRange,editType};
+root.CalendarPrint={resolvePlan,filterTasks,project,taskInfo,render,open,execute,syncRange,fitPages,editType};
 })(typeof window!=='undefined'?window:globalThis);

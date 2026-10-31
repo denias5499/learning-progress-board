@@ -658,7 +658,7 @@ test('列印預設畫面月份，遺失選單值時沿用月曆排程，91筆進
  w.appPlans=w.multiData.A.plans=[{id:'actual',name:'plan',grid}];w.document.querySelector('#planner-selector').innerHTML='';w.currentViewDate=new w.Date(2026,7,1);
  const before=JSON.stringify(w.appPlans);w.openPrintModal();assert.equal(w.printSelStart.getMonth(),7);assert.match(w.document.querySelector('#print-range-display').textContent,/41 筆進度/);
  w.printSelStart=new w.Date(2026,6,26);w.printSelEnd=new w.Date(2026,7,8);w.CalendarPrint.syncRange();assert.match(w.document.querySelector('#print-range-display').textContent,/91 筆進度/);
- let printed=0;w.print=()=>printed++;w.executePrint();await new Promise(r=>setTimeout(r,130));const d=w.document;
+ let printed=0;w.print=()=>printed++;await w.executePrint();await new Promise(r=>setTimeout(r,130));const d=w.document;
  assert.equal(printed,1);assert.equal(d.querySelector('#print-area').parentElement,d.body);assert.equal(d.querySelectorAll('#print-area .cp-task').length,91);assert.equal(d.querySelectorAll('#print-area .cp-check.is-checked').length,45);assert.match(d.querySelector('#print-area').textContent,/109~114/);assert.equal(JSON.stringify(w.appPlans),before);
  const old=w.CalendarPrint.project(w.appPlans[0],new w.Date(2026,6,26),new w.Date(2026,7,8),'ALL','ALL',new Set(),new Set(),w.appMaster);
  const html=w.CalendarPrint.render(old,{layout:'matrix',period:'week',unit:true,pages:true,status:true},'A','ALL','ALL');const root=d.createElement('div');root.innerHTML=html;assert.equal(root.querySelectorAll('.cp-task').length,91);assert.equal(root.querySelectorAll('thead th').length,18);
@@ -670,10 +670,10 @@ test('列印篩選與畫面使用相同規則，日期星期對應實際日期�
 });
 test('列印偏好依學生隔離，學生切換阻擋舊草稿，零筆時不呼叫列印',async t=>{
  const w=await page(t,'index.html','http://localhost/');w.currentViewDate=new w.Date(2026,7,1);w.appPlans=w.multiData.A.plans=[{id:'p',grid:{'2026-08-01':[{subject:'數學',unitName:'甲',isDone:false}]}}];
- w.openPrintModal();w.document.querySelector('#print-layout').value='matrix';w.print=()=>{};w.executePrint();assert.equal(w.multiData.A.printPreferences.layout,'matrix');
+ w.openPrintModal();w.document.querySelector('#print-layout').value='matrix';w.print=()=>{};await w.executePrint();assert.equal(w.multiData.A.printPreferences.layout,'matrix');
  w.currentUserId='B';w.appPlans=[];w.appMaster={};w.appMissions={};w.openPrintModal();assert.equal(w.document.querySelector('#print-layout').value,'matrix');assert.equal(w.multiData.B.printPreferences,undefined);
- let alert='';w.alert=s=>alert=s;w.executePrint();assert.match(alert,/沒有排程/);assert.equal(w.multiData.B.printPreferences,undefined);
- w.currentUserId='A';w.executePrint();assert.match(alert,/學生已切換/);
+ let alert='';w.alert=s=>alert=s;await w.executePrint();assert.match(alert,/沒有排程/);assert.equal(w.multiData.B.printPreferences,undefined);
+ w.currentUserId='A';await w.executePrint();assert.match(alert,/學生已切換/);
 });
 test('教材類型簡稱只修改顯示欄位、可清除、保留教材與單元ID，切換學生後不寫入舊對象',async t=>{
  const w=await page(t,'index.html','http://localhost/');w.openSettings();w.populateMasterTypeDropdown();w.document.querySelector('#master-type').value='複習講義';
@@ -681,4 +681,19 @@ test('教材類型簡稱只修改顯示欄位、可清除、保留教材與單�
  const info=w.CalendarPrint.taskInfo({subject:'數學',cat:'會考',typeName:'複習講義',instanceName:'講義A',unitId:'unitA'});assert.equal(info.type,'講義');assert.equal(info.book,'講義A');
  w.CalendarPrint.editType();w.document.querySelector('#type-alias-value').value='';w.document.querySelector('#type-alias-save').click();assert.equal(obj.alias,'');
  w.CalendarPrint.editType();w.document.querySelector('#type-alias-value').value='不應寫入';w.currentUserId='B';w.document.querySelector('#type-alias-save').click();assert.equal(obj.alias,'');
+});
+
+test('手動新增同列標記P.190時預填191至204，未排單元維持原起頁且手改後不被重繪覆蓋',async t=>{
+ const w=await page(t,'index.html','http://localhost/');
+ w.getUnitScheduleState=u=>({state:u.id==='resume'?'partial':'none',maxEnd:u.id==='resume'?190:0,unitEnd:u.end});w.getUnitScheduleStatus=()=>({misMaxEnd:190});
+ w.window.aeSelectedItems=[];
+ const make=(id,sub)=>w.renderAeUnitCheckboxHtml({sub,u:{id,name:'國學常識',start:187,end:204},vol:'',typeName:'複習講義',instanceName:'勝經'},'會考','二模','D');
+ const host=w.document.createElement('div');host.innerHTML=make('resume','國文');const cb=host.querySelector('.unit-cb');cb.checked=true;w.updateAeSelectedDisplay=()=>{};w.Function('event',cb.getAttribute('onchange')).call(cb,new w.Event('change'));
+ assert.equal(w.aeSelectedItems[0].start,'191');assert.equal(w.aeSelectedItems[0].end,'204');w.updateAeItemPage('resume','start','195');host.innerHTML=make('resume','國文');assert.equal(w.aeSelectedItems[0].start,'195');
+ host.innerHTML=make('fresh','數學');const fresh=host.querySelector('.unit-cb');fresh.checked=true;w.Function('event',fresh.getAttribute('onchange')).call(fresh,new w.Event('change'));assert.equal(w.aeSelectedItems[1].start,'187');
+});
+test('列印主標題不含學生與日期範圍，保留每天日期；每週內容獨立供高度檢查',async t=>{
+ const w=await page(t,'index.html','http://localhost/');const days=Array.from({length:14},(_,i)=>w.getLocalDateString(new w.Date(2026,6,26+i)));const s={dates:days,grid:{},events:{}};days.forEach(d=>{s.grid[d]=[];s.events[d]=[];});
+ const root=w.document.createElement('div');root.innerHTML=w.CalendarPrint.render(s,{layout:'calendar',period:'fortnight',unit:true,pages:true,status:true},'張裕宣','會考','二模');assert.equal(root.querySelector('h1').textContent,'學習進度計畫表');assert.equal(root.querySelectorAll('.cp-subtitle').length,0);assert.equal(root.querySelectorAll('.cp-week').length,2);assert.match(root.textContent,/07\/26 日/);assert.doesNotMatch(root.textContent,/張裕宣|會考|二模/);
+ const css=text('calendar-print.css');assert.match(css,/@page\{size:A4 landscape;margin:3mm\}/);assert.match(css,/h1\{font-size:15pt;text-align:center/);assert.match(css,/cp-denser .cp-table\{font-size:8pt/);
 });

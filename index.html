@@ -6,9 +6,9 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.168]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.169]</title>
     <link rel="stylesheet" href="settings-layout.css?v=167">
-    <link rel="stylesheet" href="calendar-print.css?v=168">
+    <link rel="stylesheet" href="calendar-print.css?v=169">
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2636,7 +2636,7 @@
     <script src="tree-scope.js?v=159"></script>
     <script src="board-layout.js?v=161"></script>
     <script src="exam-student-ui.js?v=167"></script>
-    <script src="calendar-print.js?v=168"></script>
+    <script src="calendar-print.js?v=169"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -10972,9 +10972,11 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var isChecked = window.aeSelectedItems.find(function(i){ return i.unitId === u.id; }) ? 'checked' : '';
             var status = getUnitScheduleStatus(sub, u.name, vol, u.id, u.start, u.end, cat, mis);
             var uObj = Object.assign({}, u, { vol: vol, typeName: x.typeName, instanceName: x.instanceName, misMaxEnd: status.misMaxEnd });
+            var resumeState = getUnitScheduleState(uObj);
+            var resumeStart = (resumeState.state === 'partial' && Number(u.end) >= resumeState.maxEnd + 1) ? Math.max(Number(u.start) || 0, resumeState.maxEnd + 1) : u.start;
             return renderUnitRowHtml(uObj, {
                 isChecked: !!isChecked,
-                onChange: "toggleAeUnitSelection('" + safeSub + "', '" + (u.start||'') + "', '" + (u.end||'') + "', '" + safeName + "', '" + u.id + "', '" + safeVol + "', '" + (x.typeName||'') + "', '" + (x.instanceName||'') + "', this.checked)",
+                onChange: "toggleAeUnitSelection('" + safeSub + "', '" + (resumeStart||'') + "', '" + (u.end||'') + "', '" + safeName + "', '" + u.id + "', '" + safeVol + "', '" + (x.typeName||'') + "', '" + (x.instanceName||'') + "', this.checked)",
                 showQuickRead: false,
                 displayMode: displayMode
             });
@@ -11328,7 +11330,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         // v1.5.143: 改為每 14 天一頁, 接收使用者選的日期範圍
-        function executePrint() { CalendarPrint.execute(); }
+        function executePrint() { return CalendarPrint.execute(); }
 
         // v1.5.129: 撤掉 autoShrinkPrintCSS (Denias 說字變小, 改用預設 7pt + row 高自然)
 
