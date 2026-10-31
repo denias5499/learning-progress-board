@@ -6,9 +6,10 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.170]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.171]</title>
     <link rel="stylesheet" href="settings-layout.css?v=167">
-    <link rel="stylesheet" href="calendar-print.css?v=169">
+    <link rel="stylesheet" href="calendar-print.css?v=171">
+    <link rel="stylesheet" href="calendar-replan.css?v=171">
     <style>
         :root {
             --primary: #2c3e50; --secondary: #34495e; --accent: #3498db;
@@ -2370,7 +2371,7 @@
     <div id="modal-planner-cell" class="modal-bg" style="z-index: 2050;">
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
-                <h2>📝 編輯與微調單日任務 (落後將自動順延)</h2>
+                <h2>📝 編輯與微調單日任務</h2>
                 <button type="button" class="close-btn" onclick="closeModal('modal-planner-cell')">&times;</button>
             </div>
             <input type="hidden" id="pc-date"><input type="hidden" id="pc-taskid">
@@ -2383,8 +2384,8 @@
             </div>
             
             <div class="form-group">
-                <label>手動調整完成範圍 (頁碼)</label>
-                <p style="font-size:0.85em; color:#e74c3c; margin-top:0;">⚠️ 如果您縮小了範圍（例如原迄頁 20 改成 15），系統會自動將未完的 P.16~20 順延至明日排程。</p>
+                <label>手動調整本日範圍 (頁碼)</label>
+                <p style="font-size:0.85em; color:#e74c3c; margin-top:0;">縮短迄頁後，可設定剩餘進度的開始日期與完成天數，或暫不安排；確認前不會變更排程。</p>
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <input type="number" id="pc-start" placeholder="起始頁碼" min="0">
                     <span>～</span>
@@ -2636,8 +2637,10 @@
     <script src="tree-scope.js?v=159"></script>
     <script src="board-layout.js?v=161"></script>
     <script src="exam-student-ui.js?v=167"></script>
-    <script src="calendar-print.js?v=169"></script>
-    <script src="unit-reminders.js?v=170"></script>
+    <script src="calendar-print.js?v=171"></script>
+    <script src="unit-reminders.js?v=171"></script>
+    <script src="calendar-replan.js?v=171"></script>
+    <script src="calendar-replan-ui.js?v=171"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -8935,8 +8938,8 @@ function renderUnitRowHtml(u, opts) {
     // v2.3.2.134: 部分排程要誠實標出「排到哪裡」, 不要看起來像從沒排過
     var donePage = Number(_schedState.completedEnd) || 0;
     var schedMark = isScheduled ? ' <span class="wz-scheduled-mark" title="單元全部頁碼均已排程">🔁</span>' : '';
-    if (donePage > 0) schedMark += ' <span class="wz-partial-mark" title="依本學生此單元已勾選完成的排程顯示；不代表中間所有頁碼均完成">最後完成頁 P.' + donePage + '</span>';
-    else if (isPartial || isScheduled) schedMark += ' <span class="wz-partial-mark">尚無完成紀錄</span>';
+    if (donePage > 0 && !_schedState.completedFull) schedMark += ' <span class="wz-partial-mark" title="依本學生此單元已勾選完成的排程顯示；不代表中間所有頁碼均完成">最後完成頁 P.' + donePage + '</span>';
+    else if (!_schedState.completedFull && (isPartial || isScheduled)) schedMark += ' <span class="wz-partial-mark">尚無完成紀錄</span>';
     // v1.5.173: 用 className 取代 inline style (Safari layout 加速)
     return `<div class="wz-unit-row${isScheduled ? ' scheduled' : (isPartial ? ' partial' : '')}">
                 <input type="checkbox" class="wz-unit-cb unit-cb" value="${u.id}" ${isChecked} onchange="${onChange}">
@@ -10045,6 +10048,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function editCalendarTask(pid, dateStr, taskId) {
+            window._calendarEditUserId = currentUserId;
+            window._calendarEditPlanId = pid;
             var plan = appPlans.find(p => p.id === pid);
             var taskArr = Array.isArray(plan.grid[dateStr]) ? plan.grid[dateStr] : [];
             var task = taskArr.find(t => t.id === taskId);
@@ -10061,6 +10066,8 @@ function renderWizardUnitRowHtml(ws, i, u) {
         }
 
         function saveCalendarTask() {
+            if (window._calendarEditUserId && window._calendarEditUserId !== currentUserId) return alert('學生已切換，請重新開啟任務。');
+            if (CalendarReplan.begin()) return;
             // v1.5.98: 儲存前先清理歷史重複任務 (合併同一天同單元的兩筆)
             var cleanedCount = cleanDuplicateSameDayTasks();
             if (cleanedCount > 0) {

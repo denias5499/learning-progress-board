@@ -1,5 +1,6 @@
 .print-options{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px}.print-options label{display:block}.print-options fieldset,.print-options p{grid-column:1/-1}.print-options fieldset{border:1px solid #b7d7df;border-radius:6px;display:flex;flex-wrap:wrap;gap:12px}.print-options fieldset label{display:flex;align-items:center;gap:5px}.print-options input[type=checkbox]{width:auto}.print-options p{font-size:.85em;margin:0;color:#49616d}
 @media(max-width:520px){.print-options{grid-template-columns:1fr}.print-options fieldset,.print-options p{grid-column:1}}
+.print-title-child{margin-left:14px!important}
 @media print{
  @page{size:A4 landscape;margin:3mm}
  html,body{width:auto!important;height:auto!important;overflow:visible!important}
@@ -8,7 +9,7 @@
  #print-area .cp-page{break-after:page;page-break-after:always}
  #print-area .cp-week{break-inside:avoid;page-break-inside:avoid}
  #print-area .cp-page:last-child{break-after:auto;page-break-after:auto}
- #print-area h1{font-size:15pt;text-align:center;margin:0 0 1mm}
+ #print-area h1{font-size:15pt;text-align:center;margin:0 0 1mm;break-after:avoid;page-break-after:avoid}
  #print-area .cp-subtitle{font-size:9pt;text-align:center;margin:0 0 4mm}
  #print-area .cp-table{width:100%;table-layout:fixed;border-collapse:collapse;margin-bottom:2mm;font-size:10pt}
  #print-area .cp-table th,#print-area .cp-table td{border:.3mm solid #a9bfcc;padding:2mm 1.4mm;vertical-align:top;overflow-wrap:anywhere;white-space:normal}
