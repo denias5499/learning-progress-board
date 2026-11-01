@@ -748,7 +748,7 @@ test('五種教材類型採用預設簡稱，既有自訂與明確清空保留�
  w.CalendarPrint.editType();assert.equal(w.document.querySelector('#type-alias-value').value,'新簡稱');
 });
 
-test('列印按一次傳送獨立PDF工作，拒絕其他來源，PDF完成後才列印且可重試失敗',async t=>{
+test('列印工作只傳送目前學生快照，預覽準備完成才保存偏好且不跳轉PDF',async t=>{
  const w=await page(t,'index.html','http://localhost/');w.currentViewDate=new w.Date(2026,7,1);w.appPlans=w.multiData.A.plans=[{id:'p',grid:{'2026-08-01':[{subject:'數學',typeName:'複習講義',unitName:'甲',startPage:1,endPage:2,isDone:true}]}}];w.openPrintModal();
  w.document.documentElement.getBoundingClientRect=()=>({width:900});let opens=0,prints=0,sent;
  const child={closed:false,postMessage:job=>sent=job,focus:()=>{},close(){this.closed=true;},document:{contentType:'application/pdf',readyState:'complete'},location:{replace(url){this.url=url;}},print(){prints++;}};
@@ -758,8 +758,17 @@ test('列印按一次傳送獨立PDF工作，拒絕其他來源，PDF完成後�
  await w.executePrint();await w.executePrint();assert.equal(opens,1);assert.equal(button.disabled,true);
  receive({kind:'lpb-print-ready'},child,'https://invalid.test');assert.equal(sent,undefined);
  receive({kind:'lpb-print-ready'});assert.equal(sent.kind,'lpb-print-job');assert.equal(sent.model.grid['2026-08-01'][0].type,'複講');assert.equal(sent.model.grid['2026-08-01'][0].done,true);assert.equal(sent.family,undefined);
- receive({kind:'lpb-print-pdf',url:'blob:http://localhost/test-pdf'});await new Promise(resolve=>setTimeout(resolve,320));
- assert.equal(prints,1);assert.equal(button.disabled,false);assert.equal(w.multiData.A.printPreferences.unit,true);
- w.openPrintModal();let error='';w.alert=s=>error=s;await w.executePrint();receive({kind:'lpb-print-failed',message:'字型逾時'});assert.match(error,/字型逾時/);assert.equal(button.disabled,false);assert.equal(prints,1);
- await w.executePrint();receive({kind:'lpb-print-ready'});w.currentUserId='B';receive({kind:'lpb-print-pdf',url:'blob:http://localhost/test-pdf'});assert.equal(child.closed,true);assert.equal(prints,1);assert.equal(button.disabled,false);
+ receive({kind:'lpb-print-preview-ready'});
+ assert.equal(prints,0);assert.equal(button.disabled,false);assert.equal(w.multiData.A.printPreferences.unit,true);assert.equal(child.location.url,undefined);
+ w.openPrintModal();let error='';w.alert=s=>error=s;await w.executePrint();receive({kind:'lpb-print-failed',message:'字型逾時'});assert.match(error,/字型逾時/);assert.equal(button.disabled,false);assert.equal(prints,0);
+ await w.executePrint();receive({kind:'lpb-print-ready'});w.currentUserId='B';receive({kind:'lpb-print-preview-ready'});assert.equal(child.closed,true);assert.equal(prints,0);assert.equal(button.disabled,false);
+});
+
+
+test('更新後首次預設自動適配，保留其他設定，之後手選一週會記住且學生獨立',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.currentViewDate=new w.Date(2026,7,1);w.appPlans=w.multiData.A.plans=[{id:'p',grid:{'2026-08-01':[{subject:'數學',unitName:'甲',startPage:1,endPage:2}]}}];
+ w.multiData.A.printPreferences={period:'week',title:false,layout:'matrix'};const before=JSON.stringify(w.multiData);w.openPrintModal();
+ assert.equal(w.document.querySelector('#print-period').value,'auto');assert.equal(w.document.querySelector('#print-show-title').checked,false);assert.equal(w.document.querySelector('#print-layout').value,'matrix');assert.equal(JSON.stringify(w.multiData),before);
+ w.document.querySelector('#print-period').value='week';w.print=()=>{};await w.executePrint();assert.equal(w.multiData.A.printPreferences.paginationPreferenceVersion,1);w.openPrintModal();assert.equal(w.document.querySelector('#print-period').value,'week');
+ w.currentUserId='B';w.appPlans=[];w.appMaster={};w.appMissions={};w.openPrintModal();assert.equal(w.document.querySelector('#print-period').value,'auto');assert.equal(w.multiData.B.printPreferences,undefined);
 });

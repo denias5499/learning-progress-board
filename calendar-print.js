@@ -63,12 +63,14 @@ function taskInfo(t) {
 let draft=null;
 function prefs() {
  const u=multiData[currentUserId] || {};
- return Object.assign({layout:u.name==='張裕如'?'matrix':'calendar',period:'week',status:true,title:true,firstOnly:true},u.printPreferences || {},{unit:true,pages:true});
+ const saved=u.printPreferences || {};
+ const period=saved.paginationPreferenceVersion===1&&['week','fortnight','three','auto'].includes(saved.period)?saved.period:'auto';
+ return Object.assign({layout:u.name==='張裕如'?'matrix':'calendar',status:true,title:true,firstOnly:true},saved,{period,unit:true,pages:true});
 }
 function addControls() {
  if(document.getElementById('print-layout'))return;
  const box=document.createElement('div');box.className='print-options';
- box.innerHTML='<label>列印版型<select id="print-layout"><option value="calendar">月曆表（依日期排列）</option><option value="matrix">科目／教材 × 日期</option></select></label><label>每頁範圍<select id="print-period"><option value="week">一週（建議）</option><option value="fortnight">最多兩週</option><option value="three">最多三週</option><option value="auto">自動適配（完整週）</option></select></label><fieldset><legend>列印內容</legend><label><input type="checkbox" id="print-show-title">標題</label><label class="print-title-child"><input type="checkbox" id="print-title-first">僅首頁列印</label><label><input type="checkbox" id="print-show-status">完成核取方塊</label></fieldset><p>設定會依學生分開記住；自動適配會依內容與四邊 1.27 公分安全區域計算，各頁可容納不同週數，放不下就整週換頁。</p>';
+ box.innerHTML='<label>列印版型<select id="print-layout"><option value="calendar">月曆表（依日期排列）</option><option value="matrix">科目／教材 × 日期</option></select></label><label>每頁範圍<select id="print-period"><option value="auto">自動適配（完整週，預設）</option><option value="week">一週</option><option value="fortnight">最多兩週</option><option value="three">最多三週</option></select></label><fieldset><legend>列印內容</legend><label><input type="checkbox" id="print-show-title">標題</label><label class="print-title-child"><input type="checkbox" id="print-title-first">僅首頁列印</label><label><input type="checkbox" id="print-show-status">完成核取方塊</label></fieldset><p>設定會依學生分開記住；自動適配會依內容與四邊 1.27 公分安全區域計算，各頁可容納不同週數，放不下就整週換頁。</p>';
  const range=document.getElementById('print-range-display');range.after(box);
  document.getElementById('print-show-title').addEventListener('change',syncTitleControl);
  document.getElementById('print-modal-cat-filter').addEventListener('change',syncRange);
@@ -130,8 +132,8 @@ function render(snapshot, options, name, cat, mis) {
 let pendingPrint=null;
 function finishPrint(error){
  if(!pendingPrint)return;const pending=pendingPrint;pendingPrint=null;clearTimeout(pending.timer);root.removeEventListener('message',pending.listener);
- if(pending.button){pending.button.disabled=false;pending.button.textContent='🖨️ 列印';}
- if(error)alert('無法開啟列印：'+error);
+ if(pending.button){pending.button.disabled=false;pending.button.textContent='開啟列印預覽';}
+ if(error)alert('無法準備列印預覽：'+error);
 }
 async function execute() {
  if(pendingPrint)return;
@@ -140,43 +142,26 @@ async function execute() {
  if((printSelEnd-printSelStart)/86400000>366)return alert('每次列印範圍請勿超過一年。');
  const cat=document.getElementById('print-modal-cat-filter').value,mis=document.getElementById('print-modal-mis-filter').value;
  const snapshot=getSnapshot(cat,mis,printSelStart,printSelEnd);
- const options={layout:document.getElementById('print-layout').value,period:document.getElementById('print-period').value,unit:true,pages:true,status:document.getElementById('print-show-status').checked,title:document.getElementById('print-show-title').checked,firstOnly:document.getElementById('print-title-first').checked};
+ const options={paginationPreferenceVersion:1,layout:document.getElementById('print-layout').value,period:document.getElementById('print-period').value,unit:true,pages:true,status:document.getElementById('print-show-status').checked,title:document.getElementById('print-show-title').checked,firstOnly:document.getElementById('print-title-first').checked};
  if(!snapshot.dates.some(d=>snapshot.grid[d].length || snapshot.events[d].length))return alert('選取範圍及篩選條件沒有排程，請先確認日期、分類與任務。');
- const markup=render(snapshot,{...options,period:'week'},draft.name,cat,mis);
  const model={dates:snapshot.dates,events:snapshot.events,grid:Object.fromEntries(snapshot.dates.map(date=>[date,snapshot.grid[date].map(taskInfo)]))};
  // DOM-only tests have no physical page geometry; native browser uses the isolated document below.
- if(!document.documentElement.getBoundingClientRect().width){const area=document.getElementById('print-area');document.body.appendChild(area);area.innerHTML=markup;multiData[currentUserId].printPreferences=options;saveToLocal();closeModal('modal-print-settings');root.print();return;}
+ if(!document.documentElement.getBoundingClientRect().width){const markup=render(snapshot,{...options,period:'week'},draft.name,cat,mis);const area=document.getElementById('print-area');document.body.appendChild(area);area.innerHTML=markup;multiData[currentUserId].printPreferences=options;saveToLocal();closeModal('modal-print-settings');root.print();return;}
  const button=document.querySelector('#modal-print-settings button[onclick="executePrint()"]');
- const uid=draft.userId,pending={button,uid,markup,options,child:null,timer:null,listener:null};pendingPrint=pending;
- if(button){button.disabled=true;button.textContent='正在準備列印…';}
+ const uid=draft.userId,pending={button,uid,name:draft.name,options,child:null,timer:null,listener:null};pendingPrint=pending;
+ if(button){button.disabled=true;button.textContent='正在準備預覽…';}
  pending.listener=event=>{
   if(pendingPrint!==pending||event.origin!==root.location.origin||event.source!==pending.child||!event.data)return;
   if(uid!==currentUserId){finishPrint('學生已切換，已取消列印。');if(pending.child&&!pending.child.closed)pending.child.close();return;}
-  if(event.data.kind==='lpb-print-ready'){pending.child.postMessage({kind:'lpb-print-job',markup,model,options},root.location.origin);}
-  else if(event.data.kind==='lpb-print-pdf'){
-   const url=event.data.url;if(typeof url!=='string'||!url.startsWith('blob:'+root.location.origin+'/'))return finishPrint('PDF 文件來源不符。');
-   clearTimeout(pending.timer);pending.child.location.replace(url);
-   const started=Date.now();
-   function printPDF(){
-    if(pendingPrint!==pending)return;
-    if(uid!==currentUserId)return finishPrint('學生已切換，已取消列印。');
-    try{
-     if(pending.child.closed)return finishPrint('列印視窗已關閉。');
-     const doc=pending.child.document;
-     if(doc.contentType==='application/pdf'&&doc.readyState==='complete'){
-      multiData[uid].printPreferences=options;saveToLocal();closeModal('modal-print-settings');finishPrint();pending.child.focus();pending.child.print();return;
-     }
-    }catch(_){}
-    if(Date.now()-started>15000)return finishPrint('PDF 已產生，但瀏覽器未能自動開啟列印；請在 PDF 頁使用列印功能。');
-    pending.timer=setTimeout(printPDF,250);
-   }
-   pending.timer=setTimeout(printPDF,250);
+  if(event.data.kind==='lpb-print-ready'){clearTimeout(pending.timer);pending.timer=setTimeout(()=>finishPrint('準備預覽逾時，請在預覽頁重試或返回月曆重新列印。'),38000);pending.child.postMessage({kind:'lpb-print-job',model,options,name:pending.name},root.location.origin);}
+  else if(event.data.kind==='lpb-print-preview-ready'){
+   multiData[uid].printPreferences=options;saveToLocal();closeModal('modal-print-settings');finishPrint();
   }
   else if(event.data.kind==='lpb-print-failed')finishPrint(event.data.message);
  };
  root.addEventListener('message',pending.listener);
  try{
-  pending.child=root.open(new URL('calendar-print-view.html?v=173',document.baseURI).href,'_blank');
+  pending.child=root.open(new URL('calendar-print-view.html?v=174',document.baseURI).href,'_blank');
   if(!pending.child){finishPrint('瀏覽器未開啟列印視窗，請確認彈出式視窗提示。');return;}
   pending.timer=setTimeout(()=>finishPrint('準備列印逾時，請關閉列印頁後重試。'),20000);pending.child.focus();
  }catch(e){finishPrint(e.message);}

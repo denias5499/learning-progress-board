@@ -36,3 +36,12 @@ test('四邊至少12.7mm，月曆與教材矩陣的表格線、字與核取方�
  assert.ok(calls.length>100);
  for(const [left,top,right,bottom] of calls){assert.ok(left>=36-.001&&top>=36-.001&&right<=geometry.width-36+.001&&bottom<=geometry.height-36+.001,JSON.stringify({left,top,right,bottom}));}
 });
+
+
+test('不足七天補空白欄，兩種版型與完整週同欄寬，不補入範圍外日期或進度',()=>{
+ for(const layout of ['calendar','matrix']){
+  const before=JSON.stringify(model),full=layoutWeek(ctx,model,dates.slice(0,7),{layout,status:true},0),tail=layoutWeek(ctx,model,dates.slice(7,10),{layout,status:true},0);
+  assert.equal(tail.col,full.col);assert.equal(tail.slots.length,7);assert.equal(tail.slots.filter(Boolean).length,3);assert.deepEqual(tail.slots.slice(3),[null,null,null,null]);
+  tail.rows.forEach(row=>{assert.equal(row.cells.length,7);assert.deepEqual(row.cells.slice(3),[[],[],[],[]]);});assert.equal(tail.rows.flatMap(row=>row.cells).flat().length,3);assert.equal(JSON.stringify(model),before);
+ }
+});
