@@ -39,11 +39,12 @@ function paginate(ctx,model,options){
 function drawPage(ctx,page,options){
  ctx.fillStyle='#fff';ctx.fillRect(0,0,W+1,H+1);let y=M;
  function text(t,x,top,size,bold){ctx.font=(bold?'bold ':'')+size+'px '+FONT;ctx.fillStyle='#203846';ctx.textBaseline='top';ctx.fillText(t,x,top);}
+ function centeredHeader(t,x,top,width){ctx.font='bold 9px '+FONT;text(t,x+(width-ctx.measureText(t).width)/2,top,9,true);}
  function rect(x,top,w,h,fill){if(fill){ctx.fillStyle=fill;ctx.fillRect(x,top,w,h);}ctx.strokeStyle='#a9bfcc';ctx.lineWidth=.55;ctx.strokeRect(x,top,w,h);}
  if(page.title){ctx.font='bold 15px '+FONT;const title='學習進度計畫表';text(title,(W-ctx.measureText(title).width)/2,y,15,true);y+=22;}
  for(const week of page.weeks){const {col,matrix,size,small,lh,pad,checkWidth}=week;let x=M;
   if(matrix){rect(x,y,36,18,'#e8f1f6');text('科目',x+3,y+4,9,true);x+=36;rect(x,y,76,18,'#e8f1f6');text('教材',x+3,y+4,9,true);x+=76;}
-  week.slots.forEach(d=>{rect(x,y,col,18,d?'#e8f1f6':'#f3f7f9');if(d)text(d.slice(5).replace('-','/')+' '+['日','一','二','三','四','五','六'][new Date(d+'T12:00:00').getDay()],x+4,y+4,9,true);x+=col;});y+=18;
+  week.slots.forEach(d=>{rect(x,y,col,18,d?'#e8f1f6':'#f3f7f9');if(d)centeredHeader(d.slice(5).replace('-','/')+' '+['日','一','二','三','四','五','六'][new Date(d+'T12:00:00').getDay()],x,y+4.5,col);x+=col;});y+=18;
   for(const row of week.rows){x=M;
    if(matrix){for(let c=0;c<2;c++){const width=c===0?36:76;rect(x,y,width,row.height,'#f3f7f9');(row.labels[c]||[]).forEach((line,i)=>text(line,x+3,y+pad+i*lh,size,c===0));x+=width;}}
    row.cells.forEach(cards=>{rect(x,y,col,row.height);let cy=y+pad;

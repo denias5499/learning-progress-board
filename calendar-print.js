@@ -161,7 +161,7 @@ async function execute() {
  };
  root.addEventListener('message',pending.listener);
  try{
-  pending.child=root.open(new URL('calendar-print-view.html?v=174',document.baseURI).href,'_blank');
+  pending.child=root.open(new URL('calendar-print-view.html?v=175',document.baseURI).href,'_blank');
   if(!pending.child){finishPrint('瀏覽器未開啟列印視窗，請確認彈出式視窗提示。');return;}
   pending.timer=setTimeout(()=>finishPrint('準備列印逾時，請關閉列印頁後重試。'),20000);pending.child.focus();
  }catch(e){finishPrint(e.message);}
