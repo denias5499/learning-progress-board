@@ -68,7 +68,7 @@ function prefs() {
 function addControls() {
  if(document.getElementById('print-layout'))return;
  const box=document.createElement('div');box.className='print-options';
- box.innerHTML='<label>列印版型<select id="print-layout"><option value="calendar">月曆表（依日期排列）</option><option value="matrix">科目／教材 × 日期</option></select></label><label>每頁範圍<select id="print-period"><option value="week">一週（建議）</option><option value="fortnight">最多兩週</option><option value="three">最多三週</option><option value="auto">自動安排完整週</option></select></label><fieldset><legend>列印內容</legend><label><input type="checkbox" id="print-show-title">標題</label><label class="print-title-child"><input type="checkbox" id="print-title-first">僅首頁列印</label><label><input type="checkbox" id="print-show-status">完成核取方塊</label></fieldset><p>設定會依學生分開記住；每週完整列印，放不下就整週換頁。</p>';
+ box.innerHTML='<label>列印版型<select id="print-layout"><option value="calendar">月曆表（依日期排列）</option><option value="matrix">科目／教材 × 日期</option></select></label><label>每頁範圍<select id="print-period"><option value="week">一週（建議）</option><option value="fortnight">最多兩週</option><option value="three">最多三週</option><option value="auto">自動適配（完整週）</option></select></label><fieldset><legend>列印內容</legend><label><input type="checkbox" id="print-show-title">標題</label><label class="print-title-child"><input type="checkbox" id="print-title-first">僅首頁列印</label><label><input type="checkbox" id="print-show-status">完成核取方塊</label></fieldset><p>設定會依學生分開記住；自動適配會依內容與四邊 1.27 公分安全區域計算，各頁可容納不同週數，放不下就整週換頁。</p>';
  const range=document.getElementById('print-range-display');range.after(box);
  document.getElementById('print-show-title').addEventListener('change',syncTitleControl);
  document.getElementById('print-modal-cat-filter').addEventListener('change',syncRange);
@@ -176,7 +176,7 @@ async function execute() {
  };
  root.addEventListener('message',pending.listener);
  try{
-  pending.child=root.open(new URL('calendar-print-view.html?v=172',document.baseURI).href,'_blank');
+  pending.child=root.open(new URL('calendar-print-view.html?v=173',document.baseURI).href,'_blank');
   if(!pending.child){finishPrint('瀏覽器未開啟列印視窗，請確認彈出式視窗提示。');return;}
   pending.timer=setTimeout(()=>finishPrint('準備列印逾時，請關閉列印頁後重試。'),20000);pending.child.focus();
  }catch(e){finishPrint(e.message);}

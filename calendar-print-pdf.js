@@ -1,7 +1,10 @@
 /* Canvas lays out each complete week; a small image-only PDF writer freezes the same pages. */
 (function(root){
 'use strict';
-const W=841.89,H=595.28,M=8.51,CW=W-M*2,CH=H-M*2;
+const W=841.89,H=595.28;
+// 36pt = 12.7mm on every edge. Inset the .55pt border so all printed ink stays inside.
+const MARGIN=36,INK_INSET=.5,M=MARGIN+INK_INSET,CW=W-M*2,CH=H-M*2;
+const geometry=Object.freeze({width:W,height:H,margin:MARGIN,inkInset:INK_INSET,x:M,y:M,contentWidth:CW,contentHeight:CH});
 const FONT='Arial,"PingFang TC","Microsoft JhengHei",sans-serif';
 function wrap(ctx,text,width,size){
  ctx.font=size+'px '+FONT;const lines=[];let line='';
@@ -33,7 +36,7 @@ function paginate(ctx,model,options){
  return pages.map((p,i)=>({title:options.title!==false&&(i===0||options.firstOnly===false),weeks:p.items.map(item=>weeks[item.index][item.density])}));
 }
 function drawPage(ctx,page,options){
- ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);let y=M;
+ ctx.fillStyle='#fff';ctx.fillRect(0,0,W+1,H+1);let y=M;
  function text(t,x,top,size,bold){ctx.font=(bold?'bold ':'')+size+'px '+FONT;ctx.fillStyle='#203846';ctx.textBaseline='top';ctx.fillText(t,x,top);}
  function rect(x,top,w,h,fill){if(fill){ctx.fillStyle=fill;ctx.fillRect(x,top,w,h);}ctx.strokeStyle='#a9bfcc';ctx.lineWidth=.55;ctx.strokeRect(x,top,w,h);}
  if(page.title){ctx.font='bold 15px '+FONT;const title='學習進度計畫表';text(title,(W-ctx.measureText(title).width)/2,y,15,true);y+=22;}
@@ -50,7 +53,7 @@ function drawPage(ctx,page,options){
    });y+=row.height;
   }y+=6;
  }
- if(y>H-M+.5)throw Error('PDF 分頁核對失敗，已停止以避免裁切。');
+ if(y>H-M+.01)throw Error('PDF 分頁核對失敗，已停止以避免裁切。');
 }
 function encodePDF(images){
  const encoder=new TextEncoder(),chunks=[],offsets=[0];let length=0;
@@ -72,5 +75,5 @@ async function create(model,options,doc){
  for(const page of pages){drawPage(ctx,page,options);const binary=atob(canvas.toDataURL('image/jpeg',.96).split(',')[1]);images.push({width:canvas.width,height:canvas.height,bytes:Uint8Array.from(binary,c=>c.charCodeAt(0))});}
  return {bytes:encodePDF(images),pages:pages.length,weeks:Math.ceil(model.dates.length/7),tasks:model.dates.reduce((n,d)=>n+(model.grid[d]||[]).length,0)};
 }
-const api={wrap,layoutWeek,paginate,drawPage,encodePDF,create};root.CalendarPrintPDF=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
+const api={geometry,wrap,layoutWeek,paginate,drawPage,encodePDF,create};root.CalendarPrintPDF=api;if(typeof module!=='undefined'&&module.exports)module.exports=api;
 })(typeof window!=='undefined'?window:globalThis);
