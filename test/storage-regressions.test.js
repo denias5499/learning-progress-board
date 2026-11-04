@@ -27,7 +27,7 @@ function logContext() {
         confirm: () => true, el: () => null, renderHistoryTable() {}, renderDashboard() {},
         invalidateSchedCache() {}, pushSafetyBackup() {}, pushUndoSnapshot() {},
         deduplicateMasterUnits: () => 0, deduplicateLegacyMaster: () => 0,
-        STORAGE_KEY_FAMILY: 'family', showSaveErrorToast(e) { throw e; }
+        _v177FamilyBaseline: null, _v177FamilyBlocked: false, STORAGE_KEY_FAMILY: 'family', showSaveErrorToast(e) { throw e; }
     });
     if (html.includes('function filterAppLogs(')) {
         vm.runInContext(section('function filterAppLogs(', 'function saveToLocal('), c);

@@ -710,7 +710,7 @@ test('未排完列維持深黃色，尾端只顯示真正已勾完成的頁碼�
  w.appPlans[0].grid['2026-10-27']=[task(187,195,false)];host.innerHTML=w.renderAeUnitCheckboxHtml(x,'會考','二模','D');assert.match(host.textContent,/尚無完成紀錄/);assert.doesNotMatch(host.querySelector('.wz-partial-mark').textContent,/195/);
 });
 
-function remainderSetup(w){const p={id:'replan',name:'計畫',end:'2026-11-01',grid:{'2026-11-01':[{id:'source',subject:'歷史',unitName:'U4',unitId:'u4',typeName:'講義',instanceName:'教學式',cat:'課前預習',mis:'九上二段',startPage:49,endPage:57,text:'[歷史] U4 P.49~57',isDone:false}]}};w.appPlans=w.multiData.A.plans=[p];w.appLogs=w.multiData.A.logs=[];w.document.querySelector('#planner-selector').innerHTML='<option value="replan">計畫</option>';w.localStorage.setItem('StudyMap_Family_Data_V20',JSON.stringify(w.multiData));w.editCalendarTask(p.id,'2026-11-01','source');w.document.querySelector('#pc-end').value='51';return p;}
+function remainderSetup(w){const p={id:'replan',name:'計畫',end:'2026-11-01',grid:{'2026-11-01':[{id:'source',subject:'歷史',unitName:'U4',unitId:'u4',typeName:'講義',instanceName:'教學式',cat:'課前預習',mis:'九上二段',startPage:49,endPage:57,text:'[歷史] U4 P.49~57',isDone:false}]}};w.appPlans=w.multiData.A.plans=[p];w.appLogs=w.multiData.A.logs=[];w.document.querySelector('#planner-selector').innerHTML='<option value="replan">計畫</option>';w.familyStorageWrite(JSON.stringify(w.multiData));w.editCalendarTask(p.id,'2026-11-01','source');w.document.querySelector('#pc-end').value='51';return p;}
 test('縮短單日迄頁先顯示六頁兩天草稿；返回不動資料，確認後才分配並延長截止日',async t=>{
  const w=await page(t,'index.html','http://localhost/');const p=remainderSetup(w),before=JSON.stringify(w.multiData),stored=w.localStorage.getItem('StudyMap_Family_Data_V20');w.saveCalendarTask();assert.equal(JSON.stringify(w.multiData),before);assert.equal(w.localStorage.getItem('StudyMap_Family_Data_V20'),stored);assert.equal(w.document.querySelector('#replan-rows').children.length,2);assert.match(w.document.querySelector('#replan-rows').textContent,/P.52～54/);assert.match(w.document.querySelector('#replan-deadline').textContent,/2026-11-03/);
  w.document.querySelector('#replan-back').click();assert.equal(JSON.stringify(w.multiData),before);w.saveCalendarTask();w.document.querySelector('#replan-confirm').click();const saved=JSON.parse(w.localStorage.getItem('StudyMap_Family_Data_V20')).A.plans[0];assert.equal(saved.grid['2026-11-01'][0].endPage,51);assert.equal(saved.grid['2026-11-01'][0].isDone,false);assert.equal(saved.grid['2026-11-02'][0].startPage,52);assert.equal(saved.grid['2026-11-03'][0].endPage,57);assert.equal(saved.end,'2026-11-03');assert.equal(w.multiData.B.plans.length,0);
@@ -771,4 +771,15 @@ test('更新後首次預設自動適配，保留其他設定，之後手選一�
  assert.equal(w.document.querySelector('#print-period').value,'auto');assert.equal(w.document.querySelector('#print-show-title').checked,false);assert.equal(w.document.querySelector('#print-layout').value,'matrix');assert.equal(JSON.stringify(w.multiData),before);
  w.document.querySelector('#print-period').value='week';w.print=()=>{};await w.executePrint();assert.equal(w.multiData.A.printPreferences.paginationPreferenceVersion,1);w.openPrintModal();assert.equal(w.document.querySelector('#print-period').value,'week');
  w.currentUserId='B';w.appPlans=[];w.appMaster={};w.appMissions={};w.openPrintModal();assert.equal(w.document.querySelector('#print-period').value,'auto');assert.equal(w.multiData.B.printPreferences,undefined);
+});
+
+test('教材儲存失敗保留編輯狀態，不顯示成功或回首頁',async t=>{
+ const w=await page(t,'index.html','http://localhost/');w.isMasterDirty=true;w.extractCurrentEditorData=()=>{};let success=0;w.openSaveConfirmModal=()=>success++;const before=w.localStorage.getItem(w.STORAGE_KEY_FAMILY),proto=Object.getPrototypeOf(w.localStorage),write=proto.setItem;
+ proto.setItem=function(k,v){if(k===w.STORAGE_KEY_FAMILY)throw Error('quota');return write.call(this,k,v)};
+ try{await w.saveSettingsAndAlert();}finally{proto.setItem=write;}
+ assert.equal(success,0);assert.equal(w.isMasterDirty,true);assert.equal(w.localStorage.getItem(w.STORAGE_KEY_FAMILY),before);assert.match(w.document.querySelector('#save-error-toast').textContent,/quota/);
+});
+test('舊分頁家庭資料衝突時保存原存檔與本頁變更，錯誤提示不建議清除瀏覽器資料',async t=>{
+ const w=await page(t,'index.html','http://localhost/'),key=w.STORAGE_KEY_FAMILY,latest=JSON.parse(w.localStorage.getItem(key));latest.B.name='其他分頁更新';w.localStorage.setItem(key,JSON.stringify(latest));w.multiData.A.logs.push({id:'pending-local'});
+ assert.equal(w.saveToLocal(),false);assert.equal(JSON.parse(w.localStorage.getItem(key)).B.name,'其他分頁更新');assert.equal(w.multiData.A.logs.at(-1).id,'pending-local');assert.match(w.document.querySelector('#save-error-toast').textContent,/其他分頁/);assert.doesNotMatch(w.document.querySelector('#save-error-toast').textContent,/清理瀏覽器 cache/);
 });

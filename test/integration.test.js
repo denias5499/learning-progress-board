@@ -83,7 +83,7 @@ test('integration: 備份資料存在且 parse 成功', () => {
     assert.ok(plans[0].grid && Object.keys(plans[0].grid).length > 0);
 });
 
-test.skip('integration: 跑 v1.5.172 fix 不 crash 且有結果', () => {
+test('integration: 跑 v1.5.172 fix 不 crash 且有結果', () => {
     const win = loadIndex();
     const backupPlans = loadBackupPlans();
     const { masters } = buildMasters(backupPlans);
@@ -92,12 +92,13 @@ test.skip('integration: 跑 v1.5.172 fix 不 crash 且有結果', () => {
     win.currentUserId = 'user_test';
     win.appPlans = backupPlans;
 
+    win.refreshTreeScheduledUnits();
     const result = win.getUnitDonePagesByUnitIdMatch('會考複習', 'ALL');
     assert.ok(result && typeof result === 'object');
     assert.ok(Object.keys(result).length > 0, 'result 不應為空');
 });
 
-test.skip('integration: v1.5.172 fix — 地理 unit 不被跨 sub 任務污染', () => {
+test('integration: v1.5.172 fix — 地理 unit 不被跨 sub 任務污染', () => {
     const win = loadIndex();
     const backupPlans = loadBackupPlans();
     const { masters, bySub } = buildMasters(backupPlans);
@@ -106,6 +107,7 @@ test.skip('integration: v1.5.172 fix — 地理 unit 不被跨 sub 任務污染'
     win.currentUserId = 'user_test';
     win.appPlans = backupPlans;
 
+    win.refreshTreeScheduledUnits();
     const result = win.getUnitDonePagesByUnitIdMatch('會考複習', 'ALL');
 
     const geoUnits = bySub['地理'] || [];
@@ -129,6 +131,7 @@ test('integration: 地理 modal 不會全部 100% (v1.5.171 bug 反指標)', () 
     win.currentUserId = 'user_test';
     win.appPlans = backupPlans;
 
+    win.refreshTreeScheduledUnits();
     const result = win.getUnitDonePagesByUnitIdMatch('會考複習', 'ALL');
 
     // 反指標: 在 v1.5.171 bug 下, 所有地理 unit 都會 == pTotal (= 100%)

@@ -70,60 +70,38 @@ test.skip('v135+ title: index.html 含 [v1.6.13X]', () => {
 });
 
 // 行為測試 — saveNotes 不 throw
-test.skip('v135 (4) 行為: saveNotes 不 throw 並正確儲存', () => {
-    const fnMatch = WN.match(/function saveNotes\(\)[\s\S]*?\n    \}/);
-    assert.ok(fnMatch);
-    
-    let alertCalled = '';
-    const fakeDom = {
-        querySelectorAll: (sel) => {
-            if (sel === '.editable-slot') {
-                return [{
-                    dataset: {
-                        date: '2026/9/8',
-                        subject: '國文',
-                        typeName: '複習講義',
-                        instanceName: '麻辣',
-                        unit: 'U1',
-                        reasons: '["粗心"]'
-                    },
-                    querySelector: (s) => {
-                        if (s === 'img') return { src: 'blob:xxx' };
-                        if (s === '.note-grid-area') return { innerHTML: '<p>筆記</p>' };
-                        return null;
-                    }
-                }];
-            }
-            return [];
-        },
-        getElementById: (id) => {
-            const el = { innerHTML: '', style: { display: '' } };
-            return el;
-        }
-    };
-    const sandbox = {
-        document: fakeDom,
-        localStorage: {
-            _data: { myStudyNotes: '[]' },
-            getItem(k) { return this._data[k] || null; },
-            setItem(k, v) { this._data[k] = v; }
-        },
-        JSON, console: { log(){}, error(){}, warn(){} },
-        Object, Array, Date, Math,
-        hasUnsavedNotes: true,
-        currentFilesData: [],
-        alert: (m) => { alertCalled = m; },
-        confirm: () => false
-    };
+test('v135 (4) 行為: saveNotes 不 throw 並正確儲存', async () => {
+    const data = new Map();
+    const storage = {getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)};
+    storage.setItem('StudyMap_Family_Data_V20', JSON.stringify({A:{
+        masters:{會考:{國文:{materials:{複習講義:{instances:[{id:'book',name:'麻辣',vols:{第一冊:[{id:'u1',name:'U1'}]}}]}}}}},
+        missions:{會考:{一模:['u1']}}
+    }}));
+    const links = require('../note-links').create(storage);
+    const syllabus = links.catalog('A')[0], task = links.tasks('A',syllabus.categoryId)[0];
+    const slot = {dataset:{userId:'A',noteLink:JSON.stringify({noteLinkVersion:1,syllabus,task}),
+        date:'2026/9/8',subject:'國文',typeName:'複習講義',instanceName:'麻辣',unit:'U1',reasons:'["粗心"]'},
+        querySelector:s=>s==='img'?{src:'data:image/png;base64,AQID'}:s==='.note-grid-area'?{innerHTML:'<p>筆記</p>'}:null};
+    const alerts=[], images=[];
+    const sandbox={document:{querySelectorAll:()=>[slot],getElementById:()=>({innerHTML:'',style:{}})},
+        localStorage:storage,NoteLinks:links,StudyRecords:require('../student-records').create(storage),
+        requireNoteStudent:()=> 'A', _noteSaveInProgress:false,_meImageBlobMap:{},
+        _wnSaveImage:async blob=>{images.push([...new Uint8Array(await blob.arrayBuffer())]);return 'image-1';},
+        Blob,atob,ArrayBuffer,Uint8Array,console,hasUnsavedNotes:true,currentFilesData:[],
+        syncImportView(){},goToPage(){},alert:m=>alerts.push(m),confirm:()=>false};
     vm.createContext(sandbox);
-    vm.runInContext(fnMatch[0] + '\nsaveNotes();', sandbox);
-    
-    assert.ok(alertCalled.includes('儲存') || alertCalled.includes('成功'), `alert 應該跳: ${alertCalled}`);
-    const saved = JSON.parse(sandbox.localStorage.getItem('myStudyNotes'));
-    assert.ok(saved.length >= 1, '應有儲存');
-    assert.equal(saved[0].typeName, '複習講義', 'typeName 應正確');
-    assert.equal(saved[0].instanceName, '麻辣', 'instanceName 應正確');
-    assert.equal(saved[0].subject, '國文', 'subject 應正確');
+    const save=WN.match(/function saveNotes\(\)[\s\S]*?\n    \}/)[0];
+    const success=WN.match(/function _onSaveSuccess\(\)[\s\S]*?\n    \}/)[0];
+    vm.runInContext(save+'\n'+success,sandbox);
+    await sandbox.saveNotes();
+    assert.ok(alerts.some(m=>m.includes('成功儲存')),alerts.join('\n'));
+    const saved=JSON.parse(storage.getItem('myStudyNotes'));
+    assert.equal(saved.length,1);
+    assert.equal(saved[0].userId,'A');assert.equal(saved[0].typeName,'複習講義');
+    assert.equal(saved[0].instanceName,'麻辣');assert.equal(saved[0].subject,'國文');
+    assert.equal(saved[0].syllabus.unitId,'u1');assert.equal(saved[0].task.missionId,task.missionId);
+    assert.equal(saved[0].imageId,'image-1');assert.deepEqual(images,[[1,2,3]]);
+    assert.equal(sandbox._noteSaveInProgress,false);
 });
 
 // 行為測試 — finishCropping 檢查 cards 為空時 alert

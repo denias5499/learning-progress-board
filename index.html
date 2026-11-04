@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.176]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.177]</title>
     <link rel="stylesheet" href="settings-layout.css?v=167">
     <link rel="stylesheet" href="calendar-print.css?v=172">
     <link rel="stylesheet" href="calendar-replan.css?v=171">
@@ -3035,6 +3035,8 @@
         }
 
         var STORAGE_KEY_FAMILY = 'StudyMap_Family_Data_V20';
+        var _v177FamilyBaseline = localStorage.getItem(STORAGE_KEY_FAMILY);
+        var _v177FamilyBlocked = false;
         var STORAGE_KEY_CURRENT_USER = 'StudyMap_CurrentUserId_V20';
         var STORAGE_KEY_BOARD_TITLE = 'StudyMap_BoardTitle_V20';
         var STORAGE_KEY_BOARD_LOGO = 'StudyMap_BoardLogo_V20';
@@ -4273,7 +4275,7 @@ function _v1534Migrate(uid) {
                 });
             });
             if (fixedType > 0 || fixedAlias > 0) {
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 console.log('v1.5.144: 補上 ' + fixedType + ' 個 type 的 unitBased, ' + fixedAlias + ' 個 instance 的 alias');
             } else {
                 console.log('v1.5.144: ✅ 所有 type 已有 unitBased, 所有 instance 已有 alias');
@@ -4283,6 +4285,7 @@ function _v1534Migrate(uid) {
 loadBoardHeader();
 
             var currentDataStr = localStorage.getItem(STORAGE_KEY_FAMILY);
+            _v177FamilyBaseline = currentDataStr;
             if (currentDataStr) {
                 try {
                     multiData = JSON.parse(currentDataStr);
@@ -4290,10 +4293,9 @@ loadBoardHeader();
                     // v1.4.12: JSON parse 失敗 — 不要 mask 整個 app, 給詳細訊息
                     console.error("JSON 解析失敗:", parseErr);
                     console.error("原始資料 (前 500 字):", currentDataStr.substring(0, 500));
-                    var backupKey = STORAGE_KEY_FAMILY + '_backup_' + Date.now();
-                    localStorage.setItem(backupKey, currentDataStr);
-                    alert("⚠️ 資料檔案毀損！\n\n已自動備份到:\n" + backupKey + "\n\n將以空白資料重新開始。舊資料可手動從 localStorage 復原。\n\n錯誤訊息: " + parseErr.message);
-                    multiData = { "user_A": { name: "學生 A", master: {}, missions: {}, logs: [], plans: [], avatar: "" } };
+                    _v177FamilyBlocked = true;
+                    alert('資料無法解析，已停止載入及存檔以保留原始內容。請保留此分頁並匯出原始資料，勿清除瀏覽器資料。');
+                    return;
                 }
             } else {
                 multiData = { "user_A": { name: "學生 A", master: {}, missions: {}, logs: [], plans: [], avatar: "" } };
@@ -4489,7 +4491,7 @@ loadBoardHeader();
                     console.warn('v2.3.2.143: 自動清除注入髒資料失敗:', e && e.message);
                 }
 
-                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+                familyStorageWrite(JSON.stringify(multiData));
                 currentUserId = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
                 if (!currentUserId || !multiData[currentUserId]) currentUserId = Object.keys(multiData)[0];
                 
@@ -4589,7 +4591,7 @@ loadBoardHeader();
                 }
             });
             
-            if(changed) saveToLocal();
+            if(changed) if (saveToLocal() === false) return;
         }
 
         function switchUser() {
@@ -4734,7 +4736,7 @@ loadBoardHeader();
                     console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
-                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+                familyStorageWrite(JSON.stringify(multiData));
             }
 
             var av = el('current-user-avatar');
@@ -4763,7 +4765,7 @@ loadBoardHeader();
                     console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
-                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+                familyStorageWrite(JSON.stringify(multiData));
             }
             
             autoMigrateLogsToCalendar();
@@ -4895,6 +4897,9 @@ loadBoardHeader();
         }
 
         function saveToLocal() {
+            try { familyStorageAssertCurrent(); }
+            catch(e) { showSaveErrorToast(e); return false; }
+
             // ★★ v2.3.2.145: stale 參照守門員
             //   appPlans/appLogs/appMissions 是「參照」。正常情況下它們就跟
             //   multiData[currentUserId] 的同名欄位是同一個物件 → 下面寫回等於原樣寫回。
@@ -4983,42 +4988,25 @@ loadBoardHeader();
                     console.error('v1.5.182: auto-dedup 失敗:', e.message);
                 }
 
-                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
+                familyStorageWrite(JSON.stringify(multiData));
             } catch(e) {
                 console.error('v1.5.17 saveToLocal FAILED:', e.message, 'size:', JSON.stringify(multiData).length);
-                // v1.5.153: quota exceeded 時, 自動清理 backups 後重試
-                if (e && e.name && e.name.indexOf('QuotaExceeded') >= 0) {
-                    try {
-                        // 清空最佔空間的 backups
-                        localStorage.removeItem(STORAGE_KEY_SAFETY);
-                        localStorage.removeItem(STORAGE_KEY_UNDO);
-                        localStorage.removeItem(STORAGE_KEY_NAMED);
-                        // 再試一次
-                        // v1.5.182: 自動清理教材庫重複 unit (新架構 + 舊架構都掃, 確保一定跑)
-                try {
-                    var dedupCount = 0;
-                    Object.keys(multiData).forEach(function(uid) {
-                        dedupCount += deduplicateMasterUnits(uid);
-                        dedupCount += deduplicateLegacyMaster(uid);
-                    });
-                    if (dedupCount > 0) {
-                        console.log('v1.5.182: 清理教材庫重複 unit, 共移除 ' + dedupCount + ' 筆');
-                    } else {
-                        console.log('v1.5.182: 教材庫沒有重複 unit (auto-dedup 完成)');
-                    }
-                } catch (e) {
-                    console.error('v1.5.182: auto-dedup 失敗:', e.message);
-                }
-
-                localStorage.setItem(STORAGE_KEY_FAMILY, JSON.stringify(multiData));
-                        console.log('v1.5.153: 已清理 backups, 儲存成功');
-                        return;  // 成功, 不顯示錯誤
-                    } catch(e2) {
-                        console.error('v1.5.153: 清理後仍失敗:', e2.message);
-                    }
-                }
                 showSaveErrorToast(e);
+                return false;
             }
+            return true;
+        }
+
+        function familyStorageAssertCurrent() {
+            if (typeof _v177FamilyBaseline === 'undefined' || _v177FamilyBlocked)
+                throw new Error('原始資料未成功載入，已禁止覆寫。請保留此分頁並匯出資料。');
+            if (localStorage.getItem(STORAGE_KEY_FAMILY) !== _v177FamilyBaseline)
+                throw new Error('其他分頁或操作已更新資料，這次未儲存。請先匯出此分頁的變更，再核對最新資料，避免覆蓋。');
+        }
+        function familyStorageWrite(payload) {
+            familyStorageAssertCurrent();
+            localStorage.setItem(STORAGE_KEY_FAMILY, payload);
+            _v177FamilyBaseline = payload;
         }
 
         // v1.5.102: Undo / Snapshot 機制
@@ -5114,7 +5102,7 @@ loadBoardHeader();
                 }
                 delete multiData[currentUserId]._time;
                 delete multiData[currentUserId]._reason;
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 location.reload();
             } catch(e) {
                 alert('❌ 還原失敗: ' + e.message);
@@ -5223,7 +5211,7 @@ loadBoardHeader();
                 // 寫回 stack (扣掉一個)
                 stack[currentUserId] = userStack;
                 _quotaSafeSetBackup(STORAGE_KEY_UNDO, stack, currentUserId, MAX_UNDO_STEPS);
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 renderCalendar();
                 renderDashboard();
                 renderTreeView();
@@ -5241,7 +5229,7 @@ loadBoardHeader();
             var toast = document.createElement('div');
             toast.id = 'save-error-toast';
             toast.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#e74c3c; color:white; padding:15px 20px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:9999; max-width:400px; font-size:0.95em;';
-            toast.innerHTML = '<b>⚠️ 資料儲存失敗！</b><br><small>' + escapeHtml(err.message) + '</small><br><br>資料只在記憶體, <b>reload 會丟失</b>!<br>請清理瀏覽器 cache / 關閉其他分頁釋放空間。' +
+            toast.innerHTML = '<b>⚠️ 資料儲存失敗！</b><br><small>' + escapeHtml(err.message) + '</small><br><br>資料只在記憶體, <b>reload 會丟失</b>!<br>請保留目前分頁並先匯出備份。不要清除瀏覽器資料；其他分頁有更新時，先核對雙方變更。' +
                 '<br><br><button onclick="this.parentElement.remove()" style="background:white;color:#e74c3c;border:none;padding:5px 12px;border-radius:4px;cursor:pointer;font-weight:bold;">知道了</button>';
             document.body.appendChild(toast);
             setTimeout(function() { if (toast.parentElement) toast.remove(); }, 30000);
@@ -5469,7 +5457,7 @@ loadBoardHeader();
                 }
                 appLogs.push({ id: genId(), date: getLocalDateString(new Date()), category: '⏰ 計畫管理', mission: pl.name, subject: '計畫', unitName: '期間對齊', start: 0, end: 0, pages: 0, detail: 'plan 期間對齊到實際排程範圍 (原 ' + (pl.originalStartBeforeAlign || pl.start) + '~' + (pl.originalEndBeforeAlign || pl.end) + ')' });
             });
-            if (typeof saveToLocal === 'function') saveToLocal();
+            if (typeof saveToLocal === 'function') if (saveToLocal() === false) return;
             lines.push('');
             lines.push('✅ 已對齊 ' + changes.length + ' 個計畫並儲存。原值保留在 originalStartBeforeAlign / originalEndBeforeAlign');
             console.log(lines.join('\n'));
@@ -5675,7 +5663,7 @@ loadBoardHeader();
                 }
             });
             if (removed) {
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 invalidateSchedCache();
                 if (typeof renderCalendar === 'function') renderCalendar();
                 if (typeof renderDashboard === 'function') renderDashboard();
@@ -5947,7 +5935,7 @@ loadBoardHeader();
                 removed += _v140PurgeInjectedMasters(uid);
             });
             if (removed) {
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 // ★ 教材庫畫面重建 (清掉的是科目, 三層下拉都要重畫)
                 _v139AssertMasterOwnership('fixInjectedMaster');
                 _v139SyncMasterUI('fixInjectedMaster');
@@ -6328,7 +6316,7 @@ loadBoardHeader();
             u.logs = [];
             u.missions = {};
 
-            saveToLocal();
+            if (saveToLocal() === false) return;
             _v139AssertMasterOwnership('purgeInjectedUser');
             _v139SyncMasterUI('purgeInjectedUser');
             _v142RerenderAfterUserSwitch();
@@ -6365,7 +6353,7 @@ loadBoardHeader();
             u.plans = [];
             u.logs = [];
             u._v144Empty = true;   // 下次載入不要再自動重建大分類
-            saveToLocal();
+            if (saveToLocal() === false) return;
             if (uid === currentUserId) {
                 appCurrentCat = '';
                 appMaster = {};
@@ -6394,7 +6382,7 @@ loadBoardHeader();
             delete u.masters[cat];
             if (u.missions) delete u.missions[cat];
             u.logs = (u.logs || []).filter(function (l) { return l.category !== cat; });
-            saveToLocal();
+            if (saveToLocal() === false) return;
             if (uid === currentUserId) {
                 var cats = Object.keys(u.masters || {});
                 appCurrentCat = cats[0] || '';
@@ -6434,24 +6422,8 @@ loadBoardHeader();
         //   → 使用者看到「有時清掉了、有時沒清掉」, 而且沒有任何錯誤提示!
         //   → 所以: 寫入失敗就清掉備份再重試, 確保清除一定落地。
         function _v145SafeSetFamily(data, tag) {
-            var payload = JSON.stringify(data);
-            try {
-                localStorage.setItem(STORAGE_KEY_FAMILY, payload);
-                return true;
-            } catch (e) {
-                console.warn('v2.3.2.145: ⚠️ 寫入失敗 (' + (e && e.name) + '), 清理備份後重試 (' + (tag || '') + ')');
-                try { localStorage.removeItem(STORAGE_KEY_SAFETY); } catch (e1) {}
-                try { localStorage.removeItem(STORAGE_KEY_UNDO); } catch (e2) {}
-                try { localStorage.removeItem(STORAGE_KEY_NAMED); } catch (e3) {}
-                try {
-                    localStorage.setItem(STORAGE_KEY_FAMILY, payload);
-                    console.warn('v2.3.2.145: ✅ 清理備份後寫入成功');
-                    return true;
-                } catch (e4) {
-                    console.error('v2.3.2.145: ❌ 寫入仍然失敗:', e4 && e4.message);
-                    return false;
-                }
-            }
+            try { familyStorageWrite(JSON.stringify(data)); return true; }
+            catch(e) { showSaveErrorToast(e); return false; }
         }
 
         // ★ v2.3.2.145: 把全域參照重新綁到 multiData 的「當前真實狀態」
@@ -6628,7 +6600,7 @@ loadBoardHeader();
                 total += _v141PurgeCopiedMasters(uid);
             });
             if (total) {
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 _v139AssertMasterOwnership('fixSharedUnits');
                 _v139SyncMasterUI('fixSharedUnits');
             }
@@ -6657,7 +6629,7 @@ loadBoardHeader();
             try { pushSafetyBackup('reset-user-master'); } catch (e) { console.warn('安全備份失敗:', e && e.message); }
             // ★ 就地刪除 (保持物件參照不變, appMaster 不會與 multiData 脫節)
             subs.forEach(function (s) { delete u.masters[cat2][s]; });
-            saveToLocal();
+            if (saveToLocal() === false) return;
             _v139AssertMasterOwnership('resetUserMaster');
             _v139SyncMasterUI('resetUserMaster');
             console.log('%c✅ 已清空「' + (u.name || uid) + '」在「' + cat2 + '」的教材庫 (' + subs.length + ' 個科目)',
@@ -6749,7 +6721,7 @@ loadBoardHeader();
             if (apply === true) {
                 var n = fixEmptyVolInPlans(user);
                 console.log('已實際修復 ' + n + ' 筆 (記得 Ctrl+S / 系統會自動存檔)');
-                if (n > 0 && typeof saveToLocal === 'function') saveToLocal();
+                if (n > 0 && typeof saveToLocal === 'function') if (saveToLocal() === false) return;
             } else {
                 console.log('這是預覽。確認後執行 diagnoseEmptyVol(true) 才會修改。');
             }
@@ -7214,7 +7186,7 @@ loadBoardHeader();
                 });
                 n++;
             });
-            if (n > 0) { saveToLocal(); renderCalendar(); }
+            if (n > 0) { if (saveToLocal() === false) return; renderCalendar(); }
             console.log('%c✅ 已重建 ' + n + ' 筆順延任務', 'color:#27ae60;font-weight:bold');
             return n;
         };
@@ -7319,7 +7291,7 @@ loadBoardHeader();
                     });
                 });
             });
-            if (fixed > 0 && typeof saveToLocal === 'function') { try { saveToLocal(); } catch (e) {} }
+            if (fixed > 0 && typeof saveToLocal === 'function') { try { if (saveToLocal() === false) return; } catch (e) {} }
             return fixed;
         }
 
@@ -7528,7 +7500,7 @@ loadBoardHeader();
                     filterAppLogs(l => l.id !== 'cal_' + task.id);
                 }
                 
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 renderCalendar();
                 renderDashboard();
                 renderTreeView();  // v1.6.51: 同步更新 Tree View
@@ -7562,7 +7534,7 @@ loadBoardHeader();
                     var existLogIdx = appLogs.findIndex(l => l.id === 'cal_' + task.id);
                     if (existLogIdx > -1) appLogs[existLogIdx].date = targetDateStr;
 
-                    saveToLocal();
+                    if (saveToLocal() === false) return;
                     renderCalendar();
                     checkDailyWorkload(plan, targetDateStr);
                     if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
@@ -7885,7 +7857,7 @@ loadBoardHeader();
             
             appLogs.push({ id: genId(), date: oldDateStr, category: '🔄 系統重排', mission: plan.name, subject: task.subject||'手動', unitName: 'DoubleCheck延期', start: task.startPage||0, end: task.endPage||0, pages: 0, detail: `從 ${oldDateStr} 手動順延至 ${newDateStr}` });
             
-            saveToLocal();
+            if (saveToLocal() === false) return;
             openDoubleCheck(); 
             renderCalendar();
             checkDailyWorkload(plan, newDateStr);
@@ -7899,7 +7871,7 @@ loadBoardHeader();
                 plan.grid[dateStr] = plan.grid[dateStr].filter(t => t.id !== taskId);
             }
             filterAppLogs(l => l.id !== 'cal_' + taskId);
-            saveToLocal();
+            if (saveToLocal() === false) return;
             openDoubleCheck();
             renderCalendar();
             renderDashboard();
@@ -8125,7 +8097,7 @@ loadBoardHeader();
             ensurePlanHourConfig(plan);
             if (!confirm('確定要刪除這個自訂日期範圍？')) return;
             plan.hourConfig.overrides.splice(idx, 1);
-            saveToLocal();
+            if (saveToLocal() === false) return;
             renderHourOverrides();
         }
 
@@ -8180,7 +8152,7 @@ loadBoardHeader();
             }
             window._editingOverrideIdx = -1;
             window._hovSpecialDates = null;
-            saveToLocal();
+            if (saveToLocal() === false) return;
             closeModal('modal-hour-override');
             renderHourOverrides();
         }
@@ -9435,7 +9407,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     // v1.6.151: 改用自訂 modal 取代 alert,可看到完整警告列表
                     showUnitWarningsModal(unitModeWarnings);
                 }
-                saveToLocal();  // v1.6.149: 修 bug — saveData 不存在,改用 saveToLocal
+                if (saveToLocal() === false) return;  // v1.6.149: 修 bug — saveData 不存在,改用 saveToLocal
                 closeModal('modal-wizard');
                 return; // 模式 B 短路,不走時數模式 A 邏輯
             }
@@ -9601,7 +9573,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             appLogs.push({ id: genId(), date: getLocalDateString(new Date()), category: '🗓️ 計畫管理', mission: plan.name, subject: '系統', unitName: '-', start: 0, end: 0, pages: 0, detail: `依據排程精靈追加任務（嚴格遵照每日設定時數並利用剩餘空檔）。` }); 
             
             saveWizardPrefs();
-            saveToLocal(); 
+            if (saveToLocal() === false) return; 
             closeModal('modal-wizard'); 
             updatePlannerSelector(); 
             renderCalendar(); 
@@ -9954,7 +9926,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             
             // v1.6.151: 清 schedule map cache, 下次開 wizard 才會讀到正確的 grid 狀態
             if (typeof invalidateSchedCache === 'function') invalidateSchedCache();
-            saveToLocal();
+            if (saveToLocal() === false) return;
             updatePlannerSelector();
             renderCalendar();
             // v1.6.152: 顯示撤回後狀態 (幫助診斷)
@@ -10034,7 +10006,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         if(plan.grid[dStr].length === 0) delete plan.grid[dStr];
                     });
                     
-                    saveToLocal(); 
+                    if (saveToLocal() === false) return; 
                     updatePlannerSelector(); 
                     renderCalendar();
 
@@ -10561,7 +10533,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 checkDailyWorkload(plan, nextDateStr);
             }
 
-            saveToLocal(); 
+            if (saveToLocal() === false) return; 
             closeModal('modal-planner-cell'); 
             renderCalendar();
             if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
@@ -10594,7 +10566,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 });
             });
             if (deleted.length > 0) {
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 console.log('🧹 清理 P.1-1 placeholder: ' + deleted.length + ' 個');
             }
             return deleted;
@@ -10662,7 +10634,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             var plan = appPlans.find(p => p.id === pid);
             if(Array.isArray(plan.grid[dateStr])) plan.grid[dateStr] = plan.grid[dateStr].filter(t => t.id !== taskId);
             filterAppLogs(l => l.id !== 'cal_' + taskId);
-            saveToLocal(); closeModal('modal-planner-cell'); renderCalendar(); renderDashboard(); 
+            if (saveToLocal() === false) return; closeModal('modal-planner-cell'); renderCalendar(); renderDashboard(); 
             if (el('page-history') && el('page-history').style.display === 'block') renderHistoryTable();
         }
 
@@ -11148,7 +11120,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                 var scheduledDates = Object.keys(plan.grid).filter(d => plan.grid[d].length).sort();
                 plan.start = scheduledDates[0]; plan.end = scheduledDates[scheduledDates.length - 1];
             }
-            saveToLocal();
+            if (saveToLocal() === false) return;
             closeModal('modal-add-event');
             closeAddEventPage();
             renderCalendar();
@@ -11350,7 +11322,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                         } else {
                             appPlans.push(importedPlan);
                         }
-                        saveToLocal(); 
+                        if (saveToLocal() === false) return; 
                         updatePlannerSelector();
                         el('planner-selector').value = importedPlan.id;
                         renderCalendar();
@@ -11515,7 +11487,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             } 
             
             appLogs.sort((a, b) => new Date(b.date) - new Date(a.date)); 
-            saveToLocal(); 
+            if (saveToLocal() === false) return; 
             returnToHome(); 
         }
 
@@ -14975,12 +14947,21 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
 
         function accStorageKey() {
             var uid = (typeof currentUserId !== 'undefined') ? currentUserId : 'default';
-            return STORAGE_KEY_ACCURACY_BASE + '_' + uid;
+            var key = STORAGE_KEY_ACCURACY_BASE + '_' + uid;
+            if (typeof _v177AccuracyState === 'undefined') _v177AccuracyState = new Map();
+            if (typeof _v177AccuracyReads === 'undefined') _v177AccuracyReads = new WeakMap();
+            if (!_v177AccuracyState.has(key)) _v177AccuracyState.set(key, { raw: localStorage.getItem(key), blocked: false });
+            return key;
         }
 
         function loadAccuracyRecords() {
+            if (typeof _v177AccuracyState === 'undefined') _v177AccuracyState = new Map();
+            if (typeof _v177AccuracyReads === 'undefined') _v177AccuracyReads = new WeakMap();
             try {
-                var records = JSON.parse(localStorage.getItem(accStorageKey()) || '[]');
+                var readKey = accStorageKey(), readRaw = localStorage.getItem(readKey);
+                var records = JSON.parse(readRaw || '[]');
+                if (!Array.isArray(records)) throw new Error('答對率資料不是陣列');
+                _v177AccuracyState.set(readKey, {raw: readRaw, blocked: false});
                 // v1.6.160 FIX: 自動遷移舊 records — 從主考試的 instanceName 補到 extraExam
                 // 舊 extraExam 物件沒存 typeName/instanceName，修完 filter 邏輯後會完全不參與 rate 計算
                 // 這裡自動把 record 主表單的 subject/typeName/instanceName 補到 extraExam
@@ -15044,18 +15025,39 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                         console.log('[v1.6.164 migration] migrated=' + _v164Stats.migrated + ' skipped=' + _v164Stats.skipped, _v164Stats.skippedReasons);
                         // 持久化 migration 結果 (有動到 records 才寫, 避免不必要的 IO)
                         if (_v164Stats.migrated > 0) {
-                            try { localStorage.setItem(accStorageKey(), JSON.stringify(records)); } catch(e) {}
+                            try {
+                                var migrated = JSON.stringify(records);
+                                if (localStorage.getItem(readKey) !== readRaw) throw new Error("答對率已由其他操作更新");
+                                localStorage.setItem(readKey, migrated); readRaw = migrated;
+                                _v177AccuracyState.set(readKey, {raw: readRaw, blocked:false});
+                            } catch(e) { showSaveErrorToast(e); }
                         }
                     }
                 }
+                _v177AccuracyReads.set(records, {key: readKey, raw: readRaw});
                 return records;
             }
-            catch(e) { return []; }
+            catch(e) {
+                var key = accStorageKey();
+                _v177AccuracyState.set(key, {raw: localStorage.getItem(key), blocked: true});
+                showSaveErrorToast(new Error('答對率無法讀取，已禁止存檔並保留原始資料。請先匯出備份。'));
+                return [];
+            }
         }
 
         function saveAccuracyRecords(records) {
-            try { localStorage.setItem(accStorageKey(), JSON.stringify(records)); }
-            catch(e) { showSaveErrorToast(e); }
+            try {
+                var key = accStorageKey(), state = _v177AccuracyState.get(key), token = _v177AccuracyReads.get(records);
+                if (!Array.isArray(records) || state.blocked) throw new Error('答對率未成功載入，已禁止覆寫原始資料。');
+                if (token && token.key !== key) throw new Error('學生已切換，未儲存其他學生的作答。');
+                var expected = token ? token.raw : state.raw;
+                if (localStorage.getItem(key) !== expected) throw new Error('答對率已由其他分頁更新，這次未儲存；請保留輸入內容並核對最新資料。');
+                var payload = JSON.stringify(records);
+                localStorage.setItem(key, payload);
+                _v177AccuracyState.set(key, {raw: payload, blocked: false});
+                _v177AccuracyReads.set(records, {key: key, raw: payload});
+                return true;
+            } catch(e) { showSaveErrorToast(e); return false; }
         }
 
         function getAccuracySubjects() {
@@ -15246,7 +15248,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
         // v1.5.205 + v1.5.228 fix: 計算某 unit 的最近答對率
         // v1.5.228: 加 subject/typeName/instanceName 三層 context filter (避免 cross-instance 污染)
         //            例: 生物/麻辣甲/第1回 不該去拉 數學/麻辣甲/第1回 100% 的 records
-        // v2.3.2.176: 單元名稱必須完全一致，不以部分名稱借用其他單元的答對率。
+        // v2.3.2.177: 單元名稱必須完全一致，不以部分名稱借用其他單元的答對率。
         // v1.6.162: 加第 5 參數 vol — 雙軌制支援
         //   新格式 wu = "vol|name" (例: "第三冊|L1~2") — 嚴格 match
         //   舊格式 wu = "name" (例: "L1~2") — 仍可 match (向後相容, 但 vol 已知時不 match 跨 vol 的舊記錄)
@@ -15741,6 +15743,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if (!date) return alert('請選擇日期!');
 
             var records = loadAccuracyRecords();
+            if (_v177AccuracyState.get(accStorageKey()).blocked) return;
             var record;
             var extraExams = (window._accExtraExams || []).slice();
             if (window._editingRecordId) {
@@ -15757,7 +15760,9 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     wrongUnits: (window._accWrongUnits || []).slice(),  // 向後相容舊 records
                     extraExams: extraExams
                 };
-                records[window._editingRecordIdx] = record;
+                var editIndex = records.findIndex(r => r.id === window._editingRecordId);
+                if (editIndex < 0) return showSaveErrorToast(new Error('這筆作答已由其他操作移除，未儲存；請保留編輯內容並重新核對。'));
+                records[editIndex] = record;
             } else {
                 // 新增模式
                 record = {
@@ -15776,7 +15781,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             }
             if(window.AccuracyDuplicatesUI&&!(await AccuracyDuplicatesUI.confirmNew(record,records)))return;
             if(currentUserId!==savingUserId)return;
-            saveAccuracyRecords(records);
+            if (!saveAccuracyRecords(records)) return;
             // 重置編輯狀態
             window._editingRecordId = null;
             window._editingRecordIdx = null;
@@ -15849,7 +15854,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             var records = loadAccuracyRecords();
             if (idx >= 0 && idx < records.length) {
                 records.splice(idx, 1);
-                saveAccuracyRecords(records);
+                if (!saveAccuracyRecords(records)) return;
                 renderAccuracyStats();
             }
         }
@@ -16073,7 +16078,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 }
                 
                 filterAppLogs(l => l.id !== id);
-                saveToLocal(); 
+                if (saveToLocal() === false) return; 
                 renderHistoryTable(); 
                 renderDashboard(); 
                 if (el('page-planner') && el('page-planner').style.display === 'block') renderCalendar();
@@ -16141,7 +16146,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             }
             
             appLogs.sort((a, b) => new Date(b.date) - new Date(a.date)); 
-            saveToLocal();
+            if (saveToLocal() === false) return;
             closeModal('modal-edit-log');
             renderHistoryTable();
             renderDashboard();
@@ -16361,7 +16366,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 appMaster[subName] = { materials: {} };
                 populateSelect('master-subject', Object.keys(appMaster), subName);
                 // v1.5.17: 直接 saveToLocal, 不依賴手動「💾 儲存教材庫變更」按鈕
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 renderMasterEditor();
             });
         }
@@ -16379,7 +16384,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 appLogs.forEach(l => { if (l.subject === sub) l.subject = newName; });
                 populateSelect('master-subject', Object.keys(appMaster), newName);
                 // v1.5.17: 直接 saveToLocal
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 renderMasterEditor();
             });
         }
@@ -16397,7 +16402,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     extractCurrentEditorData();
                     delete appMaster[sub];
                     populateSelect('master-subject', Object.keys(appMaster));
-                    saveToLocal();
+                    if (saveToLocal() === false) return;
                     renderMasterEditor();
                 },
                 function() { /* 取消 */ }
@@ -16504,7 +16509,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 if (subject.materials[name]) return alert('已存在！');
                 subject.materials[name] = { id: 'mt_' + genId(), name: name, instances: [] };
                 // v1.5.17: 直接 saveToLocal
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 populateMasterTypeDropdown();
                 el('master-type').value = name;
                 populateMasterInstanceDropdown(name);
@@ -16526,7 +16531,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 subject.materials[newName].name = newName;
                 delete subject.materials[typeName];
                 // v1.5.17: 直接 saveToLocal
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 populateMasterTypeDropdown();
                 el('master-type').value = newName;
                 renderMasterEditor();
@@ -16562,7 +16567,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             usr._deletedTypes[appCurrentCat][sub].push(typeName);
                         }
                     }
-                    saveToLocal();
+                    if (saveToLocal() === false) return;
                     populateMasterTypeDropdown();
                     renderMasterEditor();
                 },
@@ -16597,7 +16602,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             vols: { '第一冊': [] },
                             volOrder: ['第一冊']
                         });
-                        saveToLocal();
+                        if (saveToLocal() === false) return;
                         populateMasterInstanceDropdown(typeName);
                         el('master-instance').value = typeObj.instances[typeObj.instances.length - 1].id;
                         renderMasterEditor();
@@ -16612,7 +16617,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                             vols: null,
                             volOrder: null
                         });
-                        saveToLocal();
+                        if (saveToLocal() === false) return;
                         populateMasterInstanceDropdown(typeName);
                         el('master-instance').value = typeObj.instances[typeObj.instances.length - 1].id;
                         renderMasterEditor();
@@ -16674,7 +16679,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             // v1.5.157: alias 改用戶輸入 (空字串 = fallback 到完整名稱)
             data.instance.alias = newAlias || newName;
             el('modal-instance-edit').remove();
-            saveToLocal();
+            if (saveToLocal() === false) return;
             populateMasterInstanceDropdown(typeName);
             el('master-instance').value = data.instance.id;
             renderMasterEditor();
@@ -16691,7 +16696,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 '取消',
                 function() { // 確定刪除
                     data.typeObj.instances = data.typeObj.instances.filter(function(i) { return i.id !== data.instance.id; });
-                    saveToLocal();
+                    if (saveToLocal() === false) return;
                     populateMasterInstanceDropdown(data.typeName);
                     renderMasterEditor();
                 },
@@ -17080,7 +17085,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             if(el('pane-master').classList.contains('active')) onMasterSetCatChange(); else onSetCatChange();
             updateFilters();
             // v2.3.2.142: ★ 原本沒有存檔 → 重新整理後大分類又回來了
-            saveToLocal();
+            if (saveToLocal() === false) return;
             console.log('v2.3.2.142: ✅ 已刪除大分類「' + cat + '」並存檔');
         }
         
@@ -17316,7 +17321,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     var topMaster = rootContainer.querySelector('.select-all-chk');
                     if (topMaster) topMaster.checked = topAllChecked;
                 }
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 // v1.5.237 DEBUG
                 console.log('[DEBUG toggleVolCheck] vol='+vol+' isChecked='+isChecked+' unitCount='+checkboxes.length+' allChecked='+allChecked);
                 var dbg = rootContainer ? rootContainer.querySelectorAll('.vol-master-chk') : [];
@@ -17375,7 +17380,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
             }
 
             // v1.5.20: 立即 saveToLocal, 不依賴「💾 儲存教材庫變更」按鈕
-            saveToLocal();
+            if (saveToLocal() === false) return;
         }
         
 
@@ -17414,7 +17419,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                     mchk.checked = allChecked;
                 }
             });
-            saveToLocal();
+            if (saveToLocal() === false) return;
         }
 
         // v1.5.182: 診斷教材庫結構 (彈出 alert 顯示 trace)
@@ -17456,7 +17461,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 total += deduplicateMasterUnits(uid);
                 total += deduplicateLegacyMaster(uid);
             });
-            saveToLocal();  // 不論有沒有都先存
+            if (saveToLocal() === false) return;  // 不論有沒有都先存
             if (total > 0) {
                 alert('✅ 已清理 ' + total + ' 筆重複教材, 自動重整頁面');
                 setTimeout(function() { location.reload(); }, 500);
@@ -17593,7 +17598,7 @@ function WN_onMaterialChange(prefillInst, prefillVol, prefillUnit) {
                 return;
             }
             try {
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 updateFilters();
                 window.isMasterDirty = false;
             } catch(e) {
@@ -19381,7 +19386,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                     
                     multiData[uid].avatar = canvas.toDataURL('image/jpeg', 0.8);
                     
-                    saveToLocal();
+                    if (saveToLocal() === false) return;
                     renderUserManageList();
                     if (uid === currentUserId) switchUser();
                     closeModal('modal-avatar');
@@ -19410,7 +19415,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             
             multiData[uid].avatar = canvas.toDataURL('image/png');
             
-            saveToLocal();
+            if (saveToLocal() === false) return;
             renderUserManageList();
             if (uid === currentUserId) switchUser();
             closeModal('modal-avatar');
@@ -19429,7 +19434,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                     avatar: '',
                     _v144Empty: true
                 };
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 el('user-selector').innerHTML += `<option value="${newId}">${name}</option>`;
                 // v2.3.2.136: 建立後立即切換到新使用者
                 //   舊碼只把選項加進下拉但不改 currentUserId, 導致:
@@ -19442,8 +19447,8 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 alert('✅ 已建立「' + name + '」\n\n教材庫是空的, 請從左側「1. 建立基本教材庫」開始建立。');
             });
         }
-        function renameUser(uid) { openInputModal('✏️ 修改學生名稱', multiData[uid].name, function(newName) { if (newName !== multiData[uid].name) { multiData[uid].name = newName; saveToLocal(); initUsers(); renderUserManageList(); } }); }
-        function deleteUser(uid) { if (Object.keys(multiData).length <= 1) return; if (confirm('確定刪除此學生的所有資料？')) { delete multiData[uid]; if (currentUserId === uid) currentUserId = Object.keys(multiData)[0]; saveToLocal(); initUsers(); renderUserManageList(); } }
+        function renameUser(uid) { openInputModal('✏️ 修改學生名稱', multiData[uid].name, function(newName) { if (newName !== multiData[uid].name) { multiData[uid].name = newName; if (saveToLocal() === false) return; initUsers(); renderUserManageList(); } }); }
+        function deleteUser(uid) { if (Object.keys(multiData).length <= 1) return; if (confirm('確定刪除此學生的所有資料？')) { delete multiData[uid]; if (currentUserId === uid) currentUserId = Object.keys(multiData)[0]; if (saveToLocal() === false) return; initUsers(); renderUserManageList(); } }
 
         // ══════════════════════════════════════════════════════════
         // ★★ v2.3.2.146: 錯題本資料納入備份 / 還原
@@ -19846,7 +19851,8 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
         async function exportDataToFile() {
             // v1.5.226: 全機備份改寫 — 抓所有 StudyMap_ 前綴的 localStorage 資料
             if (el('page-settings') && el('pane-master').classList.contains('active')) extractCurrentEditorData();
-            try { saveToLocal(); } catch(e) { console.warn('saveToLocal 失敗:', e); }
+            var _v177ExportSaved = false;
+            try { _v177ExportSaved = saveToLocal() !== false; } catch(e) { console.warn('saveToLocal 失敗:', e); }
 
             var snapshot = {
                 _meta: {
@@ -19912,6 +19918,12 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
             snapshot._meta.idbStats = _v147IdbStats;
             snapshot._meta.totalImages = _v147TotalImgs;
 
+            // Keep failed/conflicting drafts separately; never silently replace the saved baseline in a backup.
+            if (!_v177ExportSaved) {
+                snapshot.pendingChanges = {family: JSON.parse(JSON.stringify(multiData)),
+                    note: '未儲存的記憶體副本；正式 keys 保留目前儲存資料。請人工核對，不自動套用此副本。'};
+                snapshot._meta.hasPendingChanges = true;
+            }
             var dataStr = JSON.stringify(snapshot, null, 2);
             var defaultFilename = "StudyMap_Backup_" + getLocalDateString(new Date()) + ".json";
 
@@ -19928,7 +19940,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
 
                     // 標記已備份
                     try { localStorage.setItem(STORAGE_KEY_LAST_EXPORT, new Date().toISOString()); } catch(e) {}
-                    clearDirty('export-success');
+                    if (_v177ExportSaved) clearDirty('export-success');
                     updateBackupIndicator();
 
                     var _v146Msg = "✅ JSON 備份匯出成功！\n\n(已備份 " + snapshot._meta.keyCount + " 個資料區段)";
@@ -19961,7 +19973,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                     setTimeout(function() {
                         // 標記已備份 (在下載視窗跑完後更新)
                         try { localStorage.setItem(STORAGE_KEY_LAST_EXPORT, new Date().toISOString()); } catch(e) {}
-                        clearDirty('export-success');
+                        if (_v177ExportSaved) clearDirty('export-success');
                         updateBackupIndicator();
 
                         var _v146Msg2 = "✅ JSON 備份匯出成功！\n\n(已備份 " + snapshot._meta.keyCount + " 個資料區段)";
@@ -20020,7 +20032,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 var oldName = existingVol.name;
                 existingVol.name = '複習講義';
                 if (!existingVol.volOrder) existingVol.volOrder = Object.keys(existingVol.vols);
-                saveToLocal();
+                if (saveToLocal() === false) return;
                 var totalUnits = 0;
                 Object.keys(existingVol.vols).forEach(function(v) {
                     totalUnits += (existingVol.vols[v] || []).length;
@@ -20054,7 +20066,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                 volOrder: backup.volOrder || Object.keys(backup.vols)
             });
 
-            saveToLocal();
+            if (saveToLocal() === false) return;
 
             var mainUnits = [];
             Object.keys(backup.vols).forEach(function(volName) {
@@ -20085,7 +20097,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                     });
                 }
             });
-            saveToLocal();
+            if (saveToLocal() === false) return;
             console.log('v1.5.16: ✅ 清掉段考複習 ' + removed + ' 個會考 type', detail);
             alert('✅ 從段考複習移除了 ' + removed + ' 個會考 type\n\n(複習講義/複習卷/數字題本/模擬題本/考古題)\n\n現在可以自己手動加段考專用的 type 了！\n\n詳細:\n' + detail.slice(0, 20).join('\n') + (detail.length > 20 ? '\n... 還有 ' + (detail.length - 20) + ' 個' : ''));
         }
@@ -20164,7 +20176,7 @@ var misHtml = `<div class="mission-section"><div class="mission-title">${mis}</d
                     }
                 });
 
-                saveToLocal();
+                if (saveToLocal() === false) return;
 
                 var msg = '備份還原完成!\n\n✅ 已恢復:\n' + restored.join('\n') + '\n\n⏭️ 跳過:\n' + (skipped.length ? skipped.join('\n') : '(無)') + '\n\n請強制重整 ⌘+Shift+R 後檢查教材庫 tab 1。';
                 alert(msg);

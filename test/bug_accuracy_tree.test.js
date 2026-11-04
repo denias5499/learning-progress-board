@@ -161,7 +161,7 @@ test('Bug 2: jumpToAccuracyForUnit finds correct unit by id then by name', () =>
 // ============================================================
 // Bug 1: getUnitScheduledDays inconsistency
 // ============================================================
-test.skip('Bug 1: getUnitScheduledDays returns 0 even when unit has done tasks (unitId remap scenario)', () => {
+test('Bug 1: getUnitScheduledDays returns 0 even when unit has done tasks (unitId remap scenario)', () => {
     const win = loadFullIndex();
     if (!win) { console.log('SKIP: cant load'); return; }
 
@@ -175,7 +175,7 @@ test.skip('Bug 1: getUnitScheduledDays returns 0 even when unit has done tasks (
         name: 'Test Plan',
         grid: {
             '2026-08-01': [
-                { id: 't1', unitId: 'new_因式分解', isDone: true, startPage: 1, endPage: 10 }
+                { id: 't1', unitId: 'new_因式分解', cat: '會考複習', isDone: true, startPage: 1, endPage: 10 }
             ]
         }
     }];
@@ -195,7 +195,7 @@ test.skip('Bug 1: getUnitScheduledDays returns 0 even when unit has done tasks (
     // If plan task has unitId='new_因式分解' and master also has id='new_因式分解',
     // then _treeScheduledUnits['new_因式分解'] should be populated
     win._treeScheduledUnits = {};
-    win.computeTreeScheduledUnits();
+    win.refreshTreeScheduledUnits();
 
     const suInfo = win._treeScheduledUnits['new_因式分解'];
     console.log('_treeScheduledUnits[new_因式分解]:', suInfo);

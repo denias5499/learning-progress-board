@@ -38,7 +38,7 @@ function commit(){
  busy=true;el('replan-confirm').disabled=true;
  try{
   const next=CalendarReplan.apply(plan,a.user.logs,a.d,settings(),genId),family=JSON.parse(JSON.stringify(multiData)),user=family[currentUserId];user.plans=user.plans.map(p=>p.id===plan.id?next.plan:p);user.logs=next.logs;
-  const serialized=JSON.stringify(family);localStorage.setItem(STORAGE_KEY_FAMILY,serialized);
+  const serialized=JSON.stringify(family);familyStorageWrite(serialized);
   if(localStorage.getItem(STORAGE_KEY_FAMILY)!==serialized)throw Error('儲存內容已被其他操作更新，請重新載入核對；不會覆寫該次更新。');
   a.user.plans=user.plans;a.user.logs=user.logs;appPlans=a.user.plans;appLogs=a.user.logs;invalidateSchedCache();active=null;view=null;closeModal('modal-calendar-replan');closeModal('modal-planner-cell');renderCalendar();
  }catch(e){message('尚未儲存：'+e.message);}

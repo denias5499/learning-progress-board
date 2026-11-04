@@ -1,4 +1,4 @@
-// ⚠️ v2.3.2.145: 本檔有 5 個測試為「已知失敗」——
+// ⚠️ v2.3.2.145: 本檔仍有 1 個舊規則測試待改寫；另 4 項已恢復執行——
 //    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
 //    完整清單與原因見 test/known-failures.md
 // test/progress.test.js -- v1.5.172 進度條算法回歸測試
@@ -16,6 +16,7 @@ function runFn(tasks, filterCat = '會考複習', filterMis = 'ALL') {
     win.multiData = makeMultiData();
     win.currentUserId = 'user_test';
     win.appPlans = makePlans(tasks);
+    win.refreshTreeScheduledUnits();
     return win.getUnitDonePagesByUnitIdMatch(filterCat, filterMis);
 }
 
@@ -23,7 +24,7 @@ function runFn(tasks, filterCat = '會考複習', filterMis = 'ALL') {
 // v1.5.172 commit message 描述的 4 個 scenario
 // ─────────────────────────────────────────────────────────────
 
-test.skip('v1.5.172 s1: 跨 sub 任務 P.50-60 (數學) 不算到地理 u_地1', () => {
+test('v1.5.172 s1: 跨 sub 任務 P.50-60 (數學) 不算到地理 u_地1', () => {
     const result = runFn([
         { unitId: 'u_直', subject: '數學', startPage: 50, endPage: 60 },
     ]);
@@ -41,7 +42,7 @@ test('v1.5.172 s2: 跨 sub 任務 P.100-120 (數學) 不算到地理 u_地1', ()
         `expected u_地1 NOT in result (跨 sub 不算), got ${result['u_地1']}`);
 });
 
-test.skip('v1.5.172 s3: 同 sub 跨單元 P.73-76 (數學) 對 u_比例=4', () => {
+test('v1.5.172 s3: 同 sub 跨單元 P.73-76 (數學) 對 u_比例=4', () => {
     const result = runFn([
         { unitId: 'u_比例', subject: '數學', startPage: 73, endPage: 76 },
     ]);
@@ -53,7 +54,7 @@ test.skip('v1.5.172 s3: 同 sub 跨單元 P.73-76 (數學) 對 u_比例=4', () =
         `expected u_比例=4 (P.73-76 全在 u_比例範圍內), got ${result['u_比例']}`);
 });
 
-test.skip('v1.5.172 s4: 簡單對應 地理 task P.6-25 → u_地1=16 (P.6-21 overlap)', () => {
+test('v1.5.172 s4: 簡單對應 地理 task P.6-25 → u_地1=16 (P.6-21 overlap)', () => {
     const result = runFn([
         { unitId: 'u_地1', subject: '地理', startPage: 6, endPage: 25 },
     ]);
@@ -140,7 +141,7 @@ test('edge: filterMis 過濾掉不對 mis 的任務', () => {
         `expected empty (mis 過濾掉), got ${JSON.stringify(result)}`);
 });
 
-test.skip('edge: 多日期 plan.grid 同 unit 任務合計 pages', () => {
+test('edge: 多日期 plan.grid 同 unit 任務合計 pages', () => {
     // 跨多日期的 plan, 同 unitId 不同 pages
     const win = loadIndex();
     win.multiData = makeMultiData();
@@ -153,6 +154,7 @@ test.skip('edge: 多日期 plan.grid 同 unit 任務合計 pages', () => {
             '2026-08-16': [{ id: 't2', isDone: true, cat: '會考複習', mis: 'plan1', unitId: 'u_地1', startPage: 11, endPage: 21, subject: '地理' }],
         }
     }];
+    win.refreshTreeScheduledUnits();
     const result = win.getUnitDonePagesByUnitIdMatch('會考複習', 'ALL');
     // u_地1 (P.6-21) → 應該 16 pages (P.6-21)
     assert.strictEqual(result['u_地1'], 16,
@@ -164,6 +166,7 @@ test('edge: appPlans = [] 回傳空 result', () => {
     win.multiData = makeMultiData();
     win.currentUserId = 'user_test';
     win.appPlans = [];
+    win.refreshTreeScheduledUnits();
     const result = win.getUnitDonePagesByUnitIdMatch('會考複習', 'ALL');
     assert.strictEqual(Object.keys(result).length, 0);
 });

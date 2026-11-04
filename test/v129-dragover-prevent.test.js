@@ -40,7 +40,8 @@ function runSetupDragAndDrop() {
     
     const fakeZone = makeFakeZone();
     const sandbox = {
-        document: { querySelectorAll: () => [fakeZone] },
+        _dropHandlersBound: false, alert() {}, console,
+        document: { querySelectorAll: () => [fakeZone], addEventListener() {}, body: { addEventListener() {} } },
         window: { addEventListener: () => {} }
     };
     vm.createContext(sandbox);
@@ -48,14 +49,14 @@ function runSetupDragAndDrop() {
     return fakeZone;
 }
 
-test.skip('v129: zone handler 內 dragover 必須 preventDefault', () => {
+test('v129: zone handler 內 dragover 必須 preventDefault', () => {
     const zone = runSetupDragAndDrop();
     const e = makeFakeEvent('dragover');
     zone.dispatchEvent(e);
     assert.ok(e.defaultPrevented, 'dragover 必須被 preventDefault');
 });
 
-test.skip('v129: zone handler 內 drop 必須 preventDefault', () => {
+test('v129: zone handler 內 drop 必須 preventDefault', () => {
     const zone = runSetupDragAndDrop();
     const e = makeFakeEvent('drop');
     e.dataTransfer = { files: [] };
@@ -63,7 +64,7 @@ test.skip('v129: zone handler 內 drop 必須 preventDefault', () => {
     assert.ok(e.defaultPrevented, 'drop 必須被 preventDefault');
 });
 
-test.skip('v129: zone handler 內 dragleave 必須 preventDefault', () => {
+test('v129: zone handler 內 dragleave 必須 preventDefault', () => {
     const zone = runSetupDragAndDrop();
     const e = makeFakeEvent('dragleave');
     zone.dispatchEvent(e);
