@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 1 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -28,6 +25,4 @@ test('v1.6.126: renderImage 有 error handler', () => {
         'renderImage 應有 img.onerror 防 freeze');
 });
 
-test.skip('v1.6.126: title [v1.6.126]', () => {
-    assert.ok(/<title>.*\[v1\.6\.126\]<\/title>/.test(IDX));
-});
+

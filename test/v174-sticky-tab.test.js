@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 1 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // v1.6.83: tab sticky + 更明顯的 active 視覺
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -10,13 +7,7 @@ const path = require('path');
 const HTML_PATH = path.join(__dirname, '..', 'index.html');
 const html = fs.readFileSync(HTML_PATH, 'utf8');
 
-test.skip('v1.6.83: wn-tabs sticky 定位', () => {
-    // 確認 HTML 有 inline style position:sticky + top:0
-    assert.ok(/<div class="wn-tabs"[^>]*style="[^"]*position:\s*sticky/.test(html),
-        'wn-tabs 應有 position: sticky inline style');
-    assert.ok(/<div class="wn-tabs"[^>]*style="[^"]*top:\s*0/.test(html),
-        'wn-tabs 應有 top: 0 inline style');
-});
+
 
 test('v1.6.83: tab 字體更大 (1.05em + 12px padding)', () => {
     const m = html.match(/\.wn-tab\s*\{([\s\S]*?)\}/);

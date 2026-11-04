@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 4 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // v1.6.129: 用 vm + fake DOM 模擬 setupDragAndDrop, 確認 preventDefault 真的有跑
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -79,7 +76,4 @@ test('v129: 架構 - setupDragAndDrop 內 zone handler 包含 preventDefault', (
         'zone handler 內應有 preventDefault');
 });
 
-test.skip('v129: title [v1.6.129]', () => {
-    const IDX = fs.readFileSync('index.html', 'utf8');
-    assert.ok(/<title>.*\[v1\.6\.129\]<\/title>/.test(IDX));
-});
+

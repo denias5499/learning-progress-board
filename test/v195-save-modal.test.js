@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 1 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // v1.6.95: 修「新增大分類後, 儲存按鈕沒彈 modal」bug
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -37,13 +34,7 @@ test('v1.6.95: saveSettingsAndAlert 加 try/catch (避免 exception 中斷)', ()
     assert.ok(body.includes('openSaveConfirmModal'), '應呼叫 openSaveConfirmModal');
 });
 
-test.skip('v1.6.95: saveSettingsAndAlert 先關閉其他 modal (避免擋住)', () => {
-    const body = getFunctionBody('saveSettingsAndAlert');
-    assert.ok(body, '應定義');
-    assert.ok(body.includes("querySelectorAll('.modal-bg')"), '應查詢所有 modal-bg');
-    assert.ok(body.includes('style.display'), '應設定 style.display');
-    assert.ok(body.includes("modal-save-confirm"), '應保留 modal-save-confirm');
-});
+
 
 test('v1.6.95: addCatWithSubject 同步 user.masters (避免儲存後消失)', () => {
     const body = getFunctionBody('confirmAddCatWithSubject');

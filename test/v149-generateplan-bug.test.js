@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 1 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // test/v149-generateplan-bug.test.js
 // v1.6.149 unit test: 修復 generatePlan 兩個 silent error
 //   1. saveData() 不存在 → 改用 saveToLocal()
@@ -15,9 +12,7 @@ const path = require('node:path');
 
 const HTML = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf-8');
 
-test.skip('v149-1: title 版本號為 [v1.6.149]', () => {
-    assert.ok(/\[v1\.6\.149\]/.test(HTML), 'title 應包含 [v1.6.149]');
-});
+
 
 test('v149-2: 沒有 saveData() 呼叫 (改成 saveToLocal)', () => {
     var calls = HTML.match(/\bsaveData\s*\(\s*\)/g) || [];
@@ -32,7 +27,7 @@ test('v149-3: generatePlan 模式 B 短路處用 saveToLocal()', () => {
 
 test('v149-4: tasksCreated 宣告在模式 B 使用之前', () => {
     var declIdx = HTML.indexOf('var tasksCreated = 0;');
-    var useInModeB = HTML.indexOf('tasksCreated += plan.grid[ds].length;');
+    var useInModeB = HTML.indexOf('tasksCreated += created.length;');
 
     assert.ok(declIdx > 0, '應有 var tasksCreated = 0; 宣告');
     assert.ok(useInModeB > 0, '應有 tasksCreated += plan.grid (模式 B)');
@@ -54,9 +49,9 @@ test('v149-7: 模式 B pipeline 其他邏輯完整保留', () => {
     assert.ok(/unitModeWarnings/.test(HTML));
 });
 
-test('v149-8: unitModeAssignments[ds2] push 前有 init 守衛', () => {
-    var ds2PushBlock = HTML.match(/var ds2 = sortedDates\[dayCursor\][\s\S]*?unitModeAssignments\[ds2\]\.push/);
-    assert.ok(ds2PushBlock, '應有 ds2 push 區塊');
-    assert.ok(/if\s*\(\s*!unitModeAssignments\[ds2\]\s*\)\s*unitModeAssignments\[ds2\]\s*=\s*\[\]/.test(ds2PushBlock[0]),
-              'ds2 push 前應有 init 守衛');
+test('v149-8: unitModeAssignments[ds] push 前有 init 守衛', () => {
+    var dsPushBlock = HTML.match(/var ds = sortedDates\[dayCursor\][\s\S]*?unitModeAssignments\[ds\]\.push/);
+    assert.ok(dsPushBlock, '應有 ds push 區塊');
+    assert.ok(/if\s*\(\s*!unitModeAssignments\[ds\]\s*\)\s*unitModeAssignments\[ds\]\s*=\s*\[\]/.test(dsPushBlock[0]),
+              'ds push 前應有 init 守衛');
 });

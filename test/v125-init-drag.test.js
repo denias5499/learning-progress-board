@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 2 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -8,20 +5,7 @@ const fs = require('fs');
 const IDX = fs.readFileSync('index.html', 'utf8');
 const WN = fs.readFileSync('wrong-notes/index.html', 'utf8');
 
-test.skip('v1.6.125 Bug 1: _globalDragBound 在 DOMContentLoaded init 階段註冊', () => {
-    // 找 document.addEventListener('DOMContentLoaded' 然後抓 100 行內的內容
-    var idx = IDX.indexOf("addEventListener('DOMContentLoaded'");
-    assert.ok(idx > 0, '應找到 DOMContentLoaded');
-    // 抓緊接著 800 chars 內的內容
-    var block = IDX.substring(idx, idx + 1500);
-    assert.ok(block.includes('_globalDragBound = true'),
-        'DOMContentLoaded 內應有 _globalDragBound 設定');
-    // 確保 _globalDragBound 在 var zone 之前
-    var globalDragPos = block.indexOf('_globalDragBound = true');
-    var zonePos = block.indexOf("getElementById('wn-drop-zone')");
-    assert.ok(globalDragPos > 0 && globalDragPos < zonePos,
-        '_globalDragBound 應在 zone 設定之前');
-});
+
 
 test('v1.6.125 Bug 2: 拿掉 inline ondragover/ondrop', () => {
     assert.ok(!WN.includes('ondragover="event.preventDefault()'),
@@ -35,6 +19,4 @@ test('v1.6.125: 主專案有 document.addEventListener dragover', () => {
     assert.ok(matches.length >= 1, '應有 document.addEventListener dragover');
 });
 
-test.skip('v1.6.125: title [v1.6.125]', () => {
-    assert.ok(/<title>.*\[v1\.6\.125\]<\/title>/.test(IDX));
-});
+

@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
@@ -25,3 +26,9 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Install isolated browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Run current browser contracts
+        run: node test/e2e/current-contracts.e2e.cjs

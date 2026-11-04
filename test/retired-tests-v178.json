@@ -1,0 +1,3934 @@
+{
+  "schema": 1,
+  "baselineVersion": "2.3.2.177",
+  "originalSkippedCount": 151,
+  "description": "Original callbacks retained as evidence. Replacements are active tests or CI-enforced browser checks; consolidation does not mean every old assertion passed.",
+  "cases": [
+    {
+      "file": "dedup-master.test.js",
+      "title": "v1.5.180 s2: 跨 instance dedup - 麻辣保留, (第一冊全冊) 移除重複",
+      "start": 4079,
+      "end": 4584,
+      "source": "test.skip('v1.5.180 s2: 跨 instance dedup - 麻辣保留, (第一冊全冊) 移除重複', () => {\n    const win = loadIndex();\n    setupMaster(win, TEST_MASTER_CROSS_INSTANCE);\n    const removed = win.deduplicateMasterUnits('user_test');\n    assert.strictEqual(removed, 2, '應該移除 2 個跨 instance 重複');\n    const ins = win.multiData.user_test.masters['會考複習']['英文'].materials['複習講義'].instances;\n    assert.strictEqual(ins[0].vols['第一冊'].length, 2, '麻辣保留 2 個');\n    assert.strictEqual(ins[1].vols['第一冊'].length, 0, '(第一冊全冊) 應該全被移除');\n});",
+      "category": "規則已改變，另以現行規則驗證",
+      "sha256": "42b7a7d1f1dd1b9b6ef609304724793621b25a8ddfaef160f0896b59d637e01d",
+      "disposition": "superseded-rule",
+      "id": "OLD-001",
+      "reason": "舊斷言要求跨教材刪除或讓未排程單元取得完成度，與已確認的資料保護規則衝突。退役原規則，保留現行不變量。",
+      "replacements": [
+        {
+          "file": "current-progress-invariants.test.js",
+          "test": "現行規則：不同教材的同名同頁碼單元各自保留，重跑也不跨教材刪除"
+        }
+      ]
+    },
+    {
+      "file": "progress.test.js",
+      "title": "v1.5.172 防復發: 同 sub 任務仍然正常算 overlap",
+      "start": 3557,
+      "end": 4075,
+      "source": "test.skip('v1.5.172 防復發: 同 sub 任務仍然正常算 overlap', () => {\n    // 地理任務 P.30-45 → 應該算到地理 u_地2 (P.22-37, overlap P.30-37 = 8 pages) 跟 u_地3 (P.38-53, overlap P.38-45 = 8 pages)\n    const result = runFn([\n        { unitId: 'u_地2', subject: '地理', startPage: 30, endPage: 45 },\n    ], '會考複習', 'ALL');\n    assert.strictEqual(result['u_地2'], 8,\n        `expected u_地2=8 (overlap P.30-37), got ${result['u_地2']}`);\n    assert.strictEqual(result['u_地3'], 8,\n        `expected u_地3=8 (overlap P.38-45), got ${result['u_地3']}`);\n});",
+      "category": "規則已改變，另以現行規則驗證",
+      "sha256": "06a8a7caf587919beccb58fc943acd34fa5f193597f5aa1bc683e9c5bfb2bc5b",
+      "disposition": "superseded-rule",
+      "id": "OLD-002",
+      "reason": "舊斷言要求跨教材刪除或讓未排程單元取得完成度，與已確認的資料保護規則衝突。退役原規則，保留現行不變量。",
+      "replacements": [
+        {
+          "file": "current-progress-invariants.test.js",
+          "test": "現行規則：未排程的相鄰單元不借用完成度，已有排程時才計算同教材跨單元頁碼"
+        }
+      ]
+    },
+    {
+      "file": "v102-fix-container-width.test.js",
+      "title": "v1.6.102: wn-page-container 有 width: 100% (讓 img 填滿)",
+      "start": 422,
+      "end": 827,
+      "source": "test.skip('v1.6.102: wn-page-container 有 width: 100% (讓 img 填滿)', () => {\n    const m = html.match(/<div class=\"wn-page-container\" id=\"wn-page-container\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m);\n    const style = m[1];\n    assert.ok(style.includes('max-width:800px'), '應有 max-width');\n    assert.ok(style.includes('width:100%') || style.includes('width: 100%'),\n        '應有 width: 100% (讓 img 真的填滿)');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "da710dc79e06a3d3163e8cfada249aae66b91b684e8167e5504cce48490c310c",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-003",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v102-fix-container-width.test.js",
+      "title": "v1.6.102: wn-crop-img style 不變",
+      "start": 829,
+      "end": 1067,
+      "source": "test.skip('v1.6.102: wn-crop-img style 不變', () => {\n    const m = html.match(/<img id=\"wn-crop-img\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m);\n    const style = m[1];\n    assert.ok(style.includes('max-width:100%'), '應有 max-width:100%');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "77c8a7ab2e0ea06e857042c6305bd7f7b53e2502936a08857bdd4ea101465be8",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-004",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v103-pixel-position.test.js",
+      "title": "v1.6.103: WN_createNewManualBox 用 pixel 位置",
+      "start": 739,
+      "end": 1025,
+      "source": "test.skip('v1.6.103: WN_createNewManualBox 用 pixel 位置', () => {\n    const body = extractFunctionBody(html, 'WN_createNewManualBox');\n    assert.ok(body, '應定義');\n    assert.ok(body.includes(\"pixelLeft\"), '應有 pixelLeft 變數');\n    assert.ok(body.includes(\"pixelTop\"), '應有 pixelTop 變數');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "08eedea376ee15a0f62c9a7eb07a8630ed5b2008451aaecf5bcb40d50f177675",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-005",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v103-pixel-position.test.js",
+      "title": "v1.6.103: container.appendChild 在 style.left 之前 (確保 offsetParent)",
+      "start": 1027,
+      "end": 1432,
+      "source": "test.skip('v1.6.103: container.appendChild 在 style.left 之前 (確保 offsetParent)', () => {\n    const body = extractFunctionBody(html, 'WN_createNewManualBox');\n    const appendIdx = body.indexOf('container.appendChild');\n    const styleIdx = body.indexOf(\"style.position = 'absolute'\");\n    assert.ok(appendIdx > 0 && styleIdx > 0);\n    assert.ok(appendIdx < styleIdx, 'appendChild 應在 style.position 之前');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "e65868d505a405c5374448b5074e72c599739b6fb2ff3f1449009fd8a8182582",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-006",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v103-pixel-position.test.js",
+      "title": "v1.6.103: 防止 offsetParent 為 null (fallback 用 position: relative)",
+      "start": 1434,
+      "end": 1760,
+      "source": "test.skip('v1.6.103: 防止 offsetParent 為 null (fallback 用 position: relative)', () => {\n    const body = extractFunctionBody(html, 'WN_createNewManualBox');\n    assert.ok(body.includes(\"box.style.position = 'relative'\") || \n              body.includes('box.style.position = \"relative\"'),\n        '應有 offsetParent fallback');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "5a75c71d7a12deaa1d10df2feeedcd3a05b64ec2adbba58519985019768e690e",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-007",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v103-pixel-position.test.js",
+      "title": "v1.6.103: 不再用 percentage 定位 (改用 px)",
+      "start": 1762,
+      "end": 2009,
+      "source": "test.skip('v1.6.103: 不再用 percentage 定位 (改用 px)', () => {\n    const body = extractFunctionBody(html, 'WN_createNewManualBox');\n    assert.ok(!body.includes(\"topPerc\"), '不應用 percentage topPerc');\n    assert.ok(body.includes(\"'px'\"), '應用 px 單位');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "6d36c150fd4bbafbae06c29773554200200140ee8b8e7f47414caba8ad5e41e8",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-008",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v105-force-pixel-style.test.js",
+      "title": "v1.6.105: pixelLeft/pixelTop (不用 percentage)",
+      "start": 672,
+      "end": 881,
+      "source": "test.skip('v1.6.105: pixelLeft/pixelTop (不用 percentage)', () => {\n    const body = extractFunctionBody(html, 'WN_createNewManualBox');\n    assert.ok(body, '應定義');\n    assert.ok(body.includes('pixelLeft'));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "c21759f42d16b14f1b7e399e9ffdeae1fbb2c42c40ba76e764cf7831a8dd64e0",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-009",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v105-force-pixel-style.test.js",
+      "title": "v1.6.105: 移除 45%/15% percentage",
+      "start": 883,
+      "end": 1088,
+      "source": "test.skip('v1.6.105: 移除 45%/15% percentage', () => {\n    const body = extractFunctionBody(html, 'WN_createNewManualBox');\n    assert.ok(!body.includes(\"'45%'\"));\n    assert.ok(!body.includes(\"'15%'\"));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "3d62dc1246bc6b12df4cecfa458b77e695765209207b329f4b53ed9e7086710c",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-010",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v105-force-pixel-style.test.js",
+      "title": "v1.6.105: appendChild 在 setAttribute 之前",
+      "start": 1090,
+      "end": 1430,
+      "source": "test.skip('v1.6.105: appendChild 在 setAttribute 之前', () => {\n    const body = extractFunctionBody(html, 'WN_createNewManualBox');\n    const appendIdx = body.indexOf('container.appendChild');\n    const styleIdx = body.indexOf(\"box.setAttribute('style'\");\n    assert.ok(appendIdx > 0 && styleIdx > 0);\n    assert.ok(appendIdx < styleIdx);\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "1d62594de22253d51675137d01333ecf720f53bf4f4411339f057eeb38ea5464",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-011",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v105-force-pixel-style.test.js",
+      "title": "v1.6.105: setAttribute(\"style\", \"\") 清掉舊 inline",
+      "start": 1432,
+      "end": 1566,
+      "source": "test.skip('v1.6.105: setAttribute(\"style\", \"\") 清掉舊 inline', () => {\n    assert.ok(html.includes(\"box.setAttribute('style', '')\"));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "33446d7e178edd488db776b977197b0a061eda4a52ddeb66c3a281310e1f6a5a",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-012",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v109-iframe-position.test.js",
+      "title": "v1.6.109: page-wrongnotes 包含 iframe",
+      "start": 409,
+      "end": 770,
+      "source": "test.skip('v1.6.109: page-wrongnotes 包含 iframe', () => {\n    const m = html.match(/<div id=\"page-wrongnotes\"[^>]*>([\\s\\S]*?)<div class=\"page-card\"/);\n    assert.ok(m);\n    const content = m[1];\n    assert.ok(content.includes('id=\"wrongnotes-iframe\"'));\n    assert.ok(content.includes('src=\"wrong-notes/\"'));\n    assert.ok(content.includes('title=\"錯題資料庫\"'));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "babf4d999bfabcce34cc1611d39fa469083754a7f1b58a9e28435766411316db",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-013",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v109-iframe-position.test.js",
+      "title": "v1.6.109: wn-page-notes 不再有 iframe",
+      "start": 772,
+      "end": 1032,
+      "source": "test.skip('v1.6.109: wn-page-notes 不再有 iframe', () => {\n    const m = html.match(/<div id=\"wn-page-notes\"[^>]*>([\\s\\S]*?)<\\/div>\\s*<div id=\"wn-page-stats\"/);\n    assert.ok(m);\n    const content = m[1];\n    assert.ok(!content.includes('wrongnotes-iframe'));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "5ce580a6cf38eb184813ea484d94425541fe4a7327a9c0ec8bdb7593ad9b8ecc",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-014",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v112-remove-iframe.test.js",
+      "title": "v1.6.112: page-wrongnotes 內有 page-card (dashboard-width container)",
+      "start": 557,
+      "end": 822,
+      "source": "test.skip('v1.6.112: page-wrongnotes 內有 page-card (dashboard-width container)', () => {\n    const wrapper = IDX.match(/<div class=\"page-card\" style=\"max-width:1200px;margin:0 auto;width:100%;\">/);\n    assert.ok(wrapper, '應有 max-width:1200px 容器 (dashboard 寬度)');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "399499fbde9281d6c6cc5c7ea622eb06ffb3df2acb089317ff69117f043f2ef0",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-015",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v112-remove-iframe.test.js",
+      "title": "v1.6.112: wn-page-import 仍在 (保留主專案原本的「匯入錯題」tab)",
+      "start": 824,
+      "end": 1092,
+      "source": "test.skip('v1.6.112: wn-page-import 仍在 (保留主專案原本的「匯入錯題」tab)', () => {\n    assert.ok(/id=\"wn-page-import\"/.test(IDX), '應保留 wn-page-import');\n    assert.ok(IDX.includes('請選擇錯題來源'), '應保留「請選擇錯題來源」drop zone');\n    assert.ok(IDX.includes('請匯入考卷'), '應保留「請匯入考卷」drop zone');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "d31a88364ac50160a828ed5ff6cc2757542b0a727c8be6e695be367f67a4fc5d",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-016",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v112-remove-iframe.test.js",
+      "title": "v1.6.112: 保留 4 個 wn-tabs (匯入/查看/分析/再練)",
+      "start": 1094,
+      "end": 1349,
+      "source": "test.skip('v1.6.112: 保留 4 個 wn-tabs (匯入/查看/分析/再練)', () => {\n    assert.ok(/data-wntab=\"import\"/.test(IDX));\n    assert.ok(/data-wntab=\"notes\"/.test(IDX));\n    assert.ok(/data-wntab=\"stats\"/.test(IDX));\n    assert.ok(/data-wntab=\"practice\"/.test(IDX));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "112e94fc2101945b047e21b1aff3150089b3702685e7e59dc898ccd75b8da8f1",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-017",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v112-remove-iframe.test.js",
+      "title": "v1.6.112: title 為 [v1.6.112]",
+      "start": 1351,
+      "end": 1476,
+      "source": "test.skip('v1.6.112: title 為 [v1.6.112]', () => {\n    assert.ok(/<title>2026 學習進度看板.*\\[v1\\.6\\.112\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "c3cbd89f846c711fb10935acd3c24b99b245976bad5ec52bf9f65ee39d0bd8a1",
+      "disposition": "consolidated-version",
+      "id": "OLD-018",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v113-big-iframe.test.js",
+      "title": "v1.6.113: page-wrongnotes 內有大 iframe 嵌入附件",
+      "start": 346,
+      "end": 679,
+      "source": "test.skip('v1.6.113: page-wrongnotes 內有大 iframe 嵌入附件', () => {\n    const m = IDX.match(/<div id=\"page-wrongnotes\"[^>]*>([\\s\\S]*?)<\\/div>\\s*<\\/div>\\s*<!-- \\u6240\\u6709 Modal/);\n    assert.ok(m, 'page-wrongnotes 應有 iframe + closing divs');\n    assert.ok(m[1].includes('<iframe src=\"wrong-notes/\"'), '應有 iframe src=\"wrong-notes/\"');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "cd889ed5e24f05e0ef27a16f7728ad49252c6327345a407e5b25c5fb794d4bb1",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-019",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v113-big-iframe.test.js",
+      "title": "v1.6.113: iframe 寬度對齊 dashboard (max-width:1200px)",
+      "start": 681,
+      "end": 1041,
+      "source": "test.skip('v1.6.113: iframe 寬度對齊 dashboard (max-width:1200px)', () => {\n    const m = IDX.match(/<iframe src=\"wrong-notes\\/\"[^>]*style=\"([^\"]+)\"/);\n    assert.ok(m, 'iframe 應有 style');\n    const style = m[1];\n    assert.ok(style.includes('width:100%'), 'iframe 應 width:100%');\n    assert.ok(style.includes('max-width:1200px'), 'iframe 應 max-width:1200px');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "826bc46af6e22030fd3662d2abe1994c1e0695a0657adc58b88757e5bc5ce91e",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-020",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v113-big-iframe.test.js",
+      "title": "v1.6.113: iframe 有 dashboard-height",
+      "start": 1043,
+      "end": 1250,
+      "source": "test.skip('v1.6.113: iframe 有 dashboard-height', () => {\n    const m = IDX.match(/<iframe src=\"wrong-notes\\/\"[^>]*style=\"([^\"]+)\"/);\n    assert.ok(m[1].includes('height:calc(100vh'), 'iframe 應有 height');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "a2483f8a4df3609b5f7b49589b244e0509fef62f80f8877caee3990d5a2296fc",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-021",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v113-big-iframe.test.js",
+      "title": "v1.6.113: title 為 [v1.6.113]",
+      "start": 2063,
+      "end": 2188,
+      "source": "test.skip('v1.6.113: title 為 [v1.6.113]', () => {\n    assert.ok(/<title>2026 學習進度看板.*\\[v1\\.6\\.113\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "52624dcbe68292eeaf53e89f137c114c87da58b8413f5f5743cef306548d2c14",
+      "disposition": "consolidated-version",
+      "id": "OLD-022",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v115-fix-bugs.test.js",
+      "title": "v1.6.115 Bug 1: 主專案注入更多 CSS (含 .step-container, .drop-zone)",
+      "start": 528,
+      "end": 744,
+      "source": "test.skip('v1.6.115 Bug 1: 主專案注入更多 CSS (含 .step-container, .drop-zone)', () => {\n    assert.ok(IDX.includes('.step-container'), '應注入 .step-container');\n    assert.ok(IDX.includes('.drop-zone'), '應注入 .drop-zone');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "5d9bf9bc204ef8eee565c59eaf923442807c1c8c723677be54955188582503e9",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-023",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v115-fix-bugs.test.js",
+      "title": "v1.6.115 Bug 2: settings-page 內的 step-container 有 id=\"settings-container\"",
+      "start": 746,
+      "end": 1136,
+      "source": "test.skip('v1.6.115 Bug 2: settings-page 內的 step-container 有 id=\"settings-container\"', () => {\n    // 找 settings-page 內的 step-container\n    const m = WN.match(/<div id=\"settings-page\"[^>]*>\\s*<div class=\"step-container\"([^>]*)>/);\n    assert.ok(m, 'settings-page 內應有 step-container');\n    assert.ok(m[1].includes('id=\"settings-container\"'), 'step-container 應有 id=\"settings-container\"');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "40003cf04cea6435c0b61d472ac5fcf5e23289f9a848bdba854912ba7adea825",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-024",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v115-fix-bugs.test.js",
+      "title": "v1.6.115: title 為 [v1.6.115]",
+      "start": 1277,
+      "end": 1402,
+      "source": "test.skip('v1.6.115: title 為 [v1.6.115]', () => {\n    assert.ok(/<title>2026 學習進度看板.*\\[v1\\.6\\.115\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "2c719380ef12e8f3fbc8728fc2a26b5c52455fc07ddd22eb52f9e8c5053950ca",
+      "disposition": "consolidated-version",
+      "id": "OLD-025",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v116-fix-all-bugs.test.js",
+      "title": "v1.6.116 Bug 1+2: 主專案注入更完整 CSS",
+      "start": 1212,
+      "end": 1608,
+      "source": "test.skip('v1.6.116 Bug 1+2: 主專案注入更完整 CSS', () => {\n    assert.ok(IDX.includes('.crop-modal-content'),\n        '應注入 .crop-modal-content (crop box 寬度)');\n    assert.ok(IDX.includes('.crop-workspace'),\n        '應注入 .crop-workspace');\n    assert.ok(IDX.includes('.page-container'),\n        '應注入 .page-container');\n    assert.ok(IDX.includes('margin: 0 auto !important'),\n        '應有 margin 覆蓋');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "9a219f644230435001054c60545e29447b90b869fb2dfa1d007577ae956925fb",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-026",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v116-fix-all-bugs.test.js",
+      "title": "v1.6.116: title 為 [v1.6.116]",
+      "start": 1610,
+      "end": 1735,
+      "source": "test.skip('v1.6.116: title 為 [v1.6.116]', () => {\n    assert.ok(/<title>2026 學習進度看板.*\\[v1\\.6\\.116\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "390a21c179fec740827c97ae3e166a402ff738c895d18f5f26f4f6a8f5e30795",
+      "disposition": "consolidated-version",
+      "id": "OLD-027",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v117-real-fix.test.js",
+      "title": "v1.6.117 Bug 1+2: 注入 CSS 涵蓋 crop-header, crop-workspace, page-container",
+      "start": 687,
+      "end": 1007,
+      "source": "test.skip('v1.6.117 Bug 1+2: 注入 CSS 涵蓋 crop-header, crop-workspace, page-container', () => {\n    assert.ok(IDX.includes('.crop-header { max-width: 1200px'),\n        '應注入 .crop-header max-width: 1200px');\n    assert.ok(IDX.includes('.crop-workspace, .page-container'),\n        '應注入 .crop-workspace, .page-container');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "b03e5e5664dc7e327812e1dabc17217540c9bd2f11882063a051a359172418f9",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-028",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v117-real-fix.test.js",
+      "title": "v1.6.117: title [v1.6.117]",
+      "start": 1009,
+      "end": 1121,
+      "source": "test.skip('v1.6.117: title [v1.6.117]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.117\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "343dd1d2c4e0f30830d61080a276d4b2d27535110034b1f5750041b1c15190e7",
+      "disposition": "consolidated-version",
+      "id": "OLD-029",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v121-correct-storage.test.js",
+      "title": "v1.6.121 Bug fix: WN_buildMasterData 用 StudyMap_Family_Data_V20",
+      "start": 344,
+      "end": 1023,
+      "source": "test.skip('v1.6.121 Bug fix: WN_buildMasterData 用 StudyMap_Family_Data_V20', () => {\n    assert.ok(IDX.includes(\"localStorage.getItem('StudyMap_Family_Data_V20')\"),\n        '應讀 StudyMap_Family_Data_V20');\n    // 排除註解內的提及\n    var nonCommentCode = IDX.split('\\n').filter(function(l) {\n        return !l.trim().startsWith('//') && !l.trim().startsWith('*');\n    }).join('\\n');\n    assert.ok(!nonCommentCode.includes(\"localStorage.getItem('StudyMap_UserData')\"),\n        '不應在程式碼內讀 StudyMap_UserData (錯的 key, 註解除外)');\n    assert.ok(IDX.includes('multiData[uid]'),\n        '應讀 multiData[uid]');\n    assert.ok(IDX.includes('StudyMap_CurrentUserId_V20'),\n        '應讀 currentUserId');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "3f6ebb597e1bb5a0f5eb95413391c3c9d6bd2a3b6b6cf3424a8b54855534cab9",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-030",
+      "reason": "舊WN_buildMasterData已不供現行介面使用；現行NoteLinks依學生、教材與單元ID建立關聯，改驗新資料流。",
+      "replacements": [
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        },
+        {
+          "file": "note-links.test.js",
+          "test": "新筆記強制完整固定ID關聯，不靠同名、不沿用目前任務"
+        }
+      ]
+    },
+    {
+      "file": "v121-correct-storage.test.js",
+      "title": "v1.6.121: title [v1.6.121]",
+      "start": 1316,
+      "end": 1428,
+      "source": "test.skip('v1.6.121: title [v1.6.121]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.121\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "06c1ff72e48087639a6038fff0a6ce3c6ef3cf156adfafcaefbf4cfce5e61ff8",
+      "disposition": "consolidated-version",
+      "id": "OLD-031",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v123-blob-url.test.js",
+      "title": "v1.6.123: openWrongNotes 改用 fetch + blob URL",
+      "start": 436,
+      "end": 684,
+      "source": "test.skip('v1.6.123: openWrongNotes 改用 fetch + blob URL', () => {\n    assert.ok(IDX.includes(\"fetch('wrong-notes/index.html')\"),\n        '應使用 fetch 載入附件');\n    assert.ok(IDX.includes('new Blob([html]'),\n        '應用 Blob + URL.createObjectURL');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "d9cf899666252fef29d93803edd534fc173a308ded1ba2537446d3904e888743",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-032",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v123-blob-url.test.js",
+      "title": "v1.6.123: title [v1.6.123]",
+      "start": 686,
+      "end": 798,
+      "source": "test.skip('v1.6.123: title [v1.6.123]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.123\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "aeba753d6b7afd9dffb40c486bbc19b8b3abce8565f37aa26a0c8ae3374f9e3f",
+      "disposition": "consolidated-version",
+      "id": "OLD-033",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v124-behavior.test.js",
+      "title": "v1.6.124 架構: iframe 直接 src 載入",
+      "start": 363,
+      "end": 554,
+      "source": "test.skip('v1.6.124 架構: iframe 直接 src 載入', () => {\n    assert.ok(/id=\"wrongnotes-iframe\"[^>]*src=\"wrong-notes\\/index\\.html\"/.test(IDX),\n        'iframe 應直接 src=\"wrong-notes/index.html\"');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "596669bf33df8d392cc5c9f31d30d58ff12735f44e0b868cb72045ba298f9af8",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-034",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v124-behavior.test.js",
+      "title": "v1.6.124 架構: openWrongNotes 用 addEventListener load",
+      "start": 694,
+      "end": 999,
+      "source": "test.skip('v1.6.124 架構: openWrongNotes 用 addEventListener load', () => {\n    var openFn = IDX.match(/function openWrongNotes\\(\\)\\s*\\{([\\s\\S]*?)\\n        \\}/);\n    assert.ok(openFn, '應找到 openWrongNotes');\n    assert.ok(openFn[1].includes(\"addEventListener('load'\"),\n        '應用 addEventListener load');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "7f78917b5629b62f31da5a1cf86e366387868c2634771f2792513461633d489e",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-035",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v124-behavior.test.js",
+      "title": "v1.6.121 邏輯保留: 主專案讀 StudyMap_Family_Data_V20",
+      "start": 1001,
+      "end": 1190,
+      "source": "test.skip('v1.6.121 邏輯保留: 主專案讀 StudyMap_Family_Data_V20', () => {\n    assert.ok(IDX.includes(\"localStorage.getItem('StudyMap_Family_Data_V20')\"),\n        '應讀 StudyMap_Family_Data_V20');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "da82ec2bb9d285952dea3493eaee30be9f34e990cc70b65b449099ab4fd9b5bd",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-036",
+      "reason": "舊WN_buildMasterData已不供現行介面使用；現行NoteLinks依學生、教材與單元ID建立關聯，改驗新資料流。",
+      "replacements": [
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        },
+        {
+          "file": "note-links.test.js",
+          "test": "新筆記強制完整固定ID關聯，不靠同名、不沿用目前任務"
+        }
+      ]
+    },
+    {
+      "file": "v124-behavior.test.js",
+      "title": "v1.6.121 邏輯保留: 攤平 cat > subject > instanceId",
+      "start": 1192,
+      "end": 1441,
+      "source": "test.skip('v1.6.121 邏輯保留: 攤平 cat > subject > instanceId', () => {\n    // WN_buildMasterData 內應有 tree[subj][typeName][instName]\n    assert.ok(IDX.includes('tree[subj]') || IDX.includes('flat[\"'+\"'\"+'subj'+\"'\"+'\"]'),\n        '應有 tree[subj] 攤平邏輯');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "7b36e0398b0431f03a1053d0d186d4b923ebaa4944b6ebe5c8a32d6c07e7d936",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-037",
+      "reason": "舊WN_buildMasterData已不供現行介面使用；現行NoteLinks依學生、教材與單元ID建立關聯，改驗新資料流。",
+      "replacements": [
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        },
+        {
+          "file": "note-links.test.js",
+          "test": "新筆記強制完整固定ID關聯，不靠同名、不沿用目前任務"
+        }
+      ]
+    },
+    {
+      "file": "v124-behavior.test.js",
+      "title": "v1.6.124: title 正確",
+      "start": 1617,
+      "end": 1721,
+      "source": "test.skip('v1.6.124: title 正確', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.124\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "b568872d6473deab707d2612bdd4e1833d27660ca55fb53517393f7668dad9fc",
+      "disposition": "consolidated-version",
+      "id": "OLD-038",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v124-stable-iframe.test.js",
+      "title": "v1.6.124: iframe 直接 src",
+      "start": 282,
+      "end": 563,
+      "source": "test.skip('v1.6.124: iframe 直接 src', () => {\n    assert.ok(/id=\"wrongnotes-iframe\"[^>]*src=\"wrong-notes\\/index\\.html\"/.test(IDX),\n        'iframe 應直接 src=\\\"wrong-notes/index.html\\\"');\n    assert.ok(!/id=\"wrongnotes-iframe\"[^>]*src=\"\"/.test(IDX),\n        '不應有 src=\\\"\\\" 空白 src');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "757ed635c3a4955ef395acbe4d11301299db66779040b1dfef2f94fe0359fd98",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-039",
+      "reason": "舊inline錯題頁、blob URL載入及父頁CSS注入已由同源獨立頁取代；驗證現行iframe與真正嵌入頁，不恢復舊DOM ID。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v124-stable-iframe.test.js",
+      "title": "v1.6.124: title [v1.6.124]",
+      "start": 952,
+      "end": 1064,
+      "source": "test.skip('v1.6.124: title [v1.6.124]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.124\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "c90c218183913a066f4a54fabcb459675b8bfcedc95bf00b29c342d4e8965d1c",
+      "disposition": "consolidated-version",
+      "id": "OLD-040",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v125-init-drag.test.js",
+      "title": "v1.6.125 Bug 1: _globalDragBound 在 DOMContentLoaded init 階段註冊",
+      "start": 344,
+      "end": 1073,
+      "source": "test.skip('v1.6.125 Bug 1: _globalDragBound 在 DOMContentLoaded init 階段註冊', () => {\n    // 找 document.addEventListener('DOMContentLoaded' 然後抓 100 行內的內容\n    var idx = IDX.indexOf(\"addEventListener('DOMContentLoaded'\");\n    assert.ok(idx > 0, '應找到 DOMContentLoaded');\n    // 抓緊接著 800 chars 內的內容\n    var block = IDX.substring(idx, idx + 1500);\n    assert.ok(block.includes('_globalDragBound = true'),\n        'DOMContentLoaded 內應有 _globalDragBound 設定');\n    // 確保 _globalDragBound 在 var zone 之前\n    var globalDragPos = block.indexOf('_globalDragBound = true');\n    var zonePos = block.indexOf(\"getElementById('wn-drop-zone')\");\n    assert.ok(globalDragPos > 0 && globalDragPos < zonePos,\n        '_globalDragBound 應在 zone 設定之前');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "72481a2cd18a518dd961825bae40211d181c2d1dca0304802012ce4fefb15813",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-041",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v125-init-drag.test.js",
+      "title": "v1.6.125: title [v1.6.125]",
+      "start": 1558,
+      "end": 1670,
+      "source": "test.skip('v1.6.125: title [v1.6.125]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.125\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "75f0c305b5bbcb4cc9743f2f2b1a2e81277a8f4326c1dcb7b461ca27866a68ed",
+      "disposition": "consolidated-version",
+      "id": "OLD-042",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v125-revert-inline.test.js",
+      "title": "v1.6.125: setupDragAndDrop 內 window.addEventListener 還在",
+      "start": 808,
+      "end": 1030,
+      "source": "test.skip('v1.6.125: setupDragAndDrop 內 window.addEventListener 還在', () => {\n    assert.ok(WN.includes(\"addEventListener(eventName, function(e)\"),\n        'setupDragAndDrop 內應有 window.addEventListener preventDefault');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "56fad1bb65ca3fb22e5af60a3dce655ecd839943559bf539bcd71cd192b1d25b",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-043",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v126-blob-url.test.js",
+      "title": "v1.6.126: title [v1.6.126]",
+      "start": 1173,
+      "end": 1285,
+      "source": "test.skip('v1.6.126: title [v1.6.126]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.126\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "092fe7672d27facb11f87a78fb1260b975218a74878f734aed2e80f52c778f6a",
+      "disposition": "consolidated-version",
+      "id": "OLD-044",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v127-drag-flow.test.js",
+      "title": "v1.6.127: setupDragAndDrop 在 IIFE 開頭就跑",
+      "start": 389,
+      "end": 991,
+      "source": "test.skip('v1.6.127: setupDragAndDrop 在 IIFE 開頭就跑', () => {\n    // v1.6.122 說要在 IIFE 開頭就註冊, 確認有\n    assert.ok(WN.includes(\"setupDragAndDrop();\"),\n        '應呼叫 setupDragAndDrop');\n    var setupFn = WN.match(/function setupDragAndDrop\\(\\)\\s*\\{([\\s\\S]*?)\\n    \\}/);\n    assert.ok(setupFn, '應找到 setupDragAndDrop');\n    // 確認先註冊 window preventDefault 再註冊 zone handlers\n    var winAddIdx = setupFn[1].indexOf(\"window.addEventListener\");\n    var zoneAddIdx = setupFn[1].indexOf(\"zone.addEventListener\");\n    assert.ok(winAddIdx > 0 && winAddIdx < zoneAddIdx,\n        'window.addEventListener 應在 zone 之前');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "f1844a232ec5041580df9b783a01b73a04919be6b34eae85a219373c65565810",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-045",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v127-drag-flow.test.js",
+      "title": "v1.6.127: drop handler 呼叫 handleFilesForCrop",
+      "start": 1341,
+      "end": 1621,
+      "source": "test.skip('v1.6.127: drop handler 呼叫 handleFilesForCrop', () => {\n    var setupFn = WN.match(/function setupDragAndDrop\\(\\)\\s*\\{([\\s\\S]*?)\\n    \\}/);\n    assert.ok(setupFn[1].includes(\"handleFilesForCrop(e.dataTransfer.files)\"),\n        'drop handler 應呼叫 handleFilesForCrop');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "535fb23dc33651038463c4c5e6f26194efd8d537058232ee27af4de5754fc67f",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-046",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v127-drag-flow.test.js",
+      "title": "v1.6.127: 主專案 _globalDragBound 在 DOMContentLoaded init",
+      "start": 2110,
+      "end": 2410,
+      "source": "test.skip('v1.6.127: 主專案 _globalDragBound 在 DOMContentLoaded init', () => {\n    var idx = IDX.indexOf(\"addEventListener('DOMContentLoaded'\");\n    var block = IDX.substring(idx, idx + 1500);\n    assert.ok(block.includes('_globalDragBound = true'),\n        'DOMContentLoaded 內應有 _globalDragBound');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "1c9a46a292bc2058b80d5cda7ca94ae934d23a1e0ba2a9065cb35d0afd1e7a83",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-047",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v127-drag-flow.test.js",
+      "title": "v1.6.127: title [v1.6.127]",
+      "start": 2412,
+      "end": 2524,
+      "source": "test.skip('v1.6.127: title [v1.6.127]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.127\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "1e16fbc5f15140356ae72f2b8c8023b7d6548bd0aef50a4ede21290919afaa30",
+      "disposition": "consolidated-version",
+      "id": "OLD-048",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v128-immediate-drag.test.js",
+      "title": "v1.6.128: setupDragAndDrop 立即執行 (不在 onload 內)",
+      "start": 344,
+      "end": 564,
+      "source": "test.skip('v1.6.128: setupDragAndDrop 立即執行 (不在 onload 內)', () => {\n    // 找 try { setupDragAndDrop(); ... } catch\n    assert.ok(/try\\s*\\{\\s*setupDragAndDrop\\(\\)/.test(WN),\n        '應有 try { setupDragAndDrop() 立即執行');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "3c1a5744b8e0218c15c75efa04a3bc02418acc6bd15cb56800b4f75c27688788",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-049",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v128-immediate-drag.test.js",
+      "title": "v1.6.128: onload 只 init dropdowns",
+      "start": 566,
+      "end": 954,
+      "source": "test.skip('v1.6.128: onload 只 init dropdowns', () => {\n    var onloadFn = WN.match(/window\\.onload = function\\(\\)\\s*\\{([\\s\\S]*?)\\n    \\};/);\n    assert.ok(onloadFn, '應找到 window.onload');\n    assert.ok(!onloadFn[1].includes('setupDragAndDrop('),\n        'onload 不應呼叫 setupDragAndDrop');\n    assert.ok(onloadFn[1].includes('WN_initWrongNotes('),\n        'onload 應呼叫 WN_initWrongNotes');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "15cf97191c0e649a3af35af87125af42966397ab2616edebca4b219fddc7eea6",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-050",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v128-immediate-drag.test.js",
+      "title": "v1.6.128: title [v1.6.128]",
+      "start": 1205,
+      "end": 1317,
+      "source": "test.skip('v1.6.128: title [v1.6.128]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.128\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "60e2bfed4e57a3cb9558f748b5da701acdab597b26ff673d71fbda147cc36ab2",
+      "disposition": "consolidated-version",
+      "id": "OLD-051",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v129-dragover-prevent.test.js",
+      "title": "v129: title [v1.6.129]",
+      "start": 2749,
+      "end": 2912,
+      "source": "test.skip('v129: title [v1.6.129]', () => {\n    const IDX = fs.readFileSync('index.html', 'utf8');\n    assert.ok(/<title>.*\\[v1\\.6\\.129\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "f0165b49739f6403acab0a7d42349a9d96557a983222ec62178a2f29c265090b",
+      "disposition": "consolidated-version",
+      "id": "OLD-052",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v130-iframe-drag.test.js",
+      "title": "v130: DOMContentLoaded 內 iframe 有 dragover/drop handler",
+      "start": 361,
+      "end": 891,
+      "source": "test.skip('v130: DOMContentLoaded 內 iframe 有 dragover/drop handler', () => {\n    const IDX = fs.readFileSync('index.html', 'utf8');\n    // 找 DOMContentLoaded callback 內有 iframe handler\n    assert.ok(IDX.includes('wnIframe.addEventListener(\\'dragover\\''),\n        'iframe 應有 dragover preventDefault');\n    assert.ok(IDX.includes('wnIframe.addEventListener(\\'drop\\''),\n        'iframe 應有 drop preventDefault');\n    assert.ok(IDX.includes('wnIframe.addEventListener(\\'dragenter\\''),\n        'iframe 應有 dragenter preventDefault');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "27738d3ced3eafbb57cabe334ecfd936cfad2e896e06d2fc92a7f1e490d262bd",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-053",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v130-iframe-drag.test.js",
+      "title": "v130: title [v1.6.130]",
+      "start": 893,
+      "end": 1070,
+      "source": "test.skip('v130: title [v1.6.130]', () => {\n    const IDX = fs.readFileSync('index.html', 'utf8');\n    assert.ok(/<title>.*\\[v1\\.6\\.1[3-9]\\d+(\\.\\d+)?\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "932cf836a707498f2d11bf3055391bd836dee672f4f12645eab3d5e55886f56b",
+      "disposition": "consolidated-version",
+      "id": "OLD-054",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v132-step26-dropdown.test.js",
+      "title": "v132: createSettingCard 包含 Step 2~6 (5 層)",
+      "start": 371,
+      "end": 628,
+      "source": "test.skip('v132: createSettingCard 包含 Step 2~6 (5 層)', () => {\n    assert.ok(/Step 2：科目/.test(WN));\n    assert.ok(/Step 3：教材類型/.test(WN));\n    assert.ok(/Step 4：教材名稱/.test(WN));\n    assert.ok(/Step 5：單元/.test(WN));\n    assert.ok(/Step 6：錯誤原因/.test(WN));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "16f442283b8fa0a1cb9eff3becebf07dad534a2cad8ef3d228ba8b71824cd454",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-055",
+      "reason": "教材選擇已改為固定ID的分類／任務／複習講義知識單元；驗證實際欄位與四個常見原因及其他自填，不恢復舊五層選單。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題原因契約：四個常見原因、其他自填與科目單元選擇可操作"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        }
+      ]
+    },
+    {
+      "file": "v132-step26-dropdown.test.js",
+      "title": "v132: dropdown 5 個 select",
+      "start": 630,
+      "end": 920,
+      "source": "test.skip('v132: dropdown 5 個 select', () => {\n    assert.ok(/class=\"subj-sel\"/.test(WN));\n    assert.ok(/class=\"type-sel\"/.test(WN));\n    assert.ok(/class=\"inst-sel\"/.test(WN));\n    assert.ok(/class=\"unit-sel\"/.test(WN));\n    assert.ok(/class=\"checkbox-group reasons-group\"/.test(WN));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "4f5500a3255807914838850dee6435a86984532a21f88460d5bb6b662192e47f",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-056",
+      "reason": "教材選擇已改為固定ID的分類／任務／複習講義知識單元；驗證實際欄位與四個常見原因及其他自填，不恢復舊五層選單。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題原因契約：四個常見原因、其他自填與科目單元選擇可操作"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        }
+      ]
+    },
+    {
+      "file": "v132-step26-dropdown.test.js",
+      "title": "v132: handleCardTypeChange + handleCardInstChange 取代舊 handleCardVolumeChange",
+      "start": 1151,
+      "end": 1466,
+      "source": "test.skip('v132: handleCardTypeChange + handleCardInstChange 取代舊 handleCardVolumeChange', () => {\n    assert.ok(/function handleCardTypeChange/.test(WN));\n    assert.ok(/function handleCardInstChange/.test(WN));\n    assert.ok(!/function handleCardVolumeChange/.test(WN),\n        'handleCardVolumeChange 應該被取代');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "46926198057e3cbc8f8b521366df6d7ed371222f37c4764b9f3df2420acbcaad",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-057",
+      "reason": "教材選擇已改為固定ID的分類／任務／複習講義知識單元；驗證實際欄位與四個常見原因及其他自填，不恢復舊五層選單。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題原因契約：四個常見原因、其他自填與科目單元選擇可操作"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        }
+      ]
+    },
+    {
+      "file": "v132-step26-dropdown.test.js",
+      "title": "v132: title [v1.6.132]",
+      "start": 3651,
+      "end": 3807,
+      "source": "test.skip('v132: title [v1.6.132]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.1[3-9]\\d+(\\.\\d+)?\\]<\\/title>/.test(fs.readFileSync('index.html', 'utf8')));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "f149bae62cd6791a85ccda894a0dca1afdd297169d6a91216bd6c2bae0f6c142",
+      "disposition": "consolidated-version",
+      "id": "OLD-058",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v133-reason-userinput.test.js",
+      "title": "v133: Step 6 標題改為「自填」",
+      "start": 344,
+      "end": 448,
+      "source": "test.skip('v133: Step 6 標題改為「自填」', () => {\n    assert.ok(/Step 6：錯誤原因.*自填/.test(WN), '應標明 user 自填');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "1c68998a30809fd9f43385c311143ecff83b77db8d7cb0adf9a15a96f847bb9a",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-059",
+      "reason": "教材選擇已改為固定ID的分類／任務／複習講義知識單元；驗證實際欄位與四個常見原因及其他自填，不恢復舊五層選單。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題原因契約：四個常見原因、其他自填與科目單元選擇可操作"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        }
+      ]
+    },
+    {
+      "file": "v133-reason-userinput.test.js",
+      "title": "v133: 4 個常見 checkbox",
+      "start": 450,
+      "end": 653,
+      "source": "test.skip('v133: 4 個常見 checkbox', () => {\n    assert.ok(/value=\"粗心\"/.test(WN));\n    assert.ok(/value=\"觀念不清\"/.test(WN));\n    assert.ok(/value=\"計算錯誤\"/.test(WN));\n    assert.ok(/value=\"背不起來\"/.test(WN));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "dc72c567eb9ce396f8ff90e3b161809c73959e84c0591f365780a524ec92900f",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-060",
+      "reason": "教材選擇已改為固定ID的分類／任務／複習講義知識單元；驗證實際欄位與四個常見原因及其他自填，不恢復舊五層選單。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題原因契約：四個常見原因、其他自填與科目單元選擇可操作"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "正式錯題缺任務或單元不產生草稿；完整保存ID後可依任務篩選且名稱跟隨改名"
+        }
+      ]
+    },
+    {
+      "file": "v133-reason-userinput.test.js",
+      "title": "v133: title [v1.6.133]",
+      "start": 1155,
+      "end": 1311,
+      "source": "test.skip('v133: title [v1.6.133]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.1[3-9]\\d+(\\.\\d+)?\\]<\\/title>/.test(fs.readFileSync('index.html', 'utf8')));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "b7c852a3a2400262f27c98867fe646c19a8dad86d2c2c45c45520d4596036708",
+      "disposition": "consolidated-version",
+      "id": "OLD-061",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v134-flat-master.test.js",
+      "title": "v134: title [v1.6.134]",
+      "start": 3721,
+      "end": 3877,
+      "source": "test.skip('v134: title [v1.6.134]', () => {\n    assert.ok(/<title>.*\\[v1\\.6\\.1[3-9]\\d+(\\.\\d+)?\\]<\\/title>/.test(fs.readFileSync('index.html', 'utf8')));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "c99e402bd4ff1fcde4f72dff33ff815a3b90adb8c3b039d0da112790de5fa11b",
+      "disposition": "consolidated-version",
+      "id": "OLD-062",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v135-five-fixes.test.js",
+      "title": "v135 (4): saveNotes 有 try/catch 保護 UI reset",
+      "start": 2439,
+      "end": 2727,
+      "source": "test.skip('v135 (4): saveNotes 有 try/catch 保護 UI reset', () => {\n    const m = WN.match(/function saveNotes\\(\\)[\\s\\S]*?\\n    \\}/);\n    assert.ok(/catch\\s*\\(\\s*e\\s*\\)/.test(m[0]), '應有 try/catch');\n    assert.ok(/UI reset 失敗/.test(m[0]) || /goToPage.*失敗/.test(m[0]), '應處理 UI reset 失敗');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "7e0c9d9d9db469442323235be51b4befb4d5f74b1458b91c79061d76f792e091",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-063",
+      "reason": "UI reset已抽到_onSaveSuccess，原正則只截saveNotes而漏掉保護；改在實際寫入後注入UI失敗，核對資料仍在。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題存檔契約：寫入成功但頁面重設失敗，筆記仍可讀回並保留ID"
+        }
+      ]
+    },
+    {
+      "file": "v135-five-fixes.test.js",
+      "title": "v135+ title: index.html 含 [v1.6.13X]",
+      "start": 2738,
+      "end": 2920,
+      "source": "test.skip('v135+ title: index.html 含 [v1.6.13X]', () => {\n    // 接受 v1.6.130 ~ v1.6.139 任一 + hotfix\n    assert.ok(/<title>.*\\[v1\\.6\\.1[3-9][0-9](?:\\.\\d+)?\\]<\\/title>/.test(IDX));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "7647d1e1f085ea130f8e1062452c64041d4b302180cc8c38d0feae2f9c8dc864",
+      "disposition": "consolidated-version",
+      "id": "OLD-064",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v1356-quota-print.test.js",
+      "title": "v135.6: quota 自動 trim 邏輯",
+      "start": 497,
+      "end": 686,
+      "source": "test.skip('v135.6: quota 自動 trim 邏輯', () => {\n    assert.ok(/QuotaExceededError|quota/i.test(WN), '應有 quota 判斷');\n    assert.ok(/slice\\(trimCount\\)/.test(WN), '應有 slice(trimCount) 刪舊');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "acb70b96d39aae5b8572bb3fb4c900d6bf2f86d27f227435fae73db19bac3486",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-065",
+      "reason": "自動刪除舊筆記釋放空間會造成資料遺失，不恢復slice(trimCount)；驗證容量失敗保留所有舊筆記與草稿。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題存檔契約：容量不足不刪舊筆記，保留草稿且不誤報成功"
+        }
+      ]
+    },
+    {
+      "file": "v139-hide-deleted-type.test.js",
+      "title": "v139: defaultOrder 必須根據 _deletedTypes 過濾",
+      "start": 1004,
+      "end": 1669,
+      "source": "test.skip('v139: defaultOrder 必須根據 _deletedTypes 過濾', () => {\n    const fn = IDX.match(/function renderAeSubjectCardHtml\\(sub, subUnits, cat, mis\\)\\s*\\{[\\s\\S]*?function [a-z]/)[0];\n    // 行為測試: defaultOrder = defaultOrder.filter(...) 必須存在\n    assert.ok(/defaultOrder\\s*=\\s*defaultOrder\\.filter/.test(fn), '必須對 defaultOrder 做 filter');\n    // filter 內必須參考 _delTypes (避免任何 typeName 寫死)\n    const filterMatch = fn.match(/defaultOrder\\.filter\\(function\\([^)]*\\)\\{[\\s\\S]*?\\}\\)/);\n    assert.ok(filterMatch, '必須有 filter callback');\n    assert.ok(/_delTypes/.test(filterMatch[0]) || /!_delTypes\\[/.test(filterMatch[0]),\n              'filter callback 必須檢查 _delTypes');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "9c00c5d9d9ff79d71c87afe11f304c9fa62b50ef6553052b8ed678af4f10a2e0",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-066",
+      "reason": "刪除標記使用array而非舊object/_delTypes名稱；改驗已刪類型不出現、自訂類型保留。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "教材類型契約：已刪除的預設類型不重生，自建類型仍能選取"
+        }
+      ]
+    },
+    {
+      "file": "v141-schedule-mode.test.js",
+      "title": "v141-7: index.html 內含 setWizardScheduleMode 與 scheduleMode 欄位",
+      "start": 4550,
+      "end": 5096,
+      "source": "test.skip('v141-7: index.html 內含 setWizardScheduleMode 與 scheduleMode 欄位', () => {\n    // 整合測試: 確認 patch 真的進到 index.html\n    assert.ok(HTML.indexOf('setWizardScheduleMode') >= 0, '應有 setWizardScheduleMode function');\n    assert.ok(HTML.indexOf('wz-schedule-mode') >= 0, '應有 wz-schedule-mode radio name');\n    assert.ok(HTML.indexOf('daysPerUnit') >= 0, '應有 daysPerUnit 欄位');\n    assert.ok(HTML.indexOf('scheduleMode') >= 0, '應有 scheduleMode 欄位');\n    assert.ok(/\\[v1\\.6\\.14[0-9](\\.\\d+)?\\]/.test(HTML), 'title 應為 [v1.6.14X] 系列 (含 hotfix .X)');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "143f54dfebc84f685516c784297d60871b44feec8163f571c09a6e341c6d2d51",
+      "disposition": "restored-current-assertions",
+      "id": "OLD-067",
+      "reason": "保留原本仍適用的排程斷言並啟用，過時版本號交由統一版本契約驗證。",
+      "replacements": [
+        {
+          "file": "v141-schedule-mode.test.js",
+          "test": "v141-7: index.html 內含 setWizardScheduleMode 與 scheduleMode 欄位"
+        },
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        }
+      ]
+    },
+    {
+      "file": "v141-schedule-mode.test.js",
+      "title": "v141-8: title regex 寬鬆 - v1.6.13X 系列測試",
+      "start": 5098,
+      "end": 5491,
+      "source": "test.skip('v141-8: title regex 寬鬆 - v1.6.13X 系列測試', () => {\n    // 確認 title 是 v1.6.141 而非 v1.6.140\n    var titleMatch = HTML.match(/<title>([^<]*)<\\/title>/);\n    assert.ok(titleMatch, '應有 <title>');\n    var ver = titleMatch[1].match(/v1\\.6\\.\\d+/);\n    assert.ok(ver, 'title 應含版本號');\n    assert.ok(/^v1\\.6\\.14[0-9](\\.\\d+)?$/.test(ver[0]), '版本號應為 v1.6.14X 系列 (含 hotfix .X), 實際: ' + ver[0]);\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "d478fb68426a6617a92fdcb7ac2dc9297059b96b2d0382122e20be987d1c75d1",
+      "disposition": "consolidated-version",
+      "id": "OLD-068",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v142-unit-mode-schedule.test.js",
+      "title": "v142-8: 整合 — index.html 內含 _hasUnitMode 與 pipeline 邏輯",
+      "start": 7121,
+      "end": 7660,
+      "source": "test.skip('v142-8: 整合 — index.html 內含 _hasUnitMode 與 pipeline 邏輯', () => {\n    const fs = require('node:fs');\n    const path = require('node:path');\n    const HTML = fs.readFileSync(path.resolve(__dirname, '..', 'index.html'), 'utf-8');\n    assert.ok(HTML.indexOf('_hasUnitMode') >= 0, '應有 _hasUnitMode 旗標');\n    assert.ok(HTML.indexOf('unitModeAssignments') >= 0, '應有 unitModeAssignments');\n    assert.ok(HTML.indexOf('每個 unit 的多個 chunks 重組') >= 0, '應有 pipeline 註解');\n    assert.ok(/\\[v1\\.6\\.142\\]/.test(HTML), 'title 應為 [v1.6.142]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "0844b1229d6f1f8056c4783bc65ee830538463bcdd680abf449244390db32083",
+      "disposition": "restored-current-assertions",
+      "id": "OLD-069",
+      "reason": "保留原本仍適用的排程斷言並啟用，過時版本號交由統一版本契約驗證。",
+      "replacements": [
+        {
+          "file": "v142-unit-mode-schedule.test.js",
+          "test": "v142-8: 整合 — index.html 內含 _hasUnitMode 與 pipeline 邏輯"
+        },
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        }
+      ]
+    },
+    {
+      "file": "v146-button-flex-sync.test.js",
+      "title": "v146-1: title 版本號為 [v1.6.146]",
+      "start": 591,
+      "end": 713,
+      "source": "test.skip('v146-1: title 版本號為 [v1.6.146]', () => {\n    assert.ok(/\\[v1\\.6\\.146\\]/.test(HTML), 'title 應包含 [v1.6.146]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "4ed3f7c77899a453884bfa05ab1541a5f4280cf5a1768ee830f1e4c0d90be91a",
+      "disposition": "consolidated-version",
+      "id": "OLD-070",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v146-button-flex-sync.test.js",
+      "title": "v146-2: 時數模式 label 使用 display: inline-flex",
+      "start": 715,
+      "end": 1011,
+      "source": "test.skip('v146-2: 時數模式 label 使用 display: inline-flex', () => {\n    var hoursLabel = HTML.match(/<label id=\"wz-mode-hours-card\"[^>]*>/);\n    assert.ok(hoursLabel, '應存在 wz-mode-hours-card label');\n    assert.ok(/display:\\s*inline-flex/.test(hoursLabel[0]), '時數 label 應為 display: inline-flex');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "c0d8f635ff30831ac0e1e97e524a67dfcc4e13ecd983fc4c68d378a659c27659",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-071",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v146-button-flex-sync.test.js",
+      "title": "v146-3: 時數模式 label 有 align-items: center (垂直置中)",
+      "start": 1013,
+      "end": 1280,
+      "source": "test.skip('v146-3: 時數模式 label 有 align-items: center (垂直置中)', () => {\n    var hoursLabel = HTML.match(/<label id=\"wz-mode-hours-card\"[^>]*>/);\n    assert.ok(hoursLabel);\n    assert.ok(/align-items:\\s*center/.test(hoursLabel[0]), '時數 label 應有 align-items: center');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "98cd9822706526664222575a24d55298a084540f61169ba95536e2f6ea9b86fa",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-072",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v146-button-flex-sync.test.js",
+      "title": "v146-4: 單元模式 label 使用 display: inline-flex",
+      "start": 1282,
+      "end": 1578,
+      "source": "test.skip('v146-4: 單元模式 label 使用 display: inline-flex', () => {\n    var unitsLabel = HTML.match(/<label id=\"wz-mode-units-card\"[^>]*>/);\n    assert.ok(unitsLabel, '應存在 wz-mode-units-card label');\n    assert.ok(/display:\\s*inline-flex/.test(unitsLabel[0]), '單元 label 應為 display: inline-flex');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "0aab388426df96acddc729837ec14a77b98522e1105aa1a859ed8edf2241bf6a",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-073",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v146-button-flex-sync.test.js",
+      "title": "v146-6: 兩個 label padding 都縮小到 6px 12px (緊湊)",
+      "start": 2036,
+      "end": 2459,
+      "source": "test.skip('v146-6: 兩個 label padding 都縮小到 6px 12px (緊湊)', () => {\n    var hoursLabel = HTML.match(/<label id=\"wz-mode-hours-card\"[^>]*>/);\n    var unitsLabel = HTML.match(/<label id=\"wz-mode-units-card\"[^>]*>/);\n    assert.ok(hoursLabel && unitsLabel);\n    assert.ok(/padding:\\s*6px 12px/.test(hoursLabel[0]), '時數 padding 應為 6px 12px');\n    assert.ok(/padding:\\s*6px 12px/.test(unitsLabel[0]), '單元 padding 應為 6px 12px');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "ec62950792752ff33b1cfaf99ea4cc0373a89ac20cd5a941cbb9c66603efab48",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-074",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v146-button-flex-sync.test.js",
+      "title": "v146-7: 兩個 label 都有 flex: 0 0 auto (防止 flex 拉伸)",
+      "start": 2461,
+      "end": 2890,
+      "source": "test.skip('v146-7: 兩個 label 都有 flex: 0 0 auto (防止 flex 拉伸)', () => {\n    var hoursLabel = HTML.match(/<label id=\"wz-mode-hours-card\"[^>]*>/);\n    var unitsLabel = HTML.match(/<label id=\"wz-mode-units-card\"[^>]*>/);\n    assert.ok(hoursLabel && unitsLabel);\n    assert.ok(/flex:\\s*0 0 auto/.test(hoursLabel[0]), '時數 label 應有 flex: 0 0 auto');\n    assert.ok(/flex:\\s*0 0 auto/.test(unitsLabel[0]), '單元 label 應有 flex: 0 0 auto');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "dbe9af583111e5f55e33e347d930d1d705dba2973f1c67c1cc5acaa608dd54cb",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-075",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v146-button-flex-sync.test.js",
+      "title": "v146-10: setWizardScheduleMode 內讀取 checked radio 同步 UI",
+      "start": 3702,
+      "end": 4226,
+      "source": "test.skip('v146-10: setWizardScheduleMode 內讀取 checked radio 同步 UI', () => {\n    var funcMatch = HTML.match(/function setWizardScheduleMode\\(mode\\)[\\s\\S]*?saveWizardPrefs\\(\\);\\s*\\}/);\n    assert.ok(funcMatch, '應存在 setWizardScheduleMode function');\n    var funcBody = funcMatch[0];\n    assert.ok(/hoursCard\\.style\\.border/.test(funcBody), '應有 hoursCard border 同步');\n    assert.ok(/unitsCard\\.style\\.border/.test(funcBody), '應有 unitsCard border 同步');\n    assert.ok(/desc\\.innerHTML/.test(funcBody), '應有 desc innerHTML 更新');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "cf38d7bc1592f4dc9ccc4d2f4d7586edd12ba36bfc342f596550dcc4538d5309",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-076",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v147-table-cell-layout.test.js",
+      "title": "v147-1: title 版本號為 [v1.6.147]",
+      "start": 645,
+      "end": 767,
+      "source": "test.skip('v147-1: title 版本號為 [v1.6.147]', () => {\n    assert.ok(/\\[v1\\.6\\.147\\]/.test(HTML), 'title 應包含 [v1.6.147]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "631060fd10c57889e0e3c3f5c83521b8bc3883a0b3e0004b7b66c905ffbeb36c",
+      "disposition": "consolidated-version",
+      "id": "OLD-077",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v147-table-cell-layout.test.js",
+      "title": "v147-8: setWizardScheduleMode 仍正常同步 UI",
+      "start": 3568,
+      "end": 4076,
+      "source": "test.skip('v147-8: setWizardScheduleMode 仍正常同步 UI', () => {\n    var funcMatch = HTML.match(/function setWizardScheduleMode\\(mode\\)[\\s\\S]*?saveWizardPrefs\\(\\);\\s*\\}/);\n    assert.ok(funcMatch, '應存在 setWizardScheduleMode function');\n    var funcBody = funcMatch[0];\n    assert.ok(/hoursCard\\.style\\.border/.test(funcBody), '應有 hoursCard border 同步');\n    assert.ok(/unitsCard\\.style\\.border/.test(funcBody), '應有 unitsCard border 同步');\n    assert.ok(/desc\\.innerHTML/.test(funcBody), '應有 desc innerHTML 更新');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "d59a389e80fd7e1226f9e81f5f6eacdebd1b989c7f0758e49c795f630d8f7f0b",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-078",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v147-table-cell-layout.test.js",
+      "title": "v147-9: 父層 div 有 align-items: flex-start (防止 label 被拉伸)",
+      "start": 4078,
+      "end": 4628,
+      "source": "test.skip('v147-9: 父層 div 有 align-items: flex-start (防止 label 被拉伸)', () => {\n    // 找父層 div (含 display: flex; gap: 10px)\n    // 找包含 wz-mode-hours-card 的父層 flex div\n    var idx = HTML.indexOf('wz-mode-hours-card');\n    var parentStart = HTML.lastIndexOf('<div style=\"display: flex;', idx);\n    var parentEnd = HTML.indexOf('>', parentStart);\n    var parentDiv = [HTML.substring(parentStart, parentEnd + 1)];\n    assert.ok(parentDiv, '應存在 flex 父層 div');\n    assert.ok(/align-items:\\s*flex-start/.test(parentDiv[0]), '父層應有 align-items: flex-start');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "a1fb69b966542a70bb37a3ce024fa5220fd487a81b201e03b6e423eee4d166a3",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-079",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v148-desc-right-side.test.js",
+      "title": "v148-1: title 版本號為 [v1.6.148]",
+      "start": 668,
+      "end": 790,
+      "source": "test.skip('v148-1: title 版本號為 [v1.6.148]', () => {\n    assert.ok(/\\[v1\\.6\\.148\\]/.test(HTML), 'title 應包含 [v1.6.148]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "fc8d98f81da310da9a6ecdd5436b1d1af3dd0409015961f284425c52c57783ef",
+      "disposition": "consolidated-version",
+      "id": "OLD-080",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v148-desc-right-side.test.js",
+      "title": "v148-5: 描述文字已簡化 (不再過長)",
+      "start": 2345,
+      "end": 2781,
+      "source": "test.skip('v148-5: 描述文字已簡化 (不再過長)', () => {\n    var funcMatch = HTML.match(/function setWizardScheduleMode\\(mode\\)[\\s\\S]*?saveWizardPrefs\\(\\);\\s*\\}/);\n    assert.ok(funcMatch);\n    var funcBody = funcMatch[0];\n    // 確認新文字包含\n    assert.ok(/每 unit 切成 0\\.5hr chunks/.test(funcBody), '時數描述應為新簡化版');\n    assert.ok(/每 unit 分 N 天讀/.test(funcBody), '單元描述應為新簡化版');\n    // 確認舊文字不再出現\n    assert.ok(!/平均塞進每天的讀書時數內/.test(funcBody), '舊描述應已被取代');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "27056666ab304bbc79ae62de9909adc3b7e6fb3d60ac473ea3aa60cafdc29469",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-081",
+      "reason": "inline-flex、固定padding或父層align-items是舊實作方式；改驗真實radio與標籤對齊、模式切換、說明與偏好讀回。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：模式切換同步radio、科目設定、說明及重讀偏好"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual mode-card layout and saved radio selection"
+        }
+      ]
+    },
+    {
+      "file": "v149-generateplan-bug.test.js",
+      "title": "v149-1: title 版本號為 [v1.6.149]",
+      "start": 564,
+      "end": 686,
+      "source": "test.skip('v149-1: title 版本號為 [v1.6.149]', () => {\n    assert.ok(/\\[v1\\.6\\.149\\]/.test(HTML), 'title 應包含 [v1.6.149]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "e412ca9716e41ffa7c2c0b04921058fe9f1cccff704ee3ce0230ebc7b48c92c1",
+      "disposition": "consolidated-version",
+      "id": "OLD-082",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v149-taskscreated-bug.test.js",
+      "title": "v149-1: title 版本號為 [v1.6.149]",
+      "start": 610,
+      "end": 732,
+      "source": "test.skip('v149-1: title 版本號為 [v1.6.149]', () => {\n    assert.ok(/\\[v1\\.6\\.149\\]/.test(HTML), 'title 應包含 [v1.6.149]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "e412ca9716e41ffa7c2c0b04921058fe9f1cccff704ee3ce0230ebc7b48c92c1",
+      "disposition": "consolidated-version",
+      "id": "OLD-083",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v149-taskscreated-bug.test.js",
+      "title": "v149-4: 模式 B pipeline 邏輯完整保留",
+      "start": 1550,
+      "end": 1903,
+      "source": "test.skip('v149-4: 模式 B pipeline 邏輯完整保留', () => {\n    assert.ok(/_hasUnitMode = wizardSubjects\\.some/.test(HTML), '應有 _hasUnitMode 偵測');\n    assert.ok(/unitModeAssignments/.test(HTML), '應有 unitModeAssignments 邏輯');\n    assert.ok(/unitModeWarnings/.test(HTML), '應有 unitModeWarnings 邏輯');\n    assert.ok(/模式 B pipeline 排程完成/.test(HTML), '應有模式 B 完成訊息');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "561d894c9168e4cbd2e9383dae94ec7208b7f8e0ba5ec40ed0886edbc433d599",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-084",
+      "reason": "不再依註解文字、saveData函式名或return位置判斷排程正確性；實際生成並檢查完整頁碼、身分、任務與原計畫保護。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：日期不足時明確拒絕部分排程，不遺失頁碼或改寫原計畫"
+        },
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：單元模式保留原有其他任務及完成狀態"
+        }
+      ]
+    },
+    {
+      "file": "v149-taskscreated-bug.test.js",
+      "title": "v149-5: 模式 B 短路邏輯保留 (return 在 if 內)",
+      "start": 1905,
+      "end": 2223,
+      "source": "test.skip('v149-5: 模式 B 短路邏輯保留 (return 在 if 內)', () => {\n    // 找 _hasUnitMode 區塊的 return\n    var unitModeBlock = HTML.match(/var _hasUnitMode = wizardSubjects\\.some[\\s\\S]{0,15000}?saveData\\(\\);\\s*closeModal\\('modal-wizard'\\);\\s*return;/);\n    assert.ok(unitModeBlock, '模式 B 應有 saveData + closeModal + return 短路');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "4712bcabd845d710e1863bc610e7d5e65e895a8df2110875842faed0bfe262a8",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-085",
+      "reason": "不再依註解文字、saveData函式名或return位置判斷排程正確性；實際生成並檢查完整頁碼、身分、任務與原計畫保護。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：日期不足時明確拒絕部分排程，不遺失頁碼或改寫原計畫"
+        },
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：單元模式保留原有其他任務及完成狀態"
+        }
+      ]
+    },
+    {
+      "file": "v150-error-display.test.js",
+      "title": "v150-1: title 版本號為 [v1.6.150]",
+      "start": 465,
+      "end": 587,
+      "source": "test.skip('v150-1: title 版本號為 [v1.6.150]', () => {\n    assert.ok(/\\[v1\\.6\\.150\\]/.test(HTML), 'title 應包含 [v1.6.150]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "a633637da68feb36fea24cc304b87bfa7c0d7c93af2723f3715334aaff621ac0",
+      "disposition": "consolidated-version",
+      "id": "OLD-086",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v151-revert-cache-warnings.test.js",
+      "title": "v151-1: title 版本號為 [v1.6.151]",
+      "start": 363,
+      "end": 485,
+      "source": "test.skip('v151-1: title 版本號為 [v1.6.151]', () => {\n    assert.ok(/\\[v1\\.6\\.151\\]/.test(HTML), 'title 應包含 [v1.6.151]');\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "7d047b759c3a1a1519b3bf2892842634f4b7755f3724211c79a9e51c9be88038",
+      "disposition": "consolidated-version",
+      "id": "OLD-087",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v152-mode-d-default-expand.test.js",
+      "title": "v152-1: title [v1.6.152]",
+      "start": 361,
+      "end": 445,
+      "source": "test.skip('v152-1: title [v1.6.152]', () => assert.ok(/\\[v1\\.6\\.152\\]/.test(HTML)));",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "06474bbd2cc2193c5ee2700f3c96393ac8dd7f24f5d4839b5a11c8294856ef40",
+      "disposition": "consolidated-version",
+      "id": "OLD-088",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v153-empty-units-warning.test.js",
+      "title": "v153-1: title [v1.6.153]",
+      "start": 361,
+      "end": 445,
+      "source": "test.skip('v153-1: title [v1.6.153]', () => assert.ok(/\\[v1\\.6\\.153\\]/.test(HTML)));",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "6b7316da7ed276fb00004ddad8c185cd6d87f987e3b7333be97f79c5251cc8d7",
+      "disposition": "consolidated-version",
+      "id": "OLD-089",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v153-empty-units-warning.test.js",
+      "title": "v153-2: Mode D 有 availableUnits=0 警告",
+      "start": 446,
+      "end": 579,
+      "source": "test.skip('v153-2: Mode D 有 availableUnits=0 警告', () => {\n    assert.ok(HTML.indexOf('本科目 (${escapeHtml(ws.name)}) 找不到單元') >= 0);\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "26895a590f170f5bf140a0a209a95e3a93f248d8a68ccad6fcf08163a447c515",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-090",
+      "reason": "空清單提示文字已改為整體任務警告；實際建立空清單，檢查提示及資料不變。",
+      "replacements": [
+        {
+          "file": "current-wizard-contracts.test.js",
+          "test": "智慧排程契約：單元預設展開、已排未排勾選與空清單警告保留原資料"
+        }
+      ]
+    },
+    {
+      "file": "v154-mission-master-debug.test.js",
+      "title": "v154-1: title [v1.6.154]",
+      "start": 361,
+      "end": 445,
+      "source": "test.skip('v154-1: title [v1.6.154]', () => assert.ok(/\\[v1\\.6\\.154\\]/.test(HTML)));",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "df0a536a7ef2bcf55afc532d3622042ac00a89719963c417e267bb443dff28ca",
+      "disposition": "consolidated-version",
+      "id": "OLD-091",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v155-revert-unit-list.test.js",
+      "title": "v155-1: title [v1.6.155]",
+      "start": 361,
+      "end": 445,
+      "source": "test.skip('v155-1: title [v1.6.155]', () => assert.ok(/\\[v1\\.6\\.155\\]/.test(HTML)));",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "b4f90dc47af8206d066595ae8d9a42c39ee59211e1f3eeed74a1e6ea9e1ae48b",
+      "disposition": "consolidated-version",
+      "id": "OLD-092",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v156-unit-preview.test.js",
+      "title": "v156-1: title [v1.6.156]",
+      "start": 361,
+      "end": 445,
+      "source": "test.skip('v156-1: title [v1.6.156]', () => assert.ok(/\\[v1\\.6\\.156\\]/.test(HTML)));",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "1989b198bfa29452864580f9a2c392bbd9643f7037bb91317346224b2d9b9210",
+      "disposition": "consolidated-version",
+      "id": "OLD-093",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v158-wording.test.js",
+      "title": "v158-1: title [v1.6.158]",
+      "start": 361,
+      "end": 445,
+      "source": "test.skip('v158-1: title [v1.6.158]', () => assert.ok(/\\[v1\\.6\\.158\\]/.test(HTML)));",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "7d62e70a498daa113b9762706bae1aebc2715ec688fe2765d267d81638406189",
+      "disposition": "consolidated-version",
+      "id": "OLD-094",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v159-autofix.test.js",
+      "title": "v159-1: title [v1.6.160] (latest)",
+      "start": 361,
+      "end": 454,
+      "source": "test.skip('v159-1: title [v1.6.160] (latest)', () => assert.ok(/\\[v1\\.6\\.160\\]/.test(HTML)));",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "f1cfa4583735f7b5e236f49855f8f47028985c649fa8eade44ef024b7e9e90c3",
+      "disposition": "consolidated-version",
+      "id": "OLD-095",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v166-step-flow.test.js",
+      "title": "v1.6.83: 4 個 nav pages (import/notes/stats/practice) 存在",
+      "start": 1458,
+      "end": 1754,
+      "source": "test.skip('v1.6.83: 4 個 nav pages (import/notes/stats/practice) 存在', () => {\n    assert.ok(/id=\"wn-page-import\"/.test(indexHtml));\n    assert.ok(/id=\"wn-page-notes\"/.test(indexHtml));\n    assert.ok(/id=\"wn-page-stats\"/.test(indexHtml));\n    assert.ok(/id=\"wn-page-practice\"/.test(indexHtml));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "2a9725939a7a561df97d8600d35e7c2325c5f1b8ce7d86a4cb49db9d22f51760",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-096",
+      "reason": "四個導覽頁目前位於wrong-notes嵌入頁而非父index；改在正確文件測試切換及建置中提示，不宣稱未實作功能已完成。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v166-step-flow.test.js",
+      "title": "v1.6.83: title 更新為 [v1.6.83]",
+      "start": 1756,
+      "end": 1885,
+      "source": "test.skip('v1.6.83: title 更新為 [v1.6.83]', () => {\n    assert.ok(/<title>2026 學習進度看板.*\\[v1\\.6\\.83]<\\/title>/.test(indexHtml));\n});",
+      "category": "首個失敗原因為過時版本號",
+      "sha256": "de35c7e608ef05e76f173c042bc4563510ebafde29c2255e309752da2ec30feb",
+      "disposition": "consolidated-version",
+      "id": "OLD-097",
+      "reason": "過時版本號不是現行功能規格，整併為單一發布版本契約，避免每次升版累積互相矛盾的斷言。",
+      "replacements": [
+        {
+          "file": "current-release-contract.test.js",
+          "test": "版本契約：標題與教材庫徽章使用同一發布版本"
+        }
+      ]
+    },
+    {
+      "file": "v170-phase1.test.js",
+      "title": "v1.6.83: 4 個 nav pages 存在 (import/notes/stats/practice)",
+      "start": 1358,
+      "end": 1869,
+      "source": "test.skip('v1.6.83: 4 個 nav pages 存在 (import/notes/stats/practice)', () => {\n    assert.ok(/<div id=\"wn-page-import\"[^>]*class=\"wn-page active\"/.test(html),\n        'wn-page-import 應存在且 active');\n    assert.ok(/<div id=\"wn-page-notes\"[^>]*class=\"wn-page\"/.test(html),\n        'wn-page-notes 應存在');\n    assert.ok(/<div id=\"wn-page-stats\"[^>]*class=\"wn-page\"/.test(html),\n        'wn-page-stats 應存在');\n    assert.ok(/<div id=\"wn-page-practice\"[^>]*class=\"wn-page\"/.test(html),\n        'wn-page-practice 應存在');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "dc44c6c22233e054b14bbc0fed3e667b8cea52caebc9304bbfa55321270330c4",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-098",
+      "reason": "四個導覽頁目前位於wrong-notes嵌入頁而非父index；改在正確文件測試切換及建置中提示，不宣稱未實作功能已完成。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v170-phase1.test.js",
+      "title": "v1.6.83: 4 個 tab 按鈕 綁定 switchWrongNotesView",
+      "start": 1871,
+      "end": 2143,
+      "source": "test.skip('v1.6.83: 4 個 tab 按鈕 綁定 switchWrongNotesView', () => {\n    assert.ok(/data-wntab=\"import\"/.test(html), 'import tab 應有 data-wntab');\n    assert.ok(/data-wntab=\"stats\"/.test(html), \"stats tab\");\n    assert.ok(/data-wntab=\"practice\"/.test(html), \"practice tab\");});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "06bd3289bfc1f3bae162ff32d3b39379dcf3acdccbe800f33ac1bbbe1af88784",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-099",
+      "reason": "四個導覽頁目前位於wrong-notes嵌入頁而非父index；改在正確文件測試切換及建置中提示，不宣稱未實作功能已完成。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v170-tab-integration.test.js",
+      "title": "v1.6.70.3: 4 個 nav pages 存在於 DOM",
+      "start": 955,
+      "end": 1405,
+      "source": "test.skip('v1.6.70.3: 4 個 nav pages 存在於 DOM', () => {\n    const dom = createDom();\n    const win = dom.window;\n    assert.ok(win.document.getElementById('wn-page-import'), 'wn-page-import 應存在');\n    assert.ok(win.document.getElementById('wn-page-notes'), 'wn-page-notes 應存在');\n    assert.ok(win.document.getElementById('wn-page-stats'), 'wn-page-stats 應存在');\n    assert.ok(win.document.getElementById('wn-page-practice'), 'wn-page-practice 應存在');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "619fb03576ac5e9940f5ef308a90b6ea84715cc410ac1dbc376686b9ac1349ad",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-100",
+      "reason": "四個導覽頁目前位於wrong-notes嵌入頁而非父index；改在正確文件測試切換及建置中提示，不宣稱未實作功能已完成。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v170-tab-integration.test.js",
+      "title": "v1.6.70.3: switchWrongNotesView 直接呼叫切換 class 正確",
+      "start": 1407,
+      "end": 2181,
+      "source": "test.skip('v1.6.70.3: switchWrongNotesView 直接呼叫切換 class 正確', () => {\n    const dom = createDom();\n    const win = dom.window;\n    const importPage = win.document.getElementById('wn-page-import');\n    const notesPage = win.document.getElementById('wn-page-notes');\n    \n    assert.ok(importPage.classList.contains('active'), 'import 初始應 active');\n    \n    win.switchWrongNotesView('notes');\n    assert.ok(!importPage.classList.contains('active'), '切到 notes 後 import 應非 active');\n    assert.ok(notesPage.classList.contains('active'), 'notes 應 active');\n    \n    win.switchWrongNotesView('stats');\n    assert.ok(!notesPage.classList.contains('active'), '切到 stats 後 notes 應非 active');\n    assert.ok(win.document.getElementById('wn-page-stats').classList.contains('active'));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "5645195e20af8590a9a0542bcdc523a1b17f004216e8d621cb64e77680c3039a",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-101",
+      "reason": "四個導覽頁目前位於wrong-notes嵌入頁而非父index；改在正確文件測試切換及建置中提示，不宣稱未實作功能已完成。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v170-tab-integration.test.js",
+      "title": "v1.6.70.3: 備份按鈕在 btn-group 內 (沒有 inline onclick)",
+      "start": 2183,
+      "end": 2829,
+      "source": "test.skip('v1.6.70.3: 備份按鈕在 btn-group 內 (沒有 inline onclick)', () => {\n    const dom = createDom();\n    const win = dom.window;\n    const backupBtn = win.document.getElementById('nav-btn-backup');\n    assert.ok(backupBtn, '備份按鈕應存在');\n    assert.ok(backupBtn.closest('.btn-group'), '備份按鈕應在 btn-group 內');\n    // v1.6.70.3: 沒有 inline onclick (用 addEventListener)\n    assert.equal(backupBtn.getAttribute('onclick'), null, '備份按鈕不應有 inline onclick');\n    assert.equal(backupBtn.getAttribute('data-action'), 'export-backup', '應有 data-action=\"export-backup\"');\n    // 文字不應有 emoji\n    assert.ok(!backupBtn.textContent.includes('📥'), '備份按鈕不應有 emoji');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "fcaee7a9fbc9a8dbd011e3552823d7968db1721ffda2dbff5dab4c36c348dc04",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-102",
+      "reason": "備份入口已移到教材庫與備份頁，舊nav-btn-backup不存在；驗證現行入口及實際備份／還原內容。",
+      "replacements": [
+        {
+          "file": "student-views.test.js",
+          "test": "設定頁依用途分組動作並移除開發診斷入口，保存入口與備份分離，各按鈕仍呼叫原功能"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "正式匯出與還原流程保存錯題關聯登錄、原筆記與回收區，不靠重新配對名稱"
+        }
+      ]
+    },
+    {
+      "file": "v170-tab-integration.test.js",
+      "title": "v1.6.70.3: openWrongNotes 後 點 tab 觸發 addEventListener 切換",
+      "start": 3215,
+      "end": 3766,
+      "source": "test.skip('v1.6.70.3: openWrongNotes 後 點 tab 觸發 addEventListener 切換', () => {\n    const dom = createDom();\n    const win = dom.window;\n    \n    // 先呼叫 openWrongNotes (會綁定 addEventListener)\n    // 關閉 alert (測試環境)\n    win.alert = function() {};\n    win.openWrongNotes();\n    \n    const notesPage = win.document.getElementById('wn-page-notes');\n    const notesTab = win.document.querySelector('[data-wntab=\"notes\"]');\n    \n    notesTab.click();\n    assert.ok(notesPage.classList.contains('active'), 'click() 後 notes 應 active (via addEventListener)');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "4dfceda921768fd353bb7f6ce2d0344dbe8d1e92c20cbcde211af99e148e051a",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-103",
+      "reason": "四個導覽頁目前位於wrong-notes嵌入頁而非父index；改在正確文件測試切換及建置中提示，不宣稱未實作功能已完成。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual same-origin embedded app and four-tab navigation"
+        }
+      ]
+    },
+    {
+      "file": "v173-layout.test.js",
+      "title": "v1.6.83: 兩個 drop zone (附件設計)",
+      "start": 921,
+      "end": 1268,
+      "source": "test.skip('v1.6.83: 兩個 drop zone (附件設計)', () => {\n    // 應該有 wn-source-zone (錯題來源) + wn-paper-zone (考卷)\n    assert.ok(/id=\"wn-source-zone\"/.test(html), 'wn-source-zone 應存在');\n    assert.ok(/id=\"wn-paper-zone\"/.test(html), 'wn-paper-zone 應存在');\n    // 文字\n    assert.ok(/請選擇錯題來源/.test(html), '錯題來源文字');\n    assert.ok(/請匯入考卷/.test(html), '考卷文字');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "fd10e3704063a7e175114101529c6649cb6b4c1c1480c164cc3b0ee2ff04c7cb",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-104",
+      "reason": "上傳入口目前為zone-photos與zone-exams；改驗可用的檔案選擇／滑放與容器，無須要求舊ID或inline style。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        }
+      ]
+    },
+    {
+      "file": "v173-layout.test.js",
+      "title": "v1.6.83: crop size check 用相對座標 (百分比)",
+      "start": 1634,
+      "end": 1885,
+      "source": "test.skip('v1.6.83: crop size check 用相對座標 (百分比)', () => {\n    const fn = getFunctionBody('WN_initCropDrawing');\n    assert.ok(fn, '應定義');\n    // 應該檢查 relW < 0.05 (5%) 而不是 box.w < 10\n    assert.ok(fn.includes('naturalWidth'), '應參考原圖 naturalWidth');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "a2a134705020fc9def842d9db929e88b738b64b1109dc5888e9c3e3e1f25e130",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-105",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v173-layout.test.js",
+      "title": "v1.6.83: 整合測試 - crop 相對座標邏輯",
+      "start": 2407,
+      "end": 2752,
+      "source": "test.skip('v1.6.83: 整合測試 - crop 相對座標邏輯', () => {\n      // 確認 source code 有相對座標判斷邏輯\n      const fn = getFunctionBody('WN_initCropDrawing');\n      assert.ok(fn, 'WN_initCropDrawing 應定義');\n      assert.ok(fn.includes('naturalWidth'), '應用 naturalWidth');\n      assert.ok(fn.includes('naturalHeight'), '應用 naturalHeight');\n      // 5% 門檻\n      \n  });",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "fe9aa5b3ce135e01264949be7ed1dedfaf46e5b7f34a3ed3cfebf4d64c738b02",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-106",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v174-sticky-tab.test.js",
+      "title": "v1.6.83: wn-tabs sticky 定位",
+      "start": 410,
+      "end": 769,
+      "source": "test.skip('v1.6.83: wn-tabs sticky 定位', () => {\n    // 確認 HTML 有 inline style position:sticky + top:0\n    assert.ok(/<div class=\"wn-tabs\"[^>]*style=\"[^\"]*position:\\s*sticky/.test(html),\n        'wn-tabs 應有 position: sticky inline style');\n    assert.ok(/<div class=\"wn-tabs\"[^>]*style=\"[^\"]*top:\\s*0/.test(html),\n        'wn-tabs 應有 top: 0 inline style');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "99c4acc200dc971d5cb15a9a8a02108a120993dbec30fc7e74cb9a7125c4e6ba",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-107",
+      "reason": "舊父頁wn-tabs已改為嵌入頁top-navbar；驗證實際捲動後導覽仍可見，不要求舊ID的sticky字串。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題導覽契約：四個頁籤切換只有一頁啟用，未完成的分析與再練保留建置提示"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: actual embedded navigation remains accessible while scrolling"
+        }
+      ]
+    },
+    {
+      "file": "v175-attached-style.test.js",
+      "title": "v1.6.83: 兩個 drop zone 用附件 emoji (📁 📄)",
+      "start": 1251,
+      "end": 1526,
+      "source": "test.skip('v1.6.83: 兩個 drop zone 用附件 emoji (📁 📄)', () => {\n    assert.ok(/📁\\s*請選擇錯題來源/.test(html), '第一個用 📁');\n    assert.ok(/📄\\s*請匯入考卷/.test(html), '第二個用 📄');\n    // 不應該有附件原版的 emoji (附圖1 顯示是 🖊️, 但附件源是 📁)\n    assert.ok(!/請選擇錯題來源.*🖊️/.test(html), '不應有 🖊️ emoji');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "91832fb1a8f096ce773e123478f5a14a52a47495b789607081d30cd791f7dc79",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-108",
+      "reason": "上傳入口目前為zone-photos與zone-exams；改驗可用的檔案選擇／滑放與容器，無須要求舊ID或inline style。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        }
+      ]
+    },
+    {
+      "file": "v175-attached-style.test.js",
+      "title": "v1.6.83: WN_initDragDrop 用正確的 id (wn-source-zone)",
+      "start": 1968,
+      "end": 2195,
+      "source": "test.skip('v1.6.83: WN_initDragDrop 用正確的 id (wn-source-zone)', () => {\n    assert.ok(!html.includes(\"'wn-upload-zone'\"), '不應再用舊 id wn-upload-zone');\n    assert.ok(html.includes(\"'wn-source-zone'\"), '應用新 id wn-source-zone');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "071bd30b7c9f9a52453f4ff6f47de0958669dea3a6dbffabe61b2cde9e641d35",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-109",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v176-force-style.test.js",
+      "title": "v1.6.83: wn-source-zone 有 inline style (最高優先級)",
+      "start": 1257,
+      "end": 1613,
+      "source": "test.skip('v1.6.83: wn-source-zone 有 inline style (最高優先級)', () => {\n    const m = html.match(/<div id=\"wn-source-zone\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, 'wn-source-zone 應有 inline style');\n    const style = m[1];\n    assert.ok(/border:\\s*3px dashed/.test(style), '應有 3px dashed inline style');\n    assert.ok(/#1a82e2/.test(style), '應用藍色 #1a82e2');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "e8452d1f8736a228952a8819f9b3da69b8030d17fc68fa3a168e160cbbf125ea",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-110",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v176-force-style.test.js",
+      "title": "v1.6.83: wn-paper-zone 有 inline style",
+      "start": 1615,
+      "end": 1939,
+      "source": "test.skip('v1.6.83: wn-paper-zone 有 inline style', () => {\n    const m = html.match(/<div id=\"wn-paper-zone\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, 'wn-paper-zone 應有 inline style');\n    const style = m[1];\n    assert.ok(/border:\\s*3px dashed/.test(style), '應有 3px dashed');\n    assert.ok(/#1a82e2/.test(style), '應用藍色');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "c9d055158c623360f455afa5face0e23946a134e359d056cd9bb87be76f95bf0",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-111",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v176-force-style.test.js",
+      "title": "v1.6.83: 文字 p 有 inline style",
+      "start": 1941,
+      "end": 2155,
+      "source": "test.skip('v1.6.83: 文字 p 有 inline style', () => {\n    assert.ok(/<p[^>]*font-size:1\\.1em/.test(html), 'p 應有 font-size:1.1em inline');\n    assert.ok(/<p[^>]*font-weight:bold/.test(html), 'p 應 font-weight:bold');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "b155920b7610f9bafdfaea371bbd13ddb674e848991c644128a8f169898fead0",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-112",
+      "reason": "上傳入口目前為zone-photos與zone-exams；改驗可用的檔案選擇／滑放與容器，無須要求舊ID或inline style。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        }
+      ]
+    },
+    {
+      "file": "v176-force-style.test.js",
+      "title": "v1.6.83: 整合測試 - drop zone 元素存在 + inline style",
+      "start": 2656,
+      "end": 3191,
+      "source": "test.skip('v1.6.83: 整合測試 - drop zone 元素存在 + inline style', () => {\n    const dom = _mkDom(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/' });\n    const win = dom.window;\n    const sourceZone = win.document.getElementById('wn-source-zone');\n    const paperZone = win.document.getElementById('wn-paper-zone');\n    assert.ok(sourceZone, 'wn-source-zone 應存在');\n    assert.ok(paperZone, 'wn-paper-zone 應存在');\n    assert.ok(sourceZone.style.border.includes('dashed'), 'source zone 應有 dashed border');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "c41bc8ea899717a99f47c48d3de40b13ca478ce78f353a2f60fcda3eda7ef6b0",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-113",
+      "reason": "上傳入口目前為zone-photos與zone-exams；改驗可用的檔案選擇／滑放與容器，無須要求舊ID或inline style。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題外框契約：使用同源嵌入頁、填滿容器且重複開啟不重複導覽"
+        }
+      ]
+    },
+    {
+      "file": "v177-crop-enhance.test.js",
+      "title": "v1.6.83: HTML 有取消選取 + 完成選取按鈕",
+      "start": 891,
+      "end": 1232,
+      "source": "test.skip('v1.6.83: HTML 有取消選取 + 完成選取按鈕', () => {\n    assert.ok(html.includes('取消選取'), '應有「取消選取」按鈕');\n    assert.ok(html.includes('完成選取'), '應有「完成選取」按鈕');\n    assert.ok(html.includes('onclick=\"WN_cancelSelection()\"'), '應綁定 WN_cancelSelection');\n    assert.ok(html.includes('onclick=\"WN_completeSelection()\"'), '應綁定 WN_completeSelection');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "56f1d9b0eecbc0b92051ad2f68d5624b4bf70a375eded7c6fd346b13529b7809",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-114",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v177-crop-enhance.test.js",
+      "title": "v1.6.83: 完成選取按鈕用黃色 (附件風格)",
+      "start": 1234,
+      "end": 1483,
+      "source": "test.skip('v1.6.83: 完成選取按鈕用黃色 (附件風格)', () => {\n    const m = html.match(/onclick=\"WN_completeSelection\\(\\)\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, '應有 inline style');\n    const style = m[1];\n    assert.ok(/#f0d040/.test(style), '應用黃色 #f0d040');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "fa6d025ed8e3769cc4957e288d19d8cdaf82ef5e2de5773905f1cf1074e059aa",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-115",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v177-crop-enhance.test.js",
+      "title": "v1.6.83: 取消選取按鈕用灰紫色",
+      "start": 1485,
+      "end": 1726,
+      "source": "test.skip('v1.6.83: 取消選取按鈕用灰紫色', () => {\n    const m = html.match(/onclick=\"WN_cancelSelection\\(\\)\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, '應有 inline style');\n    const style = m[1];\n    assert.ok(/#c9b8d9/.test(style), '應用灰紫 #c9b8d9');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "61b441965b8601779c85a94da81349d5d3b6b38969b29ede446c4d2885b77243",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-116",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v177-crop-enhance.test.js",
+      "title": "v1.6.83: WN_completeSelection 函式存在 (顯示教材表單)",
+      "start": 2165,
+      "end": 2474,
+      "source": "test.skip('v1.6.83: WN_completeSelection 函式存在 (顯示教材表單)', () => {\n    const body = getFunctionBody('WN_completeSelection');\n    assert.ok(body, 'WN_completeSelection 應定義');\n    assert.ok(body.includes('wn-crop-list'), '應顯示教材選擇表單');\n    assert.ok(body.includes('WN_renderCropCards'), '應呼叫 renderCropCards');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "cf0e01129513bd0f3c6775a8e7c737b0da0c1f368d3b3c4f7ec14fc526305517",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-117",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v177-crop-enhance.test.js",
+      "title": "v1.6.83: 點擊新增 crop box (用 mousedown 不用 dblclick)",
+      "start": 4029,
+      "end": 4356,
+      "source": "test.skip('v1.6.83: 點擊新增 crop box (用 mousedown 不用 dblclick)', () => {\n    const body = getFunctionBody('WN_initCropDrawing');\n    assert.ok(body, 'WN_initCropDrawing 應定義');\n    assert.ok(body.includes(\"addEventListener('mousedown'\"), '應綁定 mousedown');\n    assert.ok(body.includes('cropBoxes.push(newBox)'), '應新增 crop box');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "b148faeeba642196725b81d1135f3fa11e30d1ec8c36e9bccfe0e7bfcba78b63",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-118",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v178-buttons-visible.test.js",
+      "title": "v1.6.83: 取消/完成按鈕在 crop area 內 (頂部)",
+      "start": 394,
+      "end": 955,
+      "source": "test.skip('v1.6.83: 取消/完成按鈕在 crop area 內 (頂部)', () => {\n    // 找 crop area 區塊\n    const m = html.match(/<div id=\"wn-crop-area\"[^>]*>([\\s\\S]*?)<\\/div>\\s*<!-- 教材選擇/);\n    assert.ok(m, 'crop area 應存在');\n    const cropArea = m[1];\n    // 取消/完成按鈕應在 crop area 內\n    assert.ok(cropArea.includes('取消選取'), '取消選取應在 crop area 內');\n    assert.ok(cropArea.includes('完成選取'), '完成選取應在 crop area 內');\n    // 並且在圖片之前 (頂部)\n    const cancelIdx = cropArea.indexOf('取消選取');\n    const imgIdx = cropArea.indexOf('wn-crop-img');\n    assert.ok(cancelIdx < imgIdx, '取消選取應在圖片之前 (頂部)');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "077f0c78f1d8c9a857d4ada9859d3474c7845ce051a783a141e3943a5cf9c3aa",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-119",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v178-buttons-visible.test.js",
+      "title": "v1.6.83: 💡 提示文字在圖片之前",
+      "start": 957,
+      "end": 1337,
+      "source": "test.skip('v1.6.83: 💡 提示文字在圖片之前', () => {\n    const m = html.match(/<div id=\"wn-crop-area\"[^>]*>([\\s\\S]*?)<\\/div>\\s*<!-- 教材選擇/);\n    assert.ok(m, 'crop area 應存在');\n    const cropArea = m[1];\n    const tipIdx = cropArea.indexOf('框選 (drag)');\n    const imgIdx = cropArea.indexOf('wn-crop-img');\n    assert.ok(tipIdx > 0, '應有提示文字');\n    assert.ok(tipIdx < imgIdx, '提示文字應在圖片之前');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "df9ad16d871cc6be30309c2edda1eebca9f6ee33ec88e9fc53ba369dbed6efd9",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-120",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v179-click-crop.test.js",
+      "title": "v1.6.83: mousedown 立即新增 150x150 crop box",
+      "start": 436,
+      "end": 787,
+      "source": "test.skip('v1.6.83: mousedown 立即新增 150x150 crop box', () => {\n    const m = html.match(/overlay\\.addEventListener\\('mousedown'[\\s\\S]+?\\}\\);/);\n    assert.ok(m, '應有 mousedown handler');\n    const code = m[0];\n    assert.ok(code.includes('cropBoxes.push(newBox)'), '應直接 push newBox');\n    assert.ok(code.includes('Math.min(150'), '應新增 150x150 box');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "2b2ef37bac40ded42284296d4ca020718a8c10e5a10b97da01615eb68691b27f",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-121",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v179-click-crop.test.js",
+      "title": "v1.6.83: mouseup 變 no-op (v1.6.83 簡化)",
+      "start": 789,
+      "end": 1052,
+      "source": "test.skip('v1.6.83: mouseup 變 no-op (v1.6.83 簡化)', () => {\n    const m = html.match(/overlay\\.addEventListener\\('mouseup'[\\s\\S]+?\\}\\);/);\n    assert.ok(m, '應有 mouseup handler');\n    const code = m[0];\n    assert.ok(code.includes('no-op'), 'mouseup 應為 no-op');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "2d5f8524e43cce7d84314d42c9c39a71e4baa6b77a97cb3128848a50d00b1806",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-122",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v180-simple-click.test.js",
+      "title": "v1.6.83: mousedown handler 立即新增 box",
+      "start": 414,
+      "end": 838,
+      "source": "test.skip('v1.6.83: mousedown handler 立即新增 box', () => {\n    const m = html.match(/overlay\\.addEventListener\\('mousedown'[\\s\\S]+?\\}\\);/);\n    assert.ok(m, '應有 mousedown handler');\n    const code = m[0];\n    assert.ok(code.includes('cropBoxes.push(newBox)'), 'mousedown 應立即新增 box');\n    assert.ok(code.includes('Math.min(150'), '應新增 150x150 box');\n    assert.ok(code.includes('e.stopPropagation()'), '應 stopPropagation');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "aff94f464bfa61ae6b3f3ec22a71334b81fe24ef34219c268fd9cadcaba22304",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-123",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v180-simple-click.test.js",
+      "title": "v1.6.83: 不再有 mouseup click 邏輯 (移除複雜的 isClick 判斷)",
+      "start": 840,
+      "end": 1230,
+      "source": "test.skip('v1.6.83: 不再有 mouseup click 邏輯 (移除複雜的 isClick 判斷)', () => {\n    // mouseup 應該變簡單 (只處理 drag)\n    const m = html.match(/overlay\\.addEventListener\\('mouseup'[\\s\\S]+?\\}\\);/);\n    assert.ok(m, '應有 mouseup handler');\n    const code = m[0];\n    // 移除的複雜邏輯\n    assert.ok(!code.includes('isClick'), '不應再有 isClick 邏輯');\n    assert.ok(!code.includes('mouseDownX'), '不應再有 mouseDownX 引用');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "35c4ada077a937c39bb86b49a6bedbb661f6e68048b123e0da535ae86ca5c446",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-124",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v180-simple-click.test.js",
+      "title": "v1.6.83: mousedown 與 mouseup 各自獨立 (mousedown 新增, mouseup drag)",
+      "start": 1232,
+      "end": 1533,
+      "source": "test.skip('v1.6.83: mousedown 與 mouseup 各自獨立 (mousedown 新增, mouseup drag)', () => {\n    // mousedown 應該獨立完成新增 (不需要 mouseup 確認)\n    const mousedown = html.match(/overlay\\.addEventListener\\('mousedown'[\\s\\S]+?\\}\\);/);\n    assert.ok(mousedown[0].includes('cropBoxes.push(newBox)'), 'mousedown 獨立新增');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "f2cf87e83da1e0b0430547ae5bc2d6682a16d5841bbe30654e7a5877836ed271",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-125",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v181-remove-dblclick.test.js",
+      "title": "v1.6.83: mousedown handler 還在 (點擊新增 box)",
+      "start": 603,
+      "end": 959,
+      "source": "test.skip('v1.6.83: mousedown handler 還在 (點擊新增 box)', () => {\n    const m = html.match(/overlay\\.addEventListener\\('mousedown'[\\s\\S]+?\\}\\);/);\n    assert.ok(m, '應有 mousedown handler');\n    const code = m[0];\n    assert.ok(code.includes('cropBoxes.push(newBox)'), 'mousedown 應 push box');\n    assert.ok(code.includes('Math.min(150'), '應新增 150x150 box');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "b6e6511b76ecae630529d5df6cdbbf36a8be42d6716eecc8f4b7ce594e956c2c",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-126",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v183-attach-crop.test.js",
+      "title": "v1.6.83: img 有 inline mousedown handler (附件風格)",
+      "start": 888,
+      "end": 1071,
+      "source": "test.skip('v1.6.83: img 有 inline mousedown handler (附件風格)', () => {\n    assert.ok(html.includes('onmousedown=\"WN_onCropImgMouseDown(event)\"'),\n        'img 應有 mousedown handler');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "6bafb5d0e0df214462dbdad49258b62a8e0c5cf2f6ce2a2bc5e7bc6ede9fe804",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-127",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v183-attach-crop.test.js",
+      "title": "v1.6.83: WN_onCropImgMouseDown 函式存在",
+      "start": 1073,
+      "end": 1391,
+      "source": "test.skip('v1.6.83: WN_onCropImgMouseDown 函式存在', () => {\n    const body = getFunctionBody('WN_onCropImgMouseDown');\n    assert.ok(body, 'WN_onCropImgMouseDown 應定義');\n    assert.ok(body.includes('cropBoxes.push(newBox)'), '應新增 crop box');\n    assert.ok(body.includes('WN_renderCropBoxes()'), '應呼叫 renderCropBoxes');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "3a0d4c0d836f04eb2817a8df18ff14e9c7b7fc87af96955219fb83b69c591eb9",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-128",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v183-attach-crop.test.js",
+      "title": "v1.6.83: 使用 percentage 座標 (不受圖片縮放影響)",
+      "start": 1393,
+      "end": 1691,
+      "source": "test.skip('v1.6.83: 使用 percentage 座標 (不受圖片縮放影響)', () => {\n    const body = getFunctionBody('WN_onCropImgMouseDown');\n    assert.ok(body, '應定義');\n    // 應該有 100 - boxW (避免 box 超出圖片)\n    assert.ok(body.includes('100 - boxW') || body.includes('100 - boxH'),\n        '應用 percentage 座標 (max 100%)');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "0a2616824d4b52959a3ca982cfe3614e742f21d6ad9b15e150767db29491ff91",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-129",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v185-block-text-select.test.js",
+      "title": "v1.6.85: crop-img-container 有 user-select: none",
+      "start": 862,
+      "end": 1367,
+      "source": "test.skip('v1.6.85: crop-img-container 有 user-select: none', () => {\n    const m = html.match(/<div id=\"wn-crop-img-container\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, '應有 inline style');\n    const style = m[1];\n    assert.ok(style.includes('user-select:none') || style.includes('user-select: none'),\n        'container 應有 user-select: none');\n    assert.ok(style.includes('-webkit-user-select:none') || style.includes('-webkit-user-select: none'),\n        'container 應有 -webkit-user-select (Safari)');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "c56f0a21f4c093ebd15216fd26d07db9a8f7bb313e6b5131dea0a0aeb94263f6",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-130",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v185-block-text-select.test.js",
+      "title": "v1.6.85: wn-crop-img 有 user-select + user-drag: none",
+      "start": 1369,
+      "end": 1864,
+      "source": "test.skip('v1.6.85: wn-crop-img 有 user-select + user-drag: none', () => {\n    const m = html.match(/<img id=\"wn-crop-img\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, '應有 inline style');\n    const style = m[1];\n    assert.ok(style.includes('user-select:none') || style.includes('user-select: none'),\n        'img 應有 user-select: none');\n    assert.ok(style.includes('-webkit-user-drag:none') || style.includes('-webkit-user-drag: none'),\n        'img 應有 -webkit-user-drag: none (Safari 圖片拖曳禁用)');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "051545516ef8187313c3d266ce159d8322a0774e73044b4331b40056132fee30",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-131",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v185-block-text-select.test.js",
+      "title": "v1.6.85: WN_onCropImgMouseDown 阻止瀏覽器文字選取",
+      "start": 1866,
+      "end": 2302,
+      "source": "test.skip('v1.6.85: WN_onCropImgMouseDown 阻止瀏覽器文字選取', () => {\n    const body = getFunctionBody('WN_onCropImgMouseDown');\n    assert.ok(body, '應有函式');\n    assert.ok(body.includes('preventDefault'), '應有 preventDefault');\n    assert.ok(body.includes('stopPropagation'), '應有 stopPropagation');\n    assert.ok(body.includes('getSelection'), '應呼叫 getSelection 阻止文字選取');\n    assert.ok(body.includes('removeAllRanges'), '應 removeAllRanges');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "2712b710b0eaa6910a6fe8814fdf598c3b78259c427d8d6d7fae290a9cdf6c0e",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-132",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v187-click-vs-drag.test.js",
+      "title": "v1.6.87: mouseup 區分 click (w<=10) vs drag (w>10)",
+      "start": 878,
+      "end": 1241,
+      "source": "test.skip('v1.6.87: mouseup 區分 click (w<=10) vs drag (w>10)', () => {\n    const m = html.match(/cropArea\\.onmouseup\\s*=\\s*function[\\s\\S]+?\\};/);\n    assert.ok(m, '應有 cropArea.onmouseup');\n    const code = m[0];\n    assert.ok(code.includes('w > 10 && box.h > 10'), '應檢查 drag 大小');\n    assert.ok(code.includes('clickBox') || code.includes('點擊'), '應有 click 邏輯');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "df16880f480b1a2ca45e2fb63b6c28038f022c46e759c3beac6cb9d771a4bde5",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-133",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v187-click-vs-drag.test.js",
+      "title": "v1.6.87: click 立即新增 100x100 box (居中)",
+      "start": 1243,
+      "end": 1583,
+      "source": "test.skip('v1.6.87: click 立即新增 100x100 box (居中)', () => {\n    const m = html.match(/cropArea\\.onmouseup\\s*=\\s*function[\\s\\S]+?\\};/);\n    assert.ok(m, '應有 cropArea.onmouseup');\n    const code = m[0];\n    assert.ok(code.includes('boxW = Math.min(100'), '應 boxW = 100');\n    assert.ok(code.includes('boxH = Math.min(100'), '應 boxH = 100');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "bb8e371edd59c310747725c5d54ba5305ab7c50d5200f60b344ca50bc74b4ffa",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-134",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v188-position-fix.test.js",
+      "title": "v1.6.88: .wn-crop-area CSS 有 position: relative",
+      "start": 431,
+      "end": 705,
+      "source": "test.skip('v1.6.88: .wn-crop-area CSS 有 position: relative', () => {\n    const m = html.match(/\\.wn-crop-area\\s*\\{([\\s\\S]*?)\\}/);\n    assert.ok(m, '.wn-crop-area CSS 應存在');\n    const css = m[1];\n    assert.ok(css.includes('position: relative'), '應有 position: relative');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "1f59cbec74f5f24887138b135717e9cff58df3d709ebc9f32c1667649900eef1",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-135",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v188-position-fix.test.js",
+      "title": "v1.6.88: #wn-crop-area inline style 有 position: relative",
+      "start": 707,
+      "end": 1060,
+      "source": "test.skip('v1.6.88: #wn-crop-area inline style 有 position: relative', () => {\n    const m = html.match(/<div id=\"wn-crop-area\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, 'inline style 應存在');\n    const style = m[1];\n    assert.ok(style.includes('position:relative') || style.includes('position: relative'),\n        'inline style 應有 position: relative');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "68b87509faacae0ab6f4ead81f9cff63a4fb9e25bcb20423e522f1353a70bcc1",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-136",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v188-position-fix.test.js",
+      "title": "v1.6.88: .wn-crop-box CSS 完整 (position + border + background)",
+      "start": 1062,
+      "end": 1496,
+      "source": "test.skip('v1.6.88: .wn-crop-box CSS 完整 (position + border + background)', () => {\n    const m = html.match(/\\.wn-crop-box\\s*\\{([\\s\\S]*?)\\}/);\n    assert.ok(m, '.wn-crop-box CSS 應存在');\n    const css = m[1];\n    assert.ok(css.includes('position: absolute'), '應有 position: absolute');\n    assert.ok(css.includes('border: 3px solid #1a82e2'), '應有藍色 3px 邊框');\n    assert.ok(css.includes('background: rgba(26, 130, 226'), '應有半透明藍色背景');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "52d8e9702782003ae5e4572b838c417b920abe3543642688d5f7088c1f31b852",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-137",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v191-img-size.test.js",
+      "title": "v1.6.91: WN_renderCropAreaBoxes 用 img 尺寸 (不用 cropArea rect)",
+      "start": 868,
+      "end": 1328,
+      "source": "test.skip('v1.6.91: WN_renderCropAreaBoxes 用 img 尺寸 (不用 cropArea rect)', () => {\n    const body = getFunctionBody('WN_renderCropAreaBoxes');\n    assert.ok(body, '應定義');\n    assert.ok(body.includes('clientWidth'), '應用 img.clientWidth');\n    assert.ok(body.includes('clientHeight'), '應用 img.clientHeight');\n    assert.ok(body.includes('naturalWidth'), '應 fallback 到 naturalWidth');\n    assert.ok(body.includes('naturalHeight'), '應 fallback 到 naturalHeight');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "d791470f41651533dfb57263d9dfd62e163b80b46a1f793349c2efc5aab2c1ea",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-138",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v191-img-size.test.js",
+      "title": "v1.6.91: 沒有 undefined rect (v1.6.90 bug)",
+      "start": 1330,
+      "end": 1685,
+      "source": "test.skip('v1.6.91: 沒有 undefined rect (v1.6.90 bug)', () => {\n    const body = getFunctionBody('WN_renderCropAreaBoxes');\n    assert.ok(body, '應定義');\n    assert.ok(!body.includes('var rect ='), '不應宣告 rect (會 undefined)');\n    assert.ok(!body.includes('rect.width'), '不應使用 rect.width');\n    assert.ok(!body.includes('rect.height'), '不應使用 rect.height');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "89676850b37c980a96930ec9fc9f43acd64402c9b3b7abd2bf17372007dc074b",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-139",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v193-remove-overflow.test.js",
+      "title": "v1.6.93: #wn-crop-img-container 沒有 overflow:hidden (讓 border 顯示)",
+      "start": 433,
+      "end": 786,
+      "source": "test.skip('v1.6.93: #wn-crop-img-container 沒有 overflow:hidden (讓 border 顯示)', () => {\n    const m = html.match(/<div id=\"wn-crop-img-container\"[^>]*style=\"([^\"]*)\"/);\n    assert.ok(m, 'inline style 應存在');\n    const style = m[1];\n    assert.ok(!style.includes('overflow:hidden') && !style.includes('overflow: hidden'),\n        '不應有 overflow:hidden');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "c4faa9e30d72b10f6ac671c70ffe05f19984d580570981fcda10ff1cb739eb08",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-140",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v193-remove-overflow.test.js",
+      "title": "v1.6.93: .wn-crop-box CSS 用 !important + z-index",
+      "start": 788,
+      "end": 1159,
+      "source": "test.skip('v1.6.93: .wn-crop-box CSS 用 !important + z-index', () => {\n    const m = html.match(/\\.wn-crop-box\\s*\\{([\\s\\S]*?)\\}/);\n    assert.ok(m, 'CSS 應存在');\n    const css = m[1];\n    assert.ok(css.includes('!important'), '應有 !important');\n    assert.ok(css.includes('z-index'), '應有 z-index');\n    assert.ok(css.includes('border: 3px solid #1a82e2'), '應有藍色 3px 邊框');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "883f61fd4814f0fca68bdc54b55044042455e6ab940f4425d3c05c1133e1c087",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-141",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v194-v15241-css.test.js",
+      "title": "v1.6.94: .wn-crop-area CSS 用 v1.5.241 設定",
+      "start": 417,
+      "end": 766,
+      "source": "test.skip('v1.6.94: .wn-crop-area CSS 用 v1.5.241 設定', () => {\n    const m = html.match(/\\.wn-crop-area\\s*\\{([\\s\\S]*?)\\}/);\n    assert.ok(m, '.wn-crop-area CSS 應存在');\n    const css = m[1];\n    assert.ok(css.includes('position: relative'), '應有 position: relative');\n    assert.ok(css.includes('display: inline-block'), '應有 display: inline-block');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "43bb7d2302da62bf77f86b3eeef78cd18a8c2d55556ff7437c73c106f14907f1",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-142",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v194-v15241-css.test.js",
+      "title": "v1.6.94: .wn-crop-box CSS 用 v1.5.241 設定 (沒有 overflow:hidden 問題)",
+      "start": 768,
+      "end": 1203,
+      "source": "test.skip('v1.6.94: .wn-crop-box CSS 用 v1.5.241 設定 (沒有 overflow:hidden 問題)', () => {\n    const m = html.match(/\\.wn-crop-box\\s*\\{([\\s\\S]*?)\\}/);\n    assert.ok(m, '.wn-crop-box CSS 應存在');\n    const css = m[1];\n    assert.ok(css.includes('position: absolute'), '應有 position: absolute');\n    assert.ok(css.includes('border: 2px solid #3498db'), '應有藍色 2px 邊框');\n    assert.ok(!css.includes('overflow: hidden'), '不應有 overflow: hidden');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "d599852d0c1e12eb7a3e68ede0e7f49f3d4380fa9148861f174486a771db190b",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-143",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v194-v15241-css.test.js",
+      "title": "v1.6.94: HTML 結構照 v1.5.241 - img 直接在 cropArea 內",
+      "start": 1205,
+      "end": 1596,
+      "source": "test.skip('v1.6.94: HTML 結構照 v1.5.241 - img 直接在 cropArea 內', () => {\n    // 確認 wn-crop-img-container 已移除\n    assert.ok(!html.includes('id=\"wn-crop-img-container\"'), 'wn-crop-img-container 應移除');\n    // 確認 wn-crop-img 在 wn-crop-area 內\n    const cropArea = html.match(/<div id=\"wn-crop-area\"[^>]*>([\\s\\S]*?)<img id=\"wn-crop-img\"/);\n    assert.ok(cropArea, 'wn-crop-img 應在 wn-crop-area 內');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "c6b17871ca9a04add06d019df73f04f1e4748ab0a9b2fa061057243783e29d2a",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-144",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v194-v15241-css.test.js",
+      "title": "v1.6.94: WN_renderCropAreaBoxes 用 cropArea.appendChild (v1.5.241 設計)",
+      "start": 1598,
+      "end": 2082,
+      "source": "test.skip('v1.6.94: WN_renderCropAreaBoxes 用 cropArea.appendChild (v1.5.241 設計)', () => {\n    const m = html.match(/function WN_renderCropAreaBoxes\\(\\)\\s*\\{([\\s\\S]*?)\\}\\s*\\}/);\n    assert.ok(m, '應定義');\n    const body = m[1];\n    assert.ok(body.includes('cropArea.appendChild'), '應 cropArea.appendChild');\n    assert.ok(!body.includes('container.appendChild'), '不應 container.appendChild');\n    assert.ok(body.includes('cropArea.getBoundingClientRect'), '應用 cropArea rect 算 scale');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "29b01d39b81996886a0b3cb26903d9b590614bafd3a512fbb0bcd72c62291869",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-145",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v195-save-modal.test.js",
+      "title": "v1.6.95: saveSettingsAndAlert 先關閉其他 modal (避免擋住)",
+      "start": 1391,
+      "end": 1777,
+      "source": "test.skip('v1.6.95: saveSettingsAndAlert 先關閉其他 modal (避免擋住)', () => {\n    const body = getFunctionBody('saveSettingsAndAlert');\n    assert.ok(body, '應定義');\n    assert.ok(body.includes(\"querySelectorAll('.modal-bg')\"), '應查詢所有 modal-bg');\n    assert.ok(body.includes('style.display'), '應設定 style.display');\n    assert.ok(body.includes(\"modal-save-confirm\"), '應保留 modal-save-confirm');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "19afb1751b6255fecc29a4c981dc6fbb2fc23ee64f6ab2d7b27f77c7f2d18bbb",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-146",
+      "reason": "v1.6.98起不再強制關閉其他modal，避免干擾編輯；改驗真正儲存結果及確認視窗，不靠特定querySelector字串。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "儲存介面契約：成功顯示確認視窗且不關閉不相關對話框，extract失敗不存檔"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "教材儲存失敗保留編輯狀態，不顯示成功或回首頁"
+        }
+      ]
+    },
+    {
+      "file": "v196-fix-extract.test.js",
+      "title": "v1.6.96: saveSettingsAndAlert 先關閉其他 modal",
+      "start": 1914,
+      "end": 2197,
+      "source": "test.skip('v1.6.96: saveSettingsAndAlert 先關閉其他 modal', () => {\n    const body = getFunctionBody('saveSettingsAndAlert');\n    assert.ok(body.includes(\"querySelectorAll('.modal-bg')\"), '應查詢所有 modal-bg');\n    assert.ok(body.includes(\"modal-save-confirm\"), '應保留 modal-save-confirm');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "047fe9fcf1aff679dce05ac7b31314ac0b8e55370997c0e0d4ff473fe3f69691",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-147",
+      "reason": "v1.6.98起不再強制關閉其他modal，避免干擾編輯；改驗真正儲存結果及確認視窗，不靠特定querySelector字串。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "儲存介面契約：成功顯示確認視窗且不關閉不相關對話框，extract失敗不存檔"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "教材儲存失敗保留編輯狀態，不顯示成功或回首頁"
+        }
+      ]
+    },
+    {
+      "file": "v198-fix-dup.test.js",
+      "title": "v1.6.98: WN_setupCropEvents 只宣告 1 次 (不要覆蓋)",
+      "start": 734,
+      "end": 959,
+      "source": "test.skip('v1.6.98: WN_setupCropEvents 只宣告 1 次 (不要覆蓋)', () => {\n    const count = (html.match(/function\\s+WN_setupCropEvents\\s*\\(/g) || []).length;\n    assert.equal(count, 1, `WN_setupCropEvents 應只宣告 1 次, 實際 ${count} 次`);\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "5fa4e86f84553f4b2e7e45d69ccc11395665cba39d87570b9ccae7f92555e83d",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-148",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v198-fix-dup.test.js",
+      "title": "v1.6.98: WN_setupCropEvents 使用 page-container (不是 cropArea)",
+      "start": 961,
+      "end": 1183,
+      "source": "test.skip('v1.6.98: WN_setupCropEvents 使用 page-container (不是 cropArea)', () => {\n    const body = extractFunctionBody(html, 'WN_setupCropEvents');\n    assert.ok(body.includes('wn-page-container'), '應用 page-container');\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "6c75ecece043d284328dcdb94c04250b0f390842f498392f6e33aa91af190f4f",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-149",
+      "reason": "舊WN_*裁切函式、固定像素／百分比與精確CSS字串屬不同歷史版本實作；改驗現行圖片定位、縮放像素換算、可見操作與真正圖片存取。",
+      "replacements": [
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：新增框線按指定位置建立唯一框，座標隨圖片縮放且不是舊版固定像素"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切契約：顯示座標轉回原圖像素後只擷取選中區域，重點選不增加同框卡片"
+        },
+        {
+          "file": "current-crop-contracts.test.js",
+          "test": "裁切版面契約：圖片與框線共用定位容器，取消及完成按鈕可見且有明確文字"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: real image placement, visible bottom-right resize handle and pointer geometry"
+        },
+        {
+          "file": "e2e/current-contracts.e2e.cjs",
+          "kind": "browser",
+          "marker": "PASS: selected crop persists and reads back with identical pixel dimensions"
+        }
+      ]
+    },
+    {
+      "file": "v200-input-onchange.test.js",
+      "title": "v1.6.100: wn-source-input 有 onchange handler",
+      "start": 418,
+      "end": 680,
+      "source": "test.skip('v1.6.100: wn-source-input 有 onchange handler', () => {\n    const m = html.match(/<input type=\"file\" id=\"wn-source-input\"[^>]*>/);\n    assert.ok(m);\n    const tag = m[0];\n    assert.ok(tag.includes('onchange=\"WN_handleFileUpload(this.files[0])\"'));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "dbfad4cb9069798e3a37f69b5ca3c29c63cded8f1e01f82eda72b63fc3f72d0f",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-150",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    },
+    {
+      "file": "v200-input-onchange.test.js",
+      "title": "v1.6.100: wn-paper-input 也有 onchange handler",
+      "start": 682,
+      "end": 906,
+      "source": "test.skip('v1.6.100: wn-paper-input 也有 onchange handler', () => {\n    const m = html.match(/<input type=\"file\" id=\"wn-paper-input\"[^>]*>/);\n    assert.ok(m);\n    const tag = m[0];\n    assert.ok(tag.includes('onchange'));\n});",
+      "category": "舊 DOM／CSS／流程斷言失敗，待現行行為驗證",
+      "sha256": "63407ee40f05f72e20b8f661fe18eaf8a641044e8b38b0fa18f01cfc293efb88",
+      "disposition": "rewritten-behavior",
+      "id": "OLD-151",
+      "reason": "事件已移到嵌入頁並以一次性綁定保護；改用change/drop事件驗證，不要求註冊在特定IIFE或DOMContentLoaded位置。",
+      "replacements": [
+        {
+          "file": "current-ui-contracts.test.js",
+          "test": "錯題上傳契約：兩個檔案入口與滑放使用同一匯入流程，不重複綁定事件"
+        },
+        {
+          "file": "student-views.test.js",
+          "test": "同批重複照片只處理一次，處理中重入被忽略，完成後可再次匯入"
+        }
+      ]
+    }
+  ]
+}

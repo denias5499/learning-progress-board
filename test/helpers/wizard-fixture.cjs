@@ -1,0 +1,3 @@
+const {page}=require('./modern-app.cjs');
+async function makeWizard(t){const w=await page(t,'index.html','http://localhost/');Object.assign(w.multiData.A.masters['會考']['數學'].materials['複習講義'].instances[0].vols['第一冊'][0],{start:1,end:12});w._collectSubjectUnitsCache=new w.WeakMap();w.openWizard();w.document.getElementById('wz-cat').value='會考';w.wzUpdateMis();w.document.getElementById('wz-mis').value='一模';w.wzUpdateSubjects();for(const[k,v]of Object.entries({'wz-name':'隔離測試計畫','wz-startdate':'2026-11-01','wz-enddate':'2026-11-14'}))w.document.getElementById(k).value=v;for(let d=0;d<7;d++)w.document.getElementById('wz-hrs-'+d).value=10;const ws=w.wizardSubjects[0];ws.selectedUnitIds=['unitA'];ws.hoursPerUnit=3;ws.daysPerUnit=3;return {w,ws};}
+module.exports={makeWizard};

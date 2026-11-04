@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔仍有 1 個舊規則測試待改寫；另 4 項已恢復執行——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // test/progress.test.js -- v1.5.172 進度條算法回歸測試
 // 對應 commit f00b59f: v1.5.172: 跨 sub 跨單元任務不算 (修地理 100% bug)
 
@@ -87,16 +84,7 @@ test('v1.5.172 防復發: 多個跨 sub 任務不會把地理推到 100%', () =>
     }
 });
 
-test.skip('v1.5.172 防復發: 同 sub 任務仍然正常算 overlap', () => {
-    // 地理任務 P.30-45 → 應該算到地理 u_地2 (P.22-37, overlap P.30-37 = 8 pages) 跟 u_地3 (P.38-53, overlap P.38-45 = 8 pages)
-    const result = runFn([
-        { unitId: 'u_地2', subject: '地理', startPage: 30, endPage: 45 },
-    ], '會考複習', 'ALL');
-    assert.strictEqual(result['u_地2'], 8,
-        `expected u_地2=8 (overlap P.30-37), got ${result['u_地2']}`);
-    assert.strictEqual(result['u_地3'], 8,
-        `expected u_地3=8 (overlap P.38-45), got ${result['u_地3']}`);
-});
+
 
 
 // ─────────────────────────────────────────────────────────────

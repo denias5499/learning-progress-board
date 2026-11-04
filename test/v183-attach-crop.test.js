@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 3 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // v1.6.83: 照附件設計 - mousedown 在 img 上 (percentage 座標)
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -27,25 +24,11 @@ function getFunctionBody(name) {
     return null;
 }
 
-test.skip('v1.6.83: img 有 inline mousedown handler (附件風格)', () => {
-    assert.ok(html.includes('onmousedown="WN_onCropImgMouseDown(event)"'),
-        'img 應有 mousedown handler');
-});
 
-test.skip('v1.6.83: WN_onCropImgMouseDown 函式存在', () => {
-    const body = getFunctionBody('WN_onCropImgMouseDown');
-    assert.ok(body, 'WN_onCropImgMouseDown 應定義');
-    assert.ok(body.includes('cropBoxes.push(newBox)'), '應新增 crop box');
-    assert.ok(body.includes('WN_renderCropBoxes()'), '應呼叫 renderCropBoxes');
-});
 
-test.skip('v1.6.83: 使用 percentage 座標 (不受圖片縮放影響)', () => {
-    const body = getFunctionBody('WN_onCropImgMouseDown');
-    assert.ok(body, '應定義');
-    // 應該有 100 - boxW (避免 box 超出圖片)
-    assert.ok(body.includes('100 - boxW') || body.includes('100 - boxH'),
-        '應用 percentage 座標 (max 100%)');
-});
+
+
+
 
 test('v1.6.83: 移除 overlay div (改用 img 直接處理)', () => {
     assert.ok(!html.includes('<div id="wn-crop-overlay"'),

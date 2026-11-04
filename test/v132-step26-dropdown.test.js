@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 4 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // v1.6.132: Step 2~6 dropdown 結構 + 動態讀 master data
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,21 +6,9 @@ const vm = require('vm');
 
 const WN = fs.readFileSync('wrong-notes/index.html', 'utf8');
 
-test.skip('v132: createSettingCard 包含 Step 2~6 (5 層)', () => {
-    assert.ok(/Step 2：科目/.test(WN));
-    assert.ok(/Step 3：教材類型/.test(WN));
-    assert.ok(/Step 4：教材名稱/.test(WN));
-    assert.ok(/Step 5：單元/.test(WN));
-    assert.ok(/Step 6：錯誤原因/.test(WN));
-});
 
-test.skip('v132: dropdown 5 個 select', () => {
-    assert.ok(/class="subj-sel"/.test(WN));
-    assert.ok(/class="type-sel"/.test(WN));
-    assert.ok(/class="inst-sel"/.test(WN));
-    assert.ok(/class="unit-sel"/.test(WN));
-    assert.ok(/class="checkbox-group reasons-group"/.test(WN));
-});
+
+
 
 test('v132: 動態讀 master data', () => {
     assert.ok(/function getSyllabusDB\(\)/.test(WN));
@@ -31,12 +16,7 @@ test('v132: 動態讀 master data', () => {
     assert.ok(/StudyMap_Family_Data_V20/.test(WN));
 });
 
-test.skip('v132: handleCardTypeChange + handleCardInstChange 取代舊 handleCardVolumeChange', () => {
-    assert.ok(/function handleCardTypeChange/.test(WN));
-    assert.ok(/function handleCardInstChange/.test(WN));
-    assert.ok(!/function handleCardVolumeChange/.test(WN),
-        'handleCardVolumeChange 應該被取代');
-});
+
 
 test('v132: 行為測試 - getSyllabusDB 從 WN_masterData 讀', () => {
     const fnMatch = WN.match(/function getSyllabusDB\(\)\s*\{[\s\S]*?\n    \}/);
@@ -109,9 +89,7 @@ test('v132: 行為測試 - localStorage fallback', () => {
     assert.deepEqual(db['國文']['複習講義']['麻辣'], ['U1', 'U2', 'U3']);
 });
 
-test.skip('v132: title [v1.6.132]', () => {
-    assert.ok(/<title>.*\[v1\.6\.1[3-9]\d+(\.\d+)?\]<\/title>/.test(fs.readFileSync('index.html', 'utf8')));
-});
+
 
 test('v132: 保留 BISECT drag-drop setupDragAndDrop (沒 preventDefault, Safari 不 freeze)', () => {
     assert.ok(/function setupDragAndDrop\(\)/.test(WN));

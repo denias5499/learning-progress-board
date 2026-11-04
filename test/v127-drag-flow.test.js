@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 4 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // v1.6.127: 模擬真實拖曳到 crop 的完整流程, 找出 freeze 點
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -9,18 +6,7 @@ const fs = require('fs');
 const WN = fs.readFileSync('wrong-notes/index.html', 'utf8');
 const IDX = fs.readFileSync('index.html', 'utf8');
 
-test.skip('v1.6.127: setupDragAndDrop 在 IIFE 開頭就跑', () => {
-    // v1.6.122 說要在 IIFE 開頭就註冊, 確認有
-    assert.ok(WN.includes("setupDragAndDrop();"),
-        '應呼叫 setupDragAndDrop');
-    var setupFn = WN.match(/function setupDragAndDrop\(\)\s*\{([\s\S]*?)\n    \}/);
-    assert.ok(setupFn, '應找到 setupDragAndDrop');
-    // 確認先註冊 window preventDefault 再註冊 zone handlers
-    var winAddIdx = setupFn[1].indexOf("window.addEventListener");
-    var zoneAddIdx = setupFn[1].indexOf("zone.addEventListener");
-    assert.ok(winAddIdx > 0 && winAddIdx < zoneAddIdx,
-        'window.addEventListener 應在 zone 之前');
-});
+
 
 test('v1.6.127: drop-zone 有 dragover/dragleave/drop handlers', () => {
     var setupFn = WN.match(/function setupDragAndDrop\(\)\s*\{([\s\S]*?)\n    \}/);
@@ -30,11 +16,7 @@ test('v1.6.127: drop-zone 有 dragover/dragleave/drop handlers', () => {
         '應有 drop handler');
 });
 
-test.skip('v1.6.127: drop handler 呼叫 handleFilesForCrop', () => {
-    var setupFn = WN.match(/function setupDragAndDrop\(\)\s*\{([\s\S]*?)\n    \}/);
-    assert.ok(setupFn[1].includes("handleFilesForCrop(e.dataTransfer.files)"),
-        'drop handler 應呼叫 handleFilesForCrop');
-});
+
 
 test('v1.6.127: handleFilesForCrop 有 try/catch 或 async 安全', () => {
     var handleFn = WN.match(/async function handleFilesForCrop\([\s\S]*?\n    \}/);
@@ -45,13 +27,6 @@ test('v1.6.127: handleFilesForCrop 有 try/catch 或 async 安全', () => {
         'renderImage 應有錯誤處理');
 });
 
-test.skip('v1.6.127: 主專案 _globalDragBound 在 DOMContentLoaded init', () => {
-    var idx = IDX.indexOf("addEventListener('DOMContentLoaded'");
-    var block = IDX.substring(idx, idx + 1500);
-    assert.ok(block.includes('_globalDragBound = true'),
-        'DOMContentLoaded 內應有 _globalDragBound');
-});
 
-test.skip('v1.6.127: title [v1.6.127]', () => {
-    assert.ok(/<title>.*\[v1\.6\.127\]<\/title>/.test(IDX));
-});
+
+

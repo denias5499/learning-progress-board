@@ -32,6 +32,7 @@ function refreshNoteSourceOptions() {
 function syncNoteSourceFilter() {
     var source = document.getElementById('filter-source');
     var exam = document.getElementById('filter-exam');
+    if (!source || !exam) return;
     var showExam = notePageOptions.get('mode') === 'mockExam' || source.value === 'mockExam';
     exam.hidden = !showExam;
     if (!showExam) exam.value = '';
@@ -62,6 +63,8 @@ function addCardExamFields(card) {
     box.hidden = source.value !== 'mockExam';
 }
 function updateNoteViewFilters() {
+    // Storage events can arrive while the embedded document is still parsing.
+    if (!document.getElementById('filter-source') || !document.getElementById('filter-exam')) return;
     var exam = document.getElementById('filter-exam');
     if (exam) { var chosen = exam.value; fillStudentExamSelect(exam, chosen); exam.options[0].text = '全部模考場次'; }
     refreshNoteSourceOptions(); syncNoteSourceFilter();

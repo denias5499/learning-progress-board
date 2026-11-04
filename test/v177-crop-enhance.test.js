@@ -1,6 +1,3 @@
-// ⚠️ v2.3.2.145: 本檔有 5 個測試為「已知失敗」——
-//    斷言對應到 UI / 資料結構演化前的舊實作，修正後請拿掉 test.skip。
-//    完整清單與原因見 test/known-failures.md
 // v1.6.83: Crop area 增強 - 取消/完成 + resize + double click
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -27,26 +24,11 @@ function getFunctionBody(name) {
     return null;
 }
 
-test.skip('v1.6.83: HTML 有取消選取 + 完成選取按鈕', () => {
-    assert.ok(html.includes('取消選取'), '應有「取消選取」按鈕');
-    assert.ok(html.includes('完成選取'), '應有「完成選取」按鈕');
-    assert.ok(html.includes('onclick="WN_cancelSelection()"'), '應綁定 WN_cancelSelection');
-    assert.ok(html.includes('onclick="WN_completeSelection()"'), '應綁定 WN_completeSelection');
-});
 
-test.skip('v1.6.83: 完成選取按鈕用黃色 (附件風格)', () => {
-    const m = html.match(/onclick="WN_completeSelection\(\)"[^>]*style="([^"]*)"/);
-    assert.ok(m, '應有 inline style');
-    const style = m[1];
-    assert.ok(/#f0d040/.test(style), '應用黃色 #f0d040');
-});
 
-test.skip('v1.6.83: 取消選取按鈕用灰紫色', () => {
-    const m = html.match(/onclick="WN_cancelSelection\(\)"[^>]*style="([^"]*)"/);
-    assert.ok(m, '應有 inline style');
-    const style = m[1];
-    assert.ok(/#c9b8d9/.test(style), '應用灰紫 #c9b8d9');
-});
+
+
+
 
 test('v1.6.83: WN_cancelSelection 函式存在 (清空 + reset)', () => {
     const body = getFunctionBody('WN_cancelSelection');
@@ -57,12 +39,7 @@ test('v1.6.83: WN_cancelSelection 函式存在 (清空 + reset)', () => {
     assert.ok(body.includes("wn-source-input')"), '應 reset file input value');
 });
 
-test.skip('v1.6.83: WN_completeSelection 函式存在 (顯示教材表單)', () => {
-    const body = getFunctionBody('WN_completeSelection');
-    assert.ok(body, 'WN_completeSelection 應定義');
-    assert.ok(body.includes('wn-crop-list'), '應顯示教材選擇表單');
-    assert.ok(body.includes('WN_renderCropCards'), '應呼叫 renderCropCards');
-});
+
 
 test('v1.6.83: Crop box 有 resize handles (左上 + 右下)', () => {
     assert.ok(/class="wn-resize-tl"/.test(html), '應有左上角 resize handle');
@@ -100,12 +77,7 @@ test('v1.6.83: WN_addCropFromCenter 函式存在 (從中心新增)', () => {
     assert.ok(body.includes('cropBoxes.push'), '應新增 crop box');
 });
 
-test.skip('v1.6.83: 點擊新增 crop box (用 mousedown 不用 dblclick)', () => {
-    const body = getFunctionBody('WN_initCropDrawing');
-    assert.ok(body, 'WN_initCropDrawing 應定義');
-    assert.ok(body.includes("addEventListener('mousedown'"), '應綁定 mousedown');
-    assert.ok(body.includes('cropBoxes.push(newBox)'), '應新增 crop box');
-});
+
 
 test('v1.6.83: Crop box CSS 加強 (藍色 3px + selected 狀態)', () => {
     assert.ok(/\.wn-crop-box\s*\{[^}]*border:\s*3px solid #1a82e2/.test(html) ||
