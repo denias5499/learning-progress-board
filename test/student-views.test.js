@@ -783,3 +783,33 @@ test('舊分頁家庭資料衝突時保存原存檔與本頁變更，錯誤提�
  const w=await page(t,'index.html','http://localhost/'),key=w.STORAGE_KEY_FAMILY,latest=JSON.parse(w.localStorage.getItem(key));latest.B.name='其他分頁更新';w.localStorage.setItem(key,JSON.stringify(latest));w.multiData.A.logs.push({id:'pending-local'});
  assert.equal(w.saveToLocal(),false);assert.equal(JSON.parse(w.localStorage.getItem(key)).B.name,'其他分頁更新');assert.equal(w.multiData.A.logs.at(-1).id,'pending-local');assert.match(w.document.querySelector('#save-error-toast').textContent,/其他分頁/);assert.doesNotMatch(w.document.querySelector('#save-error-toast').textContent,/清理瀏覽器 cache/);
 });
+
+function newRemainderSetup(w,extra=[]){
+ w.openPlanner();w.openAddEventModal('2026-11-01','');
+ const c=w.getActiveAeContainer();c.querySelector('#ae-cat').innerHTML='<option value="會考">會考</option>';c.querySelector('#ae-mis').innerHTML='<option value="二模">二模</option>';
+ w.aeSelectedItems=[{sub:'歷史',name:'U4',unitId:'historyU4',vol:'第一冊',typeName:'講義',instanceName:'教學式',start:49,end:51,origEnd:57},...extra];
+ w.familyStorageWrite(JSON.stringify(w.multiData));
+}
+test('新增縮短頁碼共用剩餘進度視窗：返回不建空計畫，確認才分兩天並保留關聯',async t=>{
+ const w=await page(t,'index.html','http://localhost/');newRemainderSetup(w);const memory=JSON.stringify(w.multiData),stored=w.localStorage.getItem(w.STORAGE_KEY_FAMILY);w.confirm=()=>{throw Error('不可使用舊版明日確認框')};
+ w.saveNewEvent();assert.equal(JSON.stringify(w.multiData),memory);assert.equal(w.localStorage.getItem(w.STORAGE_KEY_FAMILY),stored);assert.match(w.document.querySelector('#replan-rows').textContent,/P.52～54/);
+ w.document.querySelector('#replan-back').click();assert.equal(JSON.stringify(w.multiData),memory);assert.equal(w.appPlans.length,0);
+ w.saveNewEvent();w.document.querySelector('#replan-confirm').click();const plan=w.appPlans[0];assert.ok(plan);assert.deepEqual(Array.from(Object.values(plan.grid).flat(),t=>[t.startPage,t.endPage]),[[49,51],[52,54],[55,57]]);assert.equal(plan.end,'2026-11-03');
+ for(const task of Object.values(plan.grid).flat()){assert.equal(task.unitId,'historyU4');assert.equal(task.cat,'會考');assert.equal(task.mis,'二模');assert.equal(task.typeName,'講義');assert.equal(task.instanceName,'教學式');assert.equal(task.isDone,false);}assert.equal(w.multiData.B.plans.length,0);assert.equal(w.document.querySelector('#planner-selector').value,plan.id);
+});
+test('新增剩餘進度可改開始日期及天數，或暫不安排，只儲存本日範圍',async t=>{
+ const w=await page(t,'index.html','http://localhost/');newRemainderSetup(w);w.saveNewEvent();const start=w.document.querySelector('#replan-start'),days=w.document.querySelector('#replan-days');start.value='2026-11-05';days.value='3';days.dispatchEvent(new w.Event('input'));w.document.querySelector('#replan-confirm').click();assert.deepEqual(Array.from(Object.keys(w.appPlans[0].grid)),['2026-11-01','2026-11-05','2026-11-06','2026-11-07']);assert.equal(w.appPlans[0].end,'2026-11-07');
+ w.appPlans=w.multiData.A.plans=[];newRemainderSetup(w);w.saveNewEvent();w.document.querySelector('input[name="replan-mode"][value="defer"]').checked=true;w.document.querySelector('#replan-confirm').click();assert.equal(Object.values(w.appPlans[0].grid).flat().length,1);assert.equal(w.appPlans[0].grid['2026-11-01'][0].endPage,51);assert.equal(w.appPlans[0].end,'2026-11-01');
+});
+test('多單元新增逐一確認並一次儲存，中途返回全部不寫入，未縮短單元也保留',async t=>{
+ const w=await page(t,'index.html','http://localhost/');newRemainderSetup(w,[{sub:'英文',name:'U2',unitId:'engU2',start:1,end:2,origEnd:4},{sub:'數學',name:'U3',unitId:'mathU3',start:6,end:8,origEnd:8}]);const stored=w.localStorage.getItem(w.STORAGE_KEY_FAMILY);w.saveNewEvent();w.document.querySelector('#replan-confirm').click();assert.match(w.document.querySelector('#replan-path').textContent,/英文/);assert.equal(w.appPlans.length,0);assert.equal(w.localStorage.getItem(w.STORAGE_KEY_FAMILY),stored);w.document.querySelector('#replan-back').click();assert.equal(w.appPlans.length,0);
+ w.saveNewEvent();w.document.querySelector('#replan-confirm').click();w.document.querySelector('input[name="replan-mode"][value="defer"]').checked=true;w.document.querySelector('#replan-confirm').click();const tasks=Object.values(w.appPlans[0].grid).flat();assert.equal(tasks.length,5);assert.equal(tasks.filter(t=>t.unitId==='engU2').length,1);assert.equal(tasks.find(t=>t.unitId==='mathU3').endPage,8);
+});
+test('新增剩餘進度切換學生、跨分頁變更、儲存失敗皆不套用且失敗可重試',async t=>{
+ const w=await page(t,'index.html','http://localhost/');newRemainderSetup(w);const before=JSON.stringify(w.multiData);w.saveNewEvent();w.currentUserId='B';w.document.querySelector('#replan-confirm').click();assert.match(w.document.querySelector('#replan-error').textContent,/學生或資料已切換/);assert.equal(JSON.stringify(w.multiData),before);w.currentUserId='A';
+ const key=w.STORAGE_KEY_FAMILY,stored=w.localStorage.getItem(key);w.localStorage.setItem(key,stored+' ');w.document.querySelector('#replan-confirm').click();assert.match(w.document.querySelector('#replan-error').textContent,/其他操作變更/);assert.equal(JSON.stringify(w.multiData),before);w.localStorage.setItem(key,stored);
+ const proto=Object.getPrototypeOf(w.localStorage),original=proto.setItem;proto.setItem=function(k,v){if(k===key)throw Error('quota');return original.call(this,k,v)};w.document.querySelector('#replan-confirm').click();proto.setItem=original;assert.match(w.document.querySelector('#replan-error').textContent,/quota/);assert.equal(JSON.stringify(w.multiData),before);w.document.querySelector('#replan-confirm').click();assert.equal(w.appPlans.length,1);assert.equal(Object.values(w.appPlans[0].grid).flat().length,3);
+});
+test('新增剩餘進度沿用既有計畫，保留原任務與已完成紀錄並阻擋無效天數',async t=>{
+ const w=await page(t,'index.html','http://localhost/');const old={id:'existing',start:'2026-10-01',end:'2026-12-01',grid:{'2026-10-01':[{id:'done',unitId:'other',startPage:1,endPage:5,isDone:true}]}};w.appPlans=w.multiData.A.plans=[old];w.appLogs=w.multiData.A.logs=[{id:'cal_done',start:1,end:5}];w.openPlanner();w.openAddEventModal('2026-11-01',old.id);w.aeSelectedItems=[{sub:'歷史',name:'U4',unitId:'historyU4',start:49,end:51,origEnd:57}];w.familyStorageWrite(JSON.stringify(w.multiData));const before=JSON.stringify(w.multiData);w.saveNewEvent();const days=w.document.querySelector('#replan-days');days.value=7;days.dispatchEvent(new w.Event('input'));assert.equal(w.document.querySelector('#replan-confirm').disabled,true);assert.equal(JSON.stringify(w.multiData),before);days.value=2;days.dispatchEvent(new w.Event('input'));w.document.querySelector('#replan-confirm').click();assert.equal(w.appPlans.length,1);assert.equal(w.appPlans[0].end,'2026-12-01');assert.equal(w.appPlans[0].grid['2026-10-01'][0].isDone,true);assert.equal(w.appLogs[0].id,'cal_done');
+});

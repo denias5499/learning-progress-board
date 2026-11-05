@@ -16,7 +16,12 @@ function begin(){
   const pid=window._calendarEditPlanId||el('planner-selector').value,plan=appPlans.find(p=>p.id===pid);if(!plan)throw Error('原計畫已變更，請重新開啟。');
   const input={date:el('pc-date').value,taskId:el('pc-taskid').value,start:Number(el('pc-start').value),end:newEnd,text:el('pc-text').value,subject:el('pc-subject').value};
   const d=CalendarReplan.draft(currentUserId,plan,appLogs,input);
-  ensure();active={d,plan,user:multiData[currentUserId],stored:localStorage.getItem(STORAGE_KEY_FAMILY)};
+  show({d,plan,user:multiData[currentUserId],stored:localStorage.getItem(STORAGE_KEY_FAMILY)});
+ }catch(e){alert(e.message);}
+ return true;
+}
+function show(state){
+  ensure();active=state;const d=state.d,input=d.input;
   el('replan-path').textContent=[d.source.subject,d.source.typeName,d.source.instanceName,d.source.unitName].filter(Boolean).join(' › ');
   el('replan-meta').textContent=(active.user.name||'')+' · '+input.date+' · '+[d.source.cat,d.source.mis].filter(Boolean).join('／');
   el('replan-current').textContent='P.'+input.start+(input.start===input.end?'':'～'+input.end);
@@ -25,24 +30,57 @@ function begin(){
   document.querySelector('input[name="replan-mode"][value="schedule"]').checked=true;
   el('replan-start').value=CalendarReplan.plus(input.date,1);el('replan-start').min=CalendarReplan.plus(input.date,1);el('replan-days').value=d.defaultDays;el('replan-days').max=Math.min(d.total||1,366);
   el('replan-modes').hidden=!d.total;el('replan-changes').hidden=!d.changes.length;el('replan-changes').open=false;el('replan-changes-title').textContent='將調整 '+d.changes.length+' 筆重疊的後續排程';el('replan-change-list').replaceChildren();d.changes.forEach(c=>{const li=document.createElement('li');li.textContent=c.date+' P.'+c.range[0]+'～'+c.range[1]+'：剩餘範圍將重新安排'+(c.keep.length?'，範圍外頁數保留':'');el('replan-change-list').appendChild(li);});
+  if(state.batch){el('replan-status').textContent='新增進度 '+(state.batch.index+1)+'／'+state.batch.items.length+'；全部確認後才一次儲存。返回修改不會新增任何進度。';}
+  el('replan-confirm').textContent=state.batch&&state.batch.index<state.batch.items.length-1?'下一個單元':'確認儲存';
   refresh();openModal('modal-calendar-replan');
+}
+function beginNew(){
+ const items=window.aeSelectedItems||[];
+ if(!items.some(i=>Number(i.end)>0&&Number(i.origEnd)>Number(i.end)))return false;
+ try{
+  const c=getActiveAeContainer(),de=c.querySelector('#ae-date'),uid=currentUserId;
+  if(!de||de.dataset.userId!==uid)throw Error('學生已切換，請重新從目前學生的月曆新增');
+  const pid=de.dataset.pid,original=appPlans.find(p=>p.id===pid);
+  if(pid&&!original)throw Error('原計畫已移除，請重新從月曆新增');
+  if(!original&&appPlans.length)throw Error('已有新計畫，請重新開啟月曆選擇日期');
+  const user=multiData[uid],date=de.value,stored=localStorage.getItem(STORAGE_KEY_FAMILY),baseline=JSON.stringify(user);CalendarReplan.plus(date,0);
+  const plan=JSON.parse(JSON.stringify(original||{id:genId(),name:'手動排程',start:date,end:date,grid:{},manualCreated:true}));
+  plan.grid=plan.grid||{};plan.grid[date]=plan.grid[date]||[];
+  const reminder=c.querySelector('#ae-reminder').checked,cat=c.querySelector('#ae-cat').value||'',mis=c.querySelector('#ae-mis').value||'',queue=[];
+  const used=new Set(Object.values(plan.grid).flat().map(t=>t.id));
+  items.forEach(item=>{
+   const start=Number(item.start),end=Number(item.end),full=Number(item.origEnd)||end;
+   if(!Number.isInteger(start)||!Number.isInteger(end)||start<1||end<start||end>full)throw Error('請輸入有效的起訖頁碼。');
+   const id=genId();if(!id||used.has(id))throw Error('無法建立不重複的任務編號，請重試。');used.add(id);
+   const text=(reminder?'🔔 ':'')+'['+item.sub+'] '+item.name;
+   const task={id,userId:uid,subject:item.sub,text:text+' P.'+start+(start===full?'':'~'+full),startPage:start,endPage:full,isDone:false,cat,mis,unitId:item.unitId,vol:item.vol,unitName:item.name,typeName:item.typeName||'',instanceName:item.instanceName||'',postponeCount:0};
+   plan.grid[date].push(task);if(end<full)queue.push({date,taskId:id,start,end,text:task.text,subject:item.sub});
+  });
+  const batch={plan,logs:JSON.parse(JSON.stringify(user.logs||[])),items:queue,index:0,originalId:original&&original.id,baseline,user,stored,uid};
+  showNext(batch);
  }catch(e){alert(e.message);}
  return true;
 }
+function showNext(batch){const d=CalendarReplan.draft(batch.uid,batch.plan,batch.logs,batch.items[batch.index]);show({d,plan:batch.plan,user:batch.user,stored:batch.stored,batch});}
 function cancel(){if(busy)return;closeModal('modal-calendar-replan');active=null;view=null;}
 function commit(){
  if(!active||busy)return;message('');const a=active;
  if(currentUserId!==a.d.userId||multiData[currentUserId]!==a.user)return message('學生或資料已切換，請返回後重新開啟。');
  if(localStorage.getItem(STORAGE_KEY_FAMILY)!==a.stored)return message('儲存資料已由其他操作變更，請返回並重新開啟，避免覆蓋。');
- const plan=a.user.plans.find(p=>p.id===a.d.planId);if(!plan)return message('原計畫已被刪除，請重新開啟。');
+ if(a.batch&&JSON.stringify(a.user)!==a.batch.baseline)return message('排程或教材資料已變更，請返回後重新開啟。');
+ const plan=a.batch?a.batch.plan:a.user.plans.find(p=>p.id===a.d.planId);if(!plan)return message('原計畫已被刪除，請重新開啟。');
  busy=true;el('replan-confirm').disabled=true;
  try{
-  const next=CalendarReplan.apply(plan,a.user.logs,a.d,settings(),genId),family=JSON.parse(JSON.stringify(multiData)),user=family[currentUserId];user.plans=user.plans.map(p=>p.id===plan.id?next.plan:p);user.logs=next.logs;
+  const next=CalendarReplan.apply(plan,a.batch?a.batch.logs:a.user.logs,a.d,settings(),genId);
+  if(a.batch&&a.batch.index<a.batch.items.length-1){a.batch.plan=next.plan;a.batch.logs=next.logs;a.batch.index++;showNext(a.batch);return;}
+  const family=JSON.parse(JSON.stringify(multiData)),user=family[currentUserId];
+  if(a.batch&&!a.batch.originalId)user.plans.push(next.plan);else user.plans=user.plans.map(p=>p.id===plan.id?next.plan:p);user.logs=next.logs;
+  if(a.batch){const dates=Object.keys(next.plan.grid).filter(d=>next.plan.grid[d].length).sort();if(next.plan.manualCreated){next.plan.start=dates[0];next.plan.end=dates[dates.length-1];}else{if(!next.plan.start||dates[0]<next.plan.start)next.plan.start=dates[0];if(!next.plan.end||dates[dates.length-1]>next.plan.end)next.plan.end=dates[dates.length-1];}}
   const serialized=JSON.stringify(family);familyStorageWrite(serialized);
   if(localStorage.getItem(STORAGE_KEY_FAMILY)!==serialized)throw Error('儲存內容已被其他操作更新，請重新載入核對；不會覆寫該次更新。');
-  a.user.plans=user.plans;a.user.logs=user.logs;appPlans=a.user.plans;appLogs=a.user.logs;invalidateSchedCache();active=null;view=null;closeModal('modal-calendar-replan');closeModal('modal-planner-cell');renderCalendar();
+  a.user.plans=user.plans;a.user.logs=user.logs;appPlans=a.user.plans;appLogs=a.user.logs;invalidateSchedCache();active=null;view=null;closeModal('modal-calendar-replan');closeModal('modal-planner-cell');if(a.batch){closeModal('modal-add-event');closeAddEventPage();updatePlannerSelector();el('planner-selector').value=next.plan.id;}renderCalendar();
  }catch(e){message('尚未儲存：'+e.message);}
  finally{busy=false;el('replan-confirm').disabled=false;}
 }
-CalendarReplan.begin=begin;CalendarReplan.cancel=cancel;
+CalendarReplan.beginNew=beginNew;CalendarReplan.begin=begin;CalendarReplan.cancel=cancel;
 })();

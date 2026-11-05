@@ -14,6 +14,23 @@ let browser;
  const cards=page.locator('#wz-mode-hours-card,#wz-mode-units-card');for(let i=0;i<2;i++){const card=cards.nth(i),radio=card.locator('input'),label=card.locator('span').last();const a=await radio.boundingBox(),b=await label.boundingBox();assert(a&&b);assert(Math.abs(a.y+a.height/2-b.y-b.height/2)<5,'radio and mode label align');}
  await page.locator('#wz-mode-units-card').click();assert.equal(await page.evaluate(()=>loadWizardPrefs().scheduleMode),'units');
  console.log('PASS: actual mode-card layout and saved radio selection');
+ await page.evaluate(()=>{closeModal('modal-wizard');openPlanner();openAddEventModal('2026-11-01','');});
+ await page.locator('#page-add-event #ae-cat').selectOption('會考');await page.locator('#page-add-event #ae-mis').selectOption('一模');
+ await page.locator('input[onchange*="toggleAeUnitSelection"]').first().check();
+ await page.locator('#ae-item-end-unit').fill('3');await page.locator('#ae-item-end-unit').blur();
+ if(await page.locator('#bw-close-btn').isVisible())await page.locator('#bw-close-btn').click();
+ const beforeNew=await page.evaluate(()=>localStorage.getItem(STORAGE_KEY_FAMILY));
+ await page.locator('button[onclick="saveNewEvent()"]').filter({visible:true}).click();
+ await page.locator('#modal-calendar-replan').waitFor({state:'visible'});
+ assert.equal(await page.evaluate(()=>localStorage.getItem(STORAGE_KEY_FAMILY)),beforeNew);
+ await page.locator('#replan-back').click();assert.equal(await page.evaluate(()=>appPlans.length),0);
+ await page.locator('button[onclick="saveNewEvent()"]').filter({visible:true}).click();
+ await page.locator('#replan-days').fill('3');await page.locator('#replan-days').blur();await page.locator('#replan-confirm').click();
+ assert.deepEqual(await page.evaluate(()=>Object.values(appPlans[0].grid).flat().map(t=>[t.startPage,t.endPage])),[[1,3],[4,6],[7,9],[10,12]]);
+ await page.evaluate(()=>{const p=appPlans[0];editCalendarTask(p.id,'2026-11-02',p.grid['2026-11-02'][0].id);});
+ await page.locator('#pc-end').fill('4');await page.locator('button[onclick="saveCalendarTask()"]').click();
+ await page.locator('#modal-calendar-replan').waitFor({state:'visible'});assert.match(await page.locator('#replan-left').textContent(),/P.5～6/);await page.locator('#replan-back').click();await page.evaluate(()=>closeModal('modal-planner-cell'));
+ console.log('PASS: new and existing calendar entries share remainder days preview; cancel writes nothing');
  await page.evaluate(()=>{closeModal('modal-wizard');openWrongNotes();});const frame=page.frameLocator('#page-wrongnotes iframe');await frame.locator('#nav-import').waitFor();
  for(const [button,id]of [['nav-view','view-page'],['nav-data','data-page'],['nav-practice','practice-page'],['nav-import','import-page']]){await frame.locator('#'+button).click();assert(await frame.locator('#'+id).evaluate(e=>e.classList.contains('active')));}
  console.log('PASS: actual same-origin embedded app and four-tab navigation');

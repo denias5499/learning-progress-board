@@ -6,7 +6,7 @@
     <meta http-equiv="Expires" content="0">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.178]</title>
+    <title>2026 學習進度看板 (列印月曆版) [v2.3.2.179]</title>
     <link rel="stylesheet" href="settings-layout.css?v=167">
     <link rel="stylesheet" href="calendar-print.css?v=172">
     <link rel="stylesheet" href="calendar-replan.css?v=171">
@@ -2640,7 +2640,7 @@
     <script src="calendar-print.js?v=175"></script>
     <script src="unit-reminders.js?v=171"></script>
     <script src="calendar-replan.js?v=171"></script>
-    <script src="calendar-replan-ui.js?v=177"></script>
+    <script src="calendar-replan-ui.js?v=179"></script>
     <script src="disk-db.js"></script>
 
     <script>
@@ -10972,6 +10972,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || getLocalDateString(new Date(dateStr + 'T00:00:00')) !== dateStr) return alert('請選擇有效日期');
             var hasSelectedUnits = window.aeSelectedItems && window.aeSelectedItems.length > 0;
             if (!hasSelectedUnits && !aeC.querySelector('#ae-subject').value.trim()) return alert('請輸入標題或科目名稱！');
+            if (CalendarReplan.beginNew()) return;
             let plan = appPlans.find(p => p.id === pid);
             if (pid && !plan) return alert('原計畫已移除，請重新從月曆新增');
             if (!plan) {
@@ -10987,22 +10988,6 @@ function renderWizardUnitRowHtml(ws, i, u) {
             if(!plan.grid[dateStr]) plan.grid[dateStr] = [];
 
             if (window.aeSelectedItems && window.aeSelectedItems.length > 0) {
-                let hasUnfinished = false;
-                let unfinishedTasks = [];
-
-                window.aeSelectedItems.forEach(item => {
-                    let ep = Number(item.end) || 0;
-                    let origEp = Number(item.origEnd) || 0;
-                    if (ep > 0 && origEp > 0 && ep < origEp) {
-                        hasUnfinished = true;
-                        unfinishedTasks.push({
-                            ...item,
-                            newStart: ep + 1,
-                            newEnd: origEp
-                        });
-                    }
-                });
-
                 window.aeSelectedItems.forEach(item => {
                     let txt = item.name;
                     let sp = Number(item.start) || 0;
@@ -11032,35 +11017,7 @@ function renderWizardUnitRowHtml(ws, i, u) {
                     });
                 });
 
-                if (hasUnfinished) {
-                    if (confirm("偵測到您縮減了完成範圍（頁碼），是否將該單元未完成的頁數（起迄頁數）新增至明日排程？")) {
-                        let nextDate = new Date(dateStr);
-                        nextDate.setDate(nextDate.getDate() + 1);
-                        let nextDateStr = getLocalDateString(nextDate);
 
-                        if (!plan.grid[nextDateStr]) plan.grid[nextDateStr] = [];
-
-                        unfinishedTasks.forEach(item => {
-                            let displayText = (reminder ? '🔔 ' : '') + `[${item.sub}] ` + item.name + ` P.${item.newStart}~${item.newEnd}`;
-                            plan.grid[nextDateStr].push({
-                                id: genId(),
-                                subject: item.sub,
-                                text: displayText,
-                                startPage: item.newStart,
-                                endPage: item.newEnd,
-                                isDone: false,
-                                cat: cat,
-                                mis: mis,
-                                unitId: item.unitId,
-                                vol: item.vol,
-                                unitName: item.name,
-                                typeName: item.typeName || '',
-                                instanceName: item.instanceName || '',
-                                postponeCount: 0
-                            });
-                        });
-                    }
-                }
 
             } else {
                 let sub = aeC.querySelector('#ae-subject').value.trim();
