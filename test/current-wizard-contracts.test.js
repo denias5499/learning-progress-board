@@ -34,3 +34,10 @@ test('智慧排程契約：單元模式建立後可直接選取並顯示新計�
 test('智慧排程契約：自動修正不再因每單元時數較少而縮短設定天數',async t=>{const w=await wizard(t),ws=inputs(w);ws.hoursPerUnit=1;w.setWizardScheduleMode('units');let suggested=0;w.showAutoFixConfirmModal=()=>suggested++;w.autoFixAndReplan();assert.equal(suggested,0);assert.equal(ws.daysPerUnit,3);});
 
 test('智慧排程契約：同設定重跑不重複加入同日同教材同頁碼進度',async t=>{const w=await wizard(t);inputs(w);w.setWizardScheduleMode('units');w.generatePlan();const first=w.multiData.A.plans[0],ids=Object.values(first.grid).flat().map(t=>t.id);w.document.getElementById('planner-selector').value=first.id;w.generatePlan();assert.deepEqual(Object.values(w.multiData.A.plans[0].grid).flat().map(t=>t.id),ids);});
+
+// Only opt-in quantity/quota tasks use their saved estimate; legacy task defaults stay unchanged.
+test('智慧排程契約：既有份量任務按預估時數扣除，不能把3.5小時當一小時超排',async t=>{
+ const w=await wizard(t),ws=inputs(w);ws.hoursPerUnit=1;ws.daysPerUnit=1;w.setWizardScheduleMode('units');w.document.getElementById('wz-startdate').value='2026-11-01';w.document.getElementById('wz-enddate').value='2026-11-02';for(let d=0;d<7;d++)w.document.getElementById('wz-hrs-'+d).value=4;w.document.getElementById('wz-hrs-1').value=0;
+ const task={id:'quantity-existing',unitId:'qu',subject:'英文',cat:'會考',mis:'一模',measure:'hours',quantityStart:0,quantityEnd:12600,estimatedHours:3.5,isDone:false,text:'影片'};
+ w.appPlans=w.multiData.A.plans=[{id:'existing',name:'計畫',start:'2026-11-01',end:'2026-11-01',grid:{'2026-11-01':[task]}}];w.document.getElementById('planner-selector').innerHTML='<option value="existing">計畫</option>';w.familyStorageWrite(JSON.stringify(w.multiData));let warning=[];w.showUnitWarningsModal=rows=>warning=Array.from(rows);w.generatePlan();assert.equal(Object.values(w.multiData.A.plans[0].grid).flat().length,1);assert.equal(w.multiData.A.plans[0].grid['2026-11-01'][0].id,'quantity-existing');assert.ok(warning.length);
+});

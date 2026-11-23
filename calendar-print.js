@@ -7,6 +7,7 @@ function resolvePlan(plans, id) { return (plans || []).find(p => p.id === id) ||
 function filterTasks(tasks, cat, mis, ids, subjects, master) {
  return (Array.isArray(tasks) ? tasks : []).filter(t => {
   if (!cat || cat === 'ALL') return true;
+  if (t.measure) return t.cat===cat && (!mis || mis==='ALL' || t.mis===mis);
   if (t.unitId) return ids.has(t.unitId);
   if (t.cat) return t.cat === cat && (!mis || mis === 'ALL' || t.mis === mis);
   if (!master[t.subject]) return true;
@@ -55,6 +56,7 @@ function taskInfo(t) {
  let ranges=Array.isArray(t.crossUnitRanges) ? t.crossUnitRanges : [];
  try {if(!ranges.length && typeof getCrossUnitRanges==='function')ranges=getCrossUnitRanges(t) || [];}catch(_){}
  const unit=ranges.length ? ranges.map(r=>(r.name || '')+' P.'+r.start+(r.end!==r.start?'~'+r.end:'')).join('；') : (t.unitName || (ctx && ctx.unit && ctx.unit.name) || '');
+ if(t.measure && typeof QuantityPlanner!=='undefined')return {subject:t.subject||'其他',type:typeAlias(type,typeObj),book:instance && instance.alias || name,unit:t.unitName||'',pages:QuantityPlanner.range(t.measure,t.quantityStart,t.quantityEnd),vol:t.vol||'',done:!!t.isDone};
  const a=t.startPage,b=t.endPage;
  const pages=a!=null ? 'P.'+a+(b!=null && b!==a ? '~'+b : '') : '';
  const fallback=String(t.text || '').replace(/^\[[^\]]*\]\s*/, '');
